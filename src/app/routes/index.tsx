@@ -14,6 +14,9 @@ function PageLoader() {
 }
 
 // ─── Lazy pages (added progressively per feature phase) ─────────────────────
+// TEMP: Sandbox — remove once Phase 3 auth is implemented
+const Sandbox = lazy(() => import("@/pages/Sandbox"));
+
 // Phase 3 — Auth
 // const AuthPage = lazy(() => import("@/features/auth/pages/AuthPage"));
 // const ForgotPasswordPage = lazy(() => import("@/features/auth/pages/ForgotPasswordPage"));
@@ -38,8 +41,9 @@ export function AppRouter() {
       <ScrollToTop />
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/home" replace />} />
+          {/* TEMP: sandbox while feature pages are not yet implemented — replace with auth redirect in Phase 3 */}
+          <Route path="/" element={<Sandbox />} />
+          <Route path="/home" element={<Sandbox />} />
 
           {/* ── Public routes ─────────────────────────────────────────── */}
           {/* Phase 3: <Route path="/auth" element={<PublicRoute><AuthPage /></PublicRoute>} /> */}
