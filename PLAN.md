@@ -1,9 +1,9 @@
 # Thunder Dashboard — Plan Maestro de Migración Web
 
-> **Estado actual:** 🔴 Sin iniciar
-> **Fase activa:** —
+> **Estado actual:** 🟢 En progreso
+> **Fase activa:** Fase 1 — Core Infrastructure
 > **Última actualización:** 2026-02-24
-> **Sesión anterior:** —
+> **Sesión anterior:** Fase 0 completada (AWS/Secrets/GitHub settings pendientes de otro equipo)
 
 ---
 
@@ -225,29 +225,30 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 0 — Setup del Proyecto
-> Estado: 🔴 Pendiente
+> Estado: 🟡 Parcialmente completa (AWS/Secrets pendientes de otro equipo)
 
-- [ ] Inicializar repo git en `/Users/diegoparedes/Documents/Desarrollo/thunder_dashboard`
-- [ ] Crear repositorio `thunder_dashboard` en GitHub con branches `main` y `develop`
-- [ ] Scaffolding: `npm create vite@latest` con template `react-ts`
-- [ ] Configurar Tailwind CSS v3 + PostCSS
-- [ ] Instalar y configurar shadcn/ui (copiar componentes de thunder-web-version)
-- [ ] Configurar ESLint + Prettier
-- [ ] Configurar Vitest + React Testing Library
-- [ ] Crear estructura de carpetas completa (feature-based)
-- [ ] Configurar `tsconfig.json` con path aliases (`@/features`, `@/shared`, `@/config`)
-- [ ] Crear `.env.staging`, `.env.production`, `.env.local` con variables tipadas en `config/env.ts`
-- [ ] Crear `.github/workflows/ci.yml` (lint + type-check + test)
-- [ ] Crear `.github/workflows/deploy-staging.yml`
-- [ ] Crear `.github/workflows/deploy-production.yml`
-- [ ] Configurar AWS hosting (confirmar tipo primero)
-- [ ] Configurar GitHub Secrets con env vars staging y producción
-- [ ] Verificar deploy vacío en staging funciona end-to-end
+- [x] Inicializar repo git en `/Users/diegoparedes/Documents/Desarrollo/thunder_dashboard`
+- [x] Crear repositorio `thunder_dashboard` en GitHub con branches `main` y `develop`
+- [x] Scaffolding: Vite + React 18 + TypeScript (creado manualmente)
+- [x] Configurar Tailwind CSS v3 + PostCSS
+- [x] Instalar y configurar shadcn/ui (52 componentes copiados de thunder-web-version)
+- [x] Configurar ESLint + Prettier
+- [x] Configurar Vitest + React Testing Library
+- [x] Crear estructura de carpetas completa (feature-based)
+- [x] Configurar `tsconfig.json` con path aliases (`@/features`, `@/shared`, `@/config`)
+- [x] Crear `.env.example` con todas las variables + `config/env.ts` tipado
+- [x] Crear `.github/workflows/ci.yml` (lint + type-check + test)
+- [x] Crear `.github/workflows/deploy-staging.yml`
+- [x] Crear `.github/workflows/deploy-production.yml`
+- [ ] ⏳ Configurar AWS hosting — pendiente confirmar tipo (S3+CloudFront / ECS / otro)
+- [ ] ⏳ Configurar GitHub Secrets — pendiente (lo hace otro miembro del equipo)
+- [ ] ⏳ Branch protection rules + environments — pendiente (lo hace otro miembro del equipo)
+- [ ] ⏳ Verificar deploy end-to-end — pendiente hasta AWS configurado
 
 ---
 
 ## FASE 1 — Core Infrastructure
-> Estado: 🔴 Pendiente
+> Estado: 🟢 En progreso
 
 - [ ] Integrar Supabase client (`integrations/supabase/client.ts`) — web-only, sin Capacitor adapter
 - [ ] Copiar `integrations/supabase/types.ts` de swift-slate
