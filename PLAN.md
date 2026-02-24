@@ -1,9 +1,9 @@
 # Thunder Dashboard — Plan Maestro de Migración Web
 
 > **Estado actual:** 🟢 En progreso
-> **Fase activa:** Fase 1 — Core Infrastructure
+> **Fase activa:** Fase 2 — Sistema de Diseño UI
 > **Última actualización:** 2026-02-24
-> **Sesión anterior:** Fase 0 completada (AWS/Secrets/GitHub settings pendientes de otro equipo)
+> **Sesión anterior:** F0 scaffold + F1 core infrastructure completadas. Branch develop en GitHub.
 
 ---
 
@@ -248,22 +248,24 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 1 — Core Infrastructure
-> Estado: 🟢 En progreso
+> Estado: ✅ Completa
 
-- [ ] Integrar Supabase client (`integrations/supabase/client.ts`) — web-only, sin Capacitor adapter
-- [ ] Copiar `integrations/supabase/types.ts` de swift-slate
-- [ ] Implementar `shared/services/storage.service.ts` (abstracción localStorage)
-- [ ] Implementar auth session persistence con localStorage
-- [ ] Crear `app/providers.tsx` (QueryClient, AuthContext, SubscriptionContext)
-- [ ] Crear `app/routes/index.tsx` con lazy loading de todas las rutas
-- [ ] Implementar `ProtectedRoute` y `PublicRoute`
-- [ ] Copiar y adaptar layout de thunder-web-version: `MainLayout`, `DesktopSidebar`, `DesktopHeader`, `BottomNav`
-- [ ] Responsive: sidebar en desktop (`lg:`), bottom nav en mobile
-- [ ] Implementar `shared/components/common/FeaturePaywall.tsx`
-- [ ] Crear `shared/hooks/useAuth.ts`
-- [ ] Crear `shared/hooks/useSubscription.ts` (lee de Supabase)
-- [ ] Implementar `SubscriptionContext` (features/subscriptions/context)
-- [ ] Verificar: login → dashboard → logout funciona correctamente
+- [x] Integrar Supabase client (`integrations/supabase/client.ts`) — web-only, sin Capacitor adapter
+- [x] Copiar `integrations/supabase/types.ts` de swift-slate
+- [x] Implementar `shared/services/storage.service.ts` (abstracción localStorage)
+- [x] Implementar auth session persistence con localStorage
+- [x] Crear `app/providers.tsx` (QueryClient, SubscriptionContext, Toaster)
+- [x] Crear `app/routes/index.tsx` con lazy loading y estructura por fases
+- [x] Implementar `ProtectedRoute`, `FullScreenProtectedRoute` y `PublicRoute`
+- [x] Adaptar layout de thunder-web-version: `MainLayout`, `DesktopSidebar`, `DesktopHeader`, `BottomNav`
+- [x] Responsive: sidebar en desktop (≥1024px), bottom nav en mobile
+- [x] Implementar `shared/components/common/FeaturePaywall.tsx`
+- [x] Crear `shared/hooks/useAuth.ts`
+- [x] Crear `shared/hooks/useProfile.ts`
+- [x] Crear `shared/hooks/useIsMobile.ts`
+- [x] Implementar `SubscriptionContext` (sin RevenueCat, Supabase como fuente de verdad)
+- [x] `FloatingActionButtons` + `ScrollToTop`
+- [ ] ⏳ Verificar: login → dashboard → logout (pendiente hasta Fase 3 con AuthPage real)
 
 ---
 
