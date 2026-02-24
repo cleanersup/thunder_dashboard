@@ -1,7 +1,7 @@
 # Thunder Dashboard — Plan Maestro de Migración Web
 
 > **Estado actual:** 🟢 En progreso
-> **Fase activa:** Fase 4 — Dashboard
+> **Fase activa:** Fase 5 — CRM
 > **Última actualización:** 2026-02-24
 > **Sesión anterior:** F0 + F1 + F2 + F3 completas y pusheadas a develop.
 
@@ -313,16 +313,21 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 4 — Dashboard
-> Estado: 🔴 Pendiente
+> Estado: ✅ Completa
 
-- [ ] `features/dashboard/services/dashboardService.ts` — stats: invoiced, pending, paid, active clients (JSDoc)
-- [ ] `features/dashboard/hooks/useDashboardStats.ts`
-- [ ] `features/dashboard/components/StatsCard`
-- [ ] `features/dashboard/components/RevenueChart` (Recharts)
-- [ ] `features/dashboard/components/ActivityFeed`
-- [ ] `features/dashboard/components/UpcomingRoutes`
-- [ ] `features/dashboard/pages/DashboardPage` — aplica diseño de thunder-web-version
-- [ ] Responsive: grid en desktop, stack en mobile
+- [x] `shared/utils/formatters.ts` — `formatCurrency`, `getRelativeTime`, `getUserTimezone`, `getCurrentDateInTimezone`
+- [x] `features/dashboard/types/dashboard.types.ts` — ActivityType, Activity, TodayRoute, chart point interfaces
+- [x] `features/dashboard/services/dashboardService.ts` — `fetchInvoices`, `fetchEstimates`, `fetchClientsCount`, `fetchEmployeesCount`, `fetchLeadsCount`, `fetchBookingsCount`, `fetchActivities`, `fetchTodayRoutes` (JSDoc completo)
+- [x] `features/dashboard/hooks/useDashboardStats.ts` — React Query + derivados (sparkline, weeklySales, pendingByMonth, aggregates) + realtime invoices
+- [x] `features/dashboard/components/StatsCard` — colored KPI card
+- [x] `features/dashboard/components/RevenueChart` — AreaChart sparkline 3 meses
+- [x] `features/dashboard/components/WeeklySalesChart` — BarChart semanas del mes actual
+- [x] `features/dashboard/components/PendingInvoicesChart` — BarChart últimos 6 meses
+- [x] `features/dashboard/components/ActivityFeed` — feed de actividad de hoy con iconos/colores por tipo
+- [x] `features/dashboard/components/TodayRoutes` — rutas del día con conteo de servicios
+- [x] `features/dashboard/pages/DashboardPage` — diseño de thunder-web-version, thin page
+- [x] Responsive: 4-col grid desktop, 2-col grid mobile
+- [x] Ruta `/home` habilitada (ProtectedRoute), `/` redirige a `/auth`
 
 ---
 

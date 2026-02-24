@@ -23,8 +23,8 @@ const ForgotPasswordPage = lazy(() => import("@/features/auth/pages/ForgotPasswo
 const ResetPasswordPage = lazy(() => import("@/features/auth/pages/ResetPasswordPage"));
 const VerifyEmailPage = lazy(() => import("@/features/auth/pages/VerifyEmailPage"));
 
-// Phase 4 — Dashboard
-// const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
+// Phase 4 — Dashboard ✅
+const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
 
 // Phase 5 — CRM
 // ... add as implemented
@@ -40,9 +40,10 @@ export function AppRouter() {
       <ScrollToTop />
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* TEMP: sandbox while feature pages are not yet implemented — replace with auth redirect in Phase 3 */}
-          <Route path="/" element={<Sandbox />} />
-          <Route path="/home" element={<Sandbox />} />
+          {/* Root redirect → auth */}
+          <Route path="/" element={<Navigate to="/auth" replace />} />
+          {/* TEMP: Sandbox still accessible for design system preview */}
+          <Route path="/sandbox" element={<Sandbox />} />
 
           {/* ── Public routes ─────────────────────────────────────────── */}
           {/* Phase 3 ✅ */}
@@ -52,7 +53,8 @@ export function AppRouter() {
           <Route path="/verify-email" element={<PublicRoute><VerifyEmailPage /></PublicRoute>} />
 
           {/* ── Protected routes ──────────────────────────────────────── */}
-          {/* Phase 4: <Route path="/home" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} /> */}
+          {/* Phase 4 ✅ */}
+          <Route path="/home" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
 
           {/* ── 404 fallback ──────────────────────────────────────────── */}
           <Route
