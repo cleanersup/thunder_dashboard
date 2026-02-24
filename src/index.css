@@ -1,0 +1,207 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Thunder Pro Design System
+ * All colors MUST be defined as HSL CSS variables.
+ * Do not use hardcoded color values in components — always reference these tokens.
+ */
+
+@layer base {
+  :root {
+    --background: 240 10% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 217 91% 95%;
+    --accent-foreground: 217 91% 60%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 60%;
+
+    --radius: 5px;
+
+    --nav-height: 4rem;
+
+    /* Safe area insets for mobile browsers */
+    --safe-area-inset-top: env(safe-area-inset-top, 0px);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-inset-left: env(safe-area-inset-left, 0px);
+    --safe-area-inset-right: env(safe-area-inset-right, 0px);
+
+    /* Vibrant accent colors */
+    --blue-vibrant: 217 91% 60%;
+    --green-vibrant: 142 76% 45%;
+    --purple-vibrant: 271 81% 56%;
+    --orange-vibrant: 25 95% 53%;
+    --yellow-vibrant: 45 93% 47%;
+
+    /* Sidebar — desktop uses dark background */
+    --sidebar-background: 215 32% 18%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 32% 25%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 215 32% 25%;
+    --sidebar-ring: 217 91% 60%;
+
+    /* Gradients */
+    --gradient-onboarding: linear-gradient(180deg, #000000 0%, #023961 100%);
+    --gradient-walkthrough: linear-gradient(135deg, hsl(217, 91%, 70%) 0%, hsl(217, 91%, 60%) 50%, hsl(217, 91%, 45%) 100%);
+    --gradient-contract: linear-gradient(135deg, hsl(142, 76%, 55%) 0%, hsl(142, 76%, 45%) 50%, hsl(142, 76%, 35%) 100%);
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+
+    --card: 224 71% 4%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 224 71% 4%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 91% 20%;
+    --accent-foreground: 217 91% 95%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 217 91% 60%;
+
+    --blue-vibrant: 217 91% 60%;
+    --green-vibrant: 142 76% 45%;
+    --purple-vibrant: 271 81% 56%;
+    --orange-vibrant: 25 95% 53%;
+    --yellow-vibrant: 45 93% 47%;
+
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 91% 20%;
+    --sidebar-accent-foreground: 217 91% 80%;
+    --sidebar-border: 217 33% 17%;
+    --sidebar-ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    height: 100%;
+    width: 100%;
+    overscroll-behavior-y: none;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    overscroll-behavior-y: none;
+  }
+
+  #root {
+    height: 100%;
+    width: 100%;
+    overflow-y: auto;
+    overscroll-behavior-y: none;
+  }
+
+  /* Prevent zoom on iOS when focusing inputs */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  input[type="date"],
+  input[type="time"],
+  textarea,
+  select {
+    font-size: 16px !important;
+    line-height: normal !important;
+  }
+
+  /* Desktop: slightly tighter text-sm */
+  @media (min-width: 1024px) {
+    .text-sm {
+      font-size: 13px !important;
+      line-height: 1.5 !important;
+    }
+  }
+}
+
+@layer components {
+  .multi-color-border {
+    position: relative;
+    background: hsl(var(--card));
+  }
+
+  .multi-color-border::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(
+      90deg,
+      #4a9eff 0%,
+      #b24bf3 25%,
+      #ff6b35 50%,
+      #34d399 75%,
+      #4a9eff 100%
+    );
+    border-radius: 0.375rem;
+    z-index: -1;
+  }
+}
+
+.safe-padding-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-padding-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 4rem);
+}
+
+.safe-padding-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
