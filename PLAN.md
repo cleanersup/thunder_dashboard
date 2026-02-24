@@ -1,9 +1,9 @@
 # Thunder Dashboard — Plan Maestro de Migración Web
 
 > **Estado actual:** 🟢 En progreso
-> **Fase activa:** Fase 3 — Flujo de Autenticación
+> **Fase activa:** Fase 4 — Dashboard
 > **Última actualización:** 2026-02-24
-> **Sesión anterior:** F0 + F1 + F2 completas y pusheadas a develop.
+> **Sesión anterior:** F0 + F1 + F2 + F3 completas y pusheadas a develop.
 
 ---
 
@@ -289,21 +289,26 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 3 — Flujo de Autenticación
-> Estado: 🔴 Pendiente
+> Estado: ✅ Completa
 
-**Páginas:** AuthPage, ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage, OnboardingPage
+**Páginas:** AuthPage, ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage
 
-- [ ] `features/auth/services/authService.ts` — `login`, `signup`, `logout`, `resetPassword`, `updatePassword`, `resendVerification` (JSDoc completo)
-- [ ] `features/auth/schemas/loginSchema.ts`, `signupSchema.ts`, `resetPasswordSchema.ts`
-- [ ] `features/auth/hooks/useLogin.ts`, `useSignup.ts`, `usePasswordReset.ts`
-- [ ] `features/auth/components/LoginForm`
-- [ ] `features/auth/components/SignupForm` (PhoneInput, US state selector, referral code)
-- [ ] `features/auth/components/ForgotPasswordForm`
-- [ ] `features/auth/components/ResetPasswordForm`
-- [ ] `features/auth/pages/AuthPage` — aplica UX de thunder-web-version
-- [ ] `features/auth/pages/OnboardingPage`
-- [ ] Eliminar toda lógica de `Capacitor.Preferences` del auth flow
-- [ ] Test: ciclo completo signup → verify email → login → logout
+- [x] `features/auth/services/authService.ts` — `login`, `signUp`, `logout`, `sendPasswordResetEmail`, `updatePassword`, `resendVerificationEmail` (JSDoc completo)
+- [x] `features/auth/schemas/loginSchema.ts`, `signupSchema.ts`, `resetPasswordSchema.ts` (Zod + RHF)
+- [x] `features/auth/hooks/useLogin.ts`, `useSignup.ts`, `usePasswordReset.ts` (React Query mutations)
+- [x] `features/auth/components/AuthBackground` — dark gradient, grid, cyan orbs
+- [x] `features/auth/components/FloatingLabelInput` — reutilizable con error slot y right slot
+- [x] `features/auth/components/LoginForm`
+- [x] `features/auth/components/SignupForm` (PhoneInput, US state selector, referral code, terms)
+- [x] `features/auth/pages/AuthPage` — login/signup toggle, UX de thunder-web-version
+- [x] `features/auth/pages/ForgotPasswordPage`
+- [x] `features/auth/pages/ResetPasswordPage` — valida sesión de reset link
+- [x] `features/auth/pages/VerifyEmailPage` — OTP 6-digit + resend
+- [x] `shared/components/ui/phone-input.tsx` + `input-otp.tsx` agregados
+- [x] Assets: `thunder-logo.png`, `thunder-logo-white.png`
+- [x] Sin Capacitor.Preferences — todo vía localStorage (Supabase client)
+- [x] Rutas habilitadas: `/auth`, `/forgot-password`, `/reset-password`, `/verify-email`
+- [ ] ⏳ Test: ciclo completo signup → verify email → login → logout (pendiente prueba manual)
 
 ---
 
