@@ -14,15 +14,14 @@ function PageLoader() {
 }
 
 // ─── Lazy pages (added progressively per feature phase) ─────────────────────
-// TEMP: Sandbox — remove once Phase 3 auth is implemented
+// TEMP: Sandbox — remove once Phase 4 dashboard is implemented
 const Sandbox = lazy(() => import("@/pages/Sandbox"));
 
-// Phase 3 — Auth
-// const AuthPage = lazy(() => import("@/features/auth/pages/AuthPage"));
-// const ForgotPasswordPage = lazy(() => import("@/features/auth/pages/ForgotPasswordPage"));
-// const ResetPasswordPage = lazy(() => import("@/features/auth/pages/ResetPasswordPage"));
-// const VerifyEmailPage = lazy(() => import("@/features/auth/pages/VerifyEmailPage"));
-// const OnboardingPage = lazy(() => import("@/features/auth/pages/OnboardingPage"));
+// Phase 3 — Auth ✅
+const AuthPage = lazy(() => import("@/features/auth/pages/AuthPage"));
+const ForgotPasswordPage = lazy(() => import("@/features/auth/pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("@/features/auth/pages/ResetPasswordPage"));
+const VerifyEmailPage = lazy(() => import("@/features/auth/pages/VerifyEmailPage"));
 
 // Phase 4 — Dashboard
 // const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
@@ -46,10 +45,11 @@ export function AppRouter() {
           <Route path="/home" element={<Sandbox />} />
 
           {/* ── Public routes ─────────────────────────────────────────── */}
-          {/* Phase 3: <Route path="/auth" element={<PublicRoute><AuthPage /></PublicRoute>} /> */}
-          {/* Phase 3: <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} /> */}
-          {/* Phase 3: <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} /> */}
-          {/* Phase 3: <Route path="/verify-email" element={<PublicRoute><VerifyEmailPage /></PublicRoute>} /> */}
+          {/* Phase 3 ✅ */}
+          <Route path="/auth" element={<PublicRoute><AuthPage /></PublicRoute>} />
+          <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+          <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
+          <Route path="/verify-email" element={<PublicRoute><VerifyEmailPage /></PublicRoute>} />
 
           {/* ── Protected routes ──────────────────────────────────────── */}
           {/* Phase 4: <Route path="/home" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} /> */}
