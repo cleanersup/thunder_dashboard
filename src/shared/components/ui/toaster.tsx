@@ -1,6 +1,6 @@
-import { useToast } from "@/hooks/use-toast";
-import { Toast, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from "@/components/ui/toast";
-import { ToastOverlay } from "@/components/ui/toast-overlay";
+import { useToast } from "@/shared/components/ui/use-toast";
+import { Toast, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from "@/shared/components/ui/toast";
+import { ToastOverlay } from "@/shared/components/ui/toast-overlay";
 import { CheckCircle } from "lucide-react";
 
 export function Toaster() {
