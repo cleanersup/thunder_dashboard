@@ -30,7 +30,7 @@ export function PendingInvoicesChart({ data, isLoading }: PendingInvoicesChartPr
   return (
     <Card className="border-0">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium">Pending Invoices — Last 6 Months</CardTitle>
+        <CardTitle className="text-base font-medium">Invoice Pending by Month</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={200}>

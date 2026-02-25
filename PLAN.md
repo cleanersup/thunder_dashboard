@@ -128,7 +128,7 @@ src/
 ├── shared/
 │   ├── components/
 │   │   ├── ui/                    # Primitivos shadcn (no modificar directamente)
-│   │   ├── layout/                # MainLayout, Sidebar, Header, BottomNav
+│   │   ├── layout/                # MainLayout, DesktopSidebar, DesktopHeader (responsive web)
 │   │   └── common/                # FeaturePaywall, PageHeader, DataTable, etc.
 │   ├── hooks/
 │   │   ├── useAuth.ts
@@ -209,10 +209,11 @@ PR      → preview build + checks automáticos
 ## Orden de Implementación
 
 ```
-F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F11 → F12 → F14 → F15 → F13 → F16 → F17
+F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F11 → F12 → F14 → F15 → F13 → F16 → F17 → F18
 ```
 
 > F13 (suscripciones) requiere decisiones de negocio → se puede avanzar en paralelo con últimas fases de features.
+> F16 (i18n) se puede iniciar una vez todos los features estén estables — los strings deben coincidir con swift-slate.
 
 ---
 
@@ -257,14 +258,14 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 - [x] Crear `app/providers.tsx` (QueryClient, SubscriptionContext, Toaster)
 - [x] Crear `app/routes/index.tsx` con lazy loading y estructura por fases
 - [x] Implementar `ProtectedRoute`, `FullScreenProtectedRoute` y `PublicRoute`
-- [x] Adaptar layout de thunder-web-version: `MainLayout`, `DesktopSidebar`, `DesktopHeader`, `BottomNav`
-- [x] Responsive: sidebar en desktop (≥1024px), bottom nav en mobile
+- [x] Adaptar layout de thunder-web-version: `MainLayout`, `DesktopSidebar`, `DesktopHeader`
+- [x] Responsive web: sidebar colapsable en desktop (≥1024px), Sheet drawer en mobile (<1024px) — SIN BottomNav ni FloatingActionButtons (eran diseño de app nativa, eliminados)
 - [x] Implementar `shared/components/common/FeaturePaywall.tsx`
 - [x] Crear `shared/hooks/useAuth.ts`
 - [x] Crear `shared/hooks/useProfile.ts`
 - [x] Crear `shared/hooks/useIsMobile.ts`
 - [x] Implementar `SubscriptionContext` (sin RevenueCat, Supabase como fuente de verdad)
-- [x] `FloatingActionButtons` + `ScrollToTop`
+- [x] `ScrollToTop`
 - [ ] ⏳ Verificar: login → dashboard → logout (pendiente hasta Fase 3 con AuthPage real)
 
 ---
@@ -519,7 +520,28 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 
 ---
 
-## FASE 16 — Testing
+## FASE 16 — Internacionalización (i18n)
+> Estado: 🔴 Pendiente
+
+### Decisión arquitectural confirmada
+Los archivos de traducción serán **compartidos entre `swift-slate` (mobile) y `thunder_dashboard` (web)**.
+Esto significa:
+- Todo el texto visible en thunder_dashboard **debe coincidir exactamente** con el texto de swift-slate
+- Al implementar i18n se creará UN solo set de archivos `.json` de traducciones usado en ambos proyectos
+- No inventar texto nuevo — siempre copiar de swift-slate como fuente de verdad
+
+### Stack i18n (pendiente confirmar librería exacta, opciones: i18next + react-i18next / react-intl)
+
+- [ ] **[DECISIÓN]** Confirmar librería i18n (i18next recomendado por compatibilidad con Capacitor y React)
+- [ ] Extraer todos los strings de texto de todos los componentes a archivos de traducción `en.json` / `es.json`
+- [ ] Verificar que los strings coincidan 100% con swift-slate (mismas keys, mismos valores en inglés)
+- [ ] Configurar `LanguageSelector` (ya presente en DesktopHeader) para cambiar idioma en tiempo real
+- [ ] Persistir preferencia de idioma en localStorage
+- [ ] Compartir/sincronizar archivos de traducción entre swift-slate y thunder_dashboard (git submodule o npm package privado)
+
+---
+
+## FASE 17 — Testing
 > Estado: 🔴 Pendiente
 
 - [ ] Unit tests: servicios críticos (authService, invoicesService, estimatesService)
@@ -531,8 +553,8 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 
 ---
 
-## FASE 17 — CI/CD y Deployment Final
-> Estado: 🟡 Bloqueada — confirmar tipo de hosting AWS
+## FASE 18 — CI/CD y Deployment Final
+> Estado: 🟡 Bloqueada — confirmar tipo de hosting AWS (antes Fase 17)
 
 - [ ] **[DECISIÓN]** Confirmar tipo de hosting AWS (S3+CloudFront / ECS / EC2 / Amplify)
 - [ ] **[DECISIÓN]** Confirmar dominio de la versión web
@@ -552,6 +574,7 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 | Fecha | Fases avanzadas | Notas |
 |-------|----------------|-------|
 | 2026-02-24 | Plan creado | Fase 0 lista para iniciar |
+| 2026-02-25 | F3 ✅, F4 ✅ | Layout responsive web (sin BottomNav). Fase 16 i18n agregada. Texto debe coincidir con swift-slate. |
 
 ---
 

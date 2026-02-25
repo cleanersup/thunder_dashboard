@@ -11,6 +11,7 @@ import type { Activity, ActivityType } from "../types/dashboard.types";
 interface ActivityFeedProps {
   activities: Activity[];
   isLoading: boolean;
+  count?: number;
 }
 
 function getActivityIcon(type: ActivityType) {
@@ -84,11 +85,17 @@ function getActivityColor(type: ActivityType): string {
  * @param activities - List of today's Activity records
  * @param isLoading - Shows skeleton while data is loading
  */
-export function ActivityFeed({ activities, isLoading }: ActivityFeedProps) {
+export function ActivityFeed({ activities, isLoading, count }: ActivityFeedProps) {
+  const displayCount = count ?? activities.length;
   return (
     <Card className="border-0">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-medium">Today's Activity</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-medium">Recent Activity</CardTitle>
+          {!isLoading && displayCount > 0 && (
+            <span className="text-xs text-muted-foreground">{displayCount} update{displayCount !== 1 ? "s" : ""}</span>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (

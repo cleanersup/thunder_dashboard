@@ -36,7 +36,7 @@ export function WeeklySalesChart({ data, now, isLoading }: WeeklySalesChartProps
     <Card className="border-0">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-medium">
-          Weekly Sales — {formatDate(now, "MMMM yyyy")}
+          Weekly Sales - {formatDate(now, "MMMM yyyy")}
         </CardTitle>
       </CardHeader>
       <CardContent>
