@@ -58,9 +58,9 @@ export function PendingInvoicesChart({ data, isLoading }: PendingInvoicesChartPr
                 borderRadius: "6px",
                 fontSize: "12px",
               }}
-              formatter={(value: number, _name: string, props: { payload: PendingByMonthPoint }) => [
-                `${value} invoices — $${formatCurrency(props.payload.total)}`,
-                props.payload.fullDate,
+              formatter={(value: number, _name: string, props: { payload?: PendingByMonthPoint }) => [
+                `${value} invoices — $${formatCurrency(props.payload?.total ?? 0)}`,
+                props.payload?.fullDate ?? "",
               ]}
             />
             <Bar dataKey="count" fill="hsl(var(--orange-vibrant,30 100% 50%))" radius={[4, 4, 0, 0]}>

@@ -38,14 +38,7 @@ export default function ResetPasswordPage() {
 
   const onSubmit = (data: ResetPasswordFormData) => doUpdate({ password: data.password });
 
-  // Still checking session
   if (isValidToken === null) return null;
-
-  const background = (
-    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
-      <AuthBackground />
-    </div>
-  );
 
   if (!isValidToken) {
     return (

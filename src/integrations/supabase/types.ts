@@ -847,9 +847,14 @@ export type Database = {
           id: string
           last_name: string
           phone_number: string | null
+          plan_tier: string | null
           referral_code: string | null
+          revenue_cat_customer_id: string | null
           state: string | null
+          subscription_expiry_date: string | null
+          subscription_status: string | null
           timezone: string | null
+          trial_start_date: string | null
           updated_at: string
           user_id: string
         }
@@ -868,9 +873,14 @@ export type Database = {
           id?: string
           last_name: string
           phone_number?: string | null
+          plan_tier?: string | null
           referral_code?: string | null
+          revenue_cat_customer_id?: string | null
           state?: string | null
+          subscription_expiry_date?: string | null
+          subscription_status?: string | null
           timezone?: string | null
+          trial_start_date?: string | null
           updated_at?: string
           user_id: string
         }
@@ -889,9 +899,14 @@ export type Database = {
           id?: string
           last_name?: string
           phone_number?: string | null
+          plan_tier?: string | null
           referral_code?: string | null
+          revenue_cat_customer_id?: string | null
           state?: string | null
+          subscription_expiry_date?: string | null
+          subscription_status?: string | null
           timezone?: string | null
+          trial_start_date?: string | null
           updated_at?: string
           user_id?: string
         }

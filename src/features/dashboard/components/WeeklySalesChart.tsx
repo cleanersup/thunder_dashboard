@@ -65,9 +65,9 @@ export function WeeklySalesChart({ data, now, isLoading }: WeeklySalesChartProps
                 borderRadius: "6px",
                 fontSize: "12px",
               }}
-              formatter={(value: number, _name: string, props: { payload: WeeklySalesPoint }) => [
-                `$${formatCurrency(value)}`,
-                props.payload.label,
+              formatter={(value: number, _name: string, props: { payload?: WeeklySalesPoint }) => [
+                `$${formatCurrency(value as number)}`,
+                props.payload?.label ?? "",
               ]}
             />
             <Bar dataKey="sales" fill="hsl(var(--green-vibrant))" radius={[4, 4, 0, 0]} />

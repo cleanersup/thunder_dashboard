@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
-import { ProtectedRoute, FullScreenProtectedRoute } from "./ProtectedRoute";
+import { ProtectedRoute } from "./ProtectedRoute";
 import { PublicRoute } from "./PublicRoute";
 import { ScrollToTop } from "@/shared/components/layout/ScrollToTop";
 
