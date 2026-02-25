@@ -14,9 +14,6 @@ function PageLoader() {
 }
 
 // ─── Lazy pages (added progressively per feature phase) ─────────────────────
-// TEMP: Sandbox — remove once Phase 4 dashboard is implemented
-const Sandbox = lazy(() => import("@/pages/Sandbox"));
-
 // Phase 3 — Auth ✅
 const AuthPage = lazy(() => import("@/features/auth/pages/AuthPage"));
 const ForgotPasswordPage = lazy(() => import("@/features/auth/pages/ForgotPasswordPage"));
@@ -42,8 +39,6 @@ export function AppRouter() {
         <Routes>
           {/* Root redirect → auth */}
           <Route path="/" element={<Navigate to="/auth" replace />} />
-          {/* TEMP: Sandbox still accessible for design system preview */}
-          <Route path="/sandbox" element={<Sandbox />} />
 
           {/* ── Public routes ─────────────────────────────────────────── */}
           {/* Phase 3 ✅ */}
