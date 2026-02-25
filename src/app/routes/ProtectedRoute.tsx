@@ -1,21 +1,14 @@
 import { AuthGuard } from "@/shared/components/common/AuthGuard";
 import { MainLayout } from "@/shared/components/layout/MainLayout";
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-  hideBottomNav?: boolean;
-}
-
 /**
- * Wraps authenticated pages with AuthGuard + MainLayout (sidebar/bottom nav).
+ * Wraps authenticated pages with AuthGuard + MainLayout (responsive sidebar layout).
  * Use this for all standard internal pages.
- *
- * @param hideBottomNav - Hides the mobile bottom nav on detail/form pages
  */
-export function ProtectedRoute({ children, hideBottomNav }: ProtectedRouteProps) {
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
-      <MainLayout hideBottomNav={hideBottomNav}>{children}</MainLayout>
+      <MainLayout>{children}</MainLayout>
     </AuthGuard>
   );
 }

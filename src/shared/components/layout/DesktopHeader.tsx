@@ -1,4 +1,5 @@
 import { Bell, Globe, ChevronDown, CheckCheck, Clock, DollarSign, XCircle, Trash2 } from "lucide-react";
+import { SidebarTrigger } from "@/shared/components/ui/sidebar";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -118,12 +119,16 @@ export function DesktopHeader() {
   };
 
   return (
-    <header className="hidden lg:flex items-center justify-between gap-4 px-6 py-3 border-b border-border bg-card">
-      <div className="flex flex-col">
-        <span className="text-xs text-muted-foreground">Welcome back</span>
-        <span className="text-sm font-semibold text-foreground">
-          {profile?.company_name ?? "Your Company"}
-        </span>
+    <header className="flex items-center justify-between gap-4 px-4 lg:px-6 py-3 border-b border-border bg-card">
+      <div className="flex items-center gap-3">
+        {/* Hamburger — only visible on mobile/tablet when sidebar is a Sheet */}
+        <SidebarTrigger className="lg:hidden" />
+        <div className="flex flex-col">
+          <span className="text-xs text-muted-foreground">Welcome back</span>
+          <span className="text-sm font-semibold text-foreground">
+            {profile?.company_name ?? "Your Company"}
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center gap-4">
