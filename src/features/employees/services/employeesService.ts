@@ -42,7 +42,7 @@ export async function createEmployee(data: EmployeeFormData) {
       phone:            data.phone.replace(/\D/g, ""),        // strip formatting
       gender:           data.gender,
       birthday:         data.birthday,
-      position:         data.position        ?? null,
+      position:         data.position        ?? "",
       hourly_rate:      data.hourly_rate     ?? null,
       street:           data.street          ?? null,
       apt_suite:        data.apt_suite       ?? null,

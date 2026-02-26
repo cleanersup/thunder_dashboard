@@ -1,4 +1,3 @@
-import { AuthGuard } from "@/shared/components/common/AuthGuard";
 import { MainLayout } from "@/shared/components/layout/MainLayout";
 
 /**

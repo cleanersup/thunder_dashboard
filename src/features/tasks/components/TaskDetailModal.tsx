@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  FileText, Flag, CheckCircle2, Calendar, Clock,
+  FileText, Flag, Calendar, Clock,
   User, Building2, Phone, Mail, MessageSquare,
   Edit, Trash2, Play, CheckCircle,
 } from "lucide-react";
@@ -9,7 +9,7 @@ import { DetailModal, InfoRow } from "@/shared/components/common/DetailModal";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { TaskForm } from "./TaskForm";
 import { useDeleteTask, useUpdateTask } from "../hooks/useTasks";
-import { PRIORITY_BADGE, PRIORITY_SOFT, TASK_STATUS_BADGE, TASK_STATUS_HEADER_BADGE } from "@/shared/constants/styleTokens";
+import { PRIORITY_BADGE, TASK_STATUS_BADGE, TASK_STATUS_HEADER_BADGE } from "@/shared/constants/styleTokens";
 import { getAssignedNames, formatDueDate } from "../utils/taskFormatters";
 import { toast } from "sonner";
 import type { TaskWithClient } from "../types/task.types";
