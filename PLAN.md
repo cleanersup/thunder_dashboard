@@ -1,9 +1,9 @@
 # Thunder Dashboard — Plan Maestro de Migración Web
 
 > **Estado actual:** 🟢 En progreso
-> **Fase activa:** Fase 5 — CRM
-> **Última actualización:** 2026-02-24
-> **Sesión anterior:** F0 + F1 + F2 + F3 completas y pusheadas a develop.
+> **Fase activa:** Fase 6 — Booking
+> **Última actualización:** 2026-02-26
+> **Sesión anterior:** F0–F5 completas + mejoras post-F5 (modales, tokens, padding).
 
 ---
 
@@ -333,41 +333,54 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 5 — CRM (Clientes, Leads, Tareas, Notificaciones)
-> Estado: 🔴 Pendiente
+> Estado: ✅ Completa
 
 ### Clientes
-- [ ] `features/crm/clients/services/clientsService.ts` (JSDoc)
-- [ ] `features/crm/clients/hooks/useClients.ts`, `useClient.ts`, `useCreateClient.ts`, `useUpdateClient.ts`, `useDeleteClient.ts`
-- [ ] `features/crm/clients/schemas/clientSchema.ts`
-- [ ] `features/crm/clients/components/ClientsTable`
-- [ ] `features/crm/clients/components/ClientForm` (add/edit unificado)
-- [ ] `features/crm/clients/components/ClientDetailsPanel`
-- [ ] `features/crm/clients/pages/ClientsPage`
-- [ ] `features/crm/clients/pages/ClientDetailPage`
+- [x] `features/crm/types/crm.types.ts` — Client, Lead types
+- [x] `features/crm/clients/services/clientsService.ts` (JSDoc)
+- [x] `features/crm/clients/hooks/useClients.ts` — useClients, useClient, useCreateClient, useUpdateClient, useDeleteClient
+- [x] `features/crm/clients/schemas/clientSchema.ts`
+- [x] `features/crm/clients/components/ClientsTable` — DataTable con búsqueda, paginación y dropdown de acciones completo
+- [x] `features/crm/clients/components/ClientForm` (add/edit unificado, Dialog modal)
+- [x] `features/crm/clients/components/ClientDetailModal` — modal con info completa + acciones de swift-slate (condicionales por status)
+- [x] ~~`features/crm/clients/pages/ClientDetailPage`~~ — eliminada, reemplazada por modal
 
 ### Leads
-- [ ] `features/crm/leads/services/leadsService.ts` (JSDoc)
-- [ ] `features/crm/leads/hooks/useLeads.ts`, `useLead.ts`, `useCreateLead.ts`, `useUpdateLead.ts`, `useDeleteLead.ts`
-- [ ] `features/crm/leads/schemas/leadSchema.ts`
-- [ ] `features/crm/leads/components/LeadsTable`
-- [ ] `features/crm/leads/components/LeadForm` (add/edit unificado)
-- [ ] `features/crm/leads/components/LeadDetailsPanel`
-- [ ] `features/crm/leads/pages/LeadsPage`
-- [ ] `features/crm/leads/pages/LeadDetailPage`
+- [x] `features/crm/leads/services/leadsService.ts` — CRUD + convertLeadToClient (JSDoc)
+- [x] `features/crm/leads/hooks/useLeads.ts` — useLeads, useLead, useCreateLead, useUpdateLead, useDeleteLead
+- [x] `features/crm/leads/schemas/leadSchema.ts`
+- [x] `features/crm/leads/components/LeadsKanban` — 5 columnas, drag-and-drop (@dnd-kit), cards con color por prioridad
+- [x] `features/crm/leads/components/LeadForm` (add/edit unificado, Dialog modal)
+- [x] `features/crm/leads/components/LeadDetailModal` — modal con info completa + quick actions
+- [x] ~~`features/crm/leads/pages/LeadDetailPage`~~ — eliminada, reemplazada por modal
 
 ### Tareas
-- [ ] `features/tasks/services/tasksService.ts` (JSDoc)
-- [ ] `features/tasks/hooks/useTasks.ts`, `useTask.ts`, `useCreateTask.ts`, `useUpdateTask.ts`
-- [ ] `features/tasks/schemas/taskSchema.ts`
-- [ ] `features/tasks/components/TasksList`, `TaskForm`, `TaskDetailPanel`
-- [ ] `features/tasks/pages/TasksPage`, `TaskDetailPage`
+- [x] `features/tasks/types/task.types.ts` — Task, TaskWithClient types (incluye phone/email del cliente)
+- [x] `features/tasks/services/tasksService.ts` (JSDoc)
+- [x] `features/tasks/hooks/useTasks.ts` — useTasks, useTask, useCreateTask, useUpdateTask, useDeleteTask
+- [x] `features/tasks/schemas/taskSchema.ts`
+- [x] `features/tasks/utils/taskFormatters.ts` — formatDueDate, getAssignedName, getAssignedNames
+- [x] `features/tasks/components/TasksTable` — DataTable con dropdown de acciones condicionales por status
+- [x] `features/tasks/components/TaskForm`
+- [x] `features/tasks/components/TaskDetailModal` — modal con info + empleados + cliente + quick actions (Start/Complete/Edit/Delete por status)
+- [x] ~~`features/tasks/pages/TaskDetailPage`~~ — eliminada, reemplazada por modal
 
 ### Notificaciones
-- [ ] `features/notifications/services/notificationsService.ts` (JSDoc)
-- [ ] Real-time subscription via Supabase channel
-- [ ] `features/notifications/hooks/useNotifications.ts`
-- [ ] `features/notifications/components/NotificationsList`, `NotificationBell`
-- [ ] `features/notifications/pages/NotificationsPage`
+- [x] `features/notifications/services/notificationsService.ts` (JSDoc)
+- [x] Real-time subscription via Supabase channel
+- [x] `features/notifications/hooks/useNotifications.ts`
+- [x] `features/notifications/pages/NotificationsPage`
+
+### CRM Page
+- [x] `features/crm/pages/CRMPage` — tabs Clients/Leads/Tasks con URL sync via searchParams, stats bar con 4 KPIs
+- [x] `features/crm/hooks/useCRMStats.ts` — stats centralizadas (React Query deduplica)
+- [x] Rutas habilitadas: `/crm`, `/notifications` (rutas de detalle eliminadas — todo vía modales)
+
+### Shared (mejoras post-F5)
+- [x] `shared/components/common/DetailModal` — wrapper reutilizable (header oscuro + body scrollable) para todos los modales de detalle
+- [x] `shared/components/common/Avatar` — InitialsAvatar, getInitials, getAvatarColor
+- [x] `shared/constants/styleTokens.ts` — tokens centralizados de colores para priority/status (PRIORITY_BADGE, PRIORITY_SOFT, PRIORITY_SOFT_BORDER, LEAD_CARD_BG, LEAD_STATUS_BADGE, TASK_STATUS_SOFT, TASK_STATUS_BADGE, TASK_STATUS_HEADER_BADGE)
+- [x] Padding uniforme `p-2.5 space-y-2.5` en todas las páginas internas
 
 ---
 
@@ -575,6 +588,8 @@ Esto significa:
 |-------|----------------|-------|
 | 2026-02-24 | Plan creado | Fase 0 lista para iniciar |
 | 2026-02-25 | F3 ✅, F4 ✅ | Layout responsive web (sin BottomNav). Fase 16 i18n agregada. Texto debe coincidir con swift-slate. |
+| 2026-02-25 | F5 ✅ | CRM completo: Clients, Leads (kanban), Tasks, Notifications. Corregidos DataTable API y PageHeader backTo. |
+| 2026-02-26 | F5 mejoras | DetailModal reutilizable, ClientDetailModal + TaskDetailModal, acciones condicionales por status (swift-slate parity), styleTokens centralizados, padding uniforme p-2.5, páginas de detalle eliminadas (todo vía modales). |
 
 ---
 

@@ -23,8 +23,9 @@ const VerifyEmailPage = lazy(() => import("@/features/auth/pages/VerifyEmailPage
 // Phase 4 — Dashboard ✅
 const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
 
-// Phase 5 — CRM
-// ... add as implemented
+// Phase 5 — CRM ✅
+const CRMPage = lazy(() => import("@/features/crm/pages/CRMPage"));
+const NotificationsPage = lazy(() => import("@/features/notifications/pages/NotificationsPage"));
 
 /**
  * Central route definition for Thunder Dashboard.
@@ -50,6 +51,10 @@ export function AppRouter() {
           {/* ── Protected routes ──────────────────────────────────────── */}
           {/* Phase 4 ✅ */}
           <Route path="/home" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+
+          {/* Phase 5 ✅ */}
+          <Route path="/crm" element={<ProtectedRoute><CRMPage /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
 
           {/* ── 404 fallback ──────────────────────────────────────────── */}
           <Route

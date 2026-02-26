@@ -3,6 +3,8 @@ import {
   Home, FileText, Receipt, Route, Users, Calendar,
   UserPlus, Clock, MapPin, Settings, LogOut,
 } from "lucide-react";
+import thunderProLogo from "@/assets/logo_thunder_pro_w.png";
+import thunderLogo    from "@/assets/thunder-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { cn } from "@/shared/utils/cn";
@@ -56,11 +58,12 @@ export function DesktopSidebar() {
       {/* Logo + collapse trigger */}
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
         <div className="flex items-center justify-between">
-          {!isCollapsed && (
-            <Link to="/home" className="flex items-center gap-2">
-              <span className="text-sidebar-foreground font-bold text-lg">Thunder Pro</span>
-            </Link>
-          )}
+          <Link to="/home" className="flex items-center">
+            {isCollapsed
+              ? <img src={thunderLogo}    alt="Thunder" className="h-7 w-auto" />
+              : <img src={thunderProLogo} alt="Thunder Pro" className="h-12 w-auto" />
+            }
+          </Link>
           <SidebarTrigger className={isCollapsed ? "mx-auto" : "-mr-2"} />
         </div>
       </SidebarHeader>

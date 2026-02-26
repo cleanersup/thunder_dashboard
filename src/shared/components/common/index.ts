@@ -1,4 +1,8 @@
 export { AuthGuard } from "./AuthGuard";
+export { EntityPickerField } from "./EntityPickerField";
+export type { EntityOption } from "./EntityPickerField";
+export { DetailModal, InfoRow } from "./DetailModal";
+export { InitialsAvatar, getInitials, getAvatarColor } from "./Avatar";
 export { ConfirmDialog } from "./ConfirmDialog";
 export { DataTable } from "./DataTable";
 export type { ColumnDef } from "./DataTable";

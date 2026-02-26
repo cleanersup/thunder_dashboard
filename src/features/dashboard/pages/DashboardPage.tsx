@@ -50,7 +50,7 @@ export default function DashboardPage() {
   const greeting = profile?.first_name ? `Welcome back, ${profile.first_name}` : "Dashboard";
 
   return (
-    <div className="p-4 lg:p-2.5 space-y-4 lg:space-y-2.5 pb-24 lg:pb-4">
+    <div className="p-2.5 space-y-2.5 pb-24 lg:pb-4">
       <PageHeader
         title={greeting}
         subtitle={formatDate(now, "EEEE, MMMM d, yyyy")}

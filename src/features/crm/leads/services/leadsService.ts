@@ -1,0 +1,106 @@
+import { supabase } from "@/integrations/supabase/client";
+import type { LeadInsert, LeadUpdate } from "../../types/crm.types";
+
+/**
+ * Fetches all leads for the authenticated user, ordered by creation date descending.
+ */
+export async function fetchLeads() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const { data, error } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * Fetches a single lead by ID.
+ * @param id - The lead UUID
+ */
+export async function fetchLead(id: string) {
+  const { data, error } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Creates a new lead record.
+ * @param payload - Lead insert payload (without user_id)
+ */
+export async function createLead(payload: Omit<LeadInsert, "user_id">) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const { data, error } = await supabase
+    .from("leads")
+    .insert({ ...payload, user_id: user.id, status: payload.status ?? "new" })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Updates an existing lead record.
+ * @param id - The lead UUID
+ * @param payload - Fields to update
+ */
+export async function updateLead(id: string, payload: LeadUpdate) {
+  const { data, error } = await supabase
+    .from("leads")
+    .update({ ...payload, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Deletes a lead record by ID.
+ * @param id - The lead UUID
+ */
+export async function deleteLead(id: string) {
+  const { error } = await supabase.from("leads").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Converts a won lead to a client record.
+ * @param lead - The lead to convert
+ * @returns The created client record
+ */
+export async function convertLeadToClient(lead: { user_id: string; full_name: string; company_name: string | null; phone: string; email: string; address: string; apt_suite: string | null; city: string; state: string; zip_code: string }) {
+  const { data, error } = await supabase
+    .from("clients")
+    .insert({
+      user_id: lead.user_id,
+      full_name: lead.full_name,
+      company: lead.company_name,
+      phone: lead.phone,
+      email: lead.email,
+      service_street: lead.address,
+      service_apt: lead.apt_suite,
+      service_city: lead.city,
+      service_state: lead.state,
+      service_zip: lead.zip_code,
+      billing_street: lead.address,
+      billing_apt: lead.apt_suite,
+      billing_city: lead.city,
+      billing_state: lead.state,
+      billing_zip: lead.zip_code,
+      client_type: "individual",
+      contact_preference: "phone",
+      status: "active",
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}

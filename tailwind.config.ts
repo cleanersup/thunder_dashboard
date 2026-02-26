@@ -71,6 +71,70 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // ── Semantic priority tokens ───────────────────────────────────────
+        priority: {
+          low: {
+            DEFAULT: "hsl(var(--priority-low) / <alpha-value>)",
+            foreground: "hsl(var(--priority-low-foreground))",
+          },
+          medium: {
+            DEFAULT: "hsl(var(--priority-medium) / <alpha-value>)",
+            foreground: "hsl(var(--priority-medium-foreground))",
+          },
+          high: {
+            DEFAULT: "hsl(var(--priority-high) / <alpha-value>)",
+            foreground: "hsl(var(--priority-high-foreground))",
+          },
+        },
+        // ── Semantic task-status tokens ────────────────────────────────────
+        "task-status": {
+          todo: {
+            DEFAULT: "hsl(var(--task-status-todo) / <alpha-value>)",
+            foreground: "hsl(var(--task-status-todo-foreground))",
+          },
+          progress: {
+            DEFAULT: "hsl(var(--task-status-progress) / <alpha-value>)",
+            foreground: "hsl(var(--task-status-progress-foreground))",
+          },
+          completed: {
+            DEFAULT: "hsl(var(--task-status-completed) / <alpha-value>)",
+            foreground: "hsl(var(--task-status-completed-foreground))",
+          },
+        },
+        // ── Semantic lead-status tokens ────────────────────────────────────
+        "lead-status": {
+          new: {
+            DEFAULT: "hsl(var(--lead-status-new) / <alpha-value>)",
+            foreground: "hsl(var(--lead-status-new-foreground))",
+          },
+          contacted: {
+            DEFAULT: "hsl(var(--lead-status-contacted) / <alpha-value>)",
+            foreground: "hsl(var(--lead-status-contacted-foreground))",
+          },
+          walkthrough: {
+            DEFAULT: "hsl(var(--lead-status-walkthrough) / <alpha-value>)",
+            foreground: "hsl(var(--lead-status-walkthrough-foreground))",
+          },
+          estimate: {
+            DEFAULT: "hsl(var(--lead-status-estimate) / <alpha-value>)",
+            foreground: "hsl(var(--lead-status-estimate-foreground))",
+          },
+          decision: {
+            DEFAULT: "hsl(var(--lead-status-decision) / <alpha-value>)",
+            foreground: "hsl(var(--lead-status-decision-foreground))",
+          },
+        },
+        // ── Semantic client-status tokens ──────────────────────────────────
+        "client-status": {
+          active: {
+            DEFAULT: "hsl(var(--client-status-active) / <alpha-value>)",
+            foreground: "hsl(var(--client-status-active-foreground))",
+          },
+          inactive: {
+            DEFAULT: "hsl(var(--client-status-inactive) / <alpha-value>)",
+            foreground: "hsl(var(--client-status-inactive-foreground))",
+          },
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

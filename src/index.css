@@ -55,6 +55,40 @@
     --orange-vibrant: 25 95% 53%;
     --yellow-vibrant: 45 93% 47%;
 
+    /* ── Semantic priority colors ───────────────────────────────────── */
+    --priority-low: 142 76% 45%;
+    --priority-low-foreground: 0 0% 100%;
+    --priority-medium: 217 91% 60%;
+    --priority-medium-foreground: 0 0% 100%;
+    --priority-high: 0 84% 60%;
+    --priority-high-foreground: 0 0% 100%;
+
+    /* ── Semantic task-status colors ────────────────────────────────── */
+    --task-status-todo: 217 91% 60%;
+    --task-status-todo-foreground: 0 0% 100%;
+    --task-status-progress: 25 95% 53%;
+    --task-status-progress-foreground: 0 0% 100%;
+    --task-status-completed: 142 76% 45%;
+    --task-status-completed-foreground: 0 0% 100%;
+
+    /* ── Semantic lead-status colors ────────────────────────────────── */
+    --lead-status-new: 217 91% 60%;
+    --lead-status-new-foreground: 0 0% 100%;
+    --lead-status-contacted: 45 93% 47%;
+    --lead-status-contacted-foreground: 0 0% 100%;
+    --lead-status-walkthrough: 271 81% 56%;
+    --lead-status-walkthrough-foreground: 0 0% 100%;
+    --lead-status-estimate: 25 95% 53%;
+    --lead-status-estimate-foreground: 0 0% 100%;
+    --lead-status-decision: 142 76% 45%;
+    --lead-status-decision-foreground: 0 0% 100%;
+
+    /* ── Semantic client-status colors ──────────────────────────────── */
+    --client-status-active: 142 76% 45%;
+    --client-status-active-foreground: 0 0% 100%;
+    --client-status-inactive: 220 9% 46%;
+    --client-status-inactive-foreground: 0 0% 100%;
+
     /* Sidebar — desktop uses dark background */
     --sidebar-background: 215 32% 18%;
     --sidebar-foreground: 0 0% 100%;
