@@ -38,7 +38,7 @@ export const FloatingLabelInput = forwardRef<HTMLInputElement, FloatingLabelInpu
         className={cn(
           "h-12 rounded-[5px] border focus-visible:ring-0 focus-visible:border-primary px-3 bg-white peer",
           rightSlot && "pr-10",
-          error ? "border-red-500" : "border-slate-300",
+          error ? "border-destructive" : "border-input",
           className,
         )}
         {...props}
@@ -49,7 +49,7 @@ export const FloatingLabelInput = forwardRef<HTMLInputElement, FloatingLabelInpu
           "absolute left-3 top-1/2 -translate-y-1/2 text-sm bg-white px-1 transition-all pointer-events-none",
           "peer-focus:top-0 peer-focus:text-xs peer-focus:text-primary",
           "peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-primary",
-          error ? "text-red-500" : "text-slate-600",
+          error ? "text-destructive" : "text-muted-foreground",
         )}
       >
         {label}
@@ -57,7 +57,7 @@ export const FloatingLabelInput = forwardRef<HTMLInputElement, FloatingLabelInpu
       {rightSlot && (
         <div className="absolute right-3 top-1/2 -translate-y-1/2">{rightSlot}</div>
       )}
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
     </div>
   ),
 );

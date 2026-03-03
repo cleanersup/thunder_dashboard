@@ -77,10 +77,10 @@ export default function VerifyEmailPage() {
     return (
       <div className="min-h-screen relative flex items-center justify-center p-4">
         <AuthBackground />
-        <Card className="w-full max-w-md rounded-[5px] relative z-10 backdrop-blur-sm bg-card border-white/20 text-slate-900">
+        <Card className="w-full max-w-md rounded-[5px] relative z-10 backdrop-blur-sm bg-card border-white/20 text-card-foreground">
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-xl font-bold">Session Expired</CardTitle>
-            <p className="text-sm text-slate-700 mt-2">
+            <p className="text-sm text-muted-foreground mt-2">
               Please sign up again to receive a new verification code.
             </p>
           </CardHeader>
@@ -98,15 +98,15 @@ export default function VerifyEmailPage() {
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
       <AuthBackground />
 
-      <Card className="w-full max-w-md rounded-[5px] relative z-10 backdrop-blur-sm bg-card border-white/20 text-slate-900">
+      <Card className="w-full max-w-md rounded-[5px] relative z-10 backdrop-blur-sm bg-card border-white/20 text-card-foreground">
         <CardHeader className="space-y-4 text-center pb-6">
           <div className="mx-auto w-20 h-20 flex items-center justify-center">
             <img src={thunderLogo} alt="Thunder Pro" className="w-full h-full object-contain" />
           </div>
           <div>
-            <CardTitle className="text-xl font-bold text-slate-900">Verify Your Email</CardTitle>
-            <p className="text-sm text-slate-700 mt-2">Enter the 6-digit code we sent to</p>
-            <p className="text-sm font-semibold text-slate-900 mt-1">{email}</p>
+            <CardTitle className="text-xl font-bold text-card-foreground">Verify Your Email</CardTitle>
+            <p className="text-sm text-muted-foreground mt-2">Enter the 6-digit code we sent to</p>
+            <p className="text-sm font-semibold text-card-foreground mt-1">{email}</p>
           </div>
         </CardHeader>
 
@@ -118,7 +118,7 @@ export default function VerifyEmailPage() {
                   <InputOTPSlot
                     key={i}
                     index={i}
-                    className="w-12 h-14 text-lg border-slate-300"
+                    className="w-12 h-14 text-lg border-input"
                   />
                 ))}
               </InputOTPGroup>
@@ -134,7 +134,7 @@ export default function VerifyEmailPage() {
           </Button>
 
           <div className="text-center space-y-2">
-            <p className="text-sm text-slate-700">Didn't receive the code?</p>
+            <p className="text-sm text-muted-foreground">Didn't receive the code?</p>
             <button
               type="button"
               onClick={handleResend}
@@ -149,7 +149,7 @@ export default function VerifyEmailPage() {
             <button
               type="button"
               onClick={() => navigate("/auth")}
-              className="text-sm text-slate-900 hover:text-slate-700 font-medium hover:underline"
+              className="text-sm text-card-foreground hover:text-muted-foreground font-medium hover:underline"
             >
               Back to Sign In
             </button>

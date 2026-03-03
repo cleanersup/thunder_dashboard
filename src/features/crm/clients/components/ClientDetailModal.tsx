@@ -93,7 +93,7 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
         title={client.full_name}
         badge={{
           label: client.status,
-          className: CLIENT_STATUS_BADGE[client.status] ?? "bg-gray-400 text-white",
+          className: CLIENT_STATUS_BADGE[client.status] ?? "bg-secondary text-secondary-foreground",
         }}
       >
         <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
@@ -253,8 +253,8 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
                     />
                     <ActionButton
                       icon={UserX}
-                      iconBg="bg-orange-500/10"
-                      iconColor="text-orange-500"
+                      iconBg="bg-warning/10"
+                      iconColor="text-warning"
                       label="Deactivate"
                       description="Set client as inactive"
                       onClick={handleToggleStatus}
@@ -266,8 +266,8 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
                 {client.status === "inactive" && (
                   <ActionButton
                     icon={UserCheck}
-                    iconBg="bg-green-500/10"
-                    iconColor="text-green-500"
+                    iconBg="bg-success/10"
+                    iconColor="text-success"
                     label="Activate"
                     description="Set client as active"
                     onClick={handleToggleStatus}
@@ -277,11 +277,11 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
                 {/* Always visible */}
                 <ActionButton
                   icon={Trash2}
-                  iconBg="bg-red-500/10"
-                  iconColor="text-red-500"
+                  iconBg="bg-destructive/10"
+                  iconColor="text-destructive"
                   label="Delete"
                   description="Remove client permanently"
-                  labelColor="text-red-500"
+                  labelColor="text-destructive"
                   onClick={() => setShowDelete(true)}
                 />
               </div>

@@ -153,7 +153,7 @@ export const SearchableSelect = React.forwardRef<
               className={cn(
                 "w-full justify-between h-10 bg-background font-normal",
                 !value && "text-muted-foreground",
-                error && "border-red-500 border-2",
+                error && "border-destructive border-2",
                 className
               )}
             >
@@ -201,7 +201,7 @@ export const SearchableSelect = React.forwardRef<
           className={cn(
             "w-full justify-between h-10 bg-background font-normal",
             !value && "text-muted-foreground",
-            error && "border-red-500 border-2",
+            error && "border-destructive border-2",
             className
           )}
         >

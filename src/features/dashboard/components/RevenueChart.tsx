@@ -41,16 +41,16 @@ export function RevenueChart({ monthlyRevenue, sparklineData, lastWeekPercent, i
           ${formatCurrency(monthlyRevenue)}
         </h2>
         <div className="flex items-center gap-1 mt-1">
-          <TrendingUp className="w-3 h-3 text-green-600" />
-          <span className="text-[11px] text-green-600 font-medium">{lastWeekPercent}</span>
+          <TrendingUp className="w-3 h-3 text-success" />
+          <span className="text-[11px] text-success font-medium">{lastWeekPercent}</span>
         </div>
 
         <ResponsiveContainer width="100%" height={180} className="mt-auto">
           <AreaChart data={sparklineData} margin={{ top: 10, right: 0, left: -30, bottom: 0 }}>
             <defs>
               <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(220,90%,56%)" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="hsl(220,90%,56%)" stopOpacity={0} />
+                <stop offset="5%" stopColor="hsl(var(--info))" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="hsl(var(--info))" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid
@@ -87,7 +87,7 @@ export function RevenueChart({ monthlyRevenue, sparklineData, lastWeekPercent, i
             <Area
               type="monotone"
               dataKey="value"
-              stroke="hsl(220,90%,56%)"
+              stroke="hsl(var(--info))"
               strokeWidth={2}
               fill="url(#revenueGradient)"
               dot={false}

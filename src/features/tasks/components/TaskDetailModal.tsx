@@ -98,7 +98,7 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
         title={task.title}
         badge={{
           label: statusLabel,
-          className: TASK_STATUS_HEADER_BADGE[task.status] ?? "bg-gray-500 text-white",
+          className: TASK_STATUS_HEADER_BADGE[task.status] ?? "bg-secondary text-secondary-foreground",
         }}
       >
         <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
@@ -116,7 +116,7 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
                 <div className="flex items-start gap-3">
                   <Flag className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                   <div className="flex flex-wrap gap-2">
-                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${PRIORITY_BADGE[task.priority] ?? "bg-gray-500 text-white"}`}>
+                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${PRIORITY_BADGE[task.priority] ?? "bg-secondary text-secondary-foreground"}`}>
                       {task.priority}
                     </span>
                     <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${TASK_STATUS_BADGE[task.status] ?? ""}`}>
@@ -239,8 +239,8 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
                 {task.status === "to do" && (
                   <ActionButton
                     icon={Play}
-                    iconBg="bg-green-500/10"
-                    iconColor="text-green-600"
+                    iconBg="bg-success/10"
+                    iconColor="text-success"
                     label="Start Task"
                     description="Begin working on this task"
                     onClick={handleStart}
@@ -249,8 +249,8 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
                 {task.status === "in progress" && (
                   <ActionButton
                     icon={CheckCircle}
-                    iconBg="bg-green-500/10"
-                    iconColor="text-green-600"
+                    iconBg="bg-success/10"
+                    iconColor="text-success"
                     label="Complete Task"
                     description="Mark this task as completed"
                     onClick={handleComplete}
@@ -265,11 +265,11 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
                 />
                 <ActionButton
                   icon={Trash2}
-                  iconBg="bg-red-500/10"
-                  iconColor="text-red-500"
+                  iconBg="bg-destructive/10"
+                  iconColor="text-destructive"
                   label="Delete"
                   description="Remove this task permanently"
-                  labelColor="text-red-500"
+                  labelColor="text-destructive"
                   onClick={() => setShowDelete(true)}
                 />
               </div>

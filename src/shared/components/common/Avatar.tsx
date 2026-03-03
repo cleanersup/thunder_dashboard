@@ -8,14 +8,14 @@
  */
 
 const COLORS = [
-  "bg-blue-100 text-blue-700",
-  "bg-green-100 text-green-700",
-  "bg-purple-100 text-purple-700",
-  "bg-orange-100 text-orange-700",
+  "bg-info-subtle text-info-subtle-foreground",
+  "bg-success-subtle text-success-subtle-foreground",
+  "bg-purple-vibrant/15 text-purple-vibrant",
+  "bg-warning-subtle text-warning-subtle-foreground",
   "bg-pink-100 text-pink-700",
   "bg-cyan-100 text-cyan-700",
-  "bg-yellow-100 text-yellow-700",
-  "bg-red-100 text-red-700",
+  "bg-yellow-vibrant/15 text-yellow-vibrant",
+  "bg-destructive/10 text-destructive",
 ];
 
 /**

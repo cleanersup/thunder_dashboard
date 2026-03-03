@@ -1,9 +1,9 @@
 # Thunder Dashboard — Plan Maestro de Migración Web
 
 > **Estado actual:** 🟢 En progreso
-> **Fase activa:** Fase 6 — Booking
-> **Última actualización:** 2026-02-26
-> **Sesión anterior:** F0–F5 completas + mejoras post-F5 (modales, tokens, padding).
+> **Fase activa:** Fase 8 — Invoices
+> **Última actualización:** 2026-03-03
+> **Sesión anterior:** F7 completa + refinada (Estimates). Arquitectura SOLID aplicada: step components aislados, useDraftEstimate, useResidentialPricing, useCommercialPricing, EstimateFormLayout. Draft system completo (DraftRecoveryDialog, ExitConfirmationDialog, DraftStatusIndicator). Commercial: 8 pasos (añadido Preview con full ProposalPreview + Download PDF via jsPDF). Residential: 11 pasos. Modal de detalle muestra datos reales de drafts. Textos validados contra swift-slate.
 
 ---
 
@@ -379,8 +379,15 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ### Shared (mejoras post-F5)
 - [x] `shared/components/common/DetailModal` — wrapper reutilizable (header oscuro + body scrollable) para todos los modales de detalle
 - [x] `shared/components/common/Avatar` — InitialsAvatar, getInitials, getAvatarColor
-- [x] `shared/constants/styleTokens.ts` — tokens centralizados de colores para priority/status (PRIORITY_BADGE, PRIORITY_SOFT, PRIORITY_SOFT_BORDER, LEAD_CARD_BG, LEAD_STATUS_BADGE, TASK_STATUS_SOFT, TASK_STATUS_BADGE, TASK_STATUS_HEADER_BADGE)
+- [x] `shared/constants/styleTokens.ts` — tokens centralizados de colores para priority/status (PRIORITY_BADGE, PRIORITY_SOFT, PRIORITY_SOFT_BORDER, LEAD_CARD_BG, LEAD_STATUS_BADGE, TASK_STATUS_SOFT, TASK_STATUS_BADGE, TASK_STATUS_HEADER_BADGE, CLIENT_STATUS_BADGE, CLIENT_STATUS_TABLE)
+- [x] `tailwind.config.ts` — grupos de color tokens con `<alpha-value>`: `priority`, `task-status`, `lead-status`, `client-status` — sin colores hardcodeados en componentes
 - [x] Padding uniforme `p-2.5 space-y-2.5` en todas las páginas internas
+- [x] `shared/components/common/EntityPickerField` — picker genérico reutilizable (multi/single, búsqueda, "Create new" inline, pills removibles). Usado en TaskForm; listo para EstimateForm, etc.
+- [x] `features/employees/schemas/employeeSchema.ts` + `services/employeesService.ts` + `hooks/useEmployees.ts` (fetchEmployees, createEmployee, useCreateEmployee) — infraestructura base F10
+- [x] `features/employees/components/EmployeeForm` — modal de creación inline (parity swift-slate /add-employee): nombre, email, teléfono, género, fecha de nacimiento, posición, tarifa, dirección, notas
+- [x] `features/tasks/components/TaskForm` — actualizado: `EntityPickerField` multi para empleados + single para cliente; `EmployeeForm` como modal anidado (nested dialog sin cerrar TaskForm); `Controller` RHF para selects controlados
+- [x] Logos y favicon: `src/assets/` (thunder-logo.png, thunder-logo-white.png, thunder-pro-logo.png), `public/favicon.ico`, `index.html` actualizado
+- [x] `DesktopSidebar` — reemplazado texto "Thunder Pro" por imágenes: expandido → logo-pro, colapsado → logo icono
 
 ---
 
@@ -399,20 +406,47 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 7 — Estimates
-> Estado: 🔴 Pendiente
+> Estado: ✅ Completa (incluyendo refinamiento SOLID + draft system)
 
-- [ ] `features/estimates/services/estimatesService.ts` (JSDoc)
-- [ ] `features/estimates/hooks/useEstimates.ts`, `useCreateEstimate.ts`, `useEstimateDetails.ts`
-- [ ] `features/estimates/schemas/residentialEstimateSchema.ts`, `commercialEstimateSchema.ts`
-- [ ] `features/estimates/components/EstimatesList`
-- [ ] `features/estimates/components/ResidentialEstimateForm`
-- [ ] `features/estimates/components/CommercialEstimateForm`
-- [ ] `features/estimates/components/EstimatePreview`
-- [ ] Páginas internas: `EstimatesPage`, `CreateResidentialEstimatePage`, `CreateCommercialEstimatePage`, `EstimateDetailPage`
-- [ ] Página pública: `PublicEstimateViewPage` (`/view/estimate/:token`) — sin auth
-- [ ] `shared/services/share.service.ts` — Web Share API + clipboard fallback
-- [ ] `shared/services/pdf.service.ts` — Blob download (eliminar `pdfMobileHelper.ts`)
-- [ ] Test: crear estimado → email → cliente abre link → acepta
+### Infraestructura base
+- [x] `features/estimates/types/estimate.types.ts` — EstimateRow, EstimateInsert, EstimateUpdate, EstimateStatus, FormattedEstimate, DraftData
+- [x] `features/estimates/services/estimatesService.ts` — CRUD, share token, fetchByToken, profile, activities, notifications, saveDraftEstimate, loadDraftEstimate, deleteDraftEstimate
+- [x] `features/estimates/services/generateCommercialProposalPDF.ts` — jsPDF multi-page proposal (cover + specs + 14 contract terms + signatures)
+- [x] `features/estimates/config/steps.config.ts` — RESIDENTIAL_STEPS (11), COMMERCIAL_STEPS (8)
+- [x] `features/estimates/hooks/useEstimates.ts` — useEstimates, useEstimate, useCreateEstimate, useUpdateEstimate, useUpdateEstimateStatus, useDeleteEstimate
+- [x] `features/estimates/hooks/useEstimateShare.ts` — generates share link, copies to clipboard
+- [x] `features/estimates/hooks/useSendEstimateEmail.ts` — calls send-estimate-email Edge Function
+- [x] `features/estimates/hooks/useDraftEstimate.ts` — auto-save debounced, load/save/delete draft, clearLoadedDraft
+- [x] `features/estimates/hooks/useResidentialPricing.ts` — all residential pricing calculations
+- [x] `features/estimates/hooks/useCommercialPricing.ts` — Group A (sqft) + Group B (restaurant/food-truck) pricing, isGroupB helper
+- [x] `shared/services/pdf.service.ts` — generateEstimatePDF + EstimatePDFData
+- [x] `shared/utils/estimatePricing.ts` — pricing constants + calculateAdjustedPrice
+
+### Shared step components
+- [x] `features/estimates/components/EstimateClientStep.tsx` — client/lead picker (shared)
+- [x] `features/estimates/components/EstimateFormLayout.tsx` — sticky header/tabs/footer shell (shared)
+- [x] `features/estimates/components/DraftStatusIndicator.tsx` — "Saving…" / "Draft saved" badge
+- [x] `features/estimates/components/DraftRecoveryDialog.tsx` — "Continue" vs "Start Fresh" on mount
+- [x] `features/estimates/components/ExitConfirmationDialog.tsx` — "Save draft / Discard / Cancel" on back
+
+### Residential step components (11 pasos)
+- [x] `ResServiceStep`, `ResRoomsStep`, `ResAdditionalStep`, `ResExtrasStep`, `ResPetsStep`, `ResLaundryStep`, `ResScopeStep`, `ResSummaryStep`, `ResPreviewStep`, `ResSendStep`
+
+### Commercial step components (8 pasos)
+- [x] `CommPropertyStep` — property type + size + service type + recurring frequency + select days + contract duration
+- [x] `CommDetailsStep` — Group B: service schedule + grease level + restaurant condition + client provides supplies + extra services
+- [x] `CommMainStep` — total employees + hourly rate + cleaning duration + time (start + end auto-calculated)
+- [x] `CommScopeStep`, `CommSummaryStep`, `CommPreviewStep` (full ProposalPreview + Download PDF), `CommSendStep` (email/sms/both)
+
+### Pages
+- [x] `features/estimates/pages/EstimatesPage.tsx` — KPI cards, toolbar, table, draft actions (Continue/Start Fresh/Delete)
+- [x] `features/estimates/pages/CreateResidentialEstimatePage.tsx` — 11-step orchestrator + draft flow
+- [x] `features/estimates/pages/CreateCommercialEstimatePage.tsx` — 8-step orchestrator + draft flow (Group A + B)
+- [x] `features/estimates/pages/PublicEstimateViewPage.tsx` — token → PDF blob redirect
+- [x] `features/estimates/components/EstimateDetailsModal.tsx` — full details + draft-specific rendering (real client data, step progress, form data from draft_data JSON)
+
+### Routes
+- [x] `/estimates`, `/estimates/new/residential`, `/estimates/new/commercial`, `/public/estimate/:token`
 
 ---
 
@@ -447,12 +481,15 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 10 — Employees + Employee Portal
-> Estado: 🔴 Pendiente
+> Estado: 🟡 Parcialmente iniciada (infraestructura base creada en F5 mejoras)
 
 ### Gestión Interna
-- [ ] `features/employees/services/employeesService.ts` (JSDoc)
-- [ ] `features/employees/hooks/useEmployees.ts`, `useEmployeeDetails.ts`, `useShiftEdit.ts`
-- [ ] `features/employees/components/EmployeesList`, `EmployeeForm`, `EmployeeDetails`
+- [x] `features/employees/services/employeesService.ts` — fetchEmployees, createEmployee (JSDoc)
+- [x] `features/employees/hooks/useEmployees.ts` — useEmployees, useCreateEmployee
+- [x] `features/employees/schemas/employeeSchema.ts` — Zod schema completo
+- [x] `features/employees/components/EmployeeForm` — modal de creación (usado inline en TaskForm)
+- [ ] `features/employees/hooks/useEmployeeDetails.ts`, `useShiftEdit.ts`
+- [ ] `features/employees/components/EmployeesList`, `EmployeeDetails`
 - [ ] `features/employees/components/TimelineView`, `ClockInOutPanel`, `ShiftDetails`, `ShiftEditModal`
 - [ ] Páginas: `EmployeesPage`, `AddEmployeePage`, `EditEmployeePage`, `EmployeeDetailPage`, `TimeClockPage`, `ShiftDetailPage`
 
@@ -590,6 +627,9 @@ Esto significa:
 | 2026-02-25 | F3 ✅, F4 ✅ | Layout responsive web (sin BottomNav). Fase 16 i18n agregada. Texto debe coincidir con swift-slate. |
 | 2026-02-25 | F5 ✅ | CRM completo: Clients, Leads (kanban), Tasks, Notifications. Corregidos DataTable API y PageHeader backTo. |
 | 2026-02-26 | F5 mejoras | DetailModal reutilizable, ClientDetailModal + TaskDetailModal, acciones condicionales por status (swift-slate parity), styleTokens centralizados, padding uniforme p-2.5, páginas de detalle eliminadas (todo vía modales). |
+| 2026-02-26 | F5 mejoras (cont.) | Color tokens CSS variables (tailwind.config + styleTokens sin hardcoded). EntityPickerField genérico reutilizable. EmployeeForm + servicio/hook (infraestructura F10). TaskForm con EntityPickerField + nested EmployeeForm. Logos (src/assets), favicon, DesktopSidebar con logo. Build 0 errores. |
+| 2026-02-26→03-03 | F7 ✅ | Estimates completo: EstimatesPage, CreateResidential (11 pasos), CreateCommercial (7 pasos inicial), modales, pricing hooks, PDF, rutas. |
+| 2026-03-03 | F7 refinamiento ✅ | Refactor SOLID: step components aislados, EstimateFormLayout, steps.config. Draft system (useDraftEstimate, DraftRecoveryDialog, ExitConfirmationDialog, DraftStatusIndicator). Commercial: 8 pasos (añadido CommPreviewStep con ProposalPreview completa + Download PDF via jsPDF). CommPropertyStep: Select Days separado + Contract Duration. CommMainStep: 4 Cards + End Time auto-calculado. CommDetailsStep: textos validados contra swift-slate. EstimateDetailsModal: datos reales de draft desde draft_data JSON. Draft restore async (fetch client/lead desde DB). EstimatesPage: acciones draft (Continue/Start Fresh/Delete). Limpieza: dir schemas/ vacío eliminado. |
 
 ---
 

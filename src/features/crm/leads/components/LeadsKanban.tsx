@@ -68,7 +68,7 @@ function LeadCard({ lead, onClick, isDragging = false }: LeadCardProps) {
       <p className="text-xs text-muted-foreground mb-2">{lead.phone}</p>
 
       <div className="flex justify-end">
-        <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full capitalize ${PRIORITY_BADGE[lead.priority_level] ?? "bg-gray-500 text-white"}`}>
+        <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full capitalize ${PRIORITY_BADGE[lead.priority_level] ?? "bg-secondary text-secondary-foreground"}`}>
           {lead.priority_level}
         </span>
       </div>
@@ -94,8 +94,8 @@ function KanbanColumn({ status, label, leads, onCardClick, draggingId }: ColumnP
         ref={setNodeRef}
         className={`
           flex-1 rounded-xl p-3 space-y-2 transition-colors
-          bg-gray-50 dark:bg-muted/40 h-full
-          ${isOver ? "ring-2 ring-primary/40 bg-gray-200 dark:bg-muted/60" : ""}
+          bg-muted/40 h-full
+          ${isOver ? "ring-2 ring-primary/40 bg-muted/60" : ""}
         `}
       >
       <h3 className="text-sm font-semibold text-foreground mb-3 px-1">{label}</h3>

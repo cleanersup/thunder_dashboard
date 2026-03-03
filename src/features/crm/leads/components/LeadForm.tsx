@@ -8,6 +8,7 @@ import { Label } from "@/shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { leadSchema, type LeadFormData } from "../schemas/leadSchema";
+import { toDecimalString } from "@/shared/utils/numericInput";
 import { useCreateLead, useUpdateLead } from "../hooks/useLeads";
 import type { Lead } from "../../types/crm.types";
 
@@ -156,7 +157,18 @@ export function LeadForm({ open, onClose, lead }: LeadFormProps) {
             </div>
             <div>
               <Label>Estimate Budget</Label>
-              <Input type="number" {...register("estimate_budget", { valueAsNumber: true })} placeholder="0.00" />
+              {(() => {
+                const field = register("estimate_budget", { setValueAs: (v) => v === "" ? null : parseFloat(v) });
+                return (
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    {...field}
+                    onChange={(e) => { e.target.value = toDecimalString(e.target.value); field.onChange(e); }}
+                    placeholder="0.00"
+                  />
+                );
+              })()}
             </div>
             <div>
               <Label>Next Follow-up Date</Label>

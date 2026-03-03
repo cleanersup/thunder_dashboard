@@ -63,7 +63,7 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
         title={lead.full_name}
         badge={{
           label: lead.status,
-          className: LEAD_STATUS_BADGE[lead.status] ?? "bg-gray-500 text-white",
+          className: LEAD_STATUS_BADGE[lead.status] ?? "bg-secondary text-secondary-foreground",
         }}
       >
         <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
@@ -106,7 +106,7 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                       <p className="text-xs text-muted-foreground">Priority</p>
                       <p className="text-sm font-medium capitalize">{lead.priority_level}</p>
                     </div>
-                    <span className={`text-xs font-semibold px-3 py-1 rounded-full capitalize ${PRIORITY_BADGE[lead.priority_level] ?? "bg-gray-500 text-white"}`}>
+                    <span className={`text-xs font-semibold px-3 py-1 rounded-full capitalize ${PRIORITY_BADGE[lead.priority_level] ?? "bg-secondary text-secondary-foreground"}`}>
                       {lead.priority_level}
                     </span>
                   </div>

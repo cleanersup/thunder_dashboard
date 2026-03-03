@@ -428,17 +428,22 @@ export type Database = {
           address: string
           apt: string | null
           city: string
+          client_id: string | null
           client_name: string
           company_name: string | null
           created_at: string
+          current_step: number | null
           discount_type: string | null
           discount_value: number | null
+          draft_data: Json | null
           email: string
           estimate_date: string
           extra_services: Json | null
           id: string
+          is_draft: boolean | null
           labor_cost: number | null
           laundry: string | null
+          lead_id: string | null
           main_data: Json | null
           overhead_cost: number | null
           pets: string | null
@@ -464,17 +469,22 @@ export type Database = {
           address: string
           apt?: string | null
           city: string
+          client_id?: string | null
           client_name: string
           company_name?: string | null
           created_at?: string
+          current_step?: number | null
           discount_type?: string | null
           discount_value?: number | null
+          draft_data?: Json | null
           email: string
           estimate_date?: string
           extra_services?: Json | null
           id?: string
+          is_draft?: boolean | null
           labor_cost?: number | null
           laundry?: string | null
+          lead_id?: string | null
           main_data?: Json | null
           overhead_cost?: number | null
           pets?: string | null
@@ -500,17 +510,22 @@ export type Database = {
           address?: string
           apt?: string | null
           city?: string
+          client_id?: string | null
           client_name?: string
           company_name?: string | null
           created_at?: string
+          current_step?: number | null
           discount_type?: string | null
           discount_value?: number | null
+          draft_data?: Json | null
           email?: string
           estimate_date?: string
           extra_services?: Json | null
           id?: string
+          is_draft?: boolean | null
           labor_cost?: number | null
           laundry?: string | null
+          lead_id?: string | null
           main_data?: Json | null
           overhead_cost?: number | null
           pets?: string | null

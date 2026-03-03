@@ -28,7 +28,7 @@ const toastVariants = cva(
     variants: {
       variant: {
         default: "border bg-background text-foreground",
-        destructive: "destructive group border-slate-200 bg-white text-slate-900",
+        destructive: "destructive group border-destructive/30 bg-destructive/10 text-destructive",
       },
     },
     defaultVariants: {
@@ -67,7 +67,7 @@ const ToastClose = React.forwardRef<
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
-      "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none group-[.destructive]:text-slate-600",
+      "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none group-[.destructive]:text-destructive",
       className,
     )}
     toast-close=""
@@ -82,7 +82,7 @@ const ToastTitle = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Title>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Title>
 >(({ className, ...props }, ref) => (
-  <ToastPrimitives.Title ref={ref} className={cn("text-lg font-semibold leading-none tracking-tight text-center group-[.destructive]:text-slate-900", className)} {...props} />
+  <ToastPrimitives.Title ref={ref} className={cn("text-lg font-semibold leading-none tracking-tight text-center group-[.destructive]:text-destructive", className)} {...props} />
 ));
 ToastTitle.displayName = ToastPrimitives.Title.displayName;
 
@@ -90,7 +90,7 @@ const ToastDescription = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Description>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Description>
 >(({ className, ...props }, ref) => (
-  <ToastPrimitives.Description ref={ref} className={cn("text-sm text-muted-foreground text-center group-[.destructive]:text-slate-700", className)} {...props} />
+  <ToastPrimitives.Description ref={ref} className={cn("text-sm text-muted-foreground text-center group-[.destructive]:text-destructive/80", className)} {...props} />
 ));
 ToastDescription.displayName = ToastPrimitives.Description.displayName;
 

@@ -135,6 +135,36 @@ export default {
             foreground: "hsl(var(--client-status-inactive-foreground))",
           },
         },
+        // ── Semantic success (accepted, completed, active states) ──────────
+        success: {
+          DEFAULT: "hsl(var(--success) / <alpha-value>)",
+          foreground: "hsl(var(--success-foreground))",
+          subtle: "hsl(var(--success-subtle) / <alpha-value>)",
+          "subtle-foreground": "hsl(var(--success-subtle-foreground))",
+          "subtle-border": "hsl(var(--success-subtle-border))",
+        },
+        // ── Semantic info (notice cards, draft, invoiced states) ───────────
+        info: {
+          DEFAULT: "hsl(var(--info) / <alpha-value>)",
+          foreground: "hsl(var(--info-foreground))",
+          subtle: "hsl(var(--info-subtle) / <alpha-value>)",
+          "subtle-foreground": "hsl(var(--info-subtle-foreground))",
+          "subtle-border": "hsl(var(--info-subtle-border))",
+        },
+        // ── Semantic warning (pending, in-progress states) ─────────────────
+        warning: {
+          DEFAULT: "hsl(var(--warning) / <alpha-value>)",
+          foreground: "hsl(var(--warning-foreground))",
+          subtle: "hsl(var(--warning-subtle) / <alpha-value>)",
+          "subtle-foreground": "hsl(var(--warning-subtle-foreground))",
+          "subtle-border": "hsl(var(--warning-subtle-border))",
+        },
+        // ── Vibrant accent tokens (as Tailwind classes) ────────────────────
+        "green-vibrant":  "hsl(var(--green-vibrant) / <alpha-value>)",
+        "blue-vibrant":   "hsl(var(--blue-vibrant) / <alpha-value>)",
+        "purple-vibrant": "hsl(var(--purple-vibrant) / <alpha-value>)",
+        "orange-vibrant": "hsl(var(--orange-vibrant) / <alpha-value>)",
+        "yellow-vibrant": "hsl(var(--yellow-vibrant) / <alpha-value>)",
       },
       borderRadius: {
         lg: "var(--radius)",

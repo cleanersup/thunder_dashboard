@@ -62,10 +62,10 @@ export default function CRMPage() {
     <div className="p-2.5 space-y-2.5">
       {/* ── Stats ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <CRMStatCard label="Total Leads"    value={stats.totalLeads}    sublabel="Potential Clients"   color="#3b82f6" icon={Users}       />
-        <CRMStatCard label="All Clients"    value={stats.allClients}    sublabel="Current client list" color="#22c55e" icon={TrendingUp}  />
-        <CRMStatCard label="Active Clients" value={stats.activeClients} sublabel="Currently active"    color="#a855f7" icon={CheckCircle} />
-        <CRMStatCard label="Tasks"          value={stats.totalTasks}    sublabel="Total tasks"          color="#f97316" icon={CheckSquare} />
+        <CRMStatCard label="Total Leads"    value={stats.totalLeads}    sublabel="Potential Clients"   color="hsl(var(--info))"          icon={Users}       />
+        <CRMStatCard label="All Clients"    value={stats.allClients}    sublabel="Current client list" color="hsl(var(--success))"       icon={TrendingUp}  />
+        <CRMStatCard label="Active Clients" value={stats.activeClients} sublabel="Currently active"    color="hsl(var(--purple-vibrant))" icon={CheckCircle} />
+        <CRMStatCard label="Tasks"          value={stats.totalTasks}    sublabel="Total tasks"          color="hsl(var(--warning))"       icon={CheckSquare} />
       </div>
 
       {/* ── Tab section ────────────────────────────────────────────────── */}

@@ -44,14 +44,14 @@ export default function ResetPasswordPage() {
     return (
       <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
         <AuthBackground />
-        <Card className="w-full max-w-md rounded-[5px] relative z-10 backdrop-blur-sm bg-card border-white/20 text-slate-900">
+        <Card className="w-full max-w-md rounded-[5px] relative z-10 backdrop-blur-sm bg-card border-white/20 text-card-foreground">
           <CardHeader className="space-y-4 text-center pb-6">
             <div className="mx-auto w-20 h-20 flex items-center justify-center">
               <img src={thunderLogo} alt="Thunder Pro" className="w-full h-full object-contain" />
             </div>
             <div>
-              <CardTitle className="text-xl font-bold text-slate-900">Invalid Link</CardTitle>
-              <p className="text-sm text-slate-700 mt-2">
+              <CardTitle className="text-xl font-bold text-card-foreground">Invalid Link</CardTitle>
+              <p className="text-sm text-muted-foreground mt-2">
                 This password reset link is invalid or has expired.
               </p>
             </div>
@@ -79,14 +79,14 @@ export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
       <AuthBackground />
-      <Card className="w-full max-w-md rounded-[5px] relative z-10 backdrop-blur-sm bg-card border-white/20 text-slate-900">
+      <Card className="w-full max-w-md rounded-[5px] relative z-10 backdrop-blur-sm bg-card border-white/20 text-card-foreground">
         <CardHeader className="space-y-4 text-center pb-6">
           <div className="mx-auto w-20 h-20 flex items-center justify-center">
             <img src={thunderLogo} alt="Thunder Pro" className="w-full h-full object-contain" />
           </div>
           <div>
-            <CardTitle className="text-xl font-bold text-slate-900">Reset Password</CardTitle>
-            <p className="text-sm text-slate-700 mt-2">Enter your new password below</p>
+            <CardTitle className="text-xl font-bold text-card-foreground">Reset Password</CardTitle>
+            <p className="text-sm text-muted-foreground mt-2">Enter your new password below</p>
           </div>
         </CardHeader>
 
@@ -101,7 +101,7 @@ export default function ResetPasswordPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="text-slate-500 hover:text-slate-700"
+                  className="text-muted-foreground hover:text-muted-foreground"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -118,7 +118,7 @@ export default function ResetPasswordPage() {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword((v) => !v)}
-                  className="text-slate-500 hover:text-slate-700"
+                  className="text-muted-foreground hover:text-muted-foreground"
                 >
                   {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>

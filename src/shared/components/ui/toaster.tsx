@@ -17,7 +17,7 @@ export function Toaster() {
               <div className="flex items-center justify-center gap-1">
                 {title && <ToastTitle>{title}</ToastTitle>}
                 {!props.variant || props.variant === "default" ? (
-                  <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 animate-scale-in" />
+                  <CheckCircle className="h-5 w-5 text-success flex-shrink-0 animate-scale-in" />
                 ) : null}
               </div>
               {description && <ToastDescription>{description}</ToastDescription>}

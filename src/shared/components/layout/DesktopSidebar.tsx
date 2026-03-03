@@ -83,7 +83,7 @@ export function DesktopSidebar() {
                         asChild
                         isActive={active}
                         tooltip={item.label}
-                        className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-white data-[active=true]:text-[#202B3D] text-[13px]"
+                        className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-white data-[active=true]:text-primary text-[13px]"
                       >
                         <Link to={item.path}>
                           <Icon className={cn("h-5 w-5", isCollapsed && "ml-1")} />
@@ -116,7 +116,7 @@ export function DesktopSidebar() {
                       asChild
                       isActive={isActive(item.path)}
                       tooltip={item.label}
-                      className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-white data-[active=true]:text-[#202B3D] text-[13px]"
+                      className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-white data-[active=true]:text-primary text-[13px]"
                     >
                       <Link to={item.path}>
                         <Icon className={cn("h-5 w-5", isCollapsed && "ml-1")} />

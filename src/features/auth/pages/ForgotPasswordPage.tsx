@@ -35,14 +35,14 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
       <AuthBackground />
 
-      <Card className="w-full max-w-md rounded-[5px] relative z-10 backdrop-blur-sm bg-card border-white/20 text-slate-900 shadow-xl">
+      <Card className="w-full max-w-md rounded-[5px] relative z-10 backdrop-blur-sm bg-card border-white/20 text-card-foreground shadow-xl">
         <CardHeader className="space-y-4 text-center pb-6">
           <div className="mx-auto w-20 h-20 flex items-center justify-center">
             <img src={thunderLogo} alt="Thunder Pro" className="w-full h-full object-contain" />
           </div>
           <div>
-            <CardTitle className="text-xl font-bold text-slate-900">Forgot Password</CardTitle>
-            <p className="text-sm text-slate-700 mt-2">
+            <CardTitle className="text-xl font-bold text-card-foreground">Forgot Password</CardTitle>
+            <p className="text-sm text-muted-foreground mt-2">
               {isSuccess
                 ? "We've sent you a password reset link"
                 : "Enter your email to reset your password"}
@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
             </form>
           ) : (
             <div className="text-center space-y-4">
-              <p className="text-sm text-slate-700 leading-relaxed">
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 If an account exists with <strong>{variables?.email}</strong>, you will receive a
                 password reset link shortly.
               </p>

@@ -3,10 +3,15 @@ import { cn } from "@/shared/utils/cn";
 interface LoadingSpinnerProps {
   /** Visual size of the spinner. Defaults to "md". */
   size?: "sm" | "md" | "lg";
-  /** Additional class names for the wrapper div. */
+  /** Additional class names applied to the spinner element itself. */
   className?: string;
   /** When true, centers the spinner in a full-screen container. */
   fullScreen?: boolean;
+  /**
+   * When true, wraps the spinner in a flex centering container that fills
+   * the available height of its parent (use inside <main> or a page section).
+   */
+  centered?: boolean;
 }
 
 const SIZE_CLASSES = {
@@ -27,7 +32,7 @@ const SIZE_CLASSES = {
  * <LoadingSpinner size="sm" />
  * <LoadingSpinner fullScreen />
  */
-export function LoadingSpinner({ size = "md", className, fullScreen }: LoadingSpinnerProps) {
+export function LoadingSpinner({ size = "md", className, fullScreen, centered }: LoadingSpinnerProps) {
   const spinner = (
     <div
       className={cn(
@@ -47,6 +52,15 @@ export function LoadingSpinner({ size = "md", className, fullScreen }: LoadingSp
           {spinner}
           <p className="text-sm text-muted-foreground">Loading…</p>
         </div>
+      </div>
+    );
+  }
+
+  if (centered) {
+    return (
+      <div className="flex flex-col items-center justify-center flex-1 py-16 gap-3">
+        {spinner}
+        <p className="text-sm text-muted-foreground">Loading…</p>
       </div>
     );
   }

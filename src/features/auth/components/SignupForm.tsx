@@ -80,8 +80,8 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
             <img src={thunderLogo} alt="Thunder Pro" className="w-full h-full object-contain" />
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold text-slate-900">Create Account</CardTitle>
-            <CardDescription className="text-sm text-slate-700 mt-2">
+            <CardTitle className="text-2xl font-bold text-card-foreground">Create Account</CardTitle>
+            <CardDescription className="text-sm text-muted-foreground mt-2">
               Sign up to get started
             </CardDescription>
           </div>
@@ -134,7 +134,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
               >
                 <SelectTrigger
                   className={`h-12 rounded-[5px] border ${
-                    errors.companyState ? "border-red-500" : "border-slate-300"
+                    errors.companyState ? "border-destructive" : "border-input"
                   } focus:ring-0 focus:border-primary bg-white`}
                 >
                   <SelectValue placeholder="State *" />
@@ -148,7 +148,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
                 </SelectContent>
               </Select>
               {errors.companyState && (
-                <p className="text-xs text-red-500 mt-1">{errors.companyState.message}</p>
+                <p className="text-xs text-destructive mt-1">{errors.companyState.message}</p>
               )}
             </div>
 
@@ -167,7 +167,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="text-slate-600 hover:text-slate-900"
+                  className="text-muted-foreground hover:text-card-foreground"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -185,7 +185,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword((v) => !v)}
-                  className="text-slate-600 hover:text-slate-900"
+                  className="text-muted-foreground hover:text-card-foreground"
                   aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                 >
                   {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -203,12 +203,12 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
                   setValue("agreeToTerms", checked as boolean, { shouldValidate: true })
                 }
               />
-              <Label htmlFor="agreeToTerms" className="text-xs text-slate-700 leading-relaxed cursor-pointer">
+              <Label htmlFor="agreeToTerms" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
                 By signing up, you agree to our Terms of Use and Privacy Policy
               </Label>
             </div>
             {errors.agreeToTerms && (
-              <p className="text-xs text-red-500 -mt-4">{errors.agreeToTerms.message}</p>
+              <p className="text-xs text-destructive -mt-4">{errors.agreeToTerms.message}</p>
             )}
 
             <Button
@@ -223,7 +223,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
               <button
                 type="button"
                 onClick={onSwitchToLogin}
-                className="text-sm text-slate-900 hover:text-slate-700 font-medium hover:underline"
+                className="text-sm text-card-foreground hover:text-muted-foreground font-medium hover:underline"
               >
                 Already have an account? Sign in
               </button>

@@ -72,7 +72,7 @@ export default function DashboardPage() {
               value={`$${formatCurrency(monthlyRevenue)}`}
               subtext={`${lastWeekPercent} from last week`}
               icon={DollarSign}
-              colorClass="bg-blue-600 text-white"
+              colorClass="bg-info text-info-foreground"
               onClick={() => navigate("/invoices")}
             />
             <StatsCard
@@ -80,7 +80,7 @@ export default function DashboardPage() {
               value={String(clientsCount)}
               subtext="Total active clients"
               icon={Users}
-              colorClass="bg-green-600 text-white"
+              colorClass="bg-success text-success-foreground"
               onClick={() => navigate("/crm")}
             />
             <StatsCard
@@ -88,7 +88,7 @@ export default function DashboardPage() {
               value={String(pendingEstimatesCount)}
               subtext={`Worth $${formatCurrency(pendingEstimatesTotal)}`}
               icon={Receipt}
-              colorClass="bg-purple-600 text-white"
+              colorClass="bg-purple-vibrant text-white"
               onClick={() => navigate("/estimates")}
             />
             <StatsCard
@@ -96,7 +96,7 @@ export default function DashboardPage() {
               value={String(totalRoutesServices)}
               subtext={`${routesCount} route${routesCount !== 1 ? "s" : ""} scheduled`}
               icon={Route}
-              colorClass="bg-orange-500 text-white"
+              colorClass="bg-warning text-warning-foreground"
               onClick={() => navigate("/create-route")}
             />
           </>

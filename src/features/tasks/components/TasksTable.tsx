@@ -70,7 +70,7 @@ function ActionsCell({ task, onOpenDetails, onEdit, onDelete }: ActionsCellProps
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleStart}>
-              <Play className="h-3.5 w-3.5 mr-2 text-green-600" /> Start Task
+              <Play className="h-3.5 w-3.5 mr-2 text-success" /> Start Task
             </DropdownMenuItem>
           </>
         )}
@@ -78,7 +78,7 @@ function ActionsCell({ task, onOpenDetails, onEdit, onDelete }: ActionsCellProps
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleComplete}>
-              <CheckCircle className="h-3.5 w-3.5 mr-2 text-green-600" /> Complete Task
+              <CheckCircle className="h-3.5 w-3.5 mr-2 text-success" /> Complete Task
             </DropdownMenuItem>
           </>
         )}

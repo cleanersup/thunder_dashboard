@@ -19,7 +19,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 217 91% 60%;
+    --primary: 215 70% 23%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 96%;
@@ -28,15 +28,15 @@
     --muted: 220 14% 96%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 217 91% 95%;
-    --accent-foreground: 217 91% 60%;
+    --accent: 215 40% 93%;
+    --accent-foreground: 215 70% 23%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 217 91% 60%;
+    --ring: 215 70% 23%;
 
     --radius: 5px;
 
@@ -49,22 +49,43 @@
     --safe-area-inset-right: env(safe-area-inset-right, 0px);
 
     /* Vibrant accent colors */
-    --blue-vibrant: 217 91% 60%;
+    --blue-vibrant: 215 70% 23%;
     --green-vibrant: 142 76% 45%;
     --purple-vibrant: 271 81% 56%;
     --orange-vibrant: 25 95% 53%;
     --yellow-vibrant: 45 93% 47%;
 
+    /* ── Semantic success (accepted, completed, active) ──────────────── */
+    --success: 142 76% 45%;
+    --success-foreground: 0 0% 100%;
+    --success-subtle: 142 52% 96%;
+    --success-subtle-foreground: 142 52% 27%;
+    --success-subtle-border: 142 52% 82%;
+
+    /* ── Semantic info (notice cards, draft, invoiced) ───────────────── */
+    --info: 215 70% 48%;
+    --info-foreground: 0 0% 100%;
+    --info-subtle: 215 60% 96%;
+    --info-subtle-foreground: 215 60% 28%;
+    --info-subtle-border: 215 55% 82%;
+
+    /* ── Semantic warning (pending, in-progress) ─────────────────────── */
+    --warning: 25 95% 53%;
+    --warning-foreground: 0 0% 100%;
+    --warning-subtle: 25 90% 96%;
+    --warning-subtle-foreground: 25 80% 28%;
+    --warning-subtle-border: 25 85% 82%;
+
     /* ── Semantic priority colors ───────────────────────────────────── */
     --priority-low: 142 76% 45%;
     --priority-low-foreground: 0 0% 100%;
-    --priority-medium: 217 91% 60%;
+    --priority-medium: 215 70% 23%;
     --priority-medium-foreground: 0 0% 100%;
     --priority-high: 0 84% 60%;
     --priority-high-foreground: 0 0% 100%;
 
     /* ── Semantic task-status colors ────────────────────────────────── */
-    --task-status-todo: 217 91% 60%;
+    --task-status-todo: 215 70% 23%;
     --task-status-todo-foreground: 0 0% 100%;
     --task-status-progress: 25 95% 53%;
     --task-status-progress-foreground: 0 0% 100%;
@@ -72,7 +93,7 @@
     --task-status-completed-foreground: 0 0% 100%;
 
     /* ── Semantic lead-status colors ────────────────────────────────── */
-    --lead-status-new: 217 91% 60%;
+    --lead-status-new: 215 70% 23%;
     --lead-status-new-foreground: 0 0% 100%;
     --lead-status-contacted: 45 93% 47%;
     --lead-status-contacted-foreground: 0 0% 100%;
@@ -92,12 +113,12 @@
     /* Sidebar — desktop uses dark background */
     --sidebar-background: 215 32% 18%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary: 215 70% 23%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 215 32% 25%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 215 32% 25%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-ring: 215 70% 23%;
 
     /* Gradients */
     --gradient-onboarding: linear-gradient(180deg, #000000 0%, #023961 100%);
@@ -115,7 +136,7 @@
     --popover: 224 71% 4%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217 91% 60%;
+    --primary: 215 70% 23%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 217 33% 17%;
@@ -125,29 +146,47 @@
     --muted-foreground: 215 20% 65%;
 
     --accent: 217 91% 20%;
-    --accent-foreground: 217 91% 95%;
+    --accent-foreground: 215 40% 93%;
 
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 217 33% 17%;
     --input: 217 33% 17%;
-    --ring: 217 91% 60%;
+    --ring: 215 70% 23%;
 
-    --blue-vibrant: 217 91% 60%;
+    --blue-vibrant: 215 70% 23%;
     --green-vibrant: 142 76% 45%;
     --purple-vibrant: 271 81% 56%;
     --orange-vibrant: 25 95% 53%;
     --yellow-vibrant: 45 93% 47%;
 
+    --success: 142 76% 45%;
+    --success-foreground: 0 0% 100%;
+    --success-subtle: 142 52% 12%;
+    --success-subtle-foreground: 142 52% 72%;
+    --success-subtle-border: 142 52% 22%;
+
+    --info: 215 70% 48%;
+    --info-foreground: 0 0% 100%;
+    --info-subtle: 215 60% 12%;
+    --info-subtle-foreground: 215 60% 75%;
+    --info-subtle-border: 215 55% 22%;
+
+    --warning: 25 95% 53%;
+    --warning-foreground: 0 0% 100%;
+    --warning-subtle: 25 90% 12%;
+    --warning-subtle-foreground: 25 80% 72%;
+    --warning-subtle-border: 25 85% 22%;
+
     --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary: 215 70% 23%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 217 91% 20%;
     --sidebar-accent-foreground: 217 91% 80%;
     --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-ring: 215 70% 23%;
   }
 }
 

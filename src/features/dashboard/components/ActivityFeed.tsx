@@ -53,7 +53,7 @@ function getActivityColor(type: ActivityType): string {
     case "estimate_accepted":
     case "invoice_paid":
     case "task_completed":
-      return "text-green-600 bg-green-50";
+      return "text-success bg-success-subtle";
     case "estimate_canceled":
     case "invoice_canceled":
       return "text-destructive bg-destructive/10";
@@ -61,21 +61,21 @@ function getActivityColor(type: ActivityType): string {
     case "estimate_sent":
     case "invoice_created":
     case "invoice_sent":
-      return "text-blue-600 bg-blue-50";
+      return "text-info bg-info-subtle";
     case "route_created":
     case "appointment_created":
     case "appointment_updated":
-      return "text-purple-600 bg-purple-50";
+      return "text-purple-vibrant bg-purple-vibrant/10";
     case "booking_received":
     case "booking_updated":
-      return "text-orange-600 bg-orange-50";
+      return "text-warning bg-warning-subtle";
     case "lead_created":
     case "lead_updated":
     case "client_created":
     case "client_updated":
-      return "text-yellow-600 bg-yellow-50";
+      return "text-yellow-vibrant bg-yellow-vibrant/10";
     default:
-      return "text-blue-600 bg-blue-50";
+      return "text-info bg-info-subtle";
   }
 }
 

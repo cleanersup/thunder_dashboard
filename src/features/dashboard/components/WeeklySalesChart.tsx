@@ -75,7 +75,7 @@ export function WeeklySalesChart({ data, now, isLoading }: WeeklySalesChartProps
         </ResponsiveContainer>
         <div className="mt-2 flex items-center justify-between">
           <p className="text-xs text-muted-foreground">Total: ${formatCurrency(total)}</p>
-          <p className="text-xs flex items-center gap-1 text-green-600">
+          <p className="text-xs flex items-center gap-1 text-success">
             <TrendingUp className="w-3 h-3" />
             Paid Invoices
           </p>

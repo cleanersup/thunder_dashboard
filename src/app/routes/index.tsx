@@ -27,6 +27,17 @@ const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPag
 const CRMPage = lazy(() => import("@/features/crm/pages/CRMPage"));
 const NotificationsPage = lazy(() => import("@/features/notifications/pages/NotificationsPage"));
 
+// Phase 6 — Booking ✅
+const BookingPage            = lazy(() => import("@/features/booking/pages/BookingPage").then((m) => ({ default: m.BookingPage })));
+const EditBookingFormPage    = lazy(() => import("@/features/booking/pages/EditBookingFormPage").then((m) => ({ default: m.EditBookingFormPage })));
+const PublicBookingFormPage  = lazy(() => import("@/features/booking/pages/PublicBookingFormPage").then((m) => ({ default: m.PublicBookingFormPage })));
+
+// Phase 7 — Estimates ✅
+const EstimatesPage                = lazy(() => import("@/features/estimates/pages/EstimatesPage").then((m) => ({ default: m.EstimatesPage })));
+const CreateResidentialEstimatePage = lazy(() => import("@/features/estimates/pages/CreateResidentialEstimatePage").then((m) => ({ default: m.CreateResidentialEstimatePage })));
+const CreateCommercialEstimatePage  = lazy(() => import("@/features/estimates/pages/CreateCommercialEstimatePage").then((m) => ({ default: m.CreateCommercialEstimatePage })));
+const PublicEstimateViewPage        = lazy(() => import("@/features/estimates/pages/PublicEstimateViewPage").then((m) => ({ default: m.PublicEstimateViewPage })));
+
 /**
  * Central route definition for Thunder Dashboard.
  * All page components are lazy-loaded for code splitting.
@@ -55,6 +66,19 @@ export function AppRouter() {
           {/* Phase 5 ✅ */}
           <Route path="/crm" element={<ProtectedRoute><CRMPage /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+
+          {/* Phase 6 ✅ */}
+          <Route path="/booking" element={<ProtectedRoute><BookingPage /></ProtectedRoute>} />
+          <Route path="/booking/edit" element={<ProtectedRoute><EditBookingFormPage /></ProtectedRoute>} />
+          {/* Public — no auth, must be after /booking/edit to avoid conflict */}
+          <Route path="/booking/:userId" element={<PublicBookingFormPage />} />
+
+          {/* Phase 7 ✅ */}
+          <Route path="/estimates" element={<ProtectedRoute><EstimatesPage /></ProtectedRoute>} />
+          <Route path="/estimates/new/residential" element={<ProtectedRoute><CreateResidentialEstimatePage /></ProtectedRoute>} />
+          <Route path="/estimates/new/commercial"  element={<ProtectedRoute><CreateCommercialEstimatePage /></ProtectedRoute>} />
+          {/* Public — no auth required */}
+          <Route path="/public/estimate/:token" element={<PublicEstimateViewPage />} />
 
           {/* ── 404 fallback ──────────────────────────────────────────── */}
           <Route

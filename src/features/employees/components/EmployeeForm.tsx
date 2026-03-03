@@ -9,6 +9,7 @@ import { Textarea } from "@/shared/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { employeeSchema, type EmployeeFormData } from "../schemas/employeeSchema";
+import { toDecimalString } from "@/shared/utils/numericInput";
 import { useCreateEmployee } from "../hooks/useEmployees";
 import type { EntityOption } from "@/shared/components/common/EntityPickerField";
 
@@ -155,13 +156,18 @@ export function EmployeeForm({ open, onClose, onCreated }: EmployeeFormProps) {
               </div>
               <div>
                 <Label>Hourly Rate ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  {...register("hourly_rate")}
-                  placeholder="0.00"
-                />
+                {(() => {
+                  const field = register("hourly_rate");
+                  return (
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      {...field}
+                      onChange={(e) => { e.target.value = toDecimalString(e.target.value); field.onChange(e); }}
+                      placeholder="0.00"
+                    />
+                  );
+                })()}
                 {errors.hourly_rate && (
                   <p className="text-xs text-destructive mt-1">{errors.hourly_rate.message}</p>
                 )}

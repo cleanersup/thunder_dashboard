@@ -72,7 +72,7 @@ function ActionsCell({ client, onOpenDetails, onEdit, onDelete }: ActionsCellPro
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleToggleStatus}>
-              <UserX className="h-3.5 w-3.5 mr-2 text-orange-500" /> Deactivate
+              <UserX className="h-3.5 w-3.5 mr-2 text-warning" /> Deactivate
             </DropdownMenuItem>
           </>
         )}
@@ -82,7 +82,7 @@ function ActionsCell({ client, onOpenDetails, onEdit, onDelete }: ActionsCellPro
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleToggleStatus}>
-              <UserCheck className="h-3.5 w-3.5 mr-2 text-green-500" /> Activate
+              <UserCheck className="h-3.5 w-3.5 mr-2 text-success" /> Activate
             </DropdownMenuItem>
           </>
         )}
