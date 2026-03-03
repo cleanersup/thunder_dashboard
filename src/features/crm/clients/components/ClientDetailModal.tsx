@@ -6,7 +6,7 @@ import {
 import { DetailModal, InfoRow } from "@/shared/components/common/DetailModal";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { ClientForm } from "./ClientForm";
-import { useDeleteClient, useUpdateClient } from "../hooks/useClients";
+import { useClient, useDeleteClient, useUpdateClient } from "../hooks/useClients";
 import { CLIENT_STATUS_BADGE } from "@/shared/constants/styleTokens";
 import { toast } from "sonner";
 import type { Client } from "../../types/crm.types";
@@ -63,26 +63,30 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
   const [showEdit, setShowEdit]     = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
-  if (!client) return null;
+  // Always read from the query cache so edits reflect immediately
+  const { data: liveClient } = useClient(client?.id);
+  const c = liveClient ?? client;
 
-  const handleDelete = () => deleteClient(client.id, { onSuccess: onClose });
+  if (!c) return null;
+
+  const handleDelete = () => deleteClient(c.id, { onSuccess: onClose });
 
   const handleToggleStatus = () => {
-    const next = client.status === "active" ? "inactive" : "active";
-    updateClient({ id: client.id, payload: { status: next } });
+    const next = c.status === "active" ? "inactive" : "active";
+    updateClient({ id: c.id, payload: { status: next } });
   };
 
   const mapsUrl = (street: string, apt: string | null | undefined, city: string, state: string, zip: string) =>
     `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${street} ${apt ?? ""} ${city} ${state} ${zip}`)}`;
 
   const billingLine = [
-    `${client.billing_street}${client.billing_apt ? `, ${client.billing_apt}` : ""}`,
-    `${client.billing_city}, ${client.billing_state} ${client.billing_zip}`,
+    `${c.billing_street}${c.billing_apt ? `, ${c.billing_apt}` : ""}`,
+    `${c.billing_city}, ${c.billing_state} ${c.billing_zip}`,
   ].join("\n");
 
   const serviceLine = [
-    `${client.service_street}${client.service_apt ? `, ${client.service_apt}` : ""}`,
-    `${client.service_city}, ${client.service_state} ${client.service_zip}`,
+    `${c.service_street}${c.service_apt ? `, ${c.service_apt}` : ""}`,
+    `${c.service_city}, ${c.service_state} ${c.service_zip}`,
   ].join("\n");
 
   return (
@@ -90,10 +94,10 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
       <DetailModal
         open={open}
         onClose={onClose}
-        title={client.full_name}
+        title={c.full_name}
         badge={{
-          label: client.status,
-          className: CLIENT_STATUS_BADGE[client.status] ?? "bg-secondary text-secondary-foreground",
+          label: c.status,
+          className: CLIENT_STATUS_BADGE[c.status] ?? "bg-secondary text-secondary-foreground",
         }}
       >
         <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
@@ -104,8 +108,8 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
             <section>
               <h3 className="text-sm font-bold text-foreground mb-4">Personal Information</h3>
               <div className="space-y-4">
-                <InfoRow icon={User}      label="Full Name" value={client.full_name} />
-                {client.company && <InfoRow icon={Building2} label="Company" value={client.company} />}
+                <InfoRow icon={User}      label="Full Name" value={c.full_name} />
+                {c.company && <InfoRow icon={Building2} label="Company" value={c.company} />}
 
                 {/* Phone with call + SMS shortcuts */}
                 <div className="flex items-start gap-3">
@@ -113,17 +117,17 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Phone</p>
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium truncate">{client.phone}</p>
+                      <p className="text-sm font-medium truncate">{c.phone}</p>
                       <div className="flex gap-1.5 flex-shrink-0">
                         <a
-                          href={`sms:${client.phone}`}
+                          href={`sms:${c.phone}`}
                           className="p-1.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors"
                           aria-label="Send SMS"
                         >
                           <MessageSquare className="h-3.5 w-3.5 text-primary" />
                         </a>
                         <a
-                          href={`tel:${client.phone}`}
+                          href={`tel:${c.phone}`}
                           className="p-1.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors"
                           aria-label="Call"
                         >
@@ -140,9 +144,9 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Email</p>
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium truncate">{client.email}</p>
+                      <p className="text-sm font-medium truncate">{c.email}</p>
                       <a
-                        href={`mailto:${client.email}`}
+                        href={`mailto:${c.email}`}
                         className="p-1.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors flex-shrink-0"
                         aria-label="Send email"
                       >
@@ -164,7 +168,7 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
                 <div className="flex-1 flex items-start justify-between gap-2">
                   <p className="text-sm font-medium whitespace-pre-line">{billingLine}</p>
                   <a
-                    href={mapsUrl(client.billing_street, client.billing_apt, client.billing_city, client.billing_state, client.billing_zip)}
+                    href={mapsUrl(c.billing_street, c.billing_apt, c.billing_city, c.billing_state, c.billing_zip)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors flex-shrink-0"
@@ -186,7 +190,7 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
                 <div className="flex-1 flex items-start justify-between gap-2">
                   <p className="text-sm font-medium whitespace-pre-line">{serviceLine}</p>
                   <a
-                    href={mapsUrl(client.service_street, client.service_apt, client.service_city, client.service_state, client.service_zip)}
+                    href={mapsUrl(c.service_street, c.service_apt, c.service_city, c.service_state, c.service_zip)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors flex-shrink-0"
@@ -205,10 +209,10 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
             <section>
               <h3 className="text-sm font-bold text-foreground mb-4">Business Details</h3>
               <div className="space-y-4">
-                <InfoRow icon={Briefcase}     label="Client Type"         value={<span className="capitalize">{client.client_type}</span>} />
-                <InfoRow icon={MessageCircle} label="Contact Preference"  value={<span className="capitalize">{client.contact_preference}</span>} />
-                {client.instructions && (
-                  <InfoRow icon={FileText} label="Instructions" value={client.instructions} />
+                <InfoRow icon={Briefcase}     label="Client Type"         value={<span className="capitalize">{c.client_type}</span>} />
+                <InfoRow icon={MessageCircle} label="Contact Preference"  value={<span className="capitalize">{c.contact_preference}</span>} />
+                {c.instructions && (
+                  <InfoRow icon={FileText} label="Instructions" value={c.instructions} />
                 )}
               </div>
             </section>
@@ -228,7 +232,7 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
                 />
 
                 {/* Active-only actions */}
-                {client.status === "active" && (
+                {c.status === "active" && (
                   <>
                     <ActionButton
                       icon={FileText}
@@ -263,7 +267,7 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
                 )}
 
                 {/* Inactive-only actions */}
-                {client.status === "inactive" && (
+                {c.status === "inactive" && (
                   <ActionButton
                     icon={UserCheck}
                     iconBg="bg-success/10"
@@ -290,12 +294,12 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
         </div>
       </DetailModal>
 
-      <ClientForm open={showEdit} onClose={() => setShowEdit(false)} client={client} />
+      <ClientForm open={showEdit} onClose={() => setShowEdit(false)} client={c} />
       <ConfirmDialog
         open={showDelete}
         onOpenChange={setShowDelete}
         title="Delete Client"
-        description={`Are you sure? ${client.full_name} will be permanently deleted.`}
+        description={`Are you sure? ${c.full_name} will be permanently deleted.`}
         onConfirm={handleDelete}
         confirmLabel="Delete"
         variant="destructive"

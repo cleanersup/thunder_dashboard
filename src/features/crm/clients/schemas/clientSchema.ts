@@ -15,7 +15,7 @@ export const clientSchema = z.object({
   billing_city: z.string().min(1, "Billing city is required"),
   billing_state: z.string().min(1, "Billing state is required"),
   billing_zip: z.string().min(1, "Billing zip is required"),
-  client_type: z.enum(["individual", "business"]),
+  client_type: z.enum(["residential", "commercial"]),
   contact_preference: z.enum(["phone", "email", "whatsapp"]),
   instructions: z.string().optional(),
   status: z.enum(["active", "inactive"]).default("active"),

@@ -38,6 +38,12 @@ const CreateResidentialEstimatePage = lazy(() => import("@/features/estimates/pa
 const CreateCommercialEstimatePage  = lazy(() => import("@/features/estimates/pages/CreateCommercialEstimatePage").then((m) => ({ default: m.CreateCommercialEstimatePage })));
 const PublicEstimateViewPage        = lazy(() => import("@/features/estimates/pages/PublicEstimateViewPage").then((m) => ({ default: m.PublicEstimateViewPage })));
 
+// Phase 8 — Invoices ✅
+const InvoicesPage             = lazy(() => import("@/features/invoices/pages/InvoicesPage").then((m) => ({ default: m.InvoicesPage })));
+const CreateInvoicePage        = lazy(() => import("@/features/invoices/pages/CreateInvoicePage").then((m) => ({ default: m.CreateInvoicePage })));
+const InvoicePreviewPage       = lazy(() => import("@/features/invoices/pages/InvoicePreviewPage").then((m) => ({ default: m.InvoicePreviewPage })));
+const PublicInvoicePaymentPage = lazy(() => import("@/features/invoices/pages/PublicInvoicePaymentPage").then((m) => ({ default: m.PublicInvoicePaymentPage })));
+
 /**
  * Central route definition for Thunder Dashboard.
  * All page components are lazy-loaded for code splitting.
@@ -79,6 +85,14 @@ export function AppRouter() {
           <Route path="/estimates/new/commercial"  element={<ProtectedRoute><CreateCommercialEstimatePage /></ProtectedRoute>} />
           {/* Public — no auth required */}
           <Route path="/public/estimate/:token" element={<PublicEstimateViewPage />} />
+
+          {/* Phase 8 ✅ */}
+          <Route path="/invoices"              element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
+          <Route path="/invoices/new"          element={<ProtectedRoute><CreateInvoicePage /></ProtectedRoute>} />
+          <Route path="/invoices/:id/edit"     element={<ProtectedRoute><CreateInvoicePage /></ProtectedRoute>} />
+          <Route path="/invoices/:id/preview"  element={<ProtectedRoute><InvoicePreviewPage /></ProtectedRoute>} />
+          {/* Public — no auth required */}
+          <Route path="/invoice/payment/:id" element={<PublicInvoicePaymentPage />} />
 
           {/* ── 404 fallback ──────────────────────────────────────────── */}
           <Route

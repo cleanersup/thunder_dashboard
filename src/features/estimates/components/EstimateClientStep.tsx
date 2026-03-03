@@ -9,45 +9,17 @@ import {
   User, Users, Plus,
   MapPin, Mail, Phone, Building2, Info,
 } from "lucide-react";
-import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/shared/utils/cn";
+import { ClientForm } from "@/features/crm/clients/components/ClientForm";
+import { LeadForm }   from "@/features/crm/leads/components/LeadForm";
 
-// ─── Public types ─────────────────────────────────────────────────────────────
+// ─── Public types (defined in shared, re-exported here for backwards compat) ──
 
-export interface ClientEntity {
-  id: string;
-  full_name: string;
-  company: string | null;
-  phone: string;
-  email: string;
-  service_street: string;
-  service_city: string;
-  service_state: string;
-  service_zip: string;
-  service_apt: string | null;
-}
-
-export interface LeadEntity {
-  id: string;
-  full_name: string;
-  company_name: string | null;
-  phone: string;
-  email: string;
-  address: string;
-  city: string;
-  state: string;
-  zip_code: string;
-  apt_suite: string | null;
-}
-
-export type EstimateEntityType = "client" | "lead";
+export type { ClientEntity, LeadEntity, EstimateEntityType } from "@/shared/types/entities";
+import type { ClientEntity, LeadEntity, EstimateEntityType } from "@/shared/types/entities";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -64,18 +36,6 @@ interface EstimateClientStepProps {
   };
 }
 
-// ─── Quick-create empty forms ─────────────────────────────────────────────────
-
-const EMPTY_CLIENT_FORM = {
-  full_name: "", email: "", phone: "", company: "",
-  service_street: "", service_city: "", service_state: "", service_zip: "",
-};
-
-const EMPTY_LEAD_FORM = {
-  full_name: "", email: "", phone: "", company_name: "",
-  address: "", city: "", state: "", zip_code: "",
-};
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function EstimateClientStep({
@@ -91,9 +51,6 @@ export function EstimateClientStep({
 
   const [showNewClient, setShowNewClient] = useState(false);
   const [showNewLead,   setShowNewLead]   = useState(false);
-  const [clientForm, setClientForm] = useState(EMPTY_CLIENT_FORM);
-  const [leadForm,   setLeadForm]   = useState(EMPTY_LEAD_FORM);
-  const [saving, setSaving] = useState(false);
 
   // ── Data queries ─────────────────────────────────────────────────────────
 
@@ -126,105 +83,6 @@ export function EstimateClientStep({
   });
 
   const currentList = estimateType === "client" ? clients : leads;
-
-  // ── Quick-create client ───────────────────────────────────────────────────
-
-  async function handleCreateClient() {
-    if (!clientForm.full_name || !clientForm.email || !clientForm.phone) {
-      toast.error("Name, email and phone are required");
-      return;
-    }
-    setSaving(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase
-        .from("clients")
-        .insert({
-          user_id:            user.id,
-          full_name:          clientForm.full_name,
-          email:              clientForm.email,
-          phone:              clientForm.phone,
-          company:            clientForm.company || null,
-          // Service address
-          service_street:     clientForm.service_street,
-          service_city:       clientForm.service_city,
-          service_state:      clientForm.service_state,
-          service_zip:        clientForm.service_zip,
-          service_apt:        null,
-          // Billing mirrors service address
-          billing_street:     clientForm.service_street,
-          billing_city:       clientForm.service_city,
-          billing_state:      clientForm.service_state,
-          billing_zip:        clientForm.service_zip,
-          // Required defaults
-          client_type:        "residential",
-          contact_preference: "email",
-          status:             "active",
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      await qc.invalidateQueries({ queryKey: ["clients-for-estimate"] });
-      onClientSelect(data as ClientEntity);
-      setShowNewClient(false);
-      setClientForm(EMPTY_CLIENT_FORM);
-      toast.success("Client created");
-    } catch (err: any) {
-      toast.error(err.message ?? "Failed to create client");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  // ── Quick-create lead ─────────────────────────────────────────────────────
-
-  async function handleCreateLead() {
-    if (!leadForm.full_name || !leadForm.email || !leadForm.phone) {
-      toast.error("Name, email and phone are required");
-      return;
-    }
-    setSaving(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase
-        .from("leads")
-        .insert({
-          user_id:            user.id,
-          full_name:          leadForm.full_name,
-          email:              leadForm.email,
-          phone:              leadForm.phone,
-          company_name:       leadForm.company_name || null,
-          address:            leadForm.address,
-          city:               leadForm.city,
-          state:              leadForm.state,
-          zip_code:           leadForm.zip_code,
-          apt_suite:          null,
-          // Required defaults
-          lead_source:        "direct",
-          priority_level:     "medium",
-          service_interested: "Cleaning",
-          status:             "new",
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      await qc.invalidateQueries({ queryKey: ["leads-for-estimate"] });
-      onLeadSelect(data as LeadEntity);
-      setShowNewLead(false);
-      setLeadForm(EMPTY_LEAD_FORM);
-      toast.success("Lead created");
-    } catch (err: any) {
-      toast.error(err.message ?? "Failed to create lead");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   // ── Selected entity info ──────────────────────────────────────────────────
 
@@ -374,181 +232,25 @@ export function EstimateClientStep({
         </CardContent>
       </Card>
 
-      {/* ── Quick-create Client dialog ────────────────────────────────── */}
-      <Dialog open={showNewClient} onOpenChange={(open) => { setShowNewClient(open); if (!open) setClientForm(EMPTY_CLIENT_FORM); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add New Client</DialogTitle>
-          </DialogHeader>
+      {/* ── Quick-create Client dialog (reuses CRM ClientForm) ──────────── */}
+      <ClientForm
+        open={showNewClient}
+        onClose={() => setShowNewClient(false)}
+        onSuccess={(client) => {
+          onClientSelect(client);
+          qc.invalidateQueries({ queryKey: ["clients-for-estimate"] });
+        }}
+      />
 
-          <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2 space-y-1.5">
-                <Label>Full Name *</Label>
-                <Input
-                  placeholder="John Doe"
-                  value={clientForm.full_name}
-                  onChange={(e) => setClientForm((f) => ({ ...f, full_name: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Email *</Label>
-                <Input
-                  type="email"
-                  placeholder="john@email.com"
-                  value={clientForm.email}
-                  onChange={(e) => setClientForm((f) => ({ ...f, email: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Phone *</Label>
-                <Input
-                  placeholder="(555) 000-0000"
-                  value={clientForm.phone}
-                  onChange={(e) => setClientForm((f) => ({ ...f, phone: e.target.value }))}
-                />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label>Company</Label>
-                <Input
-                  placeholder="Optional"
-                  value={clientForm.company}
-                  onChange={(e) => setClientForm((f) => ({ ...f, company: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium mb-2">Service Address</p>
-              <div className="space-y-2">
-                <Input
-                  placeholder="Street address"
-                  value={clientForm.service_street}
-                  onChange={(e) => setClientForm((f) => ({ ...f, service_street: e.target.value }))}
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    placeholder="City"
-                    value={clientForm.service_city}
-                    onChange={(e) => setClientForm((f) => ({ ...f, service_city: e.target.value }))}
-                  />
-                  <Input
-                    placeholder="State"
-                    value={clientForm.service_state}
-                    onChange={(e) => setClientForm((f) => ({ ...f, service_state: e.target.value }))}
-                  />
-                </div>
-                <Input
-                  placeholder="Zip code"
-                  value={clientForm.service_zip}
-                  onChange={(e) => setClientForm((f) => ({ ...f, service_zip: e.target.value }))}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-2 pt-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => { setShowNewClient(false); setClientForm(EMPTY_CLIENT_FORM); }}
-            >
-              Cancel
-            </Button>
-            <Button className="flex-1" onClick={handleCreateClient} disabled={saving}>
-              {saving ? "Saving…" : "Create Client"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Quick-create Lead dialog ──────────────────────────────────── */}
-      <Dialog open={showNewLead} onOpenChange={(open) => { setShowNewLead(open); if (!open) setLeadForm(EMPTY_LEAD_FORM); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add New Lead</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2 space-y-1.5">
-                <Label>Full Name *</Label>
-                <Input
-                  placeholder="Jane Doe"
-                  value={leadForm.full_name}
-                  onChange={(e) => setLeadForm((f) => ({ ...f, full_name: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Email *</Label>
-                <Input
-                  type="email"
-                  placeholder="jane@email.com"
-                  value={leadForm.email}
-                  onChange={(e) => setLeadForm((f) => ({ ...f, email: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Phone *</Label>
-                <Input
-                  placeholder="(555) 000-0000"
-                  value={leadForm.phone}
-                  onChange={(e) => setLeadForm((f) => ({ ...f, phone: e.target.value }))}
-                />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label>Company</Label>
-                <Input
-                  placeholder="Optional"
-                  value={leadForm.company_name}
-                  onChange={(e) => setLeadForm((f) => ({ ...f, company_name: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium mb-2">Address</p>
-              <div className="space-y-2">
-                <Input
-                  placeholder="Street address"
-                  value={leadForm.address}
-                  onChange={(e) => setLeadForm((f) => ({ ...f, address: e.target.value }))}
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    placeholder="City"
-                    value={leadForm.city}
-                    onChange={(e) => setLeadForm((f) => ({ ...f, city: e.target.value }))}
-                  />
-                  <Input
-                    placeholder="State"
-                    value={leadForm.state}
-                    onChange={(e) => setLeadForm((f) => ({ ...f, state: e.target.value }))}
-                  />
-                </div>
-                <Input
-                  placeholder="Zip code"
-                  value={leadForm.zip_code}
-                  onChange={(e) => setLeadForm((f) => ({ ...f, zip_code: e.target.value }))}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-2 pt-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => { setShowNewLead(false); setLeadForm(EMPTY_LEAD_FORM); }}
-            >
-              Cancel
-            </Button>
-            <Button className="flex-1" onClick={handleCreateLead} disabled={saving}>
-              {saving ? "Saving…" : "Create Lead"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* ── Quick-create Lead dialog (reuses CRM LeadForm) ──────────────── */}
+      <LeadForm
+        open={showNewLead}
+        onClose={() => setShowNewLead(false)}
+        onSuccess={(lead) => {
+          onLeadSelect(lead);
+          qc.invalidateQueries({ queryKey: ["leads-for-estimate"] });
+        }}
+      />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { DetailModal, InfoRow } from "@/shared/components/common/DetailModal";
 import { Button } from "@/shared/components/ui/button";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { LeadForm } from "./LeadForm";
-import { useDeleteLead, useUpdateLead } from "../hooks/useLeads";
+import { useDeleteLead, useLead, useUpdateLead } from "../hooks/useLeads";
 import { convertLeadToClient } from "../services/leadsService";
 import { LEAD_STATUS_BADGE, PRIORITY_BADGE } from "@/shared/constants/styleTokens";
 import { toast } from "sonner";
@@ -30,18 +30,22 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   const [showDelete, setShowDelete] = useState(false);
   const [converting, setConverting] = useState(false);
 
-  if (!lead) return null;
+  // Always read from the query cache so edits reflect immediately
+  const { data: liveLead } = useLead(lead?.id);
+  const l = liveLead ?? lead;
+
+  if (!l) return null;
 
   const handleDelete = () => {
-    deleteLead(lead.id, { onSuccess: onClose });
+    deleteLead(l.id, { onSuccess: onClose });
   };
 
   const handleConvert = async () => {
     setConverting(true);
     try {
-      await convertLeadToClient(lead);
-      updateLead({ id: lead.id, payload: { decision_result: "won" } });
-      toast.success(`${lead.full_name} converted to client`);
+      await convertLeadToClient(l!);
+      updateLead({ id: l.id, payload: { decision_result: "won" } });
+      toast.success(`${l.full_name} converted to client`);
       onClose();
     } catch {
       toast.error("Failed to convert lead to client");
@@ -51,8 +55,8 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   };
 
   const addressLine = [
-    lead.address + (lead.apt_suite ? `, ${lead.apt_suite}` : ""),
-    `${lead.city}, ${lead.state} ${lead.zip_code}`,
+    l.address + (l.apt_suite ? `, ${l.apt_suite}` : ""),
+    `${l.city}, ${l.state} ${l.zip_code}`,
   ].join("\n");
 
   return (
@@ -60,10 +64,10 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
       <DetailModal
         open={open}
         onClose={onClose}
-        title={lead.full_name}
+        title={l.full_name}
         badge={{
-          label: lead.status,
-          className: LEAD_STATUS_BADGE[lead.status] ?? "bg-secondary text-secondary-foreground",
+          label: l.status,
+          className: LEAD_STATUS_BADGE[l.status] ?? "bg-secondary text-secondary-foreground",
         }}
       >
         <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
@@ -73,10 +77,10 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
             <section>
               <h3 className="text-sm font-bold text-foreground mb-4">Personal Information</h3>
               <div className="space-y-4">
-                <InfoRow icon={User}      label="Full Name" value={lead.full_name} />
-                <InfoRow icon={Building2} label="Company"   value={lead.company_name} />
-                <InfoRow icon={Phone}     label="Phone"     value={lead.phone} />
-                <InfoRow icon={Mail}      label="Email"     value={lead.email} />
+                <InfoRow icon={User}      label="Full Name" value={l.full_name} />
+                <InfoRow icon={Building2} label="Company"   value={l.company_name} />
+                <InfoRow icon={Phone}     label="Phone"     value={l.phone} />
+                <InfoRow icon={Mail}      label="Email"     value={l.email} />
               </div>
             </section>
 
@@ -96,18 +100,18 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
             <section>
               <h3 className="text-sm font-bold text-foreground mb-4">Lead Details</h3>
               <div className="space-y-4">
-                <InfoRow icon={TrendingUp} label="Lead Source"        value={<span className="capitalize">{lead.lead_source}</span>} />
-                <InfoRow icon={Briefcase}  label="Service Interested" value={<span className="capitalize">{lead.service_interested}</span>} />
+                <InfoRow icon={TrendingUp} label="Lead Source"        value={<span className="capitalize">{l.lead_source}</span>} />
+                <InfoRow icon={Briefcase}  label="Service Interested" value={<span className="capitalize">{l.service_interested}</span>} />
                 {/* Priority row with badge */}
                 <div className="flex items-start gap-3">
                   <Tag className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                   <div className="flex items-center gap-3">
                     <div>
                       <p className="text-xs text-muted-foreground">Priority</p>
-                      <p className="text-sm font-medium capitalize">{lead.priority_level}</p>
+                      <p className="text-sm font-medium capitalize">{l.priority_level}</p>
                     </div>
-                    <span className={`text-xs font-semibold px-3 py-1 rounded-full capitalize ${PRIORITY_BADGE[lead.priority_level] ?? "bg-secondary text-secondary-foreground"}`}>
-                      {lead.priority_level}
+                    <span className={`text-xs font-semibold px-3 py-1 rounded-full capitalize ${PRIORITY_BADGE[l.priority_level] ?? "bg-secondary text-secondary-foreground"}`}>
+                      {l.priority_level}
                     </span>
                   </div>
                 </div>
@@ -119,17 +123,17 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
             <section>
               <h3 className="text-sm font-bold text-foreground mb-4">Follow-up</h3>
               <div className="space-y-4">
-                {lead.next_followup_date ? (
-                  <InfoRow icon={Calendar} label="Next Follow-up" value={lead.next_followup_date} />
+                {l.next_followup_date ? (
+                  <InfoRow icon={Calendar} label="Next Follow-up" value={l.next_followup_date} />
                 ) : (
                   <p className="text-xs text-muted-foreground">No follow-up scheduled</p>
                 )}
-                {lead.internal_notes && (
+                {l.internal_notes && (
                   <div className="flex items-start gap-3">
                     <FileText className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                     <div>
                       <p className="text-xs text-muted-foreground">Notes</p>
-                      <p className="text-sm text-foreground">{lead.internal_notes}</p>
+                      <p className="text-sm text-foreground">{l.internal_notes}</p>
                     </div>
                   </div>
                 )}
@@ -144,7 +148,7 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                 <Button size="sm" variant="outline" onClick={() => setShowEdit(true)}>
                   <Edit className="h-3.5 w-3.5 mr-1" /> Edit
                 </Button>
-                {lead.status === "decision" && lead.decision_result !== "won" && (
+                {l.status === "decision" && l.decision_result !== "won" && (
                   <Button size="sm" onClick={handleConvert} disabled={converting}>
                     <UserCheck className="h-3.5 w-3.5 mr-1" />
                     {converting ? "Converting..." : "Convert to Client"}
@@ -159,12 +163,12 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
         </div>
       </DetailModal>
 
-      <LeadForm open={showEdit} onClose={() => setShowEdit(false)} lead={lead} />
+      <LeadForm open={showEdit} onClose={() => setShowEdit(false)} lead={l} />
       <ConfirmDialog
         open={showDelete}
         onOpenChange={setShowDelete}
         title="Delete Lead"
-        description={`Are you sure? ${lead.full_name} will be permanently deleted.`}
+        description={`Are you sure? ${l.full_name} will be permanently deleted.`}
         onConfirm={handleDelete}
         confirmLabel="Delete"
         variant="destructive"
