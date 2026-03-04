@@ -44,6 +44,11 @@ const CreateInvoicePage        = lazy(() => import("@/features/invoices/pages/Cr
 const InvoicePreviewPage       = lazy(() => import("@/features/invoices/pages/InvoicePreviewPage").then((m) => ({ default: m.InvoicePreviewPage })));
 const PublicInvoicePaymentPage = lazy(() => import("@/features/invoices/pages/PublicInvoicePaymentPage").then((m) => ({ default: m.PublicInvoicePaymentPage })));
 
+// Phase 9 — Scheduling ✅
+const RoutesPage          = lazy(() => import("@/features/scheduling/pages/RoutesPage").then((m) => ({ default: m.RoutesPage })));
+const AddAppointmentPage  = lazy(() => import("@/features/scheduling/pages/AddAppointmentPage").then((m) => ({ default: m.AddAppointmentPage })));
+const SmartMapPage        = lazy(() => import("@/features/scheduling/pages/SmartMapPage").then((m) => ({ default: m.SmartMapPage })));
+
 /**
  * Central route definition for Thunder Dashboard.
  * All page components are lazy-loaded for code splitting.
@@ -93,6 +98,12 @@ export function AppRouter() {
           <Route path="/invoices/:id/preview"  element={<ProtectedRoute><InvoicePreviewPage /></ProtectedRoute>} />
           {/* Public — no auth required */}
           <Route path="/invoice/payment/:id" element={<PublicInvoicePaymentPage />} />
+
+          {/* Phase 9 ✅ */}
+          <Route path="/create-route"           element={<ProtectedRoute><RoutesPage /></ProtectedRoute>} />
+          <Route path="/create-route/new"       element={<ProtectedRoute><AddAppointmentPage /></ProtectedRoute>} />
+          <Route path="/create-route/:id/edit"  element={<ProtectedRoute><AddAppointmentPage /></ProtectedRoute>} />
+          <Route path="/smart-map"              element={<ProtectedRoute><SmartMapPage /></ProtectedRoute>} />
 
           {/* ── 404 fallback ──────────────────────────────────────────── */}
           <Route

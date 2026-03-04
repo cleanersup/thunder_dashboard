@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateEstimate, useUpdateEstimate } from "../hooks/useEstimates";
 import { useSendEstimateEmail } from "../hooks/useSendEstimateEmail";
+import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { useDraftEstimate } from "../hooks/useDraftEstimate";
 import { useResidentialPricing } from "../hooks/useResidentialPricing";
 import type { DraftData } from "../types/estimate.types";
@@ -34,6 +35,7 @@ export function CreateResidentialEstimatePage() {
   const createEst   = useCreateEstimate();
   const updateEst   = useUpdateEstimate();
   const { sendEstimateEmail, isSending } = useSendEstimateEmail();
+  const { sendEstimateSMS }              = useSendEstimateSMS();
 
   // ── Step ──────────────────────────────────────────────────────────────────
   const [step, setStep] = useState(0);
@@ -268,7 +270,16 @@ export function CreateResidentialEstimatePage() {
           recipientEmail: client.email, estimateType: "residential",
         });
       }
-      // SMS delivery (deliveryMethod === "sms" || "both") — pending SMS Edge Function
+      // Send SMS when delivery method includes sms
+      if ((deliveryMethod === "sms" || deliveryMethod === "both") && client.phone) {
+        await sendEstimateSMS({
+          phoneNumber:   client.phone,
+          clientName:    client.name,
+          estimateId:    savedId,
+          estimateTotal: payload.total ?? 0,
+          isUpdate:      !!isEditing,
+        });
+      }
       await deleteDraft();
       setShowSuccess(true);
     } catch (err: any) {

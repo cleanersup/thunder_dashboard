@@ -1,9 +1,9 @@
 # Thunder Dashboard — Plan Maestro de Migración Web
 
 > **Estado actual:** 🟢 En progreso
-> **Fase activa:** Fase 8 — Invoices
-> **Última actualización:** 2026-03-03
-> **Sesión anterior:** F7 completa + refinada (Estimates). Arquitectura SOLID aplicada: step components aislados, useDraftEstimate, useResidentialPricing, useCommercialPricing, EstimateFormLayout. Draft system completo (DraftRecoveryDialog, ExitConfirmationDialog, DraftStatusIndicator). Commercial: 8 pasos (añadido Preview con full ProposalPreview + Download PDF via jsPDF). Residential: 11 pasos. Modal de detalle muestra datos reales de drafts. Textos validados contra swift-slate.
+> **Fase activa:** Fase 9 — Scheduling
+> **Última actualización:** 2026-03-05
+> **Sesión anterior:** F8 refinamiento + mejoras CRM/Shared. Invoice flow corregido (Next siempre va al preview en create y edit, footer Cancel/Save/Next igual a swift-slate). InvoicePreviewPage: delivery Email/SMS/Both. InvoiceDetailsModal: quick actions por status (Draft/Pending/Paid/Cancelled). ClientDetailModal + LeadDetailModal: live refresh via useClient/useLead (datos frescos al editar sin cerrar modal). AddressAutocomplete (Google Places) en ClientForm y LeadForm. Shared: DeliveryMethodSelector, AddressAutocomplete, useGoogleMaps. Build: 0 errores.
 
 ---
 
@@ -341,8 +341,8 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 - [x] `features/crm/clients/hooks/useClients.ts` — useClients, useClient, useCreateClient, useUpdateClient, useDeleteClient
 - [x] `features/crm/clients/schemas/clientSchema.ts`
 - [x] `features/crm/clients/components/ClientsTable` — DataTable con búsqueda, paginación y dropdown de acciones completo
-- [x] `features/crm/clients/components/ClientForm` (add/edit unificado, Dialog modal)
-- [x] `features/crm/clients/components/ClientDetailModal` — modal con info completa + acciones de swift-slate (condicionales por status)
+- [x] `features/crm/clients/components/ClientForm` (add/edit unificado, Dialog modal) — con AddressAutocomplete en billing street
+- [x] `features/crm/clients/components/ClientDetailModal` — modal con info completa + acciones de swift-slate (condicionales por status) + live refresh via useClient
 - [x] ~~`features/crm/clients/pages/ClientDetailPage`~~ — eliminada, reemplazada por modal
 
 ### Leads
@@ -350,8 +350,8 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 - [x] `features/crm/leads/hooks/useLeads.ts` — useLeads, useLead, useCreateLead, useUpdateLead, useDeleteLead
 - [x] `features/crm/leads/schemas/leadSchema.ts`
 - [x] `features/crm/leads/components/LeadsKanban` — 5 columnas, drag-and-drop (@dnd-kit), cards con color por prioridad
-- [x] `features/crm/leads/components/LeadForm` (add/edit unificado, Dialog modal)
-- [x] `features/crm/leads/components/LeadDetailModal` — modal con info completa + quick actions
+- [x] `features/crm/leads/components/LeadForm` (add/edit unificado, Dialog modal) — con AddressAutocomplete en street address
+- [x] `features/crm/leads/components/LeadDetailModal` — modal con info completa + quick actions + live refresh via useLead
 - [x] ~~`features/crm/leads/pages/LeadDetailPage`~~ — eliminada, reemplazada por modal
 
 ### Tareas
@@ -383,6 +383,9 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 - [x] `tailwind.config.ts` — grupos de color tokens con `<alpha-value>`: `priority`, `task-status`, `lead-status`, `client-status` — sin colores hardcodeados en componentes
 - [x] Padding uniforme `p-2.5 space-y-2.5` en todas las páginas internas
 - [x] `shared/components/common/EntityPickerField` — picker genérico reutilizable (multi/single, búsqueda, "Create new" inline, pills removibles). Usado en TaskForm; listo para EstimateForm, etc.
+- [x] `shared/components/AddressAutocomplete.tsx` — Google Places autocomplete (US), rellena street/city/state/zip. Usa `VITE_GOOGLE_MAPS_API_KEY`.
+- [x] `shared/components/DeliveryMethodSelector.tsx` — selector de método de entrega reutilizable (usado en estimates y invoices)
+- [x] `shared/hooks/useGoogleMaps.ts` — carga el script de Google Maps una sola vez por sesión
 - [x] `features/employees/schemas/employeeSchema.ts` + `services/employeesService.ts` + `hooks/useEmployees.ts` (fetchEmployees, createEmployee, useCreateEmployee) — infraestructura base F10
 - [x] `features/employees/components/EmployeeForm` — modal de creación inline (parity swift-slate /add-employee): nombre, email, teléfono, género, fecha de nacimiento, posición, tarifa, dirección, notas
 - [x] `features/tasks/components/TaskForm` — actualizado: `EntityPickerField` multi para empleados + single para cliente; `EmployeeForm` como modal anidado (nested dialog sin cerrar TaskForm); `Controller` RHF para selects controlados
@@ -451,18 +454,24 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 8 — Invoices
-> Estado: 🔴 Pendiente
+> Estado: ✅ Completa
 
-- [ ] `features/invoices/services/invoicesService.ts` (JSDoc)
-- [ ] `features/invoices/hooks/useInvoices.ts`, `useCreateInvoice.ts`, `useInvoiceDetails.ts`
-- [ ] `features/invoices/schemas/invoiceSchema.ts`
-- [ ] `features/invoices/components/InvoicesList`, `InvoiceForm`, `InvoicePreview`
-- [ ] Páginas internas: `InvoicesPage`, `CreateInvoicePage`, `EditInvoicePage`, `InvoiceDetailPage`
-- [ ] Páginas públicas: `InvoicePaymentPage` (`/invoice/payment/:id`), `PaymentSuccessPage`, `PaymentCancelledPage`
-- [ ] `features/invoices/hooks/useStripeConnect.ts` — usa `window.open()` (sin `@capacitor/browser`)
-- [ ] Stripe Connect redirect: reemplazar `thunderpro://stripe/return` → `/stripe-return?account_id=xxx`
-- [ ] `features/invoices/pages/StripeReturnPage` — maneja redirect OAuth de Stripe
-- [ ] Test: crear invoice → cliente paga → estado actualiza en DB
+- [x] `features/invoices/types/invoice.types.ts` — Invoice, LineItem, InvoiceStatus, InvoiceFormData, InvoiceStats
+- [x] `features/invoices/services/invoicesService.ts` — fetchInvoices, fetchInvoiceById, generateInvoiceNumber, createInvoice, updateInvoice, markInvoiceAsPaid, cancelInvoice, markReminderSent, markInvoiceViewed, deleteInvoice (JSDoc completo)
+- [x] `features/invoices/services/generateInvoicePDF.ts` — jsPDF invoice generator (blue scheme, logo, status badge, line items table, totals, footer)
+- [x] `features/invoices/hooks/useInvoices.ts` — useInvoices, useInvoice, useCreateInvoice, useUpdateInvoice, useMarkInvoiceAsPaid, useCancelInvoice, useMarkReminderSent, useDeleteInvoice
+- [x] `features/invoices/hooks/useSendInvoiceEmail.ts` — llama edge function `send-invoice-email`
+- [x] `features/invoices/schemas/invoiceSchema.ts` — Zod validation
+- [x] `features/invoices/components/InvoiceDetailsModal.tsx` — modal completo (2 cols: client/details/notes/quickActions | total/lineItems), Payment Dialog, Cancel Dialog, Email Success Dialog
+- [x] `features/invoices/pages/InvoicesPage.tsx` — tabla con 4 KPI cards (Pending/Paid/Draft/Cancelled), filtros (status/search/date), paginación 10/página, dropdown actions por fila
+- [x] `features/invoices/pages/CreateInvoicePage.tsx` — form multi-sección: Invoice Details, Title, Customer (searchable), Line Items, Pricing & Tax, Notes. Auto-genera INV-YYYY-NNN. Modo edición. Save Draft / Next.
+- [x] `features/invoices/pages/InvoicePreviewPage.tsx` — preview visual + delivery method (Email/SMS/Both igual que estimates) + botón Send
+- [x] `features/invoices/pages/PublicInvoicePaymentPage.tsx` — página pública sin auth, Stripe Checkout (`stripe-create-checkout` edge function), estados: loading/not found/already paid/pending
+- [x] Rutas: `/invoices`, `/invoices/new`, `/invoices/:id/edit`, `/invoices/:id/preview`, `/invoice/payment/:id` (public)
+- [x] Invoice form: footer Cancel/Save/Next en edición (3 cols) y Cancel/Next en creación (2 cols), igual a swift-slate
+- [x] `InvoiceDetailsModal`: quick actions estrictamente por status (Draft/Pending/Paid/Cancelled), visibles en mobile y desktop
+- [x] `shared/components/DeliveryMethodSelector.tsx` — componente reutilizable usado en estimates y invoices
+- [x] Build: 0 errores TypeScript
 
 ---
 
@@ -630,6 +639,7 @@ Esto significa:
 | 2026-02-26 | F5 mejoras (cont.) | Color tokens CSS variables (tailwind.config + styleTokens sin hardcoded). EntityPickerField genérico reutilizable. EmployeeForm + servicio/hook (infraestructura F10). TaskForm con EntityPickerField + nested EmployeeForm. Logos (src/assets), favicon, DesktopSidebar con logo. Build 0 errores. |
 | 2026-02-26→03-03 | F7 ✅ | Estimates completo: EstimatesPage, CreateResidential (11 pasos), CreateCommercial (7 pasos inicial), modales, pricing hooks, PDF, rutas. |
 | 2026-03-03 | F7 refinamiento ✅ | Refactor SOLID: step components aislados, EstimateFormLayout, steps.config. Draft system (useDraftEstimate, DraftRecoveryDialog, ExitConfirmationDialog, DraftStatusIndicator). Commercial: 8 pasos (añadido CommPreviewStep con ProposalPreview completa + Download PDF via jsPDF). CommPropertyStep: Select Days separado + Contract Duration. CommMainStep: 4 Cards + End Time auto-calculado. CommDetailsStep: textos validados contra swift-slate. EstimateDetailsModal: datos reales de draft desde draft_data JSON. Draft restore async (fetch client/lead desde DB). EstimatesPage: acciones draft (Continue/Start Fresh/Delete). Limpieza: dir schemas/ vacío eliminado. |
+| 2026-03-05 | F8 refinamiento ✅ + Shared | Invoice form: flujo correcto (Next→preview siempre, footer Cancel/Save/Next en edición). DeliveryMethodSelector shared. InvoicePreviewPage: Email/SMS/Both. InvoiceDetailsModal: actions por status. ClientDetailModal + LeadDetailModal: live refresh (useClient/useLead). AddressAutocomplete (Google Places) en ClientForm y LeadForm. useGoogleMaps hook. Build: 0 errores. |
 
 ---
 

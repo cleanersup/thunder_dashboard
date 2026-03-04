@@ -49,7 +49,9 @@ export async function createEmployee(data: EmployeeFormData) {
       city:             data.city            ?? null,
       state:            data.state           ?? null,
       zip:              data.zip             ?? null,
+      available_days:   data.available_days  ?? null,
       additional_notes: data.additional_notes ?? null,
+      documents:        data.documents?.length ? data.documents : null,
       status:           "active",
       user_id:          user.id,
     })

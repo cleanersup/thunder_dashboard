@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateEstimate, useUpdateEstimate } from "../hooks/useEstimates";
 import { useSendEstimateEmail } from "../hooks/useSendEstimateEmail";
+import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { useDraftEstimate } from "../hooks/useDraftEstimate";
 import { useCommercialPricing, isGroupB } from "../hooks/useCommercialPricing";
 import type { DraftData } from "../types/estimate.types";
@@ -33,6 +34,7 @@ export function CreateCommercialEstimatePage() {
   const { mutateAsync: createEstimate } = useCreateEstimate();
   const { mutateAsync: updateEstimate } = useUpdateEstimate();
   const { sendEstimateEmail, isSending: isSendingEmail } = useSendEstimateEmail();
+  const { sendEstimateSMS }                              = useSendEstimateSMS();
 
   // ── Step ──────────────────────────────────────────────────────────────────
   const [currentStep,    setCurrentStep]    = useState(0);
@@ -331,7 +333,16 @@ export function CreateCommercialEstimatePage() {
           estimateType: "commercial",
         });
       }
-      // SMS delivery (deliveryMethod === "sms" || "both") — pending SMS Edge Function
+      // Send SMS when delivery method includes sms
+      if ((deliveryMethod === "sms" || deliveryMethod === "both") && entity.phone) {
+        await sendEstimateSMS({
+          phoneNumber:   entity.phone,
+          clientName:    entity.full_name,
+          estimateId:    finalId,
+          estimateTotal: total,
+          isUpdate:      !!isEditing,
+        });
+      }
 
       await deleteDraft();
       setShowSuccess(true);

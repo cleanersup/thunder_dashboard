@@ -17,6 +17,7 @@ import { formatCurrency }         from "@/shared/utils/formatters";
 import { DeliveryMethodSelector } from "@/shared/components/DeliveryMethodSelector";
 import { useInvoice, useUpdateInvoice } from "../hooks/useInvoices";
 import { useSendInvoiceEmail }          from "../hooks/useSendInvoiceEmail";
+import { useSendInvoiceSMS }            from "../hooks/useSendInvoiceSMS";
 import type { LineItem, InvoiceStatus } from "../types/invoice.types";
 
 // ─── Status colors ────────────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ export function InvoicePreviewPage() {
   const { id }   = useParams<{ id: string }>();
   const { data: profile }  = useProfile();
   const { sendInvoiceEmail, isSending } = useSendInvoiceEmail();
+  const { sendInvoiceSMS }              = useSendInvoiceSMS();
   const updateInvoice = useUpdateInvoice();
 
   const { data: invoice, isLoading } = useInvoice(id);
@@ -87,15 +89,20 @@ export function InvoicePreviewPage() {
 
     if (deliveryMethod === "email" || deliveryMethod === "both") {
       const result = await sendInvoiceEmail(invoice.id);
-      if (result.success) {
-        toast.success("Invoice sent successfully");
-        navigate("/invoices");
-      }
-    } else if (deliveryMethod === "sms") {
-      // SMS delivery — navigate back after queueing
-      toast.success("Invoice sent successfully");
-      navigate("/invoices");
+      if (!result.success) return;
     }
+
+    if ((deliveryMethod === "sms" || deliveryMethod === "both") && invoice.phone) {
+      await sendInvoiceSMS({
+        phoneNumber:  invoice.phone,
+        clientName:   invoice.client_name,
+        invoiceId:    invoice.id,
+        invoiceTotal: total,
+      });
+    }
+
+    toast.success("Invoice sent successfully");
+    navigate("/invoices");
   };
 
   // ── Delivery options ────────────────────────────────────────────────────────

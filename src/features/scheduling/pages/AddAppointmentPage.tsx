@@ -1,0 +1,431 @@
+/**
+ * @module AddAppointmentPage
+ * Multi-step wizard for creating or editing a route appointment.
+ * Follows the same SOLID pattern as the estimate wizards:
+ *  - Page = thin orchestrator (state + validate + renderStep)
+ *  - AppointmentFormLayout = shared shell (header + progress + tabs + footer)
+ *  - Step components = dumb presentational, one responsibility each
+ */
+import { useState, useEffect } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
+import { useRoutes, useCreateRoute } from "../hooks/useRoutes";
+import { useCreateAppointment, useUpdateAppointment, useAppointment } from "../hooks/useAppointments";
+import { useSendAppointmentSMS }   from "../hooks/useSendAppointmentSMS";
+import { useSendAppointmentEmail } from "../hooks/useSendAppointmentEmail";
+import { APPOINTMENT_STEPS } from "../config/appointmentSteps.config";
+import { AppointmentFormLayout }    from "../components/AppointmentFormLayout";
+import { AppointmentRouteStep }     from "../components/steps/AppointmentRouteStep";
+import { AppointmentClientStep }    from "../components/steps/AppointmentClientStep";
+import { AppointmentServiceStep }   from "../components/steps/AppointmentServiceStep";
+import { AppointmentScheduleStep }  from "../components/steps/AppointmentScheduleStep";
+import { AppointmentStaffStep }     from "../components/steps/AppointmentStaffStep";
+import { AppointmentDepositStep }   from "../components/steps/AppointmentDepositStep";
+import { AppointmentContractStep }  from "../components/steps/AppointmentContractStep";
+import { AppointmentNotesStep }     from "../components/steps/AppointmentNotesStep";
+import { AppointmentPreviewStep }   from "../components/steps/AppointmentPreviewStep";
+import { AppointmentSendStep }      from "../components/steps/AppointmentSendStep";
+import type { AppointmentFormData } from "../types/scheduling.types";
+import type { ClientEntity } from "@/shared/types/entities";
+
+// ─── Employees query ───────────────────────────────────────────────────────────
+
+function useEmployees() {
+  return useQuery({
+    queryKey: ["employees-for-appointment"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id, first_name, last_name, position, hourly_rate")
+        .eq("status", "active")
+        .order("first_name");
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+}
+
+// ─── Default form state ────────────────────────────────────────────────────────
+
+function emptyForm(routeId: string, date: string): AppointmentFormData {
+  return {
+    route_id:                routeId,
+    client_id:               "",
+    scheduled_date:          date,
+    scheduled_time:          "",
+    end_time:                "",
+    service_type:            "",
+    cleaning_type:           null,
+    assigned_employees:      [],
+    notes:                   null,
+    deposit_required:        "no",
+    deposit_amount:          null,
+    recurring_frequency:     "none",
+    recurring_duration:      null,
+    recurring_duration_unit: "months",
+    selected_week_days:      [],
+    delivery_method:         null,
+  };
+}
+
+const LAST_STEP = APPOINTMENT_STEPS.length - 1;
+
+// Step indices (named for clarity)
+const STEP_SEND = 9;
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function AddAppointmentPage() {
+  const navigate = useNavigate();
+  const { id }   = useParams<{ id?: string }>();
+  const [searchParams] = useSearchParams();
+  const isEdit = !!id;
+
+  const prefilledRouteId = searchParams.get("route") ?? "";
+  const prefilledDate    = searchParams.get("date")  ?? format(new Date(), "yyyy-MM-dd");
+
+  const [step,   setStep]   = useState(0);
+  const [form,   setForm]   = useState<AppointmentFormData>(() => emptyForm(prefilledRouteId, prefilledDate));
+  const [errors, setErrors] = useState<Partial<Record<keyof AppointmentFormData, string>>>({});
+
+  // Extra UI state not part of the submitted form
+  const [selectedClientObject, setSelectedClientObject] = useState<ClientEntity | null>(null);
+  const [customCleaningTypes,  setCustomCleaningTypes]  = useState<string[]>([]);
+  const [contractFile,         setContractFile]         = useState<File | null>(null);
+  const [uploadedPhotos,       setUploadedPhotos]       = useState<File[]>([]);
+
+  // ─── Data ──────────────────────────────────────────────────────────────────
+
+  const { data: routes = [],   isLoading: routesLoading   } = useRoutes();
+  const { data: employees = [], isLoading: empLoading     } = useEmployees();
+  const { data: existing,       isLoading: existingLoading } = useAppointment(id);
+
+  const { mutate: createAppointment, isPending: isCreating } = useCreateAppointment();
+  const { mutate: updateAppointment, isPending: isUpdating } = useUpdateAppointment();
+  const { mutate: createRoute, isPending: isCreatingRoute  } = useCreateRoute();
+  const { sendAppointmentSMS }   = useSendAppointmentSMS();
+  const { sendAppointmentEmail } = useSendAppointmentEmail();
+
+  const isPending = isCreating || isUpdating;
+
+  // ─── Prefill on edit ───────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (existing && isEdit) {
+      setForm({
+        route_id:                existing.route_id,
+        client_id:               existing.client_id,
+        scheduled_date:          existing.scheduled_date,
+        scheduled_time:          existing.scheduled_time ?? "",
+        end_time:                existing.end_time ?? "",
+        service_type:            existing.service_type ?? "",
+        cleaning_type:           existing.cleaning_type ?? null,
+        assigned_employees:      (existing.assigned_employees as string[] | null) ?? [],
+        notes:                   existing.notes ?? null,
+        deposit_required:        (existing.deposit_required as "yes" | "no") ?? "no",
+        deposit_amount:          existing.deposit_amount,
+        recurring_frequency:
+          (existing.recurring_frequency as AppointmentFormData["recurring_frequency"]) ?? "none",
+        recurring_duration:      existing.recurring_duration ?? null,
+        recurring_duration_unit:
+          (existing.recurring_duration_unit as AppointmentFormData["recurring_duration_unit"]) ?? "months",
+        selected_week_days:      (existing.selected_week_days as string[] | null) ?? [],
+        delivery_method:
+          (existing.delivery_method as AppointmentFormData["delivery_method"]) ?? null,
+      });
+
+      // Pre-fill the client object for the client step / preview
+      if (existing.clients) {
+        setSelectedClientObject({
+          id:              existing.clients.id,
+          full_name:       existing.clients.full_name,
+          company:         null,
+          phone:           existing.clients.phone,
+          email:           existing.clients.email,
+          service_street:  existing.clients.service_street,
+          service_apt:     existing.clients.service_apt,
+          service_city:    existing.clients.service_city,
+          service_state:   existing.clients.service_state,
+          service_zip:     existing.clients.service_zip,
+        });
+      }
+    }
+  }, [existing, isEdit]);
+
+  // ─── Generic setter ────────────────────────────────────────────────────────
+
+  function set<K extends keyof AppointmentFormData>(key: K, value: AppointmentFormData[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
+  }
+
+  // ─── Route creation ────────────────────────────────────────────────────────
+
+  function handleCreateRoute() {
+    const nextName = `Route ${routes.length + 1}`;
+    createRoute(nextName, {
+      onSuccess: (newRoute) => {
+        set("route_id", newRoute.id);
+      },
+    });
+  }
+
+  // ─── Client selection ──────────────────────────────────────────────────────
+
+  function handleClientSelect(client: ClientEntity) {
+    setSelectedClientObject(client);
+    set("client_id", client.id);
+    if (errors.client_id) setErrors((prev) => ({ ...prev, client_id: undefined }));
+  }
+
+  // ─── Per-step validation ───────────────────────────────────────────────────
+
+  function validate(stepIndex: number): boolean {
+    const errs: typeof errors = {};
+    switch (stepIndex) {
+      case 0:
+        if (!form.route_id)      errs.route_id     = "Route is required";
+        break;
+      case 1:
+        if (!form.client_id)     errs.client_id    = "Client is required";
+        break;
+      case 2:
+        if (!form.service_type)  errs.service_type  = "Service type is required";
+        if (!form.cleaning_type) errs.cleaning_type = "Cleaning type is required";
+        if (form.service_type === "Recurring") {
+          if (!form.recurring_frequency || form.recurring_frequency === "none") {
+            errs.recurring_frequency = "Please select a frequency";
+          }
+          if (form.recurring_frequency === "multiple" && (form.selected_week_days ?? []).length === 0) {
+            errs.selected_week_days = "Please select at least one day";
+          }
+          const frequencySet = form.recurring_frequency && form.recurring_frequency !== "none";
+          const daysOk =
+            form.recurring_frequency !== "multiple" ||
+            (form.selected_week_days ?? []).length > 0;
+          if (frequencySet && daysOk && !form.recurring_duration) {
+            errs.recurring_duration = "Contract duration is required";
+          }
+        }
+        break;
+      case 3:
+        if (!form.scheduled_date) errs.scheduled_date = "Date is required";
+        if (!form.scheduled_time) errs.scheduled_time = "Start time is required";
+        break;
+      case STEP_SEND:
+        if (!form.delivery_method) errs.delivery_method = "Please select a delivery method";
+        break;
+      default:
+        break;
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  // ─── Navigation ────────────────────────────────────────────────────────────
+
+  function handleNext() {
+    if (!validate(step)) return;
+    if (step === LAST_STEP) {
+      handleSubmit();
+      return;
+    }
+    setStep((s) => s + 1);
+  }
+
+  function handleBack() {
+    setStep((s) => Math.max(0, s - 1));
+  }
+
+  function sendDelivery(appointmentId: string, isUpdate: boolean) {
+    const dm = form.delivery_method;
+    if (dm === "email" || dm === "both") {
+      sendAppointmentEmail({ appointmentId, isUpdate });
+    }
+    if (dm === "sms" || dm === "both") {
+      sendAppointmentSMS({ appointmentId, isUpdate });
+    }
+  }
+
+  function handleSubmit() {
+    if (isEdit && id) {
+      updateAppointment(
+        { id, data: form },
+        {
+          onSuccess: () => {
+            sendDelivery(id, true);
+            navigate("/create-route");
+          },
+        },
+      );
+    } else {
+      createAppointment(form, {
+        onSuccess: (created) => {
+          // createAppointment returns RouteAppointment[]
+          const firstId = Array.isArray(created) ? created[0]?.id : undefined;
+          if (firstId) sendDelivery(firstId, false);
+          navigate("/create-route");
+        },
+      });
+    }
+  }
+
+  // ─── Step renderer ─────────────────────────────────────────────────────────
+
+  function renderStep() {
+    switch (step) {
+      case 0:
+        return (
+          <AppointmentRouteStep
+            routes={routes}
+            routeId={form.route_id}
+            onRouteChange={(id) => set("route_id", id)}
+            onCreateRoute={handleCreateRoute}
+            isCreating={isCreatingRoute}
+            isLoading={routesLoading}
+            error={errors.route_id}
+          />
+        );
+      case 1:
+        return (
+          <AppointmentClientStep
+            selectedClient={selectedClientObject}
+            onClientSelect={handleClientSelect}
+            error={errors.client_id}
+          />
+        );
+      case 2:
+        return (
+          <AppointmentServiceStep
+            serviceType={form.service_type}
+            cleaningType={form.cleaning_type ?? null}
+            recurringFrequency={form.recurring_frequency}
+            recurringDuration={form.recurring_duration ?? null}
+            recurringDurationUnit={form.recurring_duration_unit ?? null}
+            selectedWeekDays={form.selected_week_days ?? []}
+            customCleaningTypes={customCleaningTypes}
+            errors={{
+              service_type:        errors.service_type,
+              cleaning_type:       errors.cleaning_type,
+              recurring_frequency: errors.recurring_frequency,
+              selected_week_days:  errors.selected_week_days,
+              recurring_duration:  errors.recurring_duration,
+            }}
+            onChange={set}
+            onCustomCleaningTypesChange={setCustomCleaningTypes}
+          />
+        );
+      case 3:
+        return (
+          <AppointmentScheduleStep
+            scheduledDate={form.scheduled_date}
+            scheduledTime={form.scheduled_time}
+            endTime={form.end_time}
+            errors={{ scheduled_date: errors.scheduled_date, scheduled_time: errors.scheduled_time }}
+            onDateChange={(d)      => set("scheduled_date", d)}
+            onStartTimeChange={(t) => set("scheduled_time", t)}
+            onEndTimeChange={(t)   => set("end_time", t)}
+          />
+        );
+      case 4:
+        return (
+          <AppointmentStaffStep
+            employees={employees}
+            selected={form.assigned_employees ?? []}
+            scheduledTime={form.scheduled_time}
+            endTime={form.end_time}
+            onToggle={(empId) => {
+              const current = form.assigned_employees ?? [];
+              set(
+                "assigned_employees",
+                current.includes(empId)
+                  ? current.filter((eid) => eid !== empId)
+                  : [...current, empId],
+              );
+            }}
+            isLoading={empLoading}
+          />
+        );
+      case 5:
+        return (
+          <AppointmentDepositStep
+            depositRequired={form.deposit_required}
+            depositAmount={form.deposit_amount ?? null}
+            onDepositRequiredChange={(v) => set("deposit_required", v)}
+            onDepositAmountChange={(a)   => set("deposit_amount", a)}
+          />
+        );
+      case 6:
+        return (
+          <AppointmentContractStep
+            contractFile={contractFile}
+            onChange={setContractFile}
+          />
+        );
+      case 7:
+        return (
+          <AppointmentNotesStep
+            notes={form.notes ?? null}
+            photos={uploadedPhotos}
+            onChange={(n) => set("notes", n)}
+            onPhotosChange={setUploadedPhotos}
+          />
+        );
+      case 8:
+        return (
+          <AppointmentPreviewStep
+            form={form}
+            routes={routes}
+            selectedClient={selectedClientObject}
+            employees={employees}
+            contractFile={contractFile}
+            uploadedPhotos={uploadedPhotos}
+          />
+        );
+      case 9:
+        return (
+          <AppointmentSendStep
+            deliveryMethod={form.delivery_method ?? null}
+            clientEmail={selectedClientObject?.email ?? ""}
+            clientPhone={selectedClientObject?.phone ?? ""}
+            onChange={(v) => set("delivery_method", v)}
+            error={!!errors.delivery_method}
+          />
+        );
+      default:
+        return null;
+    }
+  }
+
+  // ─── Loading state (edit prefill) ──────────────────────────────────────────
+
+  if (isEdit && existingLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  // ─── Render ────────────────────────────────────────────────────────────────
+
+  return (
+    <AppointmentFormLayout
+      title={isEdit ? "Edit Appointment" : "New Appointment"}
+      steps={APPOINTMENT_STEPS}
+      currentStep={step}
+      onBack={handleBack}
+      onNext={handleNext}
+      onExit={() => navigate("/create-route")}
+      isLastStep={step === LAST_STEP}
+      isLoading={isPending}
+      isEditing={isEdit}
+    >
+      {renderStep()}
+    </AppointmentFormLayout>
+  );
+}
