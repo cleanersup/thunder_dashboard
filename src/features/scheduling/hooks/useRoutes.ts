@@ -10,15 +10,13 @@ import {
   updateRoute,
   deleteRoute,
 } from "../services/routesService";
-
-const ROUTES_KEY = ["routes"] as const;
-const APPOINTMENTS_KEY = ["appointments"] as const;
+import { QK } from "@/shared/config/queryKeys";
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export function useRoutes() {
   return useQuery({
-    queryKey: ROUTES_KEY,
+    queryKey: QK.routes,
     queryFn: fetchRoutes,
     staleTime: 30_000,
   });
@@ -31,7 +29,7 @@ export function useCreateRoute() {
   return useMutation({
     mutationFn: (name: string) => createRoute(name),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ROUTES_KEY });
+      qc.invalidateQueries({ queryKey: QK.routes });
       // Success feedback is handled by the caller (RouteSuccessModal)
     },
     onError: (err: Error) => {
@@ -45,7 +43,7 @@ export function useUpdateRoute() {
   return useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) => updateRoute(id, name),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ROUTES_KEY });
+      qc.invalidateQueries({ queryKey: QK.routes });
       toast.success("Route renamed");
     },
     onError: (err: Error) => {
@@ -59,8 +57,8 @@ export function useDeleteRoute() {
   return useMutation({
     mutationFn: (id: string) => deleteRoute(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ROUTES_KEY });
-      qc.invalidateQueries({ queryKey: APPOINTMENTS_KEY });
+      qc.invalidateQueries({ queryKey: QK.routes });
+      qc.invalidateQueries({ queryKey: QK.appointments });
       toast.success("Route deleted");
     },
     onError: (err: Error) => {

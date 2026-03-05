@@ -2,14 +2,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { fetchClients, fetchClient, createClient, updateClient, deleteClient } from "../services/clientsService";
 import type { ClientInsert, ClientUpdate } from "../../types/crm.types";
+import { QK } from "@/shared/config/queryKeys";
 
 export function useClients() {
-  return useQuery({ queryKey: ["clients"], queryFn: fetchClients });
+  return useQuery({ queryKey: QK.clients, queryFn: fetchClients });
 }
 
 export function useClient(id: string | undefined) {
   return useQuery({
-    queryKey: ["clients", id],
+    queryKey: QK.client(id!),
     queryFn: () => fetchClient(id!),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
@@ -21,7 +22,7 @@ export function useCreateClient() {
   return useMutation({
     mutationFn: (payload: Omit<ClientInsert, "user_id">) => createClient(payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: QK.clients });
       toast.success("Client created successfully");
     },
     onError: () => toast.error("Failed to create client"),
@@ -33,8 +34,8 @@ export function useUpdateClient() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: ClientUpdate }) => updateClient(id, payload),
     onSuccess: (_data, { id }) => {
-      qc.invalidateQueries({ queryKey: ["clients"] });
-      qc.invalidateQueries({ queryKey: ["clients", id] });
+      qc.invalidateQueries({ queryKey: QK.clients });
+      qc.invalidateQueries({ queryKey: QK.client(id) });
       toast.success("Client updated successfully");
     },
     onError: () => toast.error("Failed to update client"),
@@ -46,7 +47,7 @@ export function useDeleteClient() {
   return useMutation({
     mutationFn: (id: string) => deleteClient(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: QK.clients });
       toast.success("Client deleted");
     },
     onError: () => toast.error("Failed to delete client"),

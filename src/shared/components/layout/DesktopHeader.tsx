@@ -3,6 +3,7 @@ import { SidebarTrigger } from "@/shared/components/ui/sidebar";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { Button } from "@/shared/components/ui/button";
@@ -56,7 +57,7 @@ export function DesktopHeader() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const { data: notifications = [] } = useQuery<Notification[]>({
-    queryKey: ["notifications"],
+    queryKey: QK.notifications,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
@@ -94,7 +95,7 @@ export function DesktopHeader() {
         .channel("header-notifications")
         .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => {
           loadUnread();
-          queryClient.invalidateQueries({ queryKey: ["notifications"] });
+          queryClient.invalidateQueries({ queryKey: QK.notifications });
         })
         .subscribe();
     });
@@ -104,13 +105,13 @@ export function DesktopHeader() {
 
   const markRead = async (id: string) => {
     await supabase.from("notifications").update({ read: true }).eq("id", id);
-    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    queryClient.invalidateQueries({ queryKey: QK.notifications });
   };
 
   const deleteNotification = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     await supabase.from("notifications").delete().eq("id", id);
-    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    queryClient.invalidateQueries({ queryKey: QK.notifications });
   };
 
   const handleSignOut = async () => {

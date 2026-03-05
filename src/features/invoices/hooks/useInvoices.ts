@@ -15,8 +15,7 @@ import {
   deleteInvoice,
 } from "../services/invoicesService";
 import type { InvoiceFilters, InvoiceFormData, Invoice } from "../types/invoice.types";
-
-const INVOICES_KEY = ["invoices"] as const;
+import { QK } from "@/shared/config/queryKeys";
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -27,7 +26,7 @@ const INVOICES_KEY = ["invoices"] as const;
  */
 export function useInvoices(filters?: InvoiceFilters) {
   return useQuery({
-    queryKey: [...INVOICES_KEY, filters],
+    queryKey: [...QK.invoices, filters],
     queryFn: () => fetchInvoices(filters),
     staleTime: 30_000,
   });
@@ -41,7 +40,7 @@ export function useInvoices(filters?: InvoiceFilters) {
  */
 export function useInvoice(id: string | undefined) {
   return useQuery({
-    queryKey: ["invoice", id],
+    queryKey: QK.invoice(id!),
     queryFn: () => fetchInvoiceById(id!),
     enabled: !!id,
     staleTime: 30_000,
@@ -69,7 +68,7 @@ export function useCreateInvoice() {
       status?: "Draft" | "Pending";
     }) => createInvoice(userId, invoiceNumber, formData, status),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: INVOICES_KEY });
+      qc.invalidateQueries({ queryKey: QK.invoices });
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -92,8 +91,8 @@ export function useUpdateInvoice() {
       updates: Partial<Omit<Invoice, "id" | "user_id" | "created_at">>;
     }) => updateInvoice(id, updates),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: INVOICES_KEY });
-      qc.invalidateQueries({ queryKey: ["invoice", data.id] });
+      qc.invalidateQueries({ queryKey: QK.invoices });
+      qc.invalidateQueries({ queryKey: QK.invoice(data.id) });
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -118,8 +117,8 @@ export function useMarkInvoiceAsPaid() {
       chequeNumber?: string;
     }) => markInvoiceAsPaid(id, paymentMethod, chequeNumber),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: INVOICES_KEY });
-      qc.invalidateQueries({ queryKey: ["invoice", data.id] });
+      qc.invalidateQueries({ queryKey: QK.invoices });
+      qc.invalidateQueries({ queryKey: QK.invoice(data.id) });
       toast.success("Invoice marked as paid");
     },
     onError: (err: Error) => {
@@ -137,8 +136,8 @@ export function useCancelInvoice() {
   return useMutation({
     mutationFn: (id: string) => cancelInvoice(id),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: INVOICES_KEY });
-      qc.invalidateQueries({ queryKey: ["invoice", data.id] });
+      qc.invalidateQueries({ queryKey: QK.invoices });
+      qc.invalidateQueries({ queryKey: QK.invoice(data.id) });
       toast.success("Invoice cancelled");
     },
     onError: (err: Error) => {
@@ -156,7 +155,7 @@ export function useMarkReminderSent() {
   return useMutation({
     mutationFn: (id: string) => markReminderSent(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: INVOICES_KEY });
+      qc.invalidateQueries({ queryKey: QK.invoices });
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -173,7 +172,7 @@ export function useDeleteInvoice() {
   return useMutation({
     mutationFn: (id: string) => deleteInvoice(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: INVOICES_KEY });
+      qc.invalidateQueries({ queryKey: QK.invoices });
       toast.success("Invoice deleted");
     },
     onError: (err: Error) => {

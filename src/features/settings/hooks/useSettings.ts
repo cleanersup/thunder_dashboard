@@ -9,6 +9,7 @@ import {
 } from "../services/settingsService";
 import type { EditProfileFormData, EditCompanyFormData } from "../schemas/settingsSchemas";
 import { supabase } from "@/integrations/supabase/client";
+import { QK } from "@/shared/config/queryKeys";
 
 // ─── Personal Info ────────────────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ export function useUpdatePersonalInfo() {
       return updatePersonalInfo(user.id, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: QK.profile });
     },
   });
 }
@@ -43,7 +44,7 @@ export function useUpdateCompanyInfo() {
       return updateCompanyInfo(user.id, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: QK.profile });
     },
   });
 }
@@ -76,7 +77,7 @@ export function useUploadLogo() {
       return uploadLogo(user.id, file);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: QK.profile });
       toast({ title: "Logo updated" });
     },
     onError: () => {
@@ -89,7 +90,7 @@ export function useUploadLogo() {
 
 export function usePublicProfile(userId: string | undefined) {
   return useQuery({
-    queryKey: ["public-profile", userId],
+    queryKey: QK.publicProfile(userId!),
     queryFn: () => fetchPublicProfile(userId!),
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,

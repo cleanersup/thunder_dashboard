@@ -10,12 +10,13 @@ import {
   deleteWalkthrough,
 } from "../services/walkthroughsService";
 import type { WalkthroughFormData } from "../schemas/walkthroughSchema";
+import { QK } from "@/shared/config/queryKeys";
 
 // ─── Read ─────────────────────────────────────────────────────────────────────
 
 export function useWalkthroughs() {
   return useQuery({
-    queryKey: ["walkthroughs"],
+    queryKey: QK.walkthroughs,
     queryFn:  fetchWalkthroughs,
     staleTime: 2 * 60 * 1000,
   });
@@ -23,7 +24,7 @@ export function useWalkthroughs() {
 
 export function useWalkthrough(id: string | undefined) {
   return useQuery({
-    queryKey: ["walkthrough", id],
+    queryKey: QK.walkthrough(id!),
     queryFn:  () => fetchWalkthrough(id!),
     enabled:  Boolean(id),
     staleTime: 2 * 60 * 1000,
@@ -41,7 +42,7 @@ export function useCreateWalkthrough() {
       void supabase.functions.invoke("send-walkthrough-confirmation", {
         body: { walkthroughId: result.id },
       });
-      qc.invalidateQueries({ queryKey: ["walkthroughs"] });
+      qc.invalidateQueries({ queryKey: QK.walkthroughs });
       toast.success("Walkthrough scheduled successfully");
     },
     onError: () => toast.error("Failed to schedule walkthrough"),
@@ -58,8 +59,8 @@ export function useUpdateWalkthrough() {
       void supabase.functions.invoke("send-walkthrough-update", {
         body: { walkthroughId: id },
       });
-      qc.invalidateQueries({ queryKey: ["walkthroughs"] });
-      qc.invalidateQueries({ queryKey: ["walkthrough", id] });
+      qc.invalidateQueries({ queryKey: QK.walkthroughs });
+      qc.invalidateQueries({ queryKey: QK.walkthrough(id) });
       toast.success("Walkthrough updated successfully");
     },
     onError: () => toast.error("Failed to update walkthrough"),
@@ -79,8 +80,8 @@ export function useUpdateWalkthroughStatus() {
       } else if (status === "Cancelled") {
         void supabase.functions.invoke("send-walkthrough-cancellation", { body: { walkthroughId: id } });
       }
-      qc.invalidateQueries({ queryKey: ["walkthroughs"] });
-      qc.invalidateQueries({ queryKey: ["walkthrough", id] });
+      qc.invalidateQueries({ queryKey: QK.walkthroughs });
+      qc.invalidateQueries({ queryKey: QK.walkthrough(id) });
     },
     onError: () => toast.error("Failed to update walkthrough status"),
   });
@@ -91,9 +92,22 @@ export function useDeleteWalkthrough() {
   return useMutation({
     mutationFn: (id: string) => deleteWalkthrough(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["walkthroughs"] });
+      qc.invalidateQueries({ queryKey: QK.walkthroughs });
       toast.success("Walkthrough deleted successfully");
     },
     onError: () => toast.error("Failed to delete walkthrough"),
+  });
+}
+
+/**
+ * Sends walkthrough start notifications (email + SMS fire-and-forget).
+ * Invokes `send-walkthrough-start` and `send-walkthrough-start-sms` edge functions.
+ */
+export function useSendWalkthroughStart() {
+  return useMutation({
+    mutationFn: async (walkthroughId: string) => {
+      await supabase.functions.invoke("send-walkthrough-start", { body: { walkthroughId } });
+      void supabase.functions.invoke("send-walkthrough-start-sms", { body: { walkthroughId } });
+    },
   });
 }

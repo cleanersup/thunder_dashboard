@@ -1,9 +1,9 @@
 # Thunder Dashboard — Plan Maestro de Migración Web
 
 > **Estado actual:** 🟢 En progreso
-> **Fase activa:** Fase 12 — Settings
+> **Fase activa:** F19 — Time Clock | F20 — Mapas y Geolocalización (ambas pendientes)
 > **Última actualización:** 2026-03-04
-> **Sesión anterior:** F11 Walkthroughs completo. WalkthroughsPage (KPI, toolbar, tabla, QR dialog). WalkthroughForm modal (create+edit). WalkthroughDetailsModal (two-column Cards, Quick Actions por status). ResidentialWalkthroughFormPage + CommercialWalkthroughFormPage (públicas). SOLID refactor: config/, utils/, PickerDialog, FloatInput (type=text+inputMode). fetchContactInfo en utils, side-effects movidos a onSuccess hooks. DraftRecoveryDialog eliminado de estimate pages. Fix: "Generate Estimate" prefill (location.state.prefill → fetch client/lead). Build: 0 errores.
+> **Sesión anterior:** F15 Optimización SOLID y Calidad completo. queryKeys.ts (QK centralizado), ErrorBoundary, SOLID cleanup (useAuth en WalkthroughsPage, useProfile en CommercialEstimates, fetchClient/fetchLead desde servicios), useSendWalkthroughStart() mutation, JSDoc en employeesService.ts. Build: 0 errores. Se descubrió que /time-clock y /smart-map de swift-slate no estaban en PLAN.md. SmartMap ya existe (F9 ✅). Time Clock agregado como F19.
 
 ---
 
@@ -209,7 +209,7 @@ PR      → preview build + checks automáticos
 ## Orden de Implementación
 
 ```
-F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F11 → F12 → F14 → F15 → F13 → F16 → F17 → F18
+F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F11 → F12 → F14 → F15 → F19 → F20 → F13 → F16 → F17 → F18
 ```
 
 > F13 (suscripciones) requiere decisiones de negocio → se puede avanzar en paralelo con últimas fases de features.
@@ -494,6 +494,7 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 - [x] Páginas: `RoutesPage` (Calendar/Map toggle), `AddAppointmentPage` (create + edit), `SmartMapPage`
 - [x] Router: `/create-route`, `/create-route/new`, `/create-route/:id/edit`, `/smart-map`
 - [x] EmployeeForm actualizado: 5 secciones (Personal, Employment, Available Days grid, Notes, Upload Documents)
+- [ ] ⚠️ **Pendiente debug:** Google Maps en `AppointmentDetailModal` — mapa Company→Client no renderiza (ver F20)
 
 ---
 
@@ -544,13 +545,82 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 12 — Settings (Perfil, Empresa, Seguridad)
-> Estado: 🔴 Pendiente
+> Estado: ✅ Completo
 
-- [ ] `features/settings/services/settingsService.ts` (JSDoc)
-- [ ] `features/settings/hooks/useProfile.ts`, `useCompanyInfo.ts`
-- [ ] Páginas: `ProfilePage`, `EditProfilePage`, `EditCompanyInfoPage`, `SecurityPage`
-- [ ] Página pública: `ContactCardPage` (`/contact-card/:userId`)
-- [ ] `ContractPage`, `PrivacyPage`
+- [x] `features/settings/schemas/settingsSchemas.ts` (editProfile, editCompany, security — Zod)
+- [x] `features/settings/services/settingsService.ts` (updatePersonalInfo, updateCompanyInfo, updatePassword, uploadLogo, fetchPublicProfile)
+- [x] `features/settings/hooks/useSettings.ts` (5 hooks: useUpdatePersonalInfo, useUpdateCompanyInfo, useUpdatePassword, useUploadLogo, usePublicProfile)
+- [x] `ProfilePage` — split-panel: izquierda (avatar + info rows + nav), derecha (form activo). Secciones embebidas como sub-componentes. Save/Cancel cuando isDirty.
+- [x] `EditProfilePage`, `EditCompanyInfoPage`, `SecurityPage` — standalone para acceso directo/mobile
+- [x] `ContactCardPage` — pública `/contact-card/:userId`, descarga vCard `.vcf`
+- [x] `ContractPage` — coming soon placeholder
+- [x] `PrivacyPage` — estática, 12 secciones, `privacy@thunderpro.co`
+- [x] Router: 7 rutas nuevas (Phase 12 ✅)
+- [x] Build: 0 errores TypeScript
+
+---
+
+## FASE 20 — Mapas y Geolocalización
+> Estado: 🔴 Pendiente
+> Descubierto: múltiples usos de mapas en swift-slate no cubiertos aún en thunder_dashboard
+
+### Inventario completo de mapas en swift-slate
+
+| Componente/Página | Dónde se usa | Qué hace | Estado en dashboard |
+|-------------------|-------------|----------|-------------------|
+| `MapView.tsx` | `CreateRoute.tsx`, `Home.tsx` | Multi-stop route (DirectionsService) | ✅ Portado como `RouteMapView.tsx` (F9) |
+| `SmartMap.tsx` (Google Maps + geocoding) | `/smart-map` | Pines leads/clients/employees con geocoding | ✅ `SmartMapView.tsx` usa QK markers (F9) — ver nota geocoding |
+| `AddressAutocomplete.tsx` | Todos los forms | Google Places autocomplete | ✅ Portado (F5) |
+| `RouteInformation.tsx` | Clic en cita del calendario | Página de detalle: ruta empresa→cliente con distancia/tiempo | ⚠️ Portado como `AppointmentDetailModal` — mapa no renderiza |
+| `EmployeeLocationMap.tsx` | Time Clock manager view | Mapa clock-in/clock-out con polyline | 🔴 Parte de F19 |
+| `RealTimeLocationMap.tsx` | `EmployeeDashboard.tsx` | GPS real-time + geofence circle (para empleado) | 🔴 Parte de F10B |
+| `LocationMap.tsx` | `EmployeeDashboard.tsx` | iframe Google Maps embed + distancia geofence | 🔴 Parte de F10B |
+| `LeadDetails.tsx` (mapa) | Detalle de lead | Mapa con dirección del lead | 🟡 Nuestros modales no lo tienen (opcional) |
+| `WalkthroughDetails.tsx` (mapa) | Detalle de walkthrough | Mapa con dirección del contacto | 🟡 Nuestros modales no lo tienen (opcional) |
+| `BookingDetails.tsx` (mapa) | Detalle de booking | Mapa empresa→cliente | 🔴 Parte de F6 |
+
+---
+
+### 1 · Fix AppointmentDetailModal — Mapa Company→Client
+**Bug pendiente de F9.** El mapa está implementado pero no renderiza.
+
+- [ ] Debuggear por qué el mapa Google Maps no renderiza en `AppointmentDetailModal` — posibles causas: div sin dimensiones, `useGoogleMaps` carga asíncrona vs `useEffect` timing, API key sin billing activo para Maps JS API
+- [ ] Verificar que `VITE_GOOGLE_MAPS_API_KEY` tiene habilitadas las APIs: Maps JavaScript API + Directions API + Geocoding API
+- [ ] Confirmar que el `div` del mapa tiene `height` explícito (Google Maps necesita dimensión física, no solo `h-full`)
+- [ ] Una vez fix aplicado: mostrar ruta Company address → Client address con distancia y tiempo estimado
+
+### 2 · SmartMap — Geocoding de direcciones
+**Nota arquitectural importante.** En swift-slate, `SmartMap.tsx` usa `google.maps.Geocoder` para convertir direcciones texto → lat/lng en tiempo real (clientes/leads/empleados no tienen lat/lng almacenado en DB).
+
+En thunder_dashboard, `SmartMapPage` usa `QK.smartMapLeads/Clients/Employees` y pasa `MapMarker[]` con `{ lat, lng }` al `SmartMapView`. Si la DB no almacena coordenadas, los marcadores no aparecen.
+
+- [ ] Verificar si la tabla `clients` / `leads` / `employees` tiene columnas `lat`/`lng` o similar en Supabase
+- [ ] Si NO tienen coordenadas almacenadas: implementar geocoding on-demand en `SmartMapPage` (misma lógica que swift-slate — `google.maps.Geocoder`, geocodificar `street + city + state + zip`)
+- [ ] Si SÍ tienen coordenadas: confirmar que el flujo actual funciona correctamente
+- [ ] Agregar manejo de estado "Geocoding…" mientras se procesan las direcciones (igual que swift-slate muestra `isGeocoding` state)
+
+### 3 · EmployeeLocationMap (Time Clock)
+> Este ítem ya está en F19 — se lista aquí para referencia cruzada
+
+- [ ] `features/time-clock/components/EmployeeLocationMap.tsx` — mapa Google Maps con marcadores clock-in (verde "IN") / clock-out (rojo "OUT") + Polyline azul entre ellos. Usar `useGoogleMaps`. Mostrar "No location data available" si no hay coordenadas.
+- [ ] Mostrarlo en `EmployeeDetailView` cuando el turno tiene lat/lng guardados
+
+### 4 · RealTimeLocationMap + LocationMap (Employee Portal)
+> Estos ítems son parte de F10B — se listan aquí para referencia cruzada
+
+Componentes para el portal del empleado (clock-in desde su dispositivo):
+- [ ] `features/employee-portal/components/RealTimeLocationMap.tsx` — mapa Google Maps con: marcador azul "usuario actual" (navigator.geolocation.watchPosition), marcador verde "shift location", geofence circle (radio 100m, verde si dentro, rojo si fuera)
+- [ ] `features/employee-portal/components/LocationMap.tsx` — versión iframe (Google Maps Embed API) con badge de distancia y panel "You are at the job site" / "Must be within 100m"
+- [ ] `shared/services/geolocation.service.ts` — ya existe. Añadir `calculateDistance(lat1, lng1, lat2, lng2)` (Haversine formula) y `formatDistance(meters)` si no existen
+- [ ] Geofence enforcement: el botón "Clock In" del portal solo se activa cuando `distance <= 100m`
+
+### 5 · Mapas en modales de detalle (opcional — baja prioridad)
+swift-slate tiene mapas en LeadDetails y WalkthroughDetails. Nuestros modales los omiten. Estos son enhancements opcionales.
+
+- [ ] (Opcional) `LeadDetailModal` — pequeño mapa estático con dirección del lead (Google Maps Static API o iframe embed)
+- [ ] (Opcional) `WalkthroughDetailsModal` — pequeño mapa estático con dirección del contacto
+- [ ] (Opcional) `ClientDetailModal` — ídem para clientes
+> **Nota:** En móvil, estos mapas reemplazaban la navegación. En web, los modales tienen más espacio. Implementar solo si el cliente lo solicita.
 
 ---
 
@@ -572,32 +642,90 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 14 — Servicios Transversales
-> Estado: 🔴 Pendiente
+> Estado: ✅ Completo (servicios ya existían de fases anteriores)
 
-- [ ] `shared/services/storage.service.ts` — JSDoc + tests
-- [ ] `shared/services/geolocation.service.ts` — promisify `navigator.geolocation`, JSDoc + tests
-- [ ] `shared/services/pdf.service.ts` — Blob download + share fallback, JSDoc + tests
-- [ ] `shared/services/share.service.ts` — Web Share API + clipboard fallback, JSDoc + tests
-- [ ] `shared/services/file.service.ts` — download helper, JSDoc + tests
-- [ ] Auditar: **cero imports de `@capacitor/*`** en el proyecto
-- [ ] Auditar: **cero usos de `Capacitor.isNativePlatform()`**
-- [ ] Verificar Mapbox GL en web (debería funcionar sin cambios)
+- [x] `shared/services/storage.service.ts` — localStorage abstraction, JSDoc ✅
+- [x] `shared/services/geolocation.service.ts` — promisify `navigator.geolocation`, JSDoc ✅
+- [x] `shared/services/pdf.service.ts` — jsPDF + FileService download, JSDoc ✅
+- [x] `shared/services/share.service.ts` — Web Share API + clipboard fallback, JSDoc ✅
+- [x] `shared/services/file.service.ts` — downloadBlob / downloadDataUrl, JSDoc ✅
+- [x] Auditar: **cero imports de `@capacitor/*`** — confirmado, ninguno encontrado
+- [x] Auditar: **cero usos de `Capacitor.isNativePlatform()`** — confirmado, ninguno encontrado
+- [x] SmartMapView usa Google Maps (useGoogleMaps hook) — la nota de "Mapbox" en versiones anteriores del plan era incorrecta
 
 ---
 
 ## FASE 15 — Optimización SOLID y Calidad
-> Estado: 🔴 Pendiente
+> Estado: ✅ Completa
 
-- [ ] Auditar SRP: cada feature module tiene responsabilidad única
-- [ ] Auditar DIP: servicios dependen de interfaces/tipos, no de implementaciones
-- [ ] Verificar que page components son "thin" (solo composición)
-- [ ] JSDoc en **todos** los servicios: `@param`, `@returns`, `@throws`, `@example`
-- [ ] JSDoc en todos los hooks custom
-- [ ] Auditar duplicación cross-features → extraer a `shared/`
-- [ ] React Query: keys consistentes, invalidaciones correctas, stale times apropiados
-- [ ] Error handling centralizado en `shared/utils/errorHandler.ts`
-- [ ] Implementar error boundaries en rutas principales
-- [ ] Revisar bundle size y aplicar code splitting donde sea necesario
+- [x] `src/shared/config/queryKeys.ts` — objeto `QK` centralizado (fuente única de verdad para 60+ query keys). Claves estáticas + funciones dinámicas con `as const`
+- [x] Actualizar 15+ archivos de hooks y 12+ páginas/componentes para usar `QK.*` en lugar de strings inline
+- [x] `src/shared/components/common/ErrorBoundary.tsx` — class component estándar, fallback Card "Something went wrong" + botón Reload
+- [x] `src/app/routes/index.tsx` — `<ErrorBoundary>` envuelve `<Suspense>` globalmente
+- [x] `WalkthroughsPage.tsx` — eliminado `supabase.auth.getUser()` inline → `useAuth()`. Edge fn calls movidos a `useSendWalkthroughStart()` mutation
+- [x] `CreateCommercialEstimatePage.tsx` — eliminado `supabase.from("profiles")` inline → `useProfile()`. Client/lead prefill usa `fetchClient(id)` y `fetchLead(id)` desde CRM services
+- [x] `CreateInvoicePage.tsx` — `queryKey` actualizado a `QK.clientsForInvoice`
+- [x] JSDoc completo en `employeesService.ts` (8 funciones exportadas: `@param`, `@returns`, `@throws`)
+- [x] Fix build: `emp.gender ?? ""` en EmployeesPage. Eliminar `isPending: isUpdating` no usado en WalkthroughDetailsModal
+- [x] Build: `npm run build` → 0 errores TypeScript (`tsc -b`)
+
+---
+
+## FASE 19 — Time Clock (Employee Time Tracking)
+> Estado: 🔴 Pendiente
+> Descubierto: existe en swift-slate como `/time-clock` pero no estaba en el plan original
+
+### Descripción
+Sistema completo de seguimiento de tiempo de empleados. Los managers ven quién está trabajando, editan tiempos con auditoría, generan timesheets en PDF y marcan períodos como pagados.
+
+### Tablas Supabase utilizadas
+- `time_entries` — `{ id, user_id, employee_id, date, clock_in_time, break_start_time, break_end_time, clock_out_time, total_hours, total_break_minutes, status, route_appointment_id, notes, clock_in/out_latitude/longitude, manually_edited, edited_by, edited_at, created_at, updated_at }`
+- `paid_periods` — `{ id, user_id, employee_id, start_date, end_date, created_at, updated_at }`
+
+### Query Keys a añadir en `QK`
+```ts
+timeEntriesToday:     (date: string) => ["time-entries-today", date]        as const,
+timeEntriesScheduled: (date: string) => ["time-entries-scheduled", date]    as const,
+timeEntriesAll:       (from: string, to: string) => ["time-entries-all", from, to] as const,
+timeEntriesEmployee:  (id: string, from: string, to: string) => ["filtered-time-entries", id, from, to] as const,
+paidPeriods:          (empId: string) => ["paid-periods", empId]            as const,
+```
+
+### Infraestructura
+- [ ] `features/time-clock/types/timeClock.types.ts` — `TimeEntry`, `PaidPeriod`, `TimesheetEntry`, `EmployeeTimesheetData`
+- [ ] `features/time-clock/services/timeClockService.ts` — `fetchTodayEntries`, `fetchScheduledEntries`, `fetchAllEntries(from, to)`, `fetchEmployeeEntries(empId, from, to)`, `updateTimeEntry` (edit con audit trail: `manually_edited`, `edited_by`, `edited_at`), `markAsPaid`, `fetchPaidPeriods` (JSDoc completo)
+- [ ] `features/time-clock/services/generateTimesheetPDF.ts` — `generateEmployeeTimesheetPDF()` (jsPDF portrait: header, métricas, tabla por fecha, totales) + `generateGeneralTimesheetPDF()` (resumen todos los empleados)
+- [ ] `features/time-clock/hooks/useTimeClock.ts` — `useTimeEntriesToday`, `useTimeEntriesScheduled`, `useTimeEntriesAll`, `useEmployeeTimeEntries`, `useUpdateTimeEntry`, `useMarkAsPaid`, `usePaidPeriods`, `useSendTimesheet`
+- [ ] `features/time-clock/hooks/useShiftTimeEdit.ts` — state machine para edición de campos (startEdit, cancelEdit, requestSave, confirmSave, setEditDraftValues). Detecta cambios para mostrar en modal de confirmación
+
+### Componentes
+- [ ] `features/time-clock/components/TimeClockKPICards.tsx` — 4 KPIs: Active Now (azul), Total Hours (naranja), Pay Now (verde), Overtime (morado). Mismo patrón `border-l-4` del resto del proyecto
+- [ ] `features/time-clock/components/TodayTab.tsx` — lista de empleados trabajando hoy, grouped by employee. Cada card: avatar, nombre, status badge (Active/Completed), shifts con 2×2 grid (Clock In/Break Start/Break End/Clock Out), total hours/pay
+- [ ] `features/time-clock/components/ScheduledTab.tsx` — entradas futuras (status='scheduled'), agrupadas por empleado + fecha, con link a cita si tiene `route_appointment_id`
+- [ ] `features/time-clock/components/TimesheetsTab.tsx` — rango de fechas (date range picker), lista de empleados con horas y pago agregados. Clickable → selecciona empleado y muestra detalle
+- [ ] `features/time-clock/components/EmployeeDetailView.tsx` — vista de detalle para un empleado: fechas agrupadas, múltiples shifts por fecha, inputs de tiempo en modo edición, badge "Paid" en fechas pagadas, botón + menu de acciones
+- [ ] `features/time-clock/components/ShiftCard.tsx` — card de turno individual con 2×2 grid de campos de tiempo (display/edit mode), status badge, botón edit pencil
+- [ ] `features/time-clock/components/ShiftTimeEditConfirmModal.tsx` — Dialog de confirmación con lista de cambios (campo: valor_anterior → valor_nuevo), Cancel/Confirm
+- [ ] `features/time-clock/components/DateRangePicker.tsx` — si no existe uno reutilizable, crear wrapper sobre Calendar de shadcn
+
+### Páginas
+- [ ] `features/time-clock/pages/TimeClockPage.tsx` — página principal con 3 tabs (Today/Scheduled/Timesheets), KPI cards, date picker, employee detail view inline (sin navegación a otra página). Real-time via Supabase channel `time_entries_changes`
+
+### Router
+- [ ] Ruta: `/time-clock` (ProtectedRoute)
+- [ ] Agregar a `DesktopSidebar` con icono `Clock` de lucide-react
+
+### Funcionalidades
+- [ ] Edición de tiempos con audit trail (`manually_edited=true`, `edited_by=userId`, `edited_at=now()`)
+- [ ] Prevent edición en turnos dentro de períodos pagados (read-only si fecha está en `paid_periods`)
+- [ ] Mark as Paid → crea registro en `paid_periods`
+- [ ] Real-time updates (INSERT/UPDATE/DELETE en `time_entries` → invalidate queries)
+- [ ] PDF individual: `generateEmployeeTimesheetPDF()` — portrait, header con rango, tabla fecha/tiempos/horas, totales
+- [ ] PDF general: `generateGeneralTimesheetPDF()` — resumen de todos los empleados del rango
+- [ ] Send timesheet por SMS/Email (edge functions: mismas que usa swift-slate)
+- [ ] Overtime calculation: >40 horas semanales
+- [ ] Feature flag: `time_clock` (subscription access control vía `FeaturePaywall`)
+- [ ] Build: 0 errores TypeScript
 
 ---
 
@@ -666,6 +794,10 @@ Esto significa:
 | 2026-03-06 | F10A ✅ | Employees completo: EmployeesPage (KPI×4, tabs, search, lista avatar+badge). EmployeeDetailsModal (two-column Cards: Personal/Address/Employment/Notes/Availability/Documents/Timeline/Quick Actions). EmployeeForm edit mode (employeeId prop, prefill, useUpdateEmployee, existing docs). generateEmployeeSheetPDF (jsPDF portado de swift-slate). useEmployees extendido (useAllEmployees, useEmployee, useUpdateEmployee, useUpdateEmployeeStatus, useDeleteEmployee+guard). Router /employees. Build: 0 errores. |
 | 2026-03-04 | F10A refinamientos ✅ | EmployeesPage rediseñada: patrón unificado con Estimates (single Card KPI border-l-4, Toolbar Card, Table 6 cols + dropdown). CRM KPI cards al mismo patrón. Fix available_days lowercase normalization en EmployeeForm + generateEmployeeSheetPDF. Fix LoadingSpinner centrado en TableCell. Build: 0 errores. |
 | 2026-03-04 | F11 Walkthroughs ✅ | WalkthroughsPage (KPI + tabla + QR dialog). WalkthroughForm modal. WalkthroughDetailsModal (2 cols + Quick Actions por status). ResidentialWalkthroughFormPage + CommercialWalkthroughFormPage (públicas). SOLID refactor: config/, utils/, PickerDialog, FloatInput (type=text+inputMode). Side-effects movidos a onSuccess. fetchContactInfo centralizado. DraftRecoveryDialog eliminado de estimates. Fix: prefill desde walkthrough a estimate form (location.state.prefill). Build: 0 errores. |
+| 2026-03-04 | F12 Settings ✅ | ProfilePage split-panel (avatar clickable + info rows coloreados + nav list / form activo). settingsSchemas (3 schemas Zod). settingsService + useSettings (5 hooks). EditProfilePage, EditCompanyInfoPage, SecurityPage (standalone). ContactCardPage pública (vCard .vcf). PrivacyPage estática. ContractPage coming soon. Save+Cancel cuando isDirty. Build: 0 errores. |
+| 2026-03-04 | F14 Servicios ✅ | Los 5 shared services ya existían: StorageService, GeolocationService, PDFService, ShareService, FileService. Auditoría: cero @capacitor/* imports, cero Capacitor.isNativePlatform(). |
+| 2026-03-04 | F15 SOLID ✅ | queryKeys.ts (QK centralizado). ErrorBoundary + wrapping en routes/index.tsx. SRP: WalkthroughsPage usa useAuth()+useSendWalkthroughStart(), CommercialEstimates usa useProfile()+fetchClient/fetchLead desde services, CreateInvoicePage usa QK.clientsForInvoice. JSDoc completo en employeesService.ts. Build: npm run build → 0 errores. Descubierto: /time-clock ausente del plan → añadido como F19. |
+| 2026-03-04 | Auditoría mapas | Inventario completo de todas las integraciones de Google Maps en swift-slate vs thunder_dashboard. SmartMapView ya usa Google Maps (no Mapbox — nota anterior incorrecta). F20 agregado: AppointmentDetailModal map fix, SmartMap geocoding audit, EmployeeLocationMap (F19 cruzada), RealTimeLocationMap/LocationMap (F10B cruzada). |
 
 ---
 

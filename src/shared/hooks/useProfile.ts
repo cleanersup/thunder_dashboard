@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { QK } from "@/shared/config/queryKeys";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
@@ -14,7 +15,7 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"];
  */
 export function useProfile() {
   return useQuery<Profile | null>({
-    queryKey: ["profile"],
+    queryKey: QK.profile,
     queryFn: async () => {
       const {
         data: { user },

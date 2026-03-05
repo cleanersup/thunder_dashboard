@@ -9,12 +9,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useGoogleMaps } from "@/shared/hooks/useGoogleMaps";
 import type { MapMarker, SmartMapFilter } from "../types/scheduling.types";
+import { QK } from "@/shared/config/queryKeys";
 
 // ─── Raw data queries ─────────────────────────────────────────────────────────
 
 function useLeads() {
   return useQuery({
-    queryKey: ["smart-map-leads"],
+    queryKey: QK.smartMapLeads,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
@@ -28,7 +29,7 @@ function useLeads() {
 
 function useClients() {
   return useQuery({
-    queryKey: ["smart-map-clients"],
+    queryKey: QK.smartMapClients,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
@@ -44,7 +45,7 @@ function useClients() {
 
 function useEmployees() {
   return useQuery({
-    queryKey: ["smart-map-employees"],
+    queryKey: QK.smartMapEmployees,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("employees")

@@ -16,6 +16,7 @@ import {
   Users, Box, TrendingUp, DollarSign, X, Play, RefreshCw, Trash2, Clock,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -285,7 +286,7 @@ export function EstimateDetailsModal({ open, onOpenChange, estimateId }: Estimat
     if (!estimate) return;
     try {
       await deleteDraftEstimate(estimate.id);
-      qc.invalidateQueries({ queryKey: ["estimates"] });
+      qc.invalidateQueries({ queryKey: QK.estimates });
       onOpenChange(false);
       const route = estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential";
       navigate(route);
@@ -299,7 +300,7 @@ export function EstimateDetailsModal({ open, onOpenChange, estimateId }: Estimat
     setIsDeletingDraft(true);
     try {
       await deleteDraftEstimate(estimate.id);
-      qc.invalidateQueries({ queryKey: ["estimates"] });
+      qc.invalidateQueries({ queryKey: QK.estimates });
       toast.success("Draft deleted");
       onOpenChange(false);
     } catch {
@@ -1033,7 +1034,7 @@ export function EstimateDetailsModal({ open, onOpenChange, estimateId }: Estimat
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="sm:justify-center">
-            <AlertDialogAction onClick={() => { setIsEmailSuccessOpen(false); qc.invalidateQueries({ queryKey: ["activities"] }); }}>
+            <AlertDialogAction onClick={() => { setIsEmailSuccessOpen(false); qc.invalidateQueries({ queryKey: QK.activities }); }}>
               Done
             </AlertDialogAction>
           </AlertDialogFooter>

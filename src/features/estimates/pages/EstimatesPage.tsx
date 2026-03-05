@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
 import { format } from "date-fns";
 import { cn } from "@/shared/utils/cn";
 import { toast } from "sonner";
@@ -209,7 +210,7 @@ export function EstimatesPage() {
   async function handleStartFreshDraft(estimate: any) {
     try {
       await deleteDraftEstimate(estimate.id);
-      queryClient.invalidateQueries({ queryKey: ["estimates"] });
+      queryClient.invalidateQueries({ queryKey: QK.estimates });
       const route = estimate.serviceType === "Commercial"
         ? "/estimates/new/commercial"
         : "/estimates/new/residential";
@@ -223,7 +224,7 @@ export function EstimatesPage() {
     if (!actionEstimate) return;
     try {
       await deleteDraftEstimate(actionEstimate.id);
-      queryClient.invalidateQueries({ queryKey: ["estimates"] });
+      queryClient.invalidateQueries({ queryKey: QK.estimates });
       toast.success("Draft deleted");
     } catch {
       toast.error("Failed to delete draft");

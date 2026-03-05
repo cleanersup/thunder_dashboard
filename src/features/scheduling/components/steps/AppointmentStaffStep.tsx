@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
 import { Check } from "lucide-react";
 import { EntityPickerField } from "@/shared/components/common/EntityPickerField";
 import type { EntityOption } from "@/shared/components/common/EntityPickerField";
@@ -140,7 +141,7 @@ export function AppointmentStaffStep({
         onClose={() => setShowCreate(false)}
         onCreated={(emp) => {
           onToggle(emp.id);
-          qc.invalidateQueries({ queryKey: ["employees-for-appointment"] });
+          qc.invalidateQueries({ queryKey: QK.employeesForAppointment });
           setShowCreate(false);
         }}
       />

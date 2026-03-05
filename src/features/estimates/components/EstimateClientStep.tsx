@@ -5,6 +5,7 @@
  */
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
 import {
   User, Users, Plus,
   MapPin, Mail, Phone, Building2, Info,
@@ -55,7 +56,7 @@ export function EstimateClientStep({
   // ── Data queries ─────────────────────────────────────────────────────────
 
   const { data: clients = [] } = useQuery<ClientEntity[]>({
-    queryKey: ["clients-for-estimate"],
+    queryKey: QK.clientsForEstimate,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
@@ -69,7 +70,7 @@ export function EstimateClientStep({
   });
 
   const { data: leads = [] } = useQuery<LeadEntity[]>({
-    queryKey: ["leads-for-estimate"],
+    queryKey: QK.leadsForEstimate,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
@@ -238,7 +239,7 @@ export function EstimateClientStep({
         onClose={() => setShowNewClient(false)}
         onSuccess={(client) => {
           onClientSelect(client);
-          qc.invalidateQueries({ queryKey: ["clients-for-estimate"] });
+          qc.invalidateQueries({ queryKey: QK.clientsForEstimate });
         }}
       />
 
@@ -248,7 +249,7 @@ export function EstimateClientStep({
         onClose={() => setShowNewLead(false)}
         onSuccess={(lead) => {
           onLeadSelect(lead);
-          qc.invalidateQueries({ queryKey: ["leads-for-estimate"] });
+          qc.invalidateQueries({ queryKey: QK.leadsForEstimate });
         }}
       />
     </div>

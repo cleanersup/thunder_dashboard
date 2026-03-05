@@ -9,6 +9,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
@@ -35,7 +36,7 @@ import type { ClientEntity } from "@/shared/types/entities";
 
 function useEmployees() {
   return useQuery({
-    queryKey: ["employees-for-appointment"],
+    queryKey: QK.employeesForAppointment,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("employees")

@@ -34,6 +34,7 @@ import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
 import { supabase } from "@/integrations/supabase/client";
 import { useUpdateWalkthroughStatus, useDeleteWalkthrough } from "../hooks/useWalkthroughs";
 import type { WalkthroughWithContact } from "../services/walkthroughsService";
@@ -57,7 +58,7 @@ export function WalkthroughDetailsModal({
 }: WalkthroughDetailsModalProps) {
   const navigate = useNavigate();
 
-  const { mutate: updateStatus, isPending: isUpdating } = useUpdateWalkthroughStatus();
+  const { mutate: updateStatus } = useUpdateWalkthroughStatus();
   const { mutate: deleteMutate, isPending: isDeleting } = useDeleteWalkthrough();
 
   const [cancelOpen,  setCancelOpen]  = useState(false);
@@ -67,7 +68,7 @@ export function WalkthroughDetailsModal({
 
   // Fetch current user ID for the contact card QR URL
   const { data: userId } = useQuery({
-    queryKey: ["current-user-id"],
+    queryKey: QK.currentUserId,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       return user?.id ?? null;
@@ -79,7 +80,7 @@ export function WalkthroughDetailsModal({
   // Fetch assigned employees by IDs
   const assignedIds = walkthrough?.assigned_employees ?? [];
   const { data: employeeList = [] } = useQuery({
-    queryKey: ["walkthrough-employees", assignedIds.join(",")],
+    queryKey: [...QK.walkthroughEmployees, assignedIds.join(",")],
     queryFn: async () => {
       if (assignedIds.length === 0) return [];
       const { data, error } = await supabase

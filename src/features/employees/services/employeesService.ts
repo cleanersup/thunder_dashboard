@@ -72,6 +72,9 @@ function buildInsertPayload(data: EmployeeFormData, userId: string) {
 /**
  * Fetches only active employees — lightweight picker list (id + name).
  * Used by scheduling/task forms to assign employees.
+ *
+ * @returns Array of `{ id, name }` objects for active employees, ordered by first name
+ * @throws Error if the authenticated user cannot be resolved or the query fails
  */
 export async function fetchEmployees() {
   const userId = await getAuthUserId();
@@ -90,6 +93,9 @@ export async function fetchEmployees() {
 
 /**
  * Fetches all employees (all statuses) with full fields for the Employees page.
+ *
+ * @returns Full `Employee` records ordered by creation date descending
+ * @throws Error if the authenticated user cannot be resolved or the query fails
  */
 export async function fetchAllEmployees(): Promise<Employee[]> {
   const userId = await getAuthUserId();
@@ -104,6 +110,10 @@ export async function fetchAllEmployees(): Promise<Employee[]> {
 
 /**
  * Fetches a single employee by ID.
+ *
+ * @param id - The employee UUID
+ * @returns The full `Employee` record
+ * @throws Error if the employee is not found or the query fails
  */
 export async function fetchEmployeeById(id: string): Promise<Employee> {
   const { data, error } = await supabase
@@ -118,7 +128,11 @@ export async function fetchEmployeeById(id: string): Promise<Employee> {
 // ─── Write ────────────────────────────────────────────────────────────────────
 
 /**
- * Creates a new employee record. Returns id + name for picker usage.
+ * Creates a new employee record owned by the current authenticated user.
+ *
+ * @param data - Validated employee form data
+ * @returns The newly created employee's `id`, `first_name`, and `last_name`
+ * @throws Error if the authenticated user cannot be resolved or the insert fails
  */
 export async function createEmployee(data: EmployeeFormData) {
   const userId = await getAuthUserId();
@@ -133,6 +147,12 @@ export async function createEmployee(data: EmployeeFormData) {
 
 /**
  * Updates an existing employee record.
+ * Only mutable fields are updated — `user_id` and `created_at` are never changed.
+ *
+ * @param id   - The employee UUID to update
+ * @param data - Validated employee form data with the new values
+ * @returns The updated full `Employee` record
+ * @throws Error if the employee is not found or the update fails
  */
 export async function updateEmployee(id: string, data: EmployeeFormData): Promise<Employee> {
   const { first_name, last_name } = splitName(data.full_name);
@@ -164,7 +184,13 @@ export async function updateEmployee(id: string, data: EmployeeFormData): Promis
 }
 
 /**
- * Updates only the status field of an employee.
+ * Updates only the `status` field of an employee record.
+ * Common values: `"active"`, `"suspended"`, `"inactive"`.
+ *
+ * @param id     - The employee UUID
+ * @param status - The new status string to apply
+ * @returns `void` — use the employees list query to reflect the change in UI
+ * @throws Error if the update fails
  */
 export async function updateEmployeeStatus(id: string, status: string): Promise<void> {
   const { error } = await supabase
@@ -175,10 +201,13 @@ export async function updateEmployeeStatus(id: string, status: string): Promise<
 }
 
 /**
- * Guard check before deletion:
- * - Blocks if the employee has active/scheduled time_entries
- * - Blocks if the employee is assigned to future route_appointments
- * Returns a string with the reason if deletion should be blocked, null if safe to delete.
+ * Guard check before deletion.
+ * Blocks deletion if the employee has active/scheduled time entries or is
+ * assigned to future route appointments.
+ *
+ * @param id - The employee UUID to evaluate
+ * @returns A human-readable reason string if deletion should be blocked,
+ *          or `null` if it is safe to proceed with deletion
  */
 export async function checkDeleteGuard(id: string): Promise<string | null> {
   const today = new Date().toISOString().split("T")[0];
@@ -214,7 +243,13 @@ export async function checkDeleteGuard(id: string): Promise<string | null> {
 }
 
 /**
- * Deletes an employee. Does NOT run the guard — caller is responsible for that.
+ * Permanently deletes an employee record.
+ * Does NOT run the guard check — callers are responsible for calling
+ * `checkDeleteGuard` first and confirming with the user.
+ *
+ * @param id - The employee UUID to delete
+ * @returns `void`
+ * @throws Error if the delete operation fails
  */
 export async function deleteEmployee(id: string): Promise<void> {
   const { error } = await supabase

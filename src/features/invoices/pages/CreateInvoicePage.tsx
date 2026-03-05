@@ -35,6 +35,7 @@ import { toast }    from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase }  from "@/integrations/supabase/client";
 import { useAuth }   from "@/shared/hooks/useAuth";
+import { QK }        from "@/shared/config/queryKeys";
 import { generateInvoiceNumber, fetchInvoiceById, updateInvoice, createInvoice } from "../services/invoicesService";
 import type { InvoiceFormData, LineItem } from "../types/invoice.types";
 import type { ClientEntity } from "@/shared/types/entities";
@@ -87,7 +88,7 @@ export function CreateInvoicePage() {
 
   // ── Clients query ──────────────────────────────────────────────────────────
   const { data: clients = [] } = useQuery<ClientEntity[]>({
-    queryKey: ["clients-for-invoice"],
+    queryKey: QK.clientsForInvoice,
     queryFn: async () => {
       const { data: { user: u } } = await supabase.auth.getUser();
       if (!u) return [];
@@ -832,7 +833,7 @@ export function CreateInvoicePage() {
         onClose={() => setShowNewClient(false)}
         onSuccess={(client) => {
           setSelectedClient(client);
-          qc.invalidateQueries({ queryKey: ["clients-for-invoice"] });
+          qc.invalidateQueries({ queryKey: QK.clientsForInvoice });
         }}
       />
     </div>

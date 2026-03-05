@@ -114,7 +114,7 @@ export function EmployeesPage() {
       email:          emp.email     ?? undefined,
       phone:          emp.phone     ?? undefined,
       birthday:       emp.birthday  ?? undefined,
-      gender:         emp.gender,
+      gender:         emp.gender    ?? "",
       position:       emp.position  ?? "",
       hourlyRate:     emp.hourly_rate ?? undefined,
       status:         emp.status,

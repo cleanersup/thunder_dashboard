@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
 import { Plus, Building2, Phone, Mail, MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -24,7 +25,7 @@ export function AppointmentClientStep({ selectedClient, onClientSelect, error }:
   const [showNewClient, setShowNewClient] = useState(false);
 
   const { data: clients = [], isLoading } = useQuery<ClientEntity[]>({
-    queryKey: ["clients-for-appointment"],
+    queryKey: QK.clientsForAppointment,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
@@ -119,7 +120,7 @@ export function AppointmentClientStep({ selectedClient, onClientSelect, error }:
         onClose={() => setShowNewClient(false)}
         onSuccess={(client) => {
           onClientSelect(client);
-          qc.invalidateQueries({ queryKey: ["clients-for-appointment"] });
+          qc.invalidateQueries({ queryKey: QK.clientsForAppointment });
           setShowNewClient(false);
         }}
       />

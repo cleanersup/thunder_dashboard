@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
 import { format } from "date-fns";
 import {
   ChevronLeft,
@@ -415,7 +416,7 @@ export function AddWalkthroughPage() {
         onClose={() => setShowCreateEmployee(false)}
         onCreated={(emp) => {
           toggleEmployee(emp.id);
-          qc.invalidateQueries({ queryKey: ["employees-all"] });
+          qc.invalidateQueries({ queryKey: QK.employeesAll });
           setShowCreateEmployee(false);
         }}
       />

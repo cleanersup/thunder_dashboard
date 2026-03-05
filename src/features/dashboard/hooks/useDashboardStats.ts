@@ -29,6 +29,7 @@ import {
 } from "../services/dashboardService";
 import { getUserTimezone, getCurrentDateInTimezone } from "@/shared/utils/formatters";
 import type { SparklinePoint, WeeklySalesPoint, PendingByMonthPoint } from "../types/dashboard.types";
+import { QK } from "@/shared/config/queryKeys";
 
 /**
  * Master hook that provides all dashboard data and derived chart series.
@@ -45,49 +46,49 @@ export function useDashboardStats() {
   // ── Queries ──────────────────────────────────────────────────────────────────
 
   const { data: allInvoices = [], isLoading: invoicesLoading } = useQuery({
-    queryKey: ["invoices"],
+    queryKey: QK.invoices,
     queryFn: fetchInvoices,
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: allEstimates = [], isLoading: estimatesLoading } = useQuery({
-    queryKey: ["estimates"],
+    queryKey: QK.estimates,
     queryFn: fetchEstimates,
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: recentActivities = [], isLoading: activitiesLoading } = useQuery({
-    queryKey: ["activities"],
+    queryKey: QK.activities,
     queryFn: fetchActivities,
     staleTime: 60 * 1000, // 1 minute — activities change often
   });
 
   const { data: todayRoutes = [], isLoading: routesLoading } = useQuery({
-    queryKey: ["today-routes", today],
+    queryKey: QK.todayRoutes(today),
     queryFn: () => fetchTodayRoutes(today),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: clientsCount = 0 } = useQuery({
-    queryKey: ["clients-count"],
+    queryKey: QK.clientsCount,
     queryFn: fetchClientsCount,
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: employeesCount = 0 } = useQuery({
-    queryKey: ["employees-count"],
+    queryKey: QK.employeesCount,
     queryFn: fetchEmployeesCount,
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: leadsCount = 0 } = useQuery({
-    queryKey: ["leads-count"],
+    queryKey: QK.leadsCount,
     queryFn: fetchLeadsCount,
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: bookingsCount = 0 } = useQuery({
-    queryKey: ["bookings-count"],
+    queryKey: QK.bookingsCount,
     queryFn: fetchBookingsCount,
     staleTime: 5 * 60 * 1000,
   });
@@ -98,8 +99,8 @@ export function useDashboardStats() {
     const invoicesChannel = supabase
       .channel("dashboard-invoices")
       .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["invoices"] });
-        queryClient.invalidateQueries({ queryKey: ["activities"] });
+        queryClient.invalidateQueries({ queryKey: QK.invoices });
+        queryClient.invalidateQueries({ queryKey: QK.activities });
       })
       .subscribe();
 

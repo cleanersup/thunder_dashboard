@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { format } from "date-fns";
 import {
   formatTime,
   formatDate,
@@ -63,15 +64,14 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
-import { useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
-import { useWalkthroughs, useUpdateWalkthroughStatus, useDeleteWalkthrough } from "../hooks/useWalkthroughs";
+import { useWalkthroughs, useUpdateWalkthroughStatus, useDeleteWalkthrough, useSendWalkthroughStart } from "../hooks/useWalkthroughs";
 import { WalkthroughDetailsModal } from "../components/WalkthroughDetailsModal";
 import type { WalkthroughWithContact } from "../services/walkthroughsService";
 import { cn } from "@/shared/utils/cn";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/shared/hooks/useAuth";
 
 // ─── KPI config ───────────────────────────────────────────────────────────────
 
@@ -118,6 +118,8 @@ export function WalkthroughsPage() {
   const { data: walkthroughs = [], isLoading, refetch } = useWalkthroughs();
   const { mutate: updateStatus } = useUpdateWalkthroughStatus();
   const { mutate: deleteMutate } = useDeleteWalkthrough();
+  const { user } = useAuth();
+  const { mutateAsync: sendWalkthroughStart, isPending: isStarting } = useSendWalkthroughStart();
 
   const [search, setSearch]             = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -131,18 +133,8 @@ export function WalkthroughsPage() {
   const [cancelOpen, setCancelOpen]     = useState(false);
   const [qrOpen, setQrOpen]             = useState(false);
   const [qrTarget, setQrTarget]         = useState<WalkthroughWithContact | null>(null);
-  const [isStarting, setIsStarting]     = useState(false);
 
-  const { data: userId } = useQuery({
-    queryKey: ["current-user-id"],
-    queryFn: async () => {
-      const { data } = await supabase.auth.getUser();
-      return data.user?.id ?? null;
-    },
-    staleTime: Infinity,
-  });
-
-  const contactCardUrl = `${import.meta.env.VITE_PUBLIC_APP_URL ?? window.location.origin}/contact-card/${userId ?? ""}`;
+  const contactCardUrl = `${import.meta.env.VITE_PUBLIC_APP_URL ?? window.location.origin}/contact-card/${user?.id ?? ""}`;
 
   // ── KPI counts ─────────────────────────────────────────────────────────────
   const kpiCounts = useMemo(() => {
@@ -178,17 +170,13 @@ export function WalkthroughsPage() {
   }
 
   async function handleStartWalkthrough(w: WalkthroughWithContact) {
-    setIsStarting(true);
     setQrTarget(w);
     try {
-      await supabase.functions.invoke("send-walkthrough-start", { body: { walkthroughId: w.id } });
-      supabase.functions.invoke("send-walkthrough-start-sms", { body: { walkthroughId: w.id } }).catch(() => {});
+      await sendWalkthroughStart(w.id);
       setQrOpen(true);
     } catch {
       toast.error("Failed to send walkthrough notification");
       setQrTarget(null);
-    } finally {
-      setIsStarting(false);
     }
   }
 

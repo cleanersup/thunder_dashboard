@@ -15,8 +15,9 @@ import { CommPreviewStep }  from "../components/commercial/CommPreviewStep";
 import { CommSendStep, type DeliveryMethod } from "../components/commercial/CommSendStep";
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/shared/hooks/useProfile";
+import { fetchClient } from "@/features/crm/clients/services/clientsService";
+import { fetchLead } from "@/features/crm/leads/services/leadsService";
 import { useCreateEstimate, useUpdateEstimate } from "../hooks/useEstimates";
 import { useSendEstimateEmail } from "../hooks/useSendEstimateEmail";
 import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
@@ -87,18 +88,7 @@ export function CreateCommercialEstimatePage() {
   const [errors, setErrors] = useState<Record<string, boolean>>({});
 
   // ── Profile ───────────────────────────────────────────────────────────────
-  const { data: profile } = useQuery({
-    queryKey: ["profile"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      const { data } = await supabase.from("profiles")
-        .select("company_address, company_state, company_zip, company_logo, company_name, company_phone, company_email")
-        .eq("user_id", user.id).maybeSingle();
-      return data;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: profile } = useProfile();
 
   // ── Prefill when editing ──────────────────────────────────────────────────
   useEffect(() => {
@@ -133,12 +123,16 @@ export function CreateCommercialEstimatePage() {
     (async () => {
       if (prefill.client_id) {
         setEstimateType("client");
-        const { data: c } = await supabase.from("clients").select("*").eq("id", prefill.client_id).maybeSingle();
-        if (c) setSelectedClient(c as ClientEntity);
+        try {
+          const c = await fetchClient(prefill.client_id);
+          if (c) setSelectedClient(c as ClientEntity);
+        } catch { /* ignore */ }
       } else if (prefill.lead_id) {
         setEstimateType("lead");
-        const { data: l } = await supabase.from("leads").select("*").eq("id", prefill.lead_id).maybeSingle();
-        if (l) setSelectedLead(l as LeadEntity);
+        try {
+          const l = await fetchLead(prefill.lead_id);
+          if (l) setSelectedLead(l as LeadEntity);
+        } catch { /* ignore */ }
       }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
 import {
   ChevronLeft,
   User,
@@ -46,7 +47,7 @@ export function ResidentialWalkthroughFormPage() {
 
   // ── Fetch walkthrough + contact info ──────────────────────────────────────
   const { data: walkthrough, isLoading } = useQuery({
-    queryKey: ["walkthrough-form", id],
+    queryKey: QK.walkthroughForm(id!),
     queryFn: async () => {
       if (!id) return null;
       const { data, error } = await supabase

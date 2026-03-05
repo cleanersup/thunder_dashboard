@@ -12,8 +12,7 @@ import {
 } from "../services/estimatesService";
 import type { EstimateInsert, EstimateUpdate } from "../types/estimate.types";
 import { supabase } from "@/integrations/supabase/client";
-
-const QUERY_KEY = "estimates";
+import { QK } from "@/shared/config/queryKeys";
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -23,7 +22,7 @@ const QUERY_KEY = "estimates";
  */
 export function useEstimates() {
   return useQuery({
-    queryKey:     [QUERY_KEY],
+    queryKey:     QK.estimates,
     queryFn:      fetchEstimates,
     staleTime:    2 * 60 * 1000, // 2 minutes
     refetchOnMount: "always",
@@ -36,7 +35,7 @@ export function useEstimates() {
  */
 export function useEstimate(id: string | null) {
   return useQuery({
-    queryKey:  [QUERY_KEY, id],
+    queryKey:  QK.estimate(id!),
     queryFn:   () => fetchEstimate(id!),
     enabled:   !!id,
     staleTime: 60 * 1000,
@@ -58,8 +57,8 @@ export function useCreateEstimate() {
       return estimate;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [QUERY_KEY] });
-      qc.invalidateQueries({ queryKey: ["activities"] });
+      qc.invalidateQueries({ queryKey: QK.estimates });
+      qc.invalidateQueries({ queryKey: QK.activities });
       toast.success("Estimate created successfully");
     },
     onError: (err: Error) => toast.error(err.message ?? "Failed to create estimate"),
@@ -75,8 +74,8 @@ export function useUpdateEstimate() {
     mutationFn: ({ id, update }: { id: string; update: EstimateUpdate }) =>
       updateEstimate(id, update),
     onSuccess: (_data, { id }) => {
-      qc.invalidateQueries({ queryKey: [QUERY_KEY] });
-      qc.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+      qc.invalidateQueries({ queryKey: QK.estimates });
+      qc.invalidateQueries({ queryKey: QK.estimate(id) });
       toast.success("Estimate updated");
     },
     onError: (err: Error) => toast.error(err.message ?? "Failed to update estimate"),
@@ -116,9 +115,9 @@ export function useUpdateEstimateStatus() {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [QUERY_KEY] });
-      qc.invalidateQueries({ queryKey: ["activities"] });
-      qc.invalidateQueries({ queryKey: ["notifications"] });
+      qc.invalidateQueries({ queryKey: QK.estimates });
+      qc.invalidateQueries({ queryKey: QK.activities });
+      qc.invalidateQueries({ queryKey: QK.notifications });
     },
     onError: (err: Error) => toast.error(err.message ?? "Failed to update estimate status"),
   });
@@ -132,7 +131,7 @@ export function useDeleteEstimate() {
   return useMutation({
     mutationFn: deleteEstimate,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [QUERY_KEY] });
+      qc.invalidateQueries({ queryKey: QK.estimates });
       toast.success("Estimate deleted");
     },
     onError: (err: Error) => toast.error(err.message ?? "Failed to delete estimate"),

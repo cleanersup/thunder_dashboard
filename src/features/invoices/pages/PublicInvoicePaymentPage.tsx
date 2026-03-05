@@ -15,6 +15,7 @@ import { supabase }          from "@/integrations/supabase/client";
 import { useQuery }          from "@tanstack/react-query";
 import { formatCurrency }    from "@/shared/utils/formatters";
 import { fetchInvoiceById, markInvoiceViewed } from "../services/invoicesService";
+import { QK } from "@/shared/config/queryKeys";
 
 export function PublicInvoicePaymentPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,7 +23,7 @@ export function PublicInvoicePaymentPage() {
   const [paymentComplete] = useState(false);
 
   const { data: invoice, isLoading } = useQuery({
-    queryKey: ["public-invoice", id],
+    queryKey: QK.publicInvoice(id!),
     queryFn: async () => {
       const inv = await fetchInvoiceById(id!);
       // Mark as viewed asynchronously
@@ -33,7 +34,7 @@ export function PublicInvoicePaymentPage() {
   });
 
   const { data: profile } = useQuery({
-    queryKey: ["public-profile", invoice?.user_id],
+    queryKey: QK.publicProfile(invoice?.user_id ?? ""),
     queryFn: async () => {
       if (!invoice?.user_id) return null;
       const { data, error } = await supabase

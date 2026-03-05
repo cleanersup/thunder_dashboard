@@ -3,6 +3,7 @@ import { lazy, Suspense } from "react";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { PublicRoute } from "./PublicRoute";
 import { ScrollToTop } from "@/shared/components/layout/ScrollToTop";
+import { ErrorBoundary } from "@/shared/components/common/ErrorBoundary";
 
 // ─── Loading fallback ────────────────────────────────────────────────────────
 function PageLoader() {
@@ -58,6 +59,11 @@ const AddWalkthroughPage              = lazy(() => import("@/features/walkthroug
 const ResidentialWalkthroughFormPage  = lazy(() => import("@/features/walkthroughs/pages/ResidentialWalkthroughFormPage").then((m) => ({ default: m.ResidentialWalkthroughFormPage })));
 const CommercialWalkthroughFormPage   = lazy(() => import("@/features/walkthroughs/pages/CommercialWalkthroughFormPage").then((m) => ({ default: m.CommercialWalkthroughFormPage })));
 
+// Phase 19 — Time Clock ✅
+const TimeClockPage = lazy(() =>
+  import("@/features/time-clock/pages/TimeClockPage").then((m) => ({ default: m.TimeClockPage }))
+);
+
 // Phase 12 — Settings ✅
 const ProfilePage         = lazy(() => import("@/features/settings/pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
 const EditProfilePage     = lazy(() => import("@/features/settings/pages/EditProfilePage").then((m) => ({ default: m.EditProfilePage })));
@@ -76,8 +82,9 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
+      <ErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
           {/* Root redirect → auth */}
           <Route path="/" element={<Navigate to="/auth" replace />} />
 
@@ -134,6 +141,9 @@ export function AppRouter() {
           <Route path="/walkthrough/residential/:id" element={<ProtectedRoute><ResidentialWalkthroughFormPage /></ProtectedRoute>} />
           <Route path="/walkthrough/commercial/:id"  element={<ProtectedRoute><CommercialWalkthroughFormPage /></ProtectedRoute>} />
 
+          {/* Phase 19 ✅ */}
+          <Route path="/time-clock" element={<ProtectedRoute><TimeClockPage /></ProtectedRoute>} />
+
           {/* Phase 12 ✅ */}
           <Route path="/profile"            element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/edit-profile"       element={<ProtectedRoute><EditProfilePage /></ProtectedRoute>} />
@@ -154,8 +164,9 @@ export function AppRouter() {
               </div>
             }
           />
-        </Routes>
-      </Suspense>
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }

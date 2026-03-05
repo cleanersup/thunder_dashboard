@@ -17,14 +17,13 @@ import type {
   AppointmentFormData,
   DeleteAppointmentMode,
 } from "../types/scheduling.types";
-
-const APPOINTMENTS_KEY = ["appointments"] as const;
+import { QK } from "@/shared/config/queryKeys";
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export function useAppointments(filters?: AppointmentFilters) {
   return useQuery({
-    queryKey: [...APPOINTMENTS_KEY, filters],
+    queryKey: [...QK.appointments, filters],
     queryFn: () => fetchAppointments(filters),
     staleTime: 30_000,
   });
@@ -32,7 +31,7 @@ export function useAppointments(filters?: AppointmentFilters) {
 
 export function useAppointment(id: string | undefined) {
   return useQuery({
-    queryKey: ["appointment", id],
+    queryKey: QK.appointment(id!),
     queryFn: () => fetchAppointment(id!),
     enabled: !!id,
     staleTime: 30_000,
@@ -46,7 +45,7 @@ export function useCreateAppointment() {
   return useMutation({
     mutationFn: (data: AppointmentFormData) => createAppointment(data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: APPOINTMENTS_KEY });
+      qc.invalidateQueries({ queryKey: QK.appointments });
       toast.success("Appointment created");
     },
     onError: (err: Error) => {
@@ -61,8 +60,8 @@ export function useUpdateAppointment() {
     mutationFn: ({ id, data }: { id: string; data: Partial<AppointmentFormData> }) =>
       updateAppointment(id, data),
     onSuccess: (_result, { id }) => {
-      qc.invalidateQueries({ queryKey: APPOINTMENTS_KEY });
-      qc.invalidateQueries({ queryKey: ["appointment", id] });
+      qc.invalidateQueries({ queryKey: QK.appointments });
+      qc.invalidateQueries({ queryKey: QK.appointment(id) });
       toast.success("Appointment updated");
     },
     onError: (err: Error) => {
@@ -77,7 +76,7 @@ export function useDeleteAppointment() {
     mutationFn: ({ id, mode }: { id: string; mode: DeleteAppointmentMode }) =>
       deleteAppointment(id, mode),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: APPOINTMENTS_KEY });
+      qc.invalidateQueries({ queryKey: QK.appointments });
       toast.success("Appointment deleted");
     },
     onError: (err: Error) => {
@@ -92,8 +91,8 @@ export function useUpdateAppointmentStatus() {
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       updateAppointmentStatus(id, status),
     onSuccess: (_result, { id }) => {
-      qc.invalidateQueries({ queryKey: APPOINTMENTS_KEY });
-      qc.invalidateQueries({ queryKey: ["appointment", id] });
+      qc.invalidateQueries({ queryKey: QK.appointments });
+      qc.invalidateQueries({ queryKey: QK.appointment(id) });
     },
     onError: (err: Error) => {
       toast.error(err.message);

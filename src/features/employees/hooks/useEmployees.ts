@@ -11,6 +11,7 @@ import {
   deleteEmployee,
 } from "../services/employeesService";
 import type { EmployeeFormData } from "../schemas/employeeSchema";
+import { QK } from "@/shared/config/queryKeys";
 
 export type EmployeeOption = { id: string; name: string };
 
@@ -19,7 +20,7 @@ export type EmployeeOption = { id: string; name: string };
 /** Lightweight picker list — only active employees, id + name. */
 export function useEmployees() {
   return useQuery({
-    queryKey: ["employees"],
+    queryKey: QK.employees,
     queryFn: fetchEmployees,
     staleTime: 5 * 60 * 1000,
   });
@@ -28,7 +29,7 @@ export function useEmployees() {
 /** All employees (all statuses) with full fields for EmployeesPage. */
 export function useAllEmployees() {
   return useQuery({
-    queryKey: ["employees-all"],
+    queryKey: QK.employeesAll,
     queryFn: fetchAllEmployees,
     staleTime: 2 * 60 * 1000,
   });
@@ -37,7 +38,7 @@ export function useAllEmployees() {
 /** Single employee by ID. */
 export function useEmployee(id: string | undefined) {
   return useQuery({
-    queryKey: ["employee", id],
+    queryKey: QK.employee(id!),
     queryFn: () => fetchEmployeeById(id!),
     enabled: Boolean(id),
     staleTime: 2 * 60 * 1000,
@@ -51,8 +52,8 @@ export function useCreateEmployee() {
   return useMutation({
     mutationFn: (data: EmployeeFormData) => createEmployee(data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["employees"] });
-      qc.invalidateQueries({ queryKey: ["employees-all"] });
+      qc.invalidateQueries({ queryKey: QK.employees });
+      qc.invalidateQueries({ queryKey: QK.employeesAll });
       toast.success("Employee added successfully");
     },
     onError: () => toast.error("Failed to add employee"),
@@ -65,9 +66,9 @@ export function useUpdateEmployee() {
     mutationFn: ({ id, data }: { id: string; data: EmployeeFormData }) =>
       updateEmployee(id, data),
     onSuccess: (updated) => {
-      qc.invalidateQueries({ queryKey: ["employees"] });
-      qc.invalidateQueries({ queryKey: ["employees-all"] });
-      qc.invalidateQueries({ queryKey: ["employee", updated.id] });
+      qc.invalidateQueries({ queryKey: QK.employees });
+      qc.invalidateQueries({ queryKey: QK.employeesAll });
+      qc.invalidateQueries({ queryKey: QK.employee(updated.id) });
       toast.success("Employee updated successfully");
     },
     onError: () => toast.error("Failed to update employee"),
@@ -80,8 +81,8 @@ export function useUpdateEmployeeStatus() {
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       updateEmployeeStatus(id, status),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["employees"] });
-      qc.invalidateQueries({ queryKey: ["employees-all"] });
+      qc.invalidateQueries({ queryKey: QK.employees });
+      qc.invalidateQueries({ queryKey: QK.employeesAll });
     },
     onError: () => toast.error("Failed to update employee status"),
   });
@@ -96,8 +97,8 @@ export function useDeleteEmployee() {
       await deleteEmployee(id);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["employees"] });
-      qc.invalidateQueries({ queryKey: ["employees-all"] });
+      qc.invalidateQueries({ queryKey: QK.employees });
+      qc.invalidateQueries({ queryKey: QK.employeesAll });
       toast.success("Employee deleted successfully");
     },
     onError: (err: Error) =>
