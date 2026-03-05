@@ -58,6 +58,15 @@ const AddWalkthroughPage              = lazy(() => import("@/features/walkthroug
 const ResidentialWalkthroughFormPage  = lazy(() => import("@/features/walkthroughs/pages/ResidentialWalkthroughFormPage").then((m) => ({ default: m.ResidentialWalkthroughFormPage })));
 const CommercialWalkthroughFormPage   = lazy(() => import("@/features/walkthroughs/pages/CommercialWalkthroughFormPage").then((m) => ({ default: m.CommercialWalkthroughFormPage })));
 
+// Phase 12 — Settings ✅
+const ProfilePage         = lazy(() => import("@/features/settings/pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
+const EditProfilePage     = lazy(() => import("@/features/settings/pages/EditProfilePage").then((m) => ({ default: m.EditProfilePage })));
+const EditCompanyInfoPage = lazy(() => import("@/features/settings/pages/EditCompanyInfoPage").then((m) => ({ default: m.EditCompanyInfoPage })));
+const SecurityPage        = lazy(() => import("@/features/settings/pages/SecurityPage").then((m) => ({ default: m.SecurityPage })));
+const ContactCardPage     = lazy(() => import("@/features/settings/pages/ContactCardPage").then((m) => ({ default: m.ContactCardPage })));
+const ContractPage        = lazy(() => import("@/features/settings/pages/ContractPage").then((m) => ({ default: m.ContractPage })));
+const PrivacyPage         = lazy(() => import("@/features/settings/pages/PrivacyPage").then((m) => ({ default: m.PrivacyPage })));
+
 /**
  * Central route definition for Thunder Dashboard.
  * All page components are lazy-loaded for code splitting.
@@ -124,6 +133,16 @@ export function AppRouter() {
           {/* On-site assessment forms — authenticated */}
           <Route path="/walkthrough/residential/:id" element={<ProtectedRoute><ResidentialWalkthroughFormPage /></ProtectedRoute>} />
           <Route path="/walkthrough/commercial/:id"  element={<ProtectedRoute><CommercialWalkthroughFormPage /></ProtectedRoute>} />
+
+          {/* Phase 12 ✅ */}
+          <Route path="/profile"            element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/edit-profile"       element={<ProtectedRoute><EditProfilePage /></ProtectedRoute>} />
+          <Route path="/edit-company-info"  element={<ProtectedRoute><EditCompanyInfoPage /></ProtectedRoute>} />
+          <Route path="/edit-security"      element={<ProtectedRoute><SecurityPage /></ProtectedRoute>} />
+          <Route path="/contract"           element={<ProtectedRoute><ContractPage /></ProtectedRoute>} />
+          {/* Public — no auth required */}
+          <Route path="/privacy"             element={<PrivacyPage />} />
+          <Route path="/contact-card/:userId" element={<ContactCardPage />} />
 
           {/* ── 404 fallback ──────────────────────────────────────────── */}
           <Route
