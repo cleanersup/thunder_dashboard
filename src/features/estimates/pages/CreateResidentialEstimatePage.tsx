@@ -5,7 +5,6 @@ import { RESIDENTIAL_STEPS } from "../config/steps.config";
 import { EstimateClientStep, type ClientEntity, type LeadEntity, type EstimateEntityType } from "../components/EstimateClientStep";
 import { EstimateFormLayout }    from "../components/EstimateFormLayout";
 import { DraftStatusIndicator }  from "../components/DraftStatusIndicator";
-import { DraftRecoveryDialog }   from "../components/DraftRecoveryDialog";
 import { ExitConfirmationDialog } from "../components/ExitConfirmationDialog";
 import { ResServiceStep }  from "../components/residential/ResServiceStep";
 import { ResRoomsStep }    from "../components/residential/ResRoomsStep";
@@ -31,7 +30,7 @@ import type { DraftData } from "../types/estimate.types";
 export function CreateResidentialEstimatePage() {
   const navigate    = useNavigate();
   const location    = useLocation();
-  const { isEditing, estimateId, estimateData } = location.state || {};
+  const { isEditing, estimateId, estimateData, prefill } = (location.state as any) || {};
   const createEst   = useCreateEstimate();
   const updateEst   = useUpdateEstimate();
   const { sendEstimateEmail, isSending } = useSendEstimateEmail();
@@ -127,8 +126,24 @@ export function CreateResidentialEstimatePage() {
     }
   }, [isEditing, estimateData]);
 
+  // ── Prefill from walkthrough ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!prefill) return;
+    (async () => {
+      if (prefill.client_id) {
+        setEstimateType("client");
+        const { data: c } = await supabase.from("clients").select("*").eq("id", prefill.client_id).maybeSingle();
+        if (c) setSelectedClient(c as ClientEntity);
+      } else if (prefill.lead_id) {
+        setEstimateType("lead");
+        const { data: l } = await supabase.from("leads").select("*").eq("id", prefill.lead_id).maybeSingle();
+        if (l) setSelectedLead(l as LeadEntity);
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Draft ─────────────────────────────────────────────────────────────────
-  const { loadedDraft, clearLoadedDraft, saveDraft, deleteDraft, isSaving, lastSaved } =
+  const { saveDraft, deleteDraft, isSaving, lastSaved } =
     useDraftEstimate({ serviceType: "Residential" });
 
   const collectDraftData = useCallback((): DraftData => ({
@@ -148,50 +163,6 @@ export function CreateResidentialEstimatePage() {
     extras, pets, laundryService, laundryPounds, scope,
     useCustomPrice, customPrice, applyDiscount, discountType, discountValue, deliveryMethod,
   ]);
-
-  const restoreDraftData = useCallback(async (d: DraftData) => {
-    clearLoadedDraft();
-    setStep(d.currentStep);
-    if (d.estimateType) setEstimateType(d.estimateType);
-
-    // Restore selected client or lead from DB
-    if (d.estimateType === "client" && d.clientId) {
-      const { data: c } = await supabase.from("clients").select("*").eq("id", d.clientId).maybeSingle();
-      if (c) setSelectedClient(c as ClientEntity);
-    } else if (d.estimateType === "lead" && d.leadId) {
-      const { data: l } = await supabase.from("leads").select("*").eq("id", d.leadId).maybeSingle();
-      if (l) setSelectedLead(l as LeadEntity);
-    }
-
-    const f = d.formData as any;
-    if (f.selectedService)      setSelectedService(f.selectedService);
-    if (f.squareFootage)        setSquareFootage(f.squareFootage);
-    if (f.postConstructionType) setPostConstructionType(f.postConstructionType);
-    if (f.bedrooms  !== undefined) setBedrooms(f.bedrooms);
-    if (f.kitchens  !== undefined) setKitchens(f.kitchens);
-    if (f.livingRooms !== undefined) setLivingRooms(f.livingRooms);
-    if (f.diningRooms !== undefined) setDiningRooms(f.diningRooms);
-    if (f.offices   !== undefined) setOffices(f.offices);
-    if (f.fullBaths !== undefined) setFullBaths(f.fullBaths);
-    if (f.halfBaths !== undefined) setHalfBaths(f.halfBaths);
-    if (f.fans      !== undefined) setFans(f.fans);
-    if (f.oven      !== undefined) setOven(f.oven);
-    if (f.refrigerator !== undefined) setRefrigerator(f.refrigerator);
-    if (f.blinds    !== undefined) setBlinds(f.blinds);
-    if (f.windowsInside  !== undefined) setWindowsInside(f.windowsInside);
-    if (f.windowsOutside !== undefined) setWindowsOutside(f.windowsOutside);
-    if (f.extras)          setExtras(f.extras);
-    if (f.pets)            setPets(f.pets);
-    if (f.laundryService !== undefined) setLaundryService(f.laundryService);
-    if (f.laundryPounds  !== undefined) setLaundryPounds(f.laundryPounds);
-    if (f.scope)           setScope(f.scope);
-    if (f.useCustomPrice !== undefined) setUseCustomPrice(f.useCustomPrice);
-    if (f.customPrice)     setCustomPrice(f.customPrice);
-    if (f.applyDiscount  !== undefined) setApplyDiscount(f.applyDiscount);
-    if (f.discountType)    setDiscountType(f.discountType);
-    if (f.discountValue)   setDiscountValue(f.discountValue);
-    if (f.deliveryMethod) setDeliveryMethod(f.deliveryMethod);
-  }, [clearLoadedDraft]);
 
   // Auto-save on any field change (via collectDraftData dependencies)
   useEffect(() => {
@@ -430,11 +401,6 @@ export function CreateResidentialEstimatePage() {
 
   return (
     <>
-      <DraftRecoveryDialog
-        draft={!isEditing ? loadedDraft : null}
-        onContinue={restoreDraftData}
-        onDiscard={() => { deleteDraft(); clearLoadedDraft(); }}
-      />
       <ExitConfirmationDialog
         open={showExitDialog}
         onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); navigate(-1); }}

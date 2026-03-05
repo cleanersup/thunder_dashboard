@@ -49,6 +49,15 @@ const RoutesPage          = lazy(() => import("@/features/scheduling/pages/Route
 const AddAppointmentPage  = lazy(() => import("@/features/scheduling/pages/AddAppointmentPage").then((m) => ({ default: m.AddAppointmentPage })));
 const SmartMapPage        = lazy(() => import("@/features/scheduling/pages/SmartMapPage").then((m) => ({ default: m.SmartMapPage })));
 
+// Phase 10 — Employees ✅
+const EmployeesPage = lazy(() => import("@/features/employees/pages/EmployeesPage").then((m) => ({ default: m.EmployeesPage })));
+
+// Phase 11 — Walkthroughs ✅
+const WalkthroughsPage                = lazy(() => import("@/features/walkthroughs/pages/WalkthroughsPage").then((m) => ({ default: m.WalkthroughsPage })));
+const AddWalkthroughPage              = lazy(() => import("@/features/walkthroughs/pages/AddWalkthroughPage").then((m) => ({ default: m.AddWalkthroughPage })));
+const ResidentialWalkthroughFormPage  = lazy(() => import("@/features/walkthroughs/pages/ResidentialWalkthroughFormPage").then((m) => ({ default: m.ResidentialWalkthroughFormPage })));
+const CommercialWalkthroughFormPage   = lazy(() => import("@/features/walkthroughs/pages/CommercialWalkthroughFormPage").then((m) => ({ default: m.CommercialWalkthroughFormPage })));
+
 /**
  * Central route definition for Thunder Dashboard.
  * All page components are lazy-loaded for code splitting.
@@ -104,6 +113,17 @@ export function AppRouter() {
           <Route path="/create-route/new"       element={<ProtectedRoute><AddAppointmentPage /></ProtectedRoute>} />
           <Route path="/create-route/:id/edit"  element={<ProtectedRoute><AddAppointmentPage /></ProtectedRoute>} />
           <Route path="/smart-map"              element={<ProtectedRoute><SmartMapPage /></ProtectedRoute>} />
+
+          {/* Phase 10 ✅ */}
+          <Route path="/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
+
+          {/* Phase 11 ✅ */}
+          <Route path="/walkthroughs"           element={<ProtectedRoute><WalkthroughsPage /></ProtectedRoute>} />
+          <Route path="/walkthroughs/new"       element={<ProtectedRoute><AddWalkthroughPage /></ProtectedRoute>} />
+          <Route path="/walkthroughs/:id/edit"  element={<ProtectedRoute><AddWalkthroughPage /></ProtectedRoute>} />
+          {/* On-site assessment forms — authenticated */}
+          <Route path="/walkthrough/residential/:id" element={<ProtectedRoute><ResidentialWalkthroughFormPage /></ProtectedRoute>} />
+          <Route path="/walkthrough/commercial/:id"  element={<ProtectedRoute><CommercialWalkthroughFormPage /></ProtectedRoute>} />
 
           {/* ── 404 fallback ──────────────────────────────────────────── */}
           <Route

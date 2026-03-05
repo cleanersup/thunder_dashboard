@@ -260,21 +260,57 @@ export const generateInvoicePDF = (data: InvoicePDFData): jsPDF => {
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
-  const footerY = pageHeight - 50;
+  let footerY = pageHeight - 50;
+
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(blue[0], blue[1], blue[2]);
   doc.text("Thank you for your Business", pageWidth / 2, footerY, { align: "center" });
+  footerY += 5;
 
   doc.setDrawColor(blue[0], blue[1], blue[2]);
   doc.setLineWidth(0.3);
-  doc.line(margin, footerY + 5, pageWidth - margin, footerY + 5);
+  doc.line(margin, footerY, pageWidth - margin, footerY);
+  footerY += 10;
 
+  const footerColWidth = contentWidth / 3;
+
+  // Questions (left column)
+  doc.setTextColor(0, 0, 0);
   doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text("Questions?", margin, footerY);
+  let leftFooterY = footerY + 5;
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(100, 100, 100);
-  doc.text(data.companyPhone, pageWidth / 2, footerY + 12, { align: "center" });
-  doc.text(data.companyEmail, pageWidth / 2, footerY + 18, { align: "center" });
+  doc.text(`Email us: ${data.companyEmail}`, margin, leftFooterY);
+  leftFooterY += 4;
+  doc.text(`Call us: ${data.companyPhone}`, margin, leftFooterY);
+
+  // Payment Info (center column)
+  const centerX = margin + footerColWidth;
+  let centerFooterY = footerY;
+  doc.setFont("helvetica", "bold");
+  doc.text("Payment Info:", centerX, centerFooterY);
+  centerFooterY += 5;
+  doc.setFont("helvetica", "normal");
+  doc.text("Credit or debit card", centerX, centerFooterY);
+  centerFooterY += 4;
+  doc.text("For more information on payments,", centerX, centerFooterY);
+  centerFooterY += 4;
+  doc.text("please contact us.", centerX, centerFooterY);
+
+  // Terms & Conditions (right column)
+  const rightXFooter = margin + footerColWidth * 2;
+  let rightFooterY = footerY;
+  doc.setFont("helvetica", "bold");
+  doc.text("Terms & Conditions/Note:", rightXFooter, rightFooterY);
+  rightFooterY += 5;
+  doc.setFont("helvetica", "normal");
+  const termsLines = doc.splitTextToSize(
+    "Please make payment within 30 days of receiving this invoice.",
+    footerColWidth - 5,
+  );
+  doc.text(termsLines, rightXFooter, rightFooterY);
 
   return doc;
 };

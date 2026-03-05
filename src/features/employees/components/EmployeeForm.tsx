@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { CalendarIcon, Upload, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
@@ -16,7 +16,7 @@ import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { cn } from "@/shared/utils/cn";
 import { employeeSchema, type EmployeeFormData } from "../schemas/employeeSchema";
 import { toDecimalString } from "@/shared/utils/numericInput";
-import { useCreateEmployee } from "../hooks/useEmployees";
+import { useCreateEmployee, useUpdateEmployee, useEmployee } from "../hooks/useEmployees";
 import type { EntityOption } from "@/shared/components/common/EntityPickerField";
 
 // ─── Available Days ────────────────────────────────────────────────────────────
@@ -49,14 +49,24 @@ function makeDefaultDays(): AvailableDays {
 interface EmployeeFormProps {
   open: boolean;
   onClose: () => void;
+  /** When provided, form runs in edit mode for this employee */
+  employeeId?: string;
   /** Called with the newly created employee after successful creation */
   onCreated?: (employee: EntityOption) => void;
+  /** Called after a successful update */
+  onUpdated?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function EmployeeForm({ open, onClose, onCreated }: EmployeeFormProps) {
-  const { mutate: createEmployee, isPending } = useCreateEmployee();
+export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }: EmployeeFormProps) {
+  const isEdit = Boolean(employeeId);
+
+  const { mutate: createEmployee, isPending: isCreating } = useCreateEmployee();
+  const { mutate: updateEmployee, isPending: isUpdating } = useUpdateEmployee();
+  const isPending = isCreating || isUpdating;
+
+  const { data: existingEmployee } = useEmployee(isEdit ? employeeId : undefined);
 
   const {
     register,
@@ -74,18 +84,61 @@ export function EmployeeForm({ open, onClose, onCreated }: EmployeeFormProps) {
   const [birthdayOpen, setBirthdayOpen]   = useState(false);
   const [availableDays, setAvailableDays] = useState<AvailableDays>(makeDefaultDays());
   const [docFiles, setDocFiles]           = useState<File[]>([]);
+  const [existingDocs, setExistingDocs]   = useState<string[]>([]);
   const [dragOver, setDragOver]           = useState(false);
   const fileInputRef                      = useRef<HTMLInputElement>(null);
 
-  // Reset every time the modal opens
+  // Reset and prefill when the modal opens
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+
+    if (isEdit && existingEmployee) {
+      // Prefill form with existing data
+      reset({
+        full_name:        `${existingEmployee.first_name} ${existingEmployee.last_name}`.trim(),
+        email:            existingEmployee.email ?? "",
+        phone:            existingEmployee.phone ?? "",
+        street:           existingEmployee.street ?? "",
+        apt_suite:        existingEmployee.apt_suite ?? "",
+        city:             existingEmployee.city ?? "",
+        state:            existingEmployee.state ?? "",
+        zip:              existingEmployee.zip ?? "",
+        gender:           (existingEmployee.gender as "male" | "female") ?? "male",
+        birthday:         existingEmployee.birthday ?? "",
+        position:         existingEmployee.position ?? "",
+        hourly_rate:      existingEmployee.hourly_rate ?? undefined,
+        additional_notes: existingEmployee.additional_notes ?? "",
+      });
+
+      if (existingEmployee.birthday) {
+        try {
+          setBirthdayDate(parseISO(existingEmployee.birthday));
+        } catch {
+          setBirthdayDate(undefined);
+        }
+      }
+
+      if (existingEmployee.available_days) {
+        // Normalize keys to lowercase — swift-slate may store Title Case keys ("Monday")
+        const raw = existingEmployee.available_days as Record<string, DaySchedule>;
+        const normalized = Object.fromEntries(
+          Object.entries(raw).map(([k, v]) => [k.toLowerCase(), v])
+        ) as AvailableDays;
+        setAvailableDays(normalized);
+      } else {
+        setAvailableDays(makeDefaultDays());
+      }
+
+      setExistingDocs(existingEmployee.documents ?? []);
+      setDocFiles([]);
+    } else {
       reset();
       setBirthdayDate(undefined);
       setAvailableDays(makeDefaultDays());
       setDocFiles([]);
+      setExistingDocs([]);
     }
-  }, [open, reset]);
+  }, [open, isEdit, existingEmployee, reset]);
 
   // ─── Day toggle ──────────────────────────────────────────────────────────
 
@@ -109,6 +162,10 @@ export function EmployeeForm({ open, onClose, onCreated }: EmployeeFormProps) {
     setDocFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function removeExistingDoc(index: number) {
+    setExistingDocs((prev) => prev.filter((_, i) => i !== index));
+  }
+
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setDragOver(false);
@@ -118,22 +175,35 @@ export function EmployeeForm({ open, onClose, onCreated }: EmployeeFormProps) {
   // ─── Submit ──────────────────────────────────────────────────────────────
 
   const onSubmit = (data: EmployeeFormData) => {
-    // Attach available_days and document file names
+    const allDocs = [...existingDocs, ...docFiles.map((f) => f.name)];
     const enriched: EmployeeFormData = {
       ...data,
       available_days: availableDays,
-      documents: docFiles.map((f) => f.name),
+      documents: allDocs.length ? allDocs : undefined,
     };
-    createEmployee(enriched, {
-      onSuccess: (created) => {
-        const option: EntityOption = {
-          id: created.id,
-          label: `${created.first_name} ${created.last_name}`.trim(),
-        };
-        onCreated?.(option);
-        onClose();
-      },
-    });
+
+    if (isEdit && employeeId) {
+      updateEmployee(
+        { id: employeeId, data: enriched },
+        {
+          onSuccess: () => {
+            onUpdated?.();
+            onClose();
+          },
+        },
+      );
+    } else {
+      createEmployee(enriched, {
+        onSuccess: (created) => {
+          const option: EntityOption = {
+            id: created.id,
+            label: `${created.first_name} ${created.last_name}`.trim(),
+          };
+          onCreated?.(option);
+          onClose();
+        },
+      });
+    }
   };
 
   // ─── Render ──────────────────────────────────────────────────────────────
@@ -142,7 +212,7 @@ export function EmployeeForm({ open, onClose, onCreated }: EmployeeFormProps) {
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Employee</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Employee" : "Add Employee"}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 mt-2">
@@ -387,6 +457,27 @@ export function EmployeeForm({ open, onClose, onCreated }: EmployeeFormProps) {
               Upload Documents (ID, W-9, Non-compete)
             </h3>
 
+            {/* Existing documents (edit mode) */}
+            {existingDocs.length > 0 && (
+              <ul className="space-y-2">
+                {existingDocs.map((doc, idx) => (
+                  <li
+                    key={idx}
+                    className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
+                  >
+                    <span className="truncate text-foreground">{doc.split("/").pop() ?? doc}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeExistingDoc(idx)}
+                      className="ml-2 shrink-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
             {/* Drop zone */}
             <div
               className={cn(
@@ -417,7 +508,7 @@ export function EmployeeForm({ open, onClose, onCreated }: EmployeeFormProps) {
               />
             </div>
 
-            {/* Selected files list */}
+            {/* New files list */}
             {docFiles.length > 0 && (
               <ul className="space-y-2">
                 {docFiles.map((file, idx) => (
@@ -445,7 +536,9 @@ export function EmployeeForm({ open, onClose, onCreated }: EmployeeFormProps) {
               Cancel
             </Button>
             <Button type="submit" className="flex-1" disabled={isPending}>
-              {isPending ? "Adding..." : "Add Employee"}
+              {isPending
+                ? isEdit ? "Saving..." : "Adding..."
+                : isEdit ? "Save Changes" : "Add Employee"}
             </Button>
           </div>
 

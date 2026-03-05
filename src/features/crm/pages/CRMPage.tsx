@@ -3,36 +3,12 @@ import { useSearchParams } from "react-router-dom";
 import { Users, TrendingUp, CheckSquare, CheckCircle, Search, Plus } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
+import { Card, CardContent } from "@/shared/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { ClientsTable } from "../clients/components/ClientsTable";
 import { LeadsKanban } from "../leads/components/LeadsKanban";
 import { TasksTable } from "@/features/tasks/components/TasksTable";
 import { useCRMStats } from "../hooks/useCRMStats";
-
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-interface StatCardProps {
-  label: string;
-  value: number;
-  sublabel: string;
-  color: string;
-  icon: React.ElementType;
-}
-
-function CRMStatCard({ label, value, sublabel, color, icon: Icon }: StatCardProps) {
-  return (
-    <div
-      className="bg-card rounded-lg px-5 py-4 flex items-center justify-between border-l-4 shadow-sm"
-      style={{ borderLeftColor: color }}
-    >
-      <div className="space-y-0.5">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="text-3xl font-bold leading-none" style={{ color }}>{value}</p>
-        <p className="text-xs text-muted-foreground">{sublabel}</p>
-      </div>
-      <Icon className="h-8 w-8 opacity-80" style={{ color }} />
-    </div>
-  );
-}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function CRMPage() {
@@ -61,12 +37,31 @@ export default function CRMPage() {
   return (
     <div className="p-2.5 space-y-2.5">
       {/* ── Stats ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <CRMStatCard label="Total Leads"    value={stats.totalLeads}    sublabel="Potential Clients"   color="hsl(var(--info))"          icon={Users}       />
-        <CRMStatCard label="All Clients"    value={stats.allClients}    sublabel="Current client list" color="hsl(var(--success))"       icon={TrendingUp}  />
-        <CRMStatCard label="Active Clients" value={stats.activeClients} sublabel="Currently active"    color="hsl(var(--purple-vibrant))" icon={CheckCircle} />
-        <CRMStatCard label="Tasks"          value={stats.totalTasks}    sublabel="Total tasks"          color="hsl(var(--warning))"       icon={CheckSquare} />
-      </div>
+      <Card className="border border-border/50 shadow-none">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { title: "Total Leads",    value: stats.totalLeads,    subtitle: "Potential Clients",   color: "hsl(var(--info))",           icon: Users       },
+              { title: "All Clients",    value: stats.allClients,    subtitle: "Current client list", color: "hsl(var(--success))",        icon: TrendingUp  },
+              { title: "Active Clients", value: stats.activeClients, subtitle: "Currently active",    color: "hsl(var(--purple-vibrant))", icon: CheckCircle },
+              { title: "Tasks",          value: stats.totalTasks,    subtitle: "Total tasks",         color: "hsl(var(--warning))",        icon: CheckSquare },
+            ].map((card) => (
+              <div key={card.title} className="border-l-4 pl-4" style={{ borderLeftColor: card.color }}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{card.title}</p>
+                    <p className="text-2xl font-bold mt-1" style={{ color: card.color }}>{card.value}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{card.subtitle}</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-secondary/50">
+                    <card.icon className="w-5 h-5" style={{ color: card.color }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ── Tab section ────────────────────────────────────────────────── */}
       <div>

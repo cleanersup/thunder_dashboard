@@ -1,9 +1,9 @@
 # Thunder Dashboard — Plan Maestro de Migración Web
 
 > **Estado actual:** 🟢 En progreso
-> **Fase activa:** Fase 9 — Scheduling
-> **Última actualización:** 2026-03-05
-> **Sesión anterior:** F8 refinamiento + mejoras CRM/Shared. Invoice flow corregido (Next siempre va al preview en create y edit, footer Cancel/Save/Next igual a swift-slate). InvoicePreviewPage: delivery Email/SMS/Both. InvoiceDetailsModal: quick actions por status (Draft/Pending/Paid/Cancelled). ClientDetailModal + LeadDetailModal: live refresh via useClient/useLead (datos frescos al editar sin cerrar modal). AddressAutocomplete (Google Places) en ClientForm y LeadForm. Shared: DeliveryMethodSelector, AddressAutocomplete, useGoogleMaps. Build: 0 errores.
+> **Fase activa:** Fase 12 — Settings
+> **Última actualización:** 2026-03-04
+> **Sesión anterior:** F11 Walkthroughs completo. WalkthroughsPage (KPI, toolbar, tabla, QR dialog). WalkthroughForm modal (create+edit). WalkthroughDetailsModal (two-column Cards, Quick Actions por status). ResidentialWalkthroughFormPage + CommercialWalkthroughFormPage (públicas). SOLID refactor: config/, utils/, PickerDialog, FloatInput (type=text+inputMode). fetchContactInfo en utils, side-effects movidos a onSuccess hooks. DraftRecoveryDialog eliminado de estimate pages. Fix: "Generate Estimate" prefill (location.state.prefill → fetch client/lead). Build: 0 errores.
 
 ---
 
@@ -476,48 +476,70 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 9 — Scheduling (Rutas, Citas, SmartMap)
-> Estado: 🔴 Pendiente
+> Estado: ✅ Completa (Google Maps en AppointmentDetailModal pendiente — mapa no renderiza, se resuelve en sesión posterior)
 
-- [ ] `features/scheduling/services/routesService.ts`, `appointmentsService.ts` (JSDoc)
-- [ ] `features/scheduling/hooks/useRoutes.ts`, `useCreateRoute.ts`, `useSmartMap.ts`
-- [ ] `shared/services/geolocation.service.ts` — `navigator.geolocation` promisificado
-- [ ] Mapbox GL mantenido (web-compatible sin cambios)
-- [ ] `features/scheduling/components/RoutesList`, `CreateRouteForm`, `RouteMap`
-- [ ] `features/scheduling/components/AppointmentCard`, `SmartMapView`
-- [ ] Páginas: `RoutesPage`, `CreateRoutePage`, `RouteInfoPage`, `AppointmentDetailPage`, `SmartMapPage`
-- [ ] Test: crear ruta → agregar stops → visualizar en mapa
+- [x] `features/scheduling/types/scheduling.types.ts`
+- [x] `features/scheduling/services/routesService.ts`, `appointmentsService.ts`
+- [x] `features/scheduling/hooks/useRoutes.ts`, `useAppointments.ts`, `useSmartMap.ts`
+- [x] `features/scheduling/hooks/useSendAppointmentEmail.ts` → edge fn `send-appointment-emails`
+- [x] `features/scheduling/hooks/useSendAppointmentSMS.ts` → edge fn `send-appointment-sms`
+- [x] `features/scheduling/config/appointmentSteps.config.ts` — 10 pasos
+- [x] `features/scheduling/components/AppointmentFormLayout.tsx`
+- [x] Steps (10): Route, Client, Service, Schedule, Staff (con Total Labor Cost), Deposit, Contract, Instructions (textarea + Upload Photos), Preview, Send
+- [x] `features/scheduling/components/AppointmentCard.tsx`
+- [x] `features/scheduling/components/SchedulingCalendar.tsx`
+- [x] `features/scheduling/components/RouteMapView.tsx` — Google Maps multi-stop
+- [x] `features/scheduling/components/AppointmentDetailModal.tsx` — two-column cards, employees fetched inline, Quick Actions: Edit + Delete únicamente
+- [x] `features/scheduling/components/SmartMapView.tsx`
+- [x] Páginas: `RoutesPage` (Calendar/Map toggle), `AddAppointmentPage` (create + edit), `SmartMapPage`
+- [x] Router: `/create-route`, `/create-route/new`, `/create-route/:id/edit`, `/smart-map`
+- [x] EmployeeForm actualizado: 5 secciones (Personal, Employment, Available Days grid, Notes, Upload Documents)
 
 ---
 
 ## FASE 10 — Employees + Employee Portal
-> Estado: 🟡 Parcialmente iniciada (infraestructura base creada en F5 mejoras)
+> Estado: ✅ Completada (10A Gestión Interna). 10B Employee Portal: pendiente (alta complejidad)
 
-### Gestión Interna
-- [x] `features/employees/services/employeesService.ts` — fetchEmployees, createEmployee (JSDoc)
-- [x] `features/employees/hooks/useEmployees.ts` — useEmployees, useCreateEmployee
+### Gestión Interna (10A) ✅
+- [x] `features/employees/services/employeesService.ts` — Employee type completo, fetchAllEmployees, fetchEmployeeById, updateEmployee, updateEmployeeStatus, checkDeleteGuard, deleteEmployee
+- [x] `features/employees/services/generateEmployeeSheetPDF.ts` — portado de swift-slate (jsPDF, blue [79,129,189], secciones: Personal/Address/Employment/Availability/Signatures)
+- [x] `features/employees/hooks/useEmployees.ts` — useAllEmployees, useEmployee, useCreateEmployee, useUpdateEmployee, useUpdateEmployeeStatus, useDeleteEmployee (con guard)
 - [x] `features/employees/schemas/employeeSchema.ts` — Zod schema completo
-- [x] `features/employees/components/EmployeeForm` — modal de creación (usado inline en TaskForm)
-- [ ] `features/employees/hooks/useEmployeeDetails.ts`, `useShiftEdit.ts`
-- [ ] `features/employees/components/EmployeesList`, `EmployeeDetails`
-- [ ] `features/employees/components/TimelineView`, `ClockInOutPanel`, `ShiftDetails`, `ShiftEditModal`
-- [ ] Páginas: `EmployeesPage`, `AddEmployeePage`, `EditEmployeePage`, `EmployeeDetailPage`, `TimeClockPage`, `ShiftDetailPage`
+- [x] `features/employees/components/EmployeeForm` — edit mode (employeeId prop, prefill, useUpdateEmployee), existing docs list
+- [x] `features/employees/components/EmployeeDetailsModal` — two-column Cards, Quick Actions (Edit/Activate/Suspend/Download PDF/Delete), ConfirmDialog
+- [x] `features/employees/pages/EmployeesPage` — KPI cards ×4 (patrón unificado single Card), Toolbar Card (Tabs + Search + Add), Table (Employee/Position/Email/Phone/Status/Actions con DropdownMenu), → EmployeeDetailsModal + Edit inline
+- [x] Router: `/employees` → `EmployeesPage`
+- [x] Fix: `available_days` keys normalizadas a lowercase en EmployeeForm (edit prefill) y generateEmployeeSheetPDF
+- [x] CRM KPI cards unificadas al mismo patrón (single Card + border-l-4)
 
-### Employee Portal (acceso separado)
-- [ ] `features/employee-portal/services/employeePortalService.ts` (JSDoc)
+### Employee Portal (10B) — Pendiente
+- [ ] `features/employee-portal/services/employeePortalService.ts`
 - [ ] Layout propio para el portal (sin MainLayout principal)
 - [ ] Páginas: `EmployeeLoginPage`, `EmployeeDashboardPage`, `EmployeeShiftDetailPage`, `EmployeeHistoryDetailPage`
 
 ---
 
 ## FASE 11 — Walkthroughs
-> Estado: 🔴 Pendiente
+> Estado: ✅ Completa
 
-- [ ] `features/walkthroughs/services/walkthroughsService.ts` (JSDoc)
-- [ ] `features/walkthroughs/hooks/useWalkthroughs.ts`, `useCreateWalkthrough.ts`
-- [ ] `features/walkthroughs/schemas/` — residencial y comercial
-- [ ] Páginas públicas: `ResidentialWalkthroughFormPage`, `CommercialWalkthroughFormPage`
-- [ ] Páginas internas: `WalkthroughsPage`, `AddWalkthroughPage`, `WalkthroughDetailPage`, `EditWalkthroughPage`
-- [ ] Reemplazar share → `ShareService`
+- [x] `features/walkthroughs/services/walkthroughsService.ts` — CRUD puro (sin side-effects), `fetchContactInfo` vía utils, `resolveContact` batch helper
+- [x] `features/walkthroughs/hooks/useWalkthroughs.ts` — useWalkthroughs, useWalkthrough, useCreateWalkthrough, useUpdateWalkthrough, useUpdateWalkthroughStatus, useDeleteWalkthrough. Edge fn notifications en `onSuccess`
+- [x] `features/walkthroughs/schemas/walkthroughSchema.ts` — Zod validation
+- [x] `features/walkthroughs/config/walkthroughConfig.ts` — todas las constantes (property types, service types, options, etc.)
+- [x] `features/walkthroughs/utils/walkthroughUtils.ts` — formatTime, formatDate, statusBadgeClass, formatStatusLabel, formatDuration, fetchContactInfo
+- [x] `features/walkthroughs/components/WalkthroughForm.tsx` — modal dialog create + edit
+- [x] `features/walkthroughs/components/WalkthroughDetailsModal.tsx` — two-column Cards, Quick Actions por status (Edit / Mark Completed / Convert to Estimate / Cancel / Delete)
+- [x] `features/walkthroughs/components/WalkthroughClientPicker.tsx` — usa useClients()/useLeads() (shared cache)
+- [x] `features/walkthroughs/components/PickerDialog.tsx` — dialog reutilizable de selección de opción
+- [x] `features/walkthroughs/components/FloatInput.tsx` — input numérico con floating label (type=text+inputMode, toIntegerString/toDecimalString)
+- [x] `features/walkthroughs/pages/WalkthroughsPage.tsx` — KPI (Pending/Completed), toolbar, tabla, QR dialog para "Start Walkthrough"
+- [x] `features/walkthroughs/pages/ResidentialWalkthroughFormPage.tsx` — formulario público on-site, secciones: Property/Service/Sqft/Rooms/Extras/Services/Pets/Notes
+- [x] `features/walkthroughs/pages/CommercialWalkthroughFormPage.tsx` — formulario público on-site, secciones: Property/Service/Schedule/Grease/Condition/Extras/Supplies/Recurring/Notes
+- [x] Router: `/walkthroughs` (protected), `/walkthrough/residential/:id` y `/walkthrough/commercial/:id` (public)
+- [x] "Convert to Estimate" → navega a `/estimates/new/residential|commercial` con `state.prefill`
+- [x] Estimate pages leen `location.state.prefill` → pre-populate client/lead en Step 0
+- [x] `DraftRecoveryDialog` eliminado de estimate pages (modal "Continue where you left off?" removido)
+- [x] Build: 0 errores TypeScript
 
 ---
 
@@ -640,6 +662,10 @@ Esto significa:
 | 2026-02-26→03-03 | F7 ✅ | Estimates completo: EstimatesPage, CreateResidential (11 pasos), CreateCommercial (7 pasos inicial), modales, pricing hooks, PDF, rutas. |
 | 2026-03-03 | F7 refinamiento ✅ | Refactor SOLID: step components aislados, EstimateFormLayout, steps.config. Draft system (useDraftEstimate, DraftRecoveryDialog, ExitConfirmationDialog, DraftStatusIndicator). Commercial: 8 pasos (añadido CommPreviewStep con ProposalPreview completa + Download PDF via jsPDF). CommPropertyStep: Select Days separado + Contract Duration. CommMainStep: 4 Cards + End Time auto-calculado. CommDetailsStep: textos validados contra swift-slate. EstimateDetailsModal: datos reales de draft desde draft_data JSON. Draft restore async (fetch client/lead desde DB). EstimatesPage: acciones draft (Continue/Start Fresh/Delete). Limpieza: dir schemas/ vacío eliminado. |
 | 2026-03-05 | F8 refinamiento ✅ + Shared | Invoice form: flujo correcto (Next→preview siempre, footer Cancel/Save/Next en edición). DeliveryMethodSelector shared. InvoicePreviewPage: Email/SMS/Both. InvoiceDetailsModal: actions por status. ClientDetailModal + LeadDetailModal: live refresh (useClient/useLead). AddressAutocomplete (Google Places) en ClientForm y LeadForm. useGoogleMaps hook. Build: 0 errores. |
+| 2026-03-06 | F9 ✅ | Scheduling completo: RoutesPage (Calendar/Map toggle, RouteSelector), AddAppointmentPage wizard 10 pasos, AppointmentDetailModal (two-column cards + employees inline + Quick Actions: Edit+Delete), SmartMapPage. SMS: useSendAppointmentSMS + useSendAppointmentEmail. EmployeeForm: Available Days + Upload Documents. Pendiente: Google Maps en AppointmentDetailModal. Build: 0 errores. |
+| 2026-03-06 | F10A ✅ | Employees completo: EmployeesPage (KPI×4, tabs, search, lista avatar+badge). EmployeeDetailsModal (two-column Cards: Personal/Address/Employment/Notes/Availability/Documents/Timeline/Quick Actions). EmployeeForm edit mode (employeeId prop, prefill, useUpdateEmployee, existing docs). generateEmployeeSheetPDF (jsPDF portado de swift-slate). useEmployees extendido (useAllEmployees, useEmployee, useUpdateEmployee, useUpdateEmployeeStatus, useDeleteEmployee+guard). Router /employees. Build: 0 errores. |
+| 2026-03-04 | F10A refinamientos ✅ | EmployeesPage rediseñada: patrón unificado con Estimates (single Card KPI border-l-4, Toolbar Card, Table 6 cols + dropdown). CRM KPI cards al mismo patrón. Fix available_days lowercase normalization en EmployeeForm + generateEmployeeSheetPDF. Fix LoadingSpinner centrado en TableCell. Build: 0 errores. |
+| 2026-03-04 | F11 Walkthroughs ✅ | WalkthroughsPage (KPI + tabla + QR dialog). WalkthroughForm modal. WalkthroughDetailsModal (2 cols + Quick Actions por status). ResidentialWalkthroughFormPage + CommercialWalkthroughFormPage (públicas). SOLID refactor: config/, utils/, PickerDialog, FloatInput (type=text+inputMode). Side-effects movidos a onSuccess. fetchContactInfo centralizado. DraftRecoveryDialog eliminado de estimates. Fix: prefill desde walkthrough a estimate form (location.state.prefill). Build: 0 errores. |
 
 ---
 

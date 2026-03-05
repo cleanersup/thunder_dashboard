@@ -5,7 +5,6 @@ import { COMMERCIAL_STEPS } from "../config/steps.config";
 import { EstimateClientStep, type ClientEntity, type LeadEntity, type EstimateEntityType } from "../components/EstimateClientStep";
 import { EstimateFormLayout }    from "../components/EstimateFormLayout";
 import { DraftStatusIndicator }  from "../components/DraftStatusIndicator";
-import { DraftRecoveryDialog }   from "../components/DraftRecoveryDialog";
 import { ExitConfirmationDialog } from "../components/ExitConfirmationDialog";
 import { CommPropertyStep } from "../components/commercial/CommPropertyStep";
 import { CommDetailsStep }  from "../components/commercial/CommDetailsStep";
@@ -29,7 +28,7 @@ import type { DraftData } from "../types/estimate.types";
 export function CreateCommercialEstimatePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isEditing, estimateId, estimateData } = (location.state as any) || {};
+  const { isEditing, estimateId, estimateData, prefill } = (location.state as any) || {};
 
   const { mutateAsync: createEstimate } = useCreateEstimate();
   const { mutateAsync: updateEstimate } = useUpdateEstimate();
@@ -128,6 +127,22 @@ export function CreateCommercialEstimatePage() {
     }
   }, [isEditing, estimateData]);
 
+  // ── Prefill from walkthrough ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!prefill) return;
+    (async () => {
+      if (prefill.client_id) {
+        setEstimateType("client");
+        const { data: c } = await supabase.from("clients").select("*").eq("id", prefill.client_id).maybeSingle();
+        if (c) setSelectedClient(c as ClientEntity);
+      } else if (prefill.lead_id) {
+        setEstimateType("lead");
+        const { data: l } = await supabase.from("leads").select("*").eq("id", prefill.lead_id).maybeSingle();
+        if (l) setSelectedLead(l as LeadEntity);
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Pricing ───────────────────────────────────────────────────────────────
   const effectivePropertyType = isOtherProperty ? otherPropertyType : propertyType;
   const groupB = isGroupB(propertyType);
@@ -143,7 +158,7 @@ export function CreateCommercialEstimatePage() {
   });
 
   // ── Draft ─────────────────────────────────────────────────────────────────
-  const { loadedDraft, clearLoadedDraft, saveDraft, deleteDraft, isSaving, lastSaved } =
+  const { saveDraft, deleteDraft, isSaving, lastSaved } =
     useDraftEstimate({ serviceType: "Commercial" });
 
   const collectDraftData = useCallback((): DraftData => ({
@@ -164,48 +179,6 @@ export function CreateCommercialEstimatePage() {
     employeeCount, hourlyRate, cleaningDuration, startTime,
     scopeDetails, useCustomPrice, customPrice, applyDiscount, discountType, discountValue, deliveryMethod,
   ]);
-
-  const restoreDraftData = useCallback(async (d: DraftData) => {
-    clearLoadedDraft();
-    setCurrentStep(d.currentStep);
-    if (d.estimateType) setEstimateType(d.estimateType);
-
-    // Restore selected client or lead from DB
-    if (d.estimateType === "client" && d.clientId) {
-      const { data: c } = await supabase.from("clients").select("*").eq("id", d.clientId).maybeSingle();
-      if (c) setSelectedClient(c as ClientEntity);
-    } else if (d.estimateType === "lead" && d.leadId) {
-      const { data: l } = await supabase.from("leads").select("*").eq("id", d.leadId).maybeSingle();
-      if (l) setSelectedLead(l as LeadEntity);
-    }
-
-    const f = d.formData as any;
-    if (f.propertyType           !== undefined) setPropertyType(f.propertyType);
-    if (f.isOtherProperty        !== undefined) setIsOtherProperty(f.isOtherProperty);
-    if (f.otherPropertyType      !== undefined) setOtherPropertyType(f.otherPropertyType);
-    if (f.propertySize           !== undefined) setPropertySize(f.propertySize);
-    if (f.serviceType            !== undefined) setServiceType(f.serviceType);
-    if (f.recurringFrequency     !== undefined) setRecurringFrequency(f.recurringFrequency);
-    if (f.selectedWeekDays       !== undefined) setSelectedWeekDays(f.selectedWeekDays);
-    if (f.contractDuration       !== undefined) setContractDuration(f.contractDuration);
-    if (f.contractTimeUnit       !== undefined) setContractTimeUnit(f.contractTimeUnit);
-    if (f.clientProvidesSupplies !== undefined) setClientProvidesSupplies(f.clientProvidesSupplies);
-    if (f.serviceSchedule        !== undefined) setServiceSchedule(f.serviceSchedule);
-    if (f.greaseLevel            !== undefined) setGreaseLevel(f.greaseLevel);
-    if (f.restaurantCondition    !== undefined) setRestaurantCondition(f.restaurantCondition);
-    if (f.extraServices          !== undefined) setExtraServices(f.extraServices);
-    if (f.employeeCount          !== undefined) setEmployeeCount(f.employeeCount);
-    if (f.hourlyRate             !== undefined) setHourlyRate(f.hourlyRate);
-    if (f.cleaningDuration       !== undefined) setCleaningDuration(f.cleaningDuration);
-    if (f.startTime              !== undefined) setStartTime(f.startTime);
-    if (f.scopeDetails           !== undefined) setScopeDetails(f.scopeDetails);
-    if (f.useCustomPrice         !== undefined) setUseCustomPrice(f.useCustomPrice);
-    if (f.customPrice            !== undefined) setCustomPrice(f.customPrice);
-    if (f.applyDiscount          !== undefined) setApplyDiscount(f.applyDiscount);
-    if (f.discountType           !== undefined) setDiscountType(f.discountType);
-    if (f.discountValue          !== undefined) setDiscountValue(f.discountValue);
-    if (f.deliveryMethod         !== undefined) setDeliveryMethod(f.deliveryMethod);
-  }, [clearLoadedDraft]);
 
   useEffect(() => {
     if (!isEditing) saveDraft(collectDraftData());
@@ -499,11 +472,6 @@ export function CreateCommercialEstimatePage() {
 
   return (
     <>
-      <DraftRecoveryDialog
-        draft={!isEditing ? loadedDraft : null}
-        onContinue={restoreDraftData}
-        onDiscard={() => { deleteDraft(); clearLoadedDraft(); }}
-      />
       <ExitConfirmationDialog
         open={showExitDialog}
         onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); navigate(-1); }}
