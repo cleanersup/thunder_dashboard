@@ -15,7 +15,7 @@ import { CommPreviewStep }  from "../components/commercial/CommPreviewStep";
 import { CommSendStep, type DeliveryMethod } from "../components/commercial/CommSendStep";
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { useProfile } from "@/shared/hooks/useProfile";
+import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
 import { fetchClient } from "@/features/crm/clients/services/clientsService";
 import { fetchLead } from "@/features/crm/leads/services/leadsService";
 import { useCreateEstimate, useUpdateEstimate } from "../hooks/useEstimates";
@@ -88,7 +88,8 @@ export function CreateCommercialEstimatePage() {
   const [errors, setErrors] = useState<Record<string, boolean>>({});
 
   // ── Profile ───────────────────────────────────────────────────────────────
-  const { data: profile } = useProfile();
+  const { data: profile }  = useProfile();
+  const companyAddress     = getCompanyAddress(profile);
 
   // ── Prefill when editing ──────────────────────────────────────────────────
   useEffect(() => {
@@ -332,6 +333,7 @@ export function CreateCommercialEstimatePage() {
           selectedClient={selectedClient} selectedLead={selectedLead}
           onClientSelect={(c) => { setSelectedClient(c); setSelectedLead(null); }}
           onLeadSelect={(l)   => { setSelectedLead(l);   setSelectedClient(null); }}
+          companyAddress={companyAddress || undefined}
           errors={{
             type:   errors.estimateType   ? "Please select a client type" : undefined,
             entity: errors.selectedEntity ? `Please select a ${estimateType ?? "client or lead"}` : undefined,

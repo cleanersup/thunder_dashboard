@@ -40,6 +40,7 @@ export default function DashboardPage() {
     lastWeekPercent,
     recentActivities,
     todayRoutes,
+    today,
     now,
     invoicesLoading,
     activitiesLoading,
@@ -117,7 +118,7 @@ export default function DashboardPage() {
       {/* ── Bottom row: pending chart + routes + activity ──────────────── */}
       <div className="grid lg:grid-cols-3 gap-2.5">
         <PendingInvoicesChart data={pendingByMonthData} isLoading={invoicesLoading} />
-        <TodayRoutes routes={todayRoutes} isLoading={routesLoading} />
+        <TodayRoutes routes={todayRoutes} isLoading={routesLoading} today={today} />
         <ActivityFeed activities={recentActivities} isLoading={activitiesLoading} />
       </div>
     </div>

@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { QK } from "@/shared/config/queryKeys";
 import { useEmployeeTimeEntries, usePaidPeriods, useMarkAsPaid } from "../hooks/useTimeClock";
 import { ShiftCard } from "./ShiftCard";
+import { EmployeeLocationMap } from "./EmployeeLocationMap";
 import {
   generateEmployeeTimesheetPDF,
   type EmployeeTimesheetData,
@@ -323,18 +324,22 @@ export function EmployeeDetailView({
                       return ta - tb;
                     })
                     .map((shift, idx) => (
-                      <ShiftCard
-                        key={shift.id}
-                        entry={shift}
-                        shiftLabel={dayEntries.length > 1 ? `Shift ${idx + 1}` : undefined}
-                        isEditing={shiftEdit.editingShiftId === shift.id}
-                        editDraftValues={shiftEdit.editDraftValues}
-                        onSetDraftValues={shiftEdit.setEditDraftValues}
-                        onStartEdit={shiftEdit.startEdit}
-                        onCancelEdit={shiftEdit.cancelEdit}
-                        onRequestSave={shiftEdit.requestSave}
-                        isPaid={paid}
-                      />
+                      <div key={shift.id} className="space-y-2">
+                        <ShiftCard
+                          entry={shift}
+                          shiftLabel={dayEntries.length > 1 ? `Shift ${idx + 1}` : undefined}
+                          isEditing={shiftEdit.editingShiftId === shift.id}
+                          editDraftValues={shiftEdit.editDraftValues}
+                          onSetDraftValues={shiftEdit.setEditDraftValues}
+                          onStartEdit={shiftEdit.startEdit}
+                          onCancelEdit={shiftEdit.cancelEdit}
+                          onRequestSave={shiftEdit.requestSave}
+                          isPaid={paid}
+                        />
+                        {(shift.clock_in_latitude != null || shift.clock_out_latitude != null) && (
+                          <EmployeeLocationMap entry={shift} className="w-full h-[180px]" />
+                        )}
+                      </div>
                     ))}
 
                   {/* Daily total */}

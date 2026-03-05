@@ -562,7 +562,7 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 20 — Mapas y Geolocalización
-> Estado: 🔴 Pendiente
+> Estado: 🟡 Parcialmente completa (F10B excluido — corre desde swift-slate)
 > Descubierto: múltiples usos de mapas en swift-slate no cubiertos aún en thunder_dashboard
 
 ### Inventario completo de mapas en swift-slate
@@ -572,48 +572,45 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 | `MapView.tsx` | `CreateRoute.tsx`, `Home.tsx` | Multi-stop route (DirectionsService) | ✅ Portado como `RouteMapView.tsx` (F9) |
 | `SmartMap.tsx` (Google Maps + geocoding) | `/smart-map` | Pines leads/clients/employees con geocoding | ✅ `SmartMapView.tsx` usa QK markers (F9) — ver nota geocoding |
 | `AddressAutocomplete.tsx` | Todos los forms | Google Places autocomplete | ✅ Portado (F5) |
-| `RouteInformation.tsx` | Clic en cita del calendario | Página de detalle: ruta empresa→cliente con distancia/tiempo | ⚠️ Portado como `AppointmentDetailModal` — mapa no renderiza |
-| `EmployeeLocationMap.tsx` | Time Clock manager view | Mapa clock-in/clock-out con polyline | 🔴 Parte de F19 |
-| `RealTimeLocationMap.tsx` | `EmployeeDashboard.tsx` | GPS real-time + geofence circle (para empleado) | 🔴 Parte de F10B |
-| `LocationMap.tsx` | `EmployeeDashboard.tsx` | iframe Google Maps embed + distancia geofence | 🔴 Parte de F10B |
+| `RouteInformation.tsx` | Clic en cita del calendario | Página de detalle: ruta empresa→cliente con distancia/tiempo | ✅ Fix: setTimeout(350) + resize event |
+| `EmployeeLocationMap.tsx` | Time Clock manager view | Mapa clock-in/clock-out con polyline | ✅ Implementado en F20 |
+| `RealTimeLocationMap.tsx` | `EmployeeDashboard.tsx` | GPS real-time + geofence circle (para empleado) | ⛔ Excluido — corre desde swift-slate |
+| `LocationMap.tsx` | `EmployeeDashboard.tsx` | iframe Google Maps embed + distancia geofence | ⛔ Excluido — corre desde swift-slate |
 | `LeadDetails.tsx` (mapa) | Detalle de lead | Mapa con dirección del lead | 🟡 Nuestros modales no lo tienen (opcional) |
 | `WalkthroughDetails.tsx` (mapa) | Detalle de walkthrough | Mapa con dirección del contacto | 🟡 Nuestros modales no lo tienen (opcional) |
 | `BookingDetails.tsx` (mapa) | Detalle de booking | Mapa empresa→cliente | 🔴 Parte de F6 |
 
 ---
 
-### 1 · Fix AppointmentDetailModal — Mapa Company→Client
-**Bug pendiente de F9.** El mapa está implementado pero no renderiza.
+### 1 · Fix AppointmentDetailModal — Mapa Company→Client ✅
+- [x] Bug raíz: `new google.maps.Map()` se llamaba durante la animación de apertura del Dialog (dimensiones = 0)
+- [x] Fix: `setTimeout(fn, 350)` + `google.maps.event.trigger(map, "resize")` — mapa se inicializa tras la animación
+- [x] Ruta empresa → cliente con distancia y tiempo. Fallback: geocodifica destino y centra mapa si Directions falla
 
-- [ ] Debuggear por qué el mapa Google Maps no renderiza en `AppointmentDetailModal` — posibles causas: div sin dimensiones, `useGoogleMaps` carga asíncrona vs `useEffect` timing, API key sin billing activo para Maps JS API
-- [ ] Verificar que `VITE_GOOGLE_MAPS_API_KEY` tiene habilitadas las APIs: Maps JavaScript API + Directions API + Geocoding API
-- [ ] Confirmar que el `div` del mapa tiene `height` explícito (Google Maps necesita dimensión física, no solo `h-full`)
-- [ ] Una vez fix aplicado: mostrar ruta Company address → Client address con distancia y tiempo estimado
+### 2 · SmartMap — Geocoding de direcciones ✅
+- [x] `useSmartMap` ya implementa `google.maps.Geocoder` on-demand (sesión anterior)
+- [x] Cache de geocoding en `geocodeCacheRef` — no re-geocodifica direcciones ya procesadas
+- [x] Estado `isGeocoding` expuesto — SmartMapPage muestra "Updating map..." mientras procesa
 
-### 2 · SmartMap — Geocoding de direcciones
-**Nota arquitectural importante.** En swift-slate, `SmartMap.tsx` usa `google.maps.Geocoder` para convertir direcciones texto → lat/lng en tiempo real (clientes/leads/empleados no tienen lat/lng almacenado en DB).
+### 3 · EmployeeLocationMap (Time Clock) ✅
+- [x] `features/time-clock/components/EmployeeLocationMap.tsx` — marcador verde "IN" + rojo "OUT" + Polyline azul
+- [x] Integrado en `EmployeeDetailView` — visible solo cuando el turno tiene `clock_in_latitude` o `clock_out_latitude`
+- [x] "No location data available" cuando no hay coordenadas
 
-En thunder_dashboard, `SmartMapPage` usa `QK.smartMapLeads/Clients/Employees` y pasa `MapMarker[]` con `{ lat, lng }` al `SmartMapView`. Si la DB no almacena coordenadas, los marcadores no aparecen.
+### 4 · AddressRouteMap (Shared — nuevo, no estaba en el plan) ✅
+- [x] `shared/components/common/AddressRouteMap.tsx` — componente reutilizable
+- [x] Con `companyAddress`: DirectionsService ruta empresa→destino + badge distancia/duración
+- [x] Sin `companyAddress`: marcador geocodificado + overlay "Company Address Missing"
+- [x] Usado en `EstimateClientStep` (step 0 residential + commercial) al seleccionar cliente/lead
+- [x] `QK.routeAppointmentsByDate(routeId, date)` nueva key
 
-- [ ] Verificar si la tabla `clients` / `leads` / `employees` tiene columnas `lat`/`lng` o similar en Supabase
-- [ ] Si NO tienen coordenadas almacenadas: implementar geocoding on-demand en `SmartMapPage` (misma lógica que swift-slate — `google.maps.Geocoder`, geocodificar `street + city + state + zip`)
-- [ ] Si SÍ tienen coordenadas: confirmar que el flujo actual funciona correctamente
-- [ ] Agregar manejo de estado "Geocoding…" mientras se procesan las direcciones (igual que swift-slate muestra `isGeocoding` state)
+### 5 · Dashboard — TodayRoutes con mapa interactivo (nuevo) ✅
+- [x] Click en ruta → selecciona y muestra `RouteMapView` debajo de la lista (toggle)
+- [x] Auto-selecciona la primera ruta al cargar
+- [x] `useDashboardStats` ahora expone `today` (YYYY-MM-DD)
 
-### 3 · EmployeeLocationMap (Time Clock)
-> Este ítem ya está en F19 — se lista aquí para referencia cruzada
-
-- [ ] `features/time-clock/components/EmployeeLocationMap.tsx` — mapa Google Maps con marcadores clock-in (verde "IN") / clock-out (rojo "OUT") + Polyline azul entre ellos. Usar `useGoogleMaps`. Mostrar "No location data available" si no hay coordenadas.
-- [ ] Mostrarlo en `EmployeeDetailView` cuando el turno tiene lat/lng guardados
-
-### 4 · RealTimeLocationMap + LocationMap (Employee Portal)
-> Estos ítems son parte de F10B — se listan aquí para referencia cruzada
-
-Componentes para el portal del empleado (clock-in desde su dispositivo):
-- [ ] `features/employee-portal/components/RealTimeLocationMap.tsx` — mapa Google Maps con: marcador azul "usuario actual" (navigator.geolocation.watchPosition), marcador verde "shift location", geofence circle (radio 100m, verde si dentro, rojo si fuera)
-- [ ] `features/employee-portal/components/LocationMap.tsx` — versión iframe (Google Maps Embed API) con badge de distancia y panel "You are at the job site" / "Must be within 100m"
-- [ ] `shared/services/geolocation.service.ts` — ya existe. Añadir `calculateDistance(lat1, lng1, lat2, lng2)` (Haversine formula) y `formatDistance(meters)` si no existen
-- [ ] Geofence enforcement: el botón "Clock In" del portal solo se activa cuando `distance <= 100m`
+### 6 · RealTimeLocationMap + LocationMap (Employee Portal) ⛔ Excluido
+> Excluido por decisión: el portal del empleado corre desde swift-slate (app móvil), no desde thunder_dashboard
 
 ### 5 · Mapas en modales de detalle (opcional — baja prioridad)
 swift-slate tiene mapas en LeadDetails y WalkthroughDetails. Nuestros modales los omiten. Estos son enhancements opcionales.
@@ -799,6 +796,7 @@ Esto significa:
 | 2026-03-04 | F14 Servicios ✅ | Los 5 shared services ya existían: StorageService, GeolocationService, PDFService, ShareService, FileService. Auditoría: cero @capacitor/* imports, cero Capacitor.isNativePlatform(). |
 | 2026-03-04 | F15 SOLID ✅ | queryKeys.ts (QK centralizado). ErrorBoundary + wrapping en routes/index.tsx. SRP: WalkthroughsPage usa useAuth()+useSendWalkthroughStart(), CommercialEstimates usa useProfile()+fetchClient/fetchLead desde services, CreateInvoicePage usa QK.clientsForInvoice. JSDoc completo en employeesService.ts. Build: npm run build → 0 errores. Descubierto: /time-clock ausente del plan → añadido como F19. |
 | 2026-03-04 | Auditoría mapas | Inventario completo de todas las integraciones de Google Maps en swift-slate vs thunder_dashboard. SmartMapView ya usa Google Maps (no Mapbox — nota anterior incorrecta). F20 agregado: AppointmentDetailModal map fix, SmartMap geocoding audit, EmployeeLocationMap (F19 cruzada), RealTimeLocationMap/LocationMap (F10B cruzada). |
+| 2026-03-05 | F20 mapas ✅ (parcial) | AppointmentDetailModal map fix: setTimeout(350)+resize (dialog animation timing bug). EmployeeLocationMap: IN/OUT markers + polyline en EmployeeDetailView. AddressRouteMap shared component: ruta empresa→cliente con badge distancia/tiempo, usado en EstimateClientStep (Residential+Commercial). TodayRoutes (Dashboard): selección de ruta + RouteMapView inline + auto-select primera ruta. QK.routeAppointmentsByDate nueva key. useDashboardStats expone today. F10B excluido (corre desde swift-slate). Build: 0 errores. |
 | 2026-03-04 | F19 ✅ + SmartMap redesign ✅ | F19 Time Clock completo: types, service (fetchTodayEntries/Scheduled/All/Employee/PaidPeriods, markAsPaid, updateTimeEntryTimes con audit trail), hooks (useShiftTimeEdit state-machine + useTimeClock 6 hooks), generateTimesheetPDF (Blob + .save), 6 componentes (TimeClockKPICards, ShiftCard, ShiftTimeEditConfirmModal, EmployeeDetailView, TodayTab, TimesheetsTab), TimeClockPage redesign: tabla desktop con tabs inline + toolbar (search + date picker) + EmployeeDetailView overlay. SmartMap upgrade: useSmartMap multi-select string[] + toggleFilter(), SmartMapView InfoWindow HTML con badge tipo coloreado + email/phone links, SmartMapPage 3-card layout (KPI border-l-4 × 4 + toolbar filter tabs coloreados + map card minHeight). queryKeys.ts: 5 keys time-clock. routes: lazy TimeClockPage. Build: 0 errores. |
 
 ---

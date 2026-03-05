@@ -24,6 +24,7 @@ import { useSendEstimateEmail } from "../hooks/useSendEstimateEmail";
 import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { useDraftEstimate } from "../hooks/useDraftEstimate";
 import { useResidentialPricing } from "../hooks/useResidentialPricing";
+import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
 import type { DraftData } from "../types/estimate.types";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -35,6 +36,8 @@ export function CreateResidentialEstimatePage() {
   const updateEst   = useUpdateEstimate();
   const { sendEstimateEmail, isSending } = useSendEstimateEmail();
   const { sendEstimateSMS }              = useSendEstimateSMS();
+  const { data: profile }                = useProfile();
+  const companyAddress                   = getCompanyAddress(profile);
 
   // ── Step ──────────────────────────────────────────────────────────────────
   const [step, setStep] = useState(0);
@@ -300,6 +303,7 @@ export function CreateResidentialEstimatePage() {
           selectedClient={selectedClient} selectedLead={selectedLead}
           onClientSelect={(c) => { setSelectedClient(c); setSelectedLead(null); }}
           onLeadSelect={(l) => { setSelectedLead(l); setSelectedClient(null); }}
+          companyAddress={companyAddress || undefined}
           errors={{
             type:   stepErrors.estimateType   ? "Please select a client type" : undefined,
             entity: stepErrors.selectedEntity ? `Please select a ${estimateType ?? "client or lead"}` : undefined,

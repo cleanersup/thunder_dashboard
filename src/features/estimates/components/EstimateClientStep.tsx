@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/shared/utils/cn";
 import { ClientForm } from "@/features/crm/clients/components/ClientForm";
 import { LeadForm }   from "@/features/crm/leads/components/LeadForm";
+import { AddressRouteMap } from "@/shared/components/common/AddressRouteMap";
 
 // ─── Public types (defined in shared, re-exported here for backwards compat) ──
 
@@ -31,6 +32,8 @@ interface EstimateClientStepProps {
   selectedLead: LeadEntity | null;
   onClientSelect: (client: ClientEntity) => void;
   onLeadSelect: (lead: LeadEntity) => void;
+  /** Company origin address (from profile) used to draw route on the map. */
+  companyAddress?: string;
   errors?: {
     type?: string;
     entity?: string;
@@ -46,6 +49,7 @@ export function EstimateClientStep({
   selectedLead,
   onClientSelect,
   onLeadSelect,
+  companyAddress,
   errors,
 }: EstimateClientStepProps) {
   const qc = useQueryClient();
@@ -221,6 +225,14 @@ export function EstimateClientStep({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* ── Route map ─────────────────────────────────────────────────── */}
+      {selectedAddress && (
+        <AddressRouteMap
+          targetAddress={selectedAddress}
+          companyAddress={companyAddress}
+        />
       )}
 
       {/* ── Info notice ────────────────────────────────────────────────── */}

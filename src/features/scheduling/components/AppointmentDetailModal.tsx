@@ -137,35 +137,19 @@ export function AppointmentDetailModal({
 
   useEffect(() => {
     if (!open) {
-      // Reset map state when closed
-      mapInstanceRef.current  = null;
-      dirRendererRef.current  = null;
+      // Reset map state when closed so it re-initializes on next open
+      mapInstanceRef.current = null;
+      dirRendererRef.current = null;
       setRouteInfo(null);
-      return;
     }
   }, [open]);
 
   useEffect(() => {
-    if (!open || !mapsLoaded || !google || !mapContainerRef.current || !appointment) return;
+    if (!open || !mapsLoaded || !google || !appointment) return;
 
     const client = appointment.clients;
     if (!client?.service_street || !client?.service_city) return;
     if (!companyAddress) return;
-
-    // Initialize map once
-    if (!mapInstanceRef.current) {
-      mapInstanceRef.current = new google.maps.Map(mapContainerRef.current, {
-        center: { lat: 39.8283, lng: -98.5795 },
-        zoom: 12,
-        mapTypeControl:    false,
-        streetViewControl: false,
-        fullscreenControl: false,
-      });
-      dirRendererRef.current = new google.maps.DirectionsRenderer({
-        map: mapInstanceRef.current,
-        suppressMarkers: false,
-      });
-    }
 
     const clientAddress = [
       client.service_street,
@@ -173,33 +157,58 @@ export function AppointmentDetailModal({
       `, ${client.service_city}, ${client.service_state} ${client.service_zip}`,
     ].join("").trim();
 
-    const directionsService = new google.maps.DirectionsService();
-    directionsService.route(
-      {
-        origin:      companyAddress,
-        destination: clientAddress,
-        travelMode:  google.maps.TravelMode.DRIVING,
-      },
-      (result: any, status: any) => {
-        if (status === "OK" && result) {
-          dirRendererRef.current?.setDirections(result);
-          const leg = result.routes?.[0]?.legs?.[0];
-          if (leg) {
-            setRouteInfo({ distance: leg.distance.text, duration: leg.duration.text });
-          }
-        } else {
-          setRouteInfo(null);
-          // Fallback: geocode client address and center map there
-          const geocoder = new google.maps.Geocoder();
-          geocoder.geocode({ address: clientAddress }, (results: any, gs: any) => {
-            if (gs === "OK" && results?.[0]) {
-              mapInstanceRef.current?.setCenter(results[0].geometry.location);
-              mapInstanceRef.current?.setZoom(15);
+    // Defer map init until after Dialog open animation (~300ms) so the
+    // container has real dimensions when google.maps.Map() is called.
+    const timer = setTimeout(() => {
+      if (!mapContainerRef.current) return;
+
+      if (!mapInstanceRef.current) {
+        mapInstanceRef.current = new google.maps.Map(mapContainerRef.current, {
+          center: { lat: 39.8283, lng: -98.5795 },
+          zoom: 12,
+          mapTypeControl:    false,
+          streetViewControl: false,
+          fullscreenControl: false,
+        });
+        dirRendererRef.current = new google.maps.DirectionsRenderer({
+          map: mapInstanceRef.current,
+          suppressMarkers: false,
+        });
+      }
+
+      // Ensure map repaints after any layout shift
+      google.maps.event.trigger(mapInstanceRef.current, "resize");
+
+      const directionsService = new google.maps.DirectionsService();
+      directionsService.route(
+        {
+          origin:     companyAddress,
+          destination: clientAddress,
+          travelMode: google.maps.TravelMode.DRIVING,
+        },
+        (result: any, status: any) => {
+          if (status === "OK" && result) {
+            dirRendererRef.current?.setDirections(result);
+            const leg = result.routes?.[0]?.legs?.[0];
+            if (leg) {
+              setRouteInfo({ distance: leg.distance.text, duration: leg.duration.text });
             }
-          });
-        }
-      },
-    );
+          } else {
+            setRouteInfo(null);
+            // Fallback: geocode client address and center map there
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ address: clientAddress }, (results: any, gs: any) => {
+              if (gs === "OK" && results?.[0]) {
+                mapInstanceRef.current?.setCenter(results[0].geometry.location);
+                mapInstanceRef.current?.setZoom(15);
+              }
+            });
+          }
+        },
+      );
+    }, 350);
+
+    return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mapsLoaded, google, appointment, companyAddress]);
 
