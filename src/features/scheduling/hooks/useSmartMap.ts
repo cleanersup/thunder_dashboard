@@ -1,14 +1,15 @@
 /**
  * @module useSmartMap
- * Fetches leads, clients, and employees from Supabase, then geocodes
- * their addresses using the Google Maps Geocoder API.
- * Results are cached in component state — not persisted to the DB.
+ * Fetches leads, clients, and employees from Supabase, geocodes their
+ * addresses via the Google Maps Geocoder API, and supports multi-select
+ * filter toggles (all / leads / clients / employees).
+ * Geocoded coordinates are cached in a ref — not persisted to the DB.
  */
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useGoogleMaps } from "@/shared/hooks/useGoogleMaps";
-import type { MapMarker, SmartMapFilter } from "../types/scheduling.types";
+import type { MapMarker } from "../types/scheduling.types";
 import { QK } from "@/shared/config/queryKeys";
 
 // ─── Raw data queries ─────────────────────────────────────────────────────────
@@ -43,7 +44,7 @@ function useClients() {
   });
 }
 
-function useEmployees() {
+function useEmployeesForMap() {
   return useQuery({
     queryKey: QK.smartMapEmployees,
     queryFn: async () => {
@@ -61,119 +62,124 @@ function useEmployees() {
 
 export function useSmartMap() {
   const { loaded: mapsLoaded, google } = useGoogleMaps();
-  const [markers, setMarkers] = useState<MapMarker[]>([]);
-  const [filter, setFilter] = useState<SmartMapFilter>("all");
-  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [markers,         setMarkers]         = useState<MapMarker[]>([]);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>(["all"]);
+  const [isGeocoding,     setIsGeocoding]     = useState(false);
 
-  const { data: leads = [], isLoading: leadsLoading } = useLeads();
-  const { data: clients = [], isLoading: clientsLoading } = useClients();
-  const { data: employees = [], isLoading: empLoading } = useEmployees();
+  const { data: leads     = [], isLoading: leadsLoading   } = useLeads();
+  const { data: clients   = [], isLoading: clientsLoading } = useClients();
+  const { data: employees = [], isLoading: empLoading     } = useEmployeesForMap();
 
   const geocodeCacheRef = useRef<Map<string, { lat: number; lng: number }>>(new Map());
 
   const isLoading = leadsLoading || clientsLoading || empLoading || isGeocoding;
 
-  // Build raw markers list whenever data or filter changes
+  /** Toggle a filter; 'all' clears others; deselecting last non-all reverts to 'all'. */
+  function toggleFilter(value: string) {
+    setSelectedFilters((prev) => {
+      if (value === "all") return ["all"];
+      const without = prev.filter((f) => f !== "all");
+      const next = without.includes(value)
+        ? without.filter((f) => f !== value)
+        : [...without, value];
+      return next.length === 0 ? ["all"] : next;
+    });
+  }
+
+  // Build and geocode markers whenever data or filter changes
   useEffect(() => {
     if (leadsLoading || clientsLoading || empLoading) return;
 
-    const rawMarkers: MapMarker[] = [];
+    const raw: MapMarker[] = [];
+    const showAll   = selectedFilters.includes("all");
+    const showLeads = showAll || selectedFilters.includes("leads");
+    const showClients = showAll || selectedFilters.includes("clients");
+    const showEmp   = showAll || selectedFilters.includes("employees");
 
-    if (filter === "all" || filter === "lead") {
+    if (showLeads) {
       leads.forEach((l) => {
         const apt = l.apt_suite ? `, ${l.apt_suite}` : "";
-        rawMarkers.push({
-          id: `lead-${l.id}`,
-          name: l.full_name,
-          type: "lead",
+        raw.push({
+          id:      `lead-${l.id}`,
+          name:    l.full_name,
+          type:    "lead",
           address: `${l.address}${apt}, ${l.city}, ${l.state} ${l.zip_code}`,
-          phone: l.phone ?? undefined,
-          email: l.email ?? undefined,
+          phone:   l.phone  ?? undefined,
+          email:   l.email  ?? undefined,
         });
       });
     }
 
-    if (filter === "all" || filter === "client") {
+    if (showClients) {
       clients.forEach((c) => {
         const apt = c.service_apt ? ` ${c.service_apt}` : "";
-        rawMarkers.push({
-          id: `client-${c.id}`,
-          name: c.full_name,
-          type: "client",
+        raw.push({
+          id:      `client-${c.id}`,
+          name:    c.full_name,
+          type:    "client",
           address: `${c.service_street}${apt}, ${c.service_city}, ${c.service_state} ${c.service_zip}`,
-          phone: c.phone ?? undefined,
-          email: c.email ?? undefined,
+          phone:   c.phone ?? undefined,
+          email:   c.email ?? undefined,
         });
       });
     }
 
-    if (filter === "all" || filter === "employee") {
+    if (showEmp) {
       employees.forEach((e) => {
-        rawMarkers.push({
-          id: `employee-${e.id}`,
-          name: `${e.first_name} ${e.last_name}`,
-          type: "employee",
+        raw.push({
+          id:      `employee-${e.id}`,
+          name:    `${e.first_name} ${e.last_name}`,
+          type:    "employee",
           address: `${e.street}, ${e.city}, ${e.state} ${e.zip}`,
-          phone: e.phone ?? undefined,
-          email: e.email ?? undefined,
+          phone:   e.phone ?? undefined,
+          email:   e.email ?? undefined,
         });
       });
     }
 
     if (!mapsLoaded || !google) {
-      setMarkers(rawMarkers);
+      setMarkers(raw);
       return;
     }
 
-    // Geocode addresses
-    const geocoder = new google.maps.Geocoder();
-    setIsGeocoding(true);
-    let pending = rawMarkers.length;
-
-    if (pending === 0) {
+    if (raw.length === 0) {
       setMarkers([]);
       setIsGeocoding(false);
       return;
     }
 
+    const geocoder = new google.maps.Geocoder();
+    setIsGeocoding(true);
+    let pending = raw.length;
     const geocoded: MapMarker[] = [];
 
-    rawMarkers.forEach((marker) => {
+    raw.forEach((marker) => {
       const cached = geocodeCacheRef.current.get(marker.address);
       if (cached) {
         geocoded.push({ ...marker, lat: cached.lat, lng: cached.lng });
-        pending--;
-        if (pending === 0) {
-          setMarkers([...geocoded]);
-          setIsGeocoding(false);
-        }
+        if (--pending === 0) { setMarkers([...geocoded]); setIsGeocoding(false); }
         return;
       }
-
       geocoder.geocode({ address: marker.address }, (results: any, status: any) => {
         if (status === "OK" && results?.[0]) {
           const loc = results[0].geometry.location;
-          const lat = loc.lat();
-          const lng = loc.lng();
+          const lat = loc.lat(), lng = loc.lng();
           geocodeCacheRef.current.set(marker.address, { lat, lng });
           geocoded.push({ ...marker, lat, lng });
         } else {
           geocoded.push(marker);
         }
-        pending--;
-        if (pending === 0) {
-          setMarkers([...geocoded]);
-          setIsGeocoding(false);
-        }
+        if (--pending === 0) { setMarkers([...geocoded]); setIsGeocoding(false); }
       });
     });
-  }, [leads, clients, employees, filter, mapsLoaded, google, leadsLoading, clientsLoading, empLoading]);
+  }, [leads, clients, employees, selectedFilters, mapsLoaded, google, leadsLoading, clientsLoading, empLoading]);
 
   const counts = {
-    leads: leads.length,
-    clients: clients.length,
+    leads:     leads.length,
+    clients:   clients.length,
     employees: employees.length,
+    total:     leads.length + clients.length + employees.length,
   };
 
-  return { markers, isLoading, filter, setFilter, counts };
+  return { markers, isLoading, isGeocoding, selectedFilters, toggleFilter, counts };
 }

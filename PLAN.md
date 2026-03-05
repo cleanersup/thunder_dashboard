@@ -1,9 +1,9 @@
 # Thunder Dashboard — Plan Maestro de Migración Web
 
 > **Estado actual:** 🟢 En progreso
-> **Fase activa:** F19 — Time Clock | F20 — Mapas y Geolocalización (ambas pendientes)
+> **Fase activa:** Siguiente fase pendiente (ver tabla de fases)
 > **Última actualización:** 2026-03-04
-> **Sesión anterior:** F15 Optimización SOLID y Calidad completo. queryKeys.ts (QK centralizado), ErrorBoundary, SOLID cleanup (useAuth en WalkthroughsPage, useProfile en CommercialEstimates, fetchClient/fetchLead desde servicios), useSendWalkthroughStart() mutation, JSDoc en employeesService.ts. Build: 0 errores. Se descubrió que /time-clock y /smart-map de swift-slate no estaban en PLAN.md. SmartMap ya existe (F9 ✅). Time Clock agregado como F19.
+> **Sesión anterior:** F19 Time Clock ✅ completo (types, service, hooks, PDF generator, 7 components, page, queryKeys, route). Smart Map ✅ redesign completo: multi-select filters, KPI cards, toolbar con filter tabs coloreados, InfoWindow HTML mejorado con badge tipo + email/phone links. Build: 0 errores.
 
 ---
 
@@ -490,10 +490,11 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 - [x] `features/scheduling/components/SchedulingCalendar.tsx`
 - [x] `features/scheduling/components/RouteMapView.tsx` — Google Maps multi-stop
 - [x] `features/scheduling/components/AppointmentDetailModal.tsx` — two-column cards, employees fetched inline, Quick Actions: Edit + Delete únicamente
-- [x] `features/scheduling/components/SmartMapView.tsx`
+- [x] `features/scheduling/components/SmartMapView.tsx` — InfoWindow HTML mejorado (badge tipo coloreado, email/phone links)
 - [x] Páginas: `RoutesPage` (Calendar/Map toggle), `AddAppointmentPage` (create + edit), `SmartMapPage`
 - [x] Router: `/create-route`, `/create-route/new`, `/create-route/:id/edit`, `/smart-map`
 - [x] EmployeeForm actualizado: 5 secciones (Personal, Employment, Available Days grid, Notes, Upload Documents)
+- [x] SmartMapPage rediseñado (2026-03-04): KPI cards (4), toolbar con filter tabs multi-select coloreados, `useSmartMap` upgraded a `selectedFilters: string[]` + `toggleFilter()`
 - [ ] ⚠️ **Pendiente debug:** Google Maps en `AppointmentDetailModal` — mapa Company→Client no renderiza (ver F20)
 
 ---
@@ -672,7 +673,7 @@ swift-slate tiene mapas en LeadDetails y WalkthroughDetails. Nuestros modales lo
 ---
 
 ## FASE 19 — Time Clock (Employee Time Tracking)
-> Estado: 🔴 Pendiente
+> Estado: ✅ Completa (2026-03-04)
 > Descubierto: existe en swift-slate como `/time-clock` pero no estaba en el plan original
 
 ### Descripción
