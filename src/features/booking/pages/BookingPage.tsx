@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import {
   Copy, Edit, Search, CheckCircle2, Home, Building2,
@@ -20,6 +21,8 @@ import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { BookingDetailModal } from "../components/BookingDetailModal";
 import { useBookings } from "../hooks/useBookings";
 import { useProfile } from "@/shared/hooks/useProfile";
+import { supabase } from "@/integrations/supabase/client";
+import { QK } from "@/shared/config/queryKeys";
 import { toast } from "sonner";
 import { cn } from "@/shared/utils/cn";
 import type { Booking } from "../types/booking.types";
@@ -34,8 +37,20 @@ const getStatusBadge = (status: string) => {
 
 export function BookingPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { data: bookings = [], isLoading } = useBookings();
   const { data: profile } = useProfile();
+
+  // ─── Real-time ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const channel = supabase
+      .channel("bookings_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => {
+        qc.invalidateQueries({ queryKey: QK.bookings });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [qc]);
 
   const [statusFilter, setStatusFilter]       = useState("all");
   const [searchQuery, setSearchQuery]         = useState("");

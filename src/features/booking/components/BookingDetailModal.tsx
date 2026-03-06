@@ -11,6 +11,8 @@ import { Card, CardContent } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
+import { AddressRouteMap } from "@/shared/components/common/AddressRouteMap";
+import { useProfile } from "@/shared/hooks/useProfile";
 import {
   useConvertToLead, useConvertToClient,
   useCancelBooking, useDeleteBooking,
@@ -34,6 +36,7 @@ export function BookingDetailModal({ booking, open, onClose }: BookingDetailModa
   const { mutate: toClient } = useConvertToClient();
   const { mutate: cancel   } = useCancelBooking();
   const { mutate: remove   } = useDeleteBooking();
+  const { data: profile } = useProfile();
 
   const [confirmAction, setConfirmAction] = useState<"lead" | "client" | "cancel" | "delete" | null>(null);
 
@@ -66,6 +69,21 @@ export function BookingDetailModal({ booking, open, onClose }: BookingDetailModa
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     `${booking.street}${booking.apt_suite ? " " + booking.apt_suite : ""}, ${booking.city}, ${booking.state} ${booking.zip_code}`
   )}`;
+
+  const targetAddress = [
+    booking.street,
+    booking.apt_suite,
+    booking.city,
+    booking.state,
+    booking.zip_code,
+  ].filter(Boolean).join(", ");
+
+  const companyAddress = [
+    profile?.company_address,
+    profile?.company_city,
+    profile?.company_state,
+    profile?.company_zip,
+  ].filter(Boolean).join(", ");
 
   return (
     <>
@@ -165,6 +183,15 @@ export function BookingDetailModal({ booking, open, onClose }: BookingDetailModa
                       </div>
                     </CardContent>
                   </Card>
+
+                  {/* Route Map */}
+                  {targetAddress && (
+                    <AddressRouteMap
+                      targetAddress={targetAddress}
+                      companyAddress={companyAddress || undefined}
+                      className="w-full h-[200px] rounded-lg overflow-hidden"
+                    />
+                  )}
 
                   {/* Service Information */}
                   <Card className="border border-border/50">
