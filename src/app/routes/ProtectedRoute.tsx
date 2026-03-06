@@ -1,3 +1,4 @@
+import { AuthGuard } from "@/shared/components/common/AuthGuard";
 import { MainLayout } from "@/shared/components/layout/MainLayout";
 
 /**
@@ -5,8 +6,11 @@ import { MainLayout } from "@/shared/components/layout/MainLayout";
  * Use this for all standard internal pages.
  */
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  // TODO: TEMP — auth disabled while staging is down. Revert: wrap MainLayout with <AuthGuard> again.
-  return <MainLayout>{children}</MainLayout>;
+  return (
+    <AuthGuard>
+      <MainLayout>{children}</MainLayout>
+    </AuthGuard>
+  );
 }
 
 /**
@@ -14,6 +18,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
  * Use for fullscreen modals, onboarding, walkthroughs, etc.
  */
 export function FullScreenProtectedRoute({ children }: { children: React.ReactNode }) {
-  // TODO: TEMP — auth disabled. Revert: wrap div with <AuthGuard> again.
-  return <div className="min-h-screen w-full">{children}</div>;
+  return (
+    <AuthGuard>
+      <div className="min-h-screen w-full">{children}</div>
+    </AuthGuard>
+  );
 }
