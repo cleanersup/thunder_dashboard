@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FileText } from "lucide-react";
+import { FileText, Building2 } from "lucide-react";
 import { COMMERCIAL_STEPS } from "../config/steps.config";
 import { EstimateClientStep, type ClientEntity, type LeadEntity, type EstimateEntityType } from "../components/EstimateClientStep";
 import { EstimateFormLayout }    from "../components/EstimateFormLayout";
@@ -37,8 +37,17 @@ export function CreateCommercialEstimatePage() {
   const { sendEstimateSMS }                              = useSendEstimateSMS();
 
   // ── Step ──────────────────────────────────────────────────────────────────
-  const [currentStep,    setCurrentStep]    = useState(0);
-  const [showExitDialog, setShowExitDialog] = useState(false);
+  const [currentStep,          setCurrentStep]          = useState(0);
+  const [showExitDialog,       setShowExitDialog]       = useState(false);
+  const [showCompanyInfoAlert, setShowCompanyInfoAlert] = useState(false);
+
+  // ── Company info check on mount ───────────────────────────────────────────
+  useEffect(() => {
+    if (!profile || currentStep !== 0 || isEditing) return;
+    const complete = profile.company_address && profile.company_city &&
+                     profile.company_state   && profile.company_zip;
+    if (!complete) setShowCompanyInfoAlert(true);
+  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
   const [isSavingForm,   setIsSavingForm]   = useState(false);
   const [showSuccess,    setShowSuccess]    = useState(false);
 
@@ -489,6 +498,29 @@ export function CreateCommercialEstimatePage() {
       >
         {renderStep()}
       </EstimateFormLayout>
+
+      {/* ── Company info alert ──────────────────────────────────────────── */}
+      <AlertDialog open={showCompanyInfoAlert} onOpenChange={setShowCompanyInfoAlert}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-destructive" />
+              Complete Company Information
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              Para calcular el estimado debes llenar todos los datos de la dirección de tu empresa.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              className="w-full"
+              onClick={() => { setShowCompanyInfoAlert(false); navigate("/profile", { state: { section: "company-info" } }); }}
+            >
+              Go to Company Information
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={showSuccess} onOpenChange={setShowSuccess}>
         <AlertDialogContent>

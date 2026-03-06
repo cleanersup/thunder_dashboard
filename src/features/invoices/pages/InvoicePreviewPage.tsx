@@ -13,11 +13,13 @@ import { Badge }     from "@/shared/components/ui/badge";
 import { Separator } from "@/shared/components/ui/separator";
 import { toast }     from "sonner";
 import { useProfile }             from "@/shared/hooks/useProfile";
+import { supabase }               from "@/integrations/supabase/client";
 import { formatCurrency }         from "@/shared/utils/formatters";
 import { DeliveryMethodSelector } from "@/shared/components/DeliveryMethodSelector";
 import { useInvoice, useUpdateInvoice } from "../hooks/useInvoices";
 import { useSendInvoiceEmail }          from "../hooks/useSendInvoiceEmail";
 import { useSendInvoiceSMS }            from "../hooks/useSendInvoiceSMS";
+import { useStripeConnect }             from "../hooks/useStripeConnect";
 import type { LineItem, InvoiceStatus } from "../types/invoice.types";
 
 // ─── Status colors ────────────────────────────────────────────────────────────
@@ -37,7 +39,8 @@ export function InvoicePreviewPage() {
   const { data: profile }  = useProfile();
   const { sendInvoiceEmail, isSending } = useSendInvoiceEmail();
   const { sendInvoiceSMS }              = useSendInvoiceSMS();
-  const updateInvoice = useUpdateInvoice();
+  const updateInvoice                   = useUpdateInvoice();
+  const { initiateOnboarding }          = useStripeConnect();
 
   const { data: invoice, isLoading } = useInvoice(id);
 
@@ -103,6 +106,23 @@ export function InvoicePreviewPage() {
 
     toast.success("Invoice sent successfully");
     navigate("/invoices");
+
+    // Post-send Stripe setup reminder (500ms delay, matching swift-slate)
+    setTimeout(async () => {
+      const { data: p } = await supabase
+        .from("profiles")
+        .select("stripe_account_id, stripe_onboarding_completed")
+        .eq("user_id", invoice.user_id)
+        .single();
+      const isConfigured = !!((p as any)?.stripe_account_id && (p as any)?.stripe_onboarding_completed);
+      if (!isConfigured) {
+        toast("Set up Stripe to receive online payments", {
+          description: "Your clients will be able to pay directly from the invoice link.",
+          duration: 7000,
+          action: { label: "Set up", onClick: () => initiateOnboarding() },
+        });
+      }
+    }, 500);
   };
 
   // ── Delivery options ────────────────────────────────────────────────────────

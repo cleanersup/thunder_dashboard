@@ -41,6 +41,7 @@ import type { InvoiceFormData, LineItem } from "../types/invoice.types";
 import type { ClientEntity } from "@/shared/types/entities";
 import { calculateInvoiceTotals } from "../utils/invoiceCalculations";
 import { toDecimalString, toIntegerString } from "@/shared/utils/numericInput";
+import { StripeCheckModal } from "../components/StripeCheckModal";
 
 // ─── Line item helpers ────────────────────────────────────────────────────────
 
@@ -58,8 +59,9 @@ export function CreateInvoicePage() {
   const { id }        = useParams<{ id?: string }>();
   const { user }      = useAuth();
   const qc            = useQueryClient();
-  const isEditing     = !!id;
-  const fileInputRef  = useRef<HTMLInputElement>(null);
+  const isEditing        = !!id;
+  const fileInputRef     = useRef<HTMLInputElement>(null);
+  const stripeChecked    = useRef(false);
 
   // ── State ─────────────────────────────────────────────────────────────────
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -79,12 +81,34 @@ export function CreateInvoicePage() {
   const [showExitDialog,    setShowExitDialog]    = useState(false);
   const [showClientWarning, setShowClientWarning] = useState(false);
   const [showNewClient,     setShowNewClient]     = useState(false);
+  const [showStripeModal,   setShowStripeModal]   = useState(false);
   const [issueDateOpen, setIssueDateOpen] = useState(false);
   const [dueDateOpen,   setDueDateOpen]   = useState(false);
   const [errors, setErrors] = useState({
     invoiceType: false, issueDate: false, dueDate: false,
     selectedClient: false, lineItems: false,
   });
+
+  // ── Stripe check on mount (new invoices only) ─────────────────────────────
+  useEffect(() => {
+    if (isEditing || stripeChecked.current) return;
+    stripeChecked.current = true;
+
+    (async () => {
+      try {
+        const { data: { user: u } } = await supabase.auth.getUser();
+        if (!u) return;
+        const { data: profile } = await (supabase as any)
+          .from("profiles")
+          .select("stripe_account_id, stripe_onboarding_completed")
+          .eq("user_id", u.id)
+          .single();
+        const isConfigured = !!(profile?.stripe_account_id && profile?.stripe_onboarding_completed);
+        if (!isConfigured) setShowStripeModal(true);
+      } catch { /* ignore */ }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing]);
 
   // ── Clients query ──────────────────────────────────────────────────────────
   const { data: clients = [] } = useQuery<ClientEntity[]>({
@@ -827,6 +851,9 @@ export function CreateInvoicePage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* ── Stripe check modal ──────────────────────────────────────────── */}
+      <StripeCheckModal open={showStripeModal} onOpenChange={setShowStripeModal} />
+
       {/* ── Add New Client dialog (reuses CRM ClientForm) ──────────────── */}
       <ClientForm
         open={showNewClient}
@@ -836,6 +863,8 @@ export function CreateInvoicePage() {
           qc.invalidateQueries({ queryKey: QK.clientsForInvoice });
         }}
       />
+
+
     </div>
   );
 }

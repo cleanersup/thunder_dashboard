@@ -44,6 +44,7 @@ const InvoicesPage             = lazy(() => import("@/features/invoices/pages/In
 const CreateInvoicePage        = lazy(() => import("@/features/invoices/pages/CreateInvoicePage").then((m) => ({ default: m.CreateInvoicePage })));
 const InvoicePreviewPage       = lazy(() => import("@/features/invoices/pages/InvoicePreviewPage").then((m) => ({ default: m.InvoicePreviewPage })));
 const PublicInvoicePaymentPage = lazy(() => import("@/features/invoices/pages/PublicInvoicePaymentPage").then((m) => ({ default: m.PublicInvoicePaymentPage })));
+const StripeReturnPage         = lazy(() => import("@/features/invoices/pages/StripeReturnPage").then((m) => ({ default: m.StripeReturnPage })));
 
 // Phase 9 — Scheduling ✅
 const RoutesPage          = lazy(() => import("@/features/scheduling/pages/RoutesPage").then((m) => ({ default: m.RoutesPage })));
@@ -123,6 +124,7 @@ export function AppRouter() {
           <Route path="/invoices/:id/preview"  element={<ProtectedRoute><InvoicePreviewPage /></ProtectedRoute>} />
           {/* Public — no auth required */}
           <Route path="/invoice/payment/:id" element={<PublicInvoicePaymentPage />} />
+          <Route path="/stripe/return" element={<StripeReturnPage />} />
 
           {/* Phase 9 ✅ */}
           <Route path="/create-route"           element={<ProtectedRoute><RoutesPage /></ProtectedRoute>} />

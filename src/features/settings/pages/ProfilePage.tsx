@@ -25,7 +25,7 @@ import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
 import { toast } from "@/shared/components/ui/use-toast";
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -361,10 +361,13 @@ function ContractSection() {
 
 export function ProfilePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: profile, isLoading } = useProfile();
   const uploadLogo = useUploadLogo();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeSection, setActiveSection] = useState<SettingsSection>("edit-profile");
+  const [activeSection, setActiveSection] = useState<SettingsSection>(
+    (location.state as any)?.section ?? "edit-profile"
+  );
   const [stripeLoading, setStripeLoading] = useState(false);
 
   // ── Logo upload ─────────────────────────────────────────────────────────────
@@ -394,7 +397,10 @@ export function ProfilePage() {
     if (section === "stripe") {
       setStripeLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke("stripe-check-account");
+        const p = profile as any;
+        const isConfigured = !!(p?.stripe_account_id && p?.stripe_onboarding_completed);
+        const fnName = isConfigured ? "stripe-dashboard-link" : "stripe-onboard";
+        const { data, error } = await supabase.functions.invoke(fnName);
         if (error) throw error;
         if (data?.url) window.open(data.url, "_blank");
       } catch {
