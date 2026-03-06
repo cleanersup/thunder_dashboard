@@ -41,13 +41,6 @@ export function CreateCommercialEstimatePage() {
   const [showExitDialog,       setShowExitDialog]       = useState(false);
   const [showCompanyInfoAlert, setShowCompanyInfoAlert] = useState(false);
 
-  // ── Company info check on mount ───────────────────────────────────────────
-  useEffect(() => {
-    if (!profile || currentStep !== 0 || isEditing) return;
-    const complete = profile.company_address && profile.company_city &&
-                     profile.company_state   && profile.company_zip;
-    if (!complete) setShowCompanyInfoAlert(true);
-  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
   const [isSavingForm,   setIsSavingForm]   = useState(false);
   const [showSuccess,    setShowSuccess]    = useState(false);
 
@@ -99,6 +92,14 @@ export function CreateCommercialEstimatePage() {
   // ── Profile ───────────────────────────────────────────────────────────────
   const { data: profile }  = useProfile();
   const companyAddress     = getCompanyAddress(profile);
+
+  // ── Company info check on mount ───────────────────────────────────────────
+  useEffect(() => {
+    if (!profile || currentStep !== 0 || isEditing) return;
+    const complete = profile.company_address && profile.company_city &&
+                     profile.company_state   && profile.company_zip;
+    if (!complete) setShowCompanyInfoAlert(true);
+  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Prefill when editing ──────────────────────────────────────────────────
   useEffect(() => {
