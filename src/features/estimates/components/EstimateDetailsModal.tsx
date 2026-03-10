@@ -18,6 +18,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
 import { format } from "date-fns";
+import { formatDateOnly } from "@/shared/utils/formatters";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/shared/hooks/useProfile";
@@ -203,7 +204,7 @@ export function EstimateDetailsModal({ open, onOpenChange, estimateId }: Estimat
         clientState:    estimate.state,
         clientZip:      estimate.zip,
         estimateNumber: estimate.id.substring(0, 8).toUpperCase(),
-        estimateDate:   format(new Date(estimate.estimate_date), "MMMM dd, yyyy"),
+        estimateDate:   formatDateOnly(estimate.estimate_date, "MMMM dd, yyyy"),
         serviceType:    estimate.service_type,
         serviceSubType: estimate.service_sub_type ?? undefined,
         serviceScope:   estimate.service_scope   ?? undefined,
@@ -356,7 +357,7 @@ export function EstimateDetailsModal({ open, onOpenChange, estimateId }: Estimat
     total:          estimate.total,
     subtotal:       estimate.subtotal,
     status:         estimate.status,
-    estimateDate:   format(new Date(estimate.estimate_date), "MMMM d, yyyy"),
+    estimateDate:   formatDateOnly(estimate.estimate_date, "MMMM d, yyyy"),
     mainData:       (estimate.main_data       as Record<string, any>) ?? {},
     additionalData: (estimate.additional_data as Record<string, any>) ?? {},
     extraServices:  (estimate.extra_services  as Record<string, boolean>) ?? {},

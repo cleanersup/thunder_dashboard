@@ -16,12 +16,14 @@ import { CommSendStep, type DeliveryMethod } from "../components/commercial/Comm
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
+import { supabase } from "@/integrations/supabase/client";
 import { fetchClient } from "@/features/crm/clients/services/clientsService";
 import { fetchLead } from "@/features/crm/leads/services/leadsService";
 import { useCreateEstimate, useUpdateEstimate } from "../hooks/useEstimates";
 import { useSendEstimateEmail } from "../hooks/useSendEstimateEmail";
 import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { useDraftEstimate } from "../hooks/useDraftEstimate";
+import { fetchEstimate } from "../services/estimatesService";
 import { useCommercialPricing, isGroupB } from "../hooks/useCommercialPricing";
 import type { DraftData } from "../types/estimate.types";
 
@@ -103,30 +105,99 @@ export function CreateCommercialEstimatePage() {
 
   // ── Prefill when editing ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!isEditing || !estimateData) return;
-    setPropertyType(estimateData.mainData?.propertyType || "");
-    setPropertySize(estimateData.mainData?.propertySize || "");
-    setServiceType(estimateData.mainData?.serviceType || "");
-    setRecurringFrequency(estimateData.mainData?.frequency || "");
-    setSelectedWeekDays(estimateData.mainData?.selectedWeekDays || []);
-    setContractDuration(estimateData.mainData?.contractDuration || "");
-    setContractTimeUnit(estimateData.mainData?.contractTimeUnit || "months");
-    setClientProvidesSupplies(estimateData.mainData?.clientProvidesSupplies || false);
-    setServiceSchedule(estimateData.additionalData?.serviceSchedule || "");
-    setGreaseLevel(estimateData.additionalData?.greaseLevel || "");
-    setRestaurantCondition(estimateData.additionalData?.restaurantCondition || "");
-    setExtraServices(estimateData.additionalData?.extraServices || []);
-    setEmployeeCount(estimateData.mainData?.employees || 0);
-    setHourlyRate(estimateData.mainData?.hourlyRate?.toString() || "");
-    setCleaningDuration(estimateData.mainData?.cleaningDuration || 0);
-    setStartTime(estimateData.mainData?.startTime || "");
-    setScopeDetails(estimateData.serviceScope || "");
-    if (estimateData.discountType && estimateData.discountValue) {
-      setApplyDiscount(true);
-      setDiscountType(estimateData.discountType);
-      setDiscountValue(estimateData.discountValue.toString());
-    }
-  }, [isEditing, estimateData]);
+    if (!isEditing) return;
+    (async () => {
+      let d = estimateData;
+      if (!d && estimateId) {
+        const fetched = await fetchEstimate(estimateId);
+        if (!fetched) return;
+        d = fetched;
+      }
+      if (!d) return;
+
+      const md = (d.main_data as any) ?? {};
+      const ad = (d.additional_data as any) ?? {};
+      const propType = md.propertyType ?? "";
+      console.log("main data", md);
+      console.log("additional data", ad);
+      const knownTypes = ["restaurant", "office", "warehouse", "school", "bank", "clinic", "church", "food-truck", "hotel", "gym", "movie-theater", "auto-dealership"];
+      const isOther = propType !== "" && !knownTypes.includes(propType);
+      setPropertyType(isOther ? "" : propType);
+      setIsOtherProperty(isOther);
+      setOtherPropertyType(isOther ? propType : "");
+      setPropertySize(md.propertySize ?? "");
+      setServiceType(md.serviceType ?? "");
+      setRecurringFrequency(md.frequency ?? "");
+      setSelectedWeekDays(Array.isArray(md.selectedWeekDays) ? md.selectedWeekDays : []);
+      setContractDuration(md.contractDuration ?? "");
+      setContractTimeUnit(md.contractTimeUnit ?? "months");
+      setClientProvidesSupplies(md.clientProvidesSupplies ?? false);
+      setServiceSchedule(ad.serviceSchedule ?? "");
+      setGreaseLevel(ad.greaseLevel ?? "");
+      setRestaurantCondition(ad.restaurantCondition ?? "");
+      setExtraServices(Array.isArray(ad.extraServices) ? ad.extraServices : []);
+      setEmployeeCount(md.employees ?? 0);
+      setHourlyRate(md.hourlyRate?.toString() ?? "");
+      setCleaningDuration(md.cleaningDuration ?? 0);
+      setStartTime(md.startTime ?? "");
+      setScopeDetails(d.service_scope ?? "");
+      if (d.discount_type && d.discount_value != null) {
+        setApplyDiscount(true);
+        setDiscountType((d.discount_type as "percentage" | "amount") ?? "percentage");
+        setDiscountValue(d.discount_value.toString());
+      }
+
+      if (d.client_id) {
+        try {
+          const client = await fetchClient(d.client_id);
+          setEstimateType("client");
+          setSelectedClient(client as ClientEntity);
+          setSelectedLead(null);
+          return;
+        } catch { /* fall through */ }
+      }
+      if (d.lead_id) {
+        try {
+          const lead = await fetchLead(d.lead_id);
+          setEstimateType("lead");
+          setSelectedLead(lead as LeadEntity);
+          setSelectedClient(null);
+          return;
+        } catch { /* fall through */ }
+      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: clientByEmail } = await supabase.from("clients").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
+      if (clientByEmail) {
+        setEstimateType("client");
+        setSelectedClient(clientByEmail as ClientEntity);
+        setSelectedLead(null);
+        return;
+      }
+      const { data: leadByEmail } = await supabase.from("leads").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
+      if (leadByEmail) {
+        setEstimateType("lead");
+        setSelectedLead(leadByEmail as LeadEntity);
+        setSelectedClient(null);
+        return;
+      }
+      const syntheticClient: ClientEntity = {
+        id: `estimate-edit-${d.id}`,
+        full_name: d.client_name,
+        company: d.company_name ?? null,
+        phone: d.phone,
+        email: d.email,
+        service_street: d.address,
+        service_apt: d.apt ?? null,
+        service_city: d.city,
+        service_state: d.state,
+        service_zip: d.zip,
+      };
+      setEstimateType("client");
+      setSelectedClient(syntheticClient);
+      setSelectedLead(null);
+    })();
+  }, [isEditing, estimateId, estimateData]);
 
   // ── Prefill from walkthrough ──────────────────────────────────────────────
   useEffect(() => {

@@ -3,6 +3,31 @@
  * Shared formatting utilities for currency, dates, and relative time.
  */
 
+import { format } from "date-fns";
+
+/**
+ * Parses a date-only string (YYYY-MM-DD) as local date to avoid timezone shift.
+ * JavaScript's new Date("2026-03-10") treats date-only strings as UTC midnight,
+ * which displays one day earlier in timezones behind UTC.
+ * @param dateStr - ISO date string (YYYY-MM-DD) or full ISO with time
+ * @returns Date object suitable for formatting
+ */
+export function parseDateOnly(dateStr: string): Date {
+  if (!dateStr) return new Date(NaN);
+  if (dateStr.includes("T")) return new Date(dateStr);
+  return new Date(dateStr + "T12:00:00");
+}
+
+/**
+ * Formats a date-only string for display without timezone shift.
+ * Use for estimate_date, invoice_date, due_date, etc.
+ * @param dateStr - ISO date string (YYYY-MM-DD)
+ * @param fmt - date-fns format string (default: "MMMM d, yyyy")
+ */
+export function formatDateOnly(dateStr: string, fmt: string = "MMMM d, yyyy"): string {
+  return format(parseDateOnly(dateStr), fmt);
+}
+
 /**
  * Formats a number as a USD currency string (no $ symbol — append manually if needed).
  * @param amount - Numeric amount to format

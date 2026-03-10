@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { fetchEstimateByToken, fetchEstimateProfile } from "../services/estimatesService";
 import { PDFService } from "@/shared/services/pdf.service";
-import { format } from "date-fns";
+import { formatDateOnly } from "@/shared/utils/formatters";
 
 /**
  * Public estimate view page — accessible without authentication.
@@ -45,7 +45,7 @@ export function PublicEstimateViewPage() {
           clientState:    estimate.state,
           clientZip:      estimate.zip,
           estimateNumber: estimate.id.substring(0, 8).toUpperCase(),
-          estimateDate:   format(new Date(estimate.estimate_date), "MMMM dd, yyyy"),
+          estimateDate:   formatDateOnly(estimate.estimate_date, "MMMM dd, yyyy"),
           serviceType:    estimate.service_type,
           serviceSubType: estimate.service_sub_type ?? undefined,
           serviceScope:   estimate.service_scope   ?? undefined,
