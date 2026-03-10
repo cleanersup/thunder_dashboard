@@ -42,6 +42,7 @@ import { useInvoices, useMarkInvoiceAsPaid, useCancelInvoice } from "../hooks/us
 import { useSendInvoiceEmail } from "../hooks/useSendInvoiceEmail";
 import { generateInvoicePDF }  from "../services/generateInvoicePDF";
 import { InvoiceDetailsModal } from "../components/InvoiceDetailsModal";
+import { CreateInvoicePage }   from "./CreateInvoicePage";
 import type { Invoice, InvoiceStatus, LineItem } from "../types/invoice.types";
 import { calculateInvoiceTotals } from "../utils/invoiceCalculations";
 
@@ -79,8 +80,9 @@ export function InvoicesPage() {
   const [currentPage,  setCurrentPage]  = useState(1);
 
   // ── Modal state ──────────────────────────────────────────────────────────────
-  const [detailId,     setDetailId]     = useState<string | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailId,       setDetailId]       = useState<string | null>(null);
+  const [isDetailOpen,   setIsDetailOpen]   = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // ── Quick action state (from row dropdown, not modal) ────────────────────────
   const [actionInvoice,         setActionInvoice]         = useState<Invoice | null>(null);
@@ -298,7 +300,7 @@ export function InvoicesPage() {
             </div>
 
             {/* New button */}
-            <Button onClick={() => navigate("/invoices/new")} className="h-9">
+            <Button onClick={() => setShowCreateModal(true)} className="h-9">
               <Plus className="w-4 h-4 mr-1" />
               New
             </Button>
@@ -593,6 +595,12 @@ export function InvoicesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Create Invoice modal ─────────────────────────────────────────── */}
+      <CreateInvoicePage
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
     </div>
   );
 }

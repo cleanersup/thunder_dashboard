@@ -25,7 +25,8 @@ import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
 import { toast } from "@/shared/components/ui/use-toast";
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { SubscriptionPlansContent } from "@/features/subscriptions/components/SubscriptionPlansContent";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -360,7 +361,6 @@ function ContractSection() {
 // ─── Main ProfilePage ─────────────────────────────────────────────────────────
 
 export function ProfilePage() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { data: profile, isLoading } = useProfile();
   const uploadLogo = useUploadLogo();
@@ -390,10 +390,6 @@ export function ProfilePage() {
   // ── Nav click handler ───────────────────────────────────────────────────────
 
   async function handleNavClick(section: SettingsSection) {
-    if (section === "subscriptions") {
-      navigate("/subscription-plans");
-      return;
-    }
     if (section === "stripe") {
       setStripeLoading(true);
       try {
@@ -492,7 +488,6 @@ export function ProfilePage() {
           <div className="space-y-1">
             {NAV_ITEMS.map((item) => {
               const isActive = activeSection === item.section &&
-                item.section !== "subscriptions" &&
                 item.section !== "stripe";
               return (
                 <button
@@ -519,6 +514,7 @@ export function ProfilePage() {
         {profile && activeSection === "company-info"  && <CompanyInfoSection profile={profile} />}
         {activeSection === "security"                  && <SecuritySection />}
         {activeSection === "contract"                  && <ContractSection />}
+        {activeSection === "subscriptions"             && <SubscriptionPlansContent />}
       </div>
 
       {/* Stripe loading dialog */}

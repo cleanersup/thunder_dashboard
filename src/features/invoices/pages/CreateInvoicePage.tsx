@@ -1,7 +1,9 @@
 /**
  * @module CreateInvoicePage
  * Multi-section form for creating or editing an invoice.
- * Adapted from thunder-web-version/src/pages/CreateInvoice.tsx + swift-slate logic.
+ * Supports two rendering modes:
+ *   - Page mode (default): full-page standalone route
+ *   - Modal mode: full-screen Dialog when `open` + `onClose` props are provided
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -28,6 +30,9 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent,
+} from "@/shared/components/ui/dialog";
 import { ClientForm } from "@/features/crm/clients/components/ClientForm";
 import { Calendar } from "@/shared/components/ui/calendar";
 import { cn }       from "@/shared/utils/cn";
@@ -54,12 +59,24 @@ function newLineItem(): LocalLineItem {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function CreateInvoicePage() {
+interface CreateInvoicePageProps {
+  /** When provided, renders as a full-screen Dialog. Omit for standalone page mode. */
+  open?: boolean;
+  onClose?: () => void;
+}
+
+export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}) {
   const navigate      = useNavigate();
   const { id }        = useParams<{ id?: string }>();
   const { user }      = useAuth();
   const qc            = useQueryClient();
   const isEditing        = !!id;
+  const isModal          = onClose !== undefined;
+  const goBack           = useCallback(() => {
+    if (isModal) onClose?.();
+    else navigate("/invoices");
+  }, [isModal, onClose, navigate]);
+
   const fileInputRef     = useRef<HTMLInputElement>(null);
   const stripeChecked    = useRef(false);
 
@@ -298,7 +315,7 @@ export function CreateInvoicePage() {
           navigate(`/invoices/${id}/preview`);
         } else {
           toast.success("Invoice updated");
-          navigate("/invoices");
+          goBack();
         }
       } else {
         const inv = await createInvoice(user.id, invoiceNumber, formData, status);
@@ -306,7 +323,7 @@ export function CreateInvoicePage() {
           navigate(`/invoices/${inv.id}/preview`);
         } else {
           toast.success("Draft saved");
-          navigate("/invoices");
+          goBack();
         }
       }
     } catch (err: any) {
@@ -326,485 +343,467 @@ export function CreateInvoicePage() {
       ].filter(Boolean).join(", ")
     : null;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-border/50 bg-background">
-        <Button variant="ghost" size="icon" onClick={() => setShowExitDialog(true)}>
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-base font-semibold flex-1">
-          {isEditing ? "Edit Invoice" : "New Invoice"}
-        </h1>
-      </div>
+  // ─── Shared JSX blocks ────────────────────────────────────────────────────
 
-      <div className="max-w-2xl mx-auto p-4 space-y-4 pb-6">
-        {/* ── Invoice Details ─────────────────────────────────────────── */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Invoice Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Invoice Number (read-only) */}
-            <div className="space-y-1">
-              <Label>Invoice Number</Label>
-              <Input value={invoiceNumber} readOnly className="bg-muted/30 font-mono" />
-            </div>
+  const formCards = (
+    <div className="max-w-2xl mx-auto p-4 space-y-4 pb-6">
+      {/* ── Invoice Details ─────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Invoice Details
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Invoice Number (read-only) */}
+          <div className="space-y-1">
+            <Label>Invoice Number</Label>
+            <Input value={invoiceNumber} readOnly className="bg-muted/30 font-mono" />
+          </div>
 
-            {/* Invoice Type */}
-            <div className="space-y-1">
-              <Label>Invoice Type <span className="text-destructive">*</span></Label>
-              <Select value={invoiceType} onValueChange={setInvoiceType}>
-                <SelectTrigger className={cn(errors.invoiceType && "border-destructive")}>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Single Payment">Single Payment</SelectItem>
-                  <SelectItem value="Recurring">Recurring</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.invoiceType && <p className="text-xs text-destructive">Required</p>}
-            </div>
-
-            {/* Issue Date */}
-            <div className="space-y-1">
-              <Label>Issue Date <span className="text-destructive">*</span></Label>
-              <Popover open={issueDateOpen} onOpenChange={setIssueDateOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !issueDate && "text-muted-foreground",
-                      errors.issueDate && "border-destructive"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {issueDate ? format(issueDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={issueDate}
-                    onSelect={(d) => { setIssueDate(d); setIssueDateOpen(false); }}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-              {errors.issueDate && <p className="text-xs text-destructive">Required</p>}
-            </div>
-
-            {/* Due Date */}
-            <div className="space-y-1">
-              <Label>Due Date <span className="text-destructive">*</span></Label>
-              <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !dueDate && "text-muted-foreground",
-                      errors.dueDate && "border-destructive"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dueDate ? format(dueDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dueDate}
-                    onSelect={(d) => { setDueDate(d); setDueDateOpen(false); }}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-              {errors.dueDate && <p className="text-xs text-destructive">Required</p>}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* ── Invoice Title ───────────────────────────────────────────── */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <StickyNote className="h-4 w-4" />
-              Invoice Title
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Input
-              placeholder="Enter invoice title"
-              value={invoiceTitle}
-              onChange={(e) => setInvoiceTitle(e.target.value)}
-            />
-          </CardContent>
-        </Card>
-
-        {/* ── Customer Information ────────────────────────────────────── */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Customer Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Select
-              value={selectedClient?.id ?? ""}
-              onValueChange={(clientId) => {
-                const c = clients.find((c) => c.id === clientId);
-                if (c) setSelectedClient(c);
-              }}
-            >
-              <SelectTrigger className={cn(errors.selectedClient && "border-destructive")}>
-                <SelectValue placeholder="Select customer" />
+          {/* Invoice Type */}
+          <div className="space-y-1">
+            <Label>Invoice Type <span className="text-destructive">*</span></Label>
+            <Select value={invoiceType} onValueChange={setInvoiceType}>
+              <SelectTrigger className={cn(errors.invoiceType && "border-destructive")}>
+                <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
-                {clients.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.full_name}
-                  </SelectItem>
-                ))}
-                {clients.length === 0 && (
-                  <p className="px-2 py-4 text-center text-sm text-muted-foreground">
-                    No clients found
-                  </p>
-                )}
+                <SelectItem value="Single Payment">Single Payment</SelectItem>
+                <SelectItem value="Recurring">Recurring</SelectItem>
               </SelectContent>
             </Select>
+            {errors.invoiceType && <p className="text-xs text-destructive">Required</p>}
+          </div>
 
-            {errors.selectedClient && (
-              <p className="text-xs text-destructive">Please select a client</p>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setShowNewClient(true)}
-              className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add New Client
-            </button>
-
-            {/* Selected client card */}
-            {selectedClient && (
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <User className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-0.5">
-                      <p className="font-semibold text-sm">{selectedClient.full_name}</p>
-                      {selectedClient.company && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Building2 className="w-3 h-3 flex-shrink-0" />
-                          {selectedClient.company}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Mail className="w-3 h-3 flex-shrink-0" /> {selectedClient.email}
-                      </p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Phone className="w-3 h-3 flex-shrink-0" /> {selectedClient.phone}
-                      </p>
-                      {selectedClientAddress && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <MapPin className="w-3 h-3 flex-shrink-0" /> {selectedClientAddress}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* ── Line Items ──────────────────────────────────────────────── */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <List className="h-4 w-4" />
-              Line Items
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {lineItems.map((item, idx) => (
-              <div key={item._id} className="border border-border rounded-lg p-4 space-y-3">
-                {/* ── Item header ──────────────────────────────────── */}
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-muted-foreground">Item {idx + 1}</p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => setLineItems((prev) => prev.filter((_, i) => i !== idx))}
-                    disabled={lineItems.length === 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                {/* ── Description ──────────────────────────────────── */}
-                <Input
-                  placeholder="Description"
-                  value={item.description}
-                  onChange={(e) => updateLineItem(idx, "description", e.target.value)}
-                  className={cn(errors.lineItems && !item.description && "border-destructive")}
-                />
-
-                {/* ── Price / Qty / Total ───────────────────────────── */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Price</Label>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0.00"
-                      value={item._price}
-                      onChange={(e) => updateLineItem(idx, "price", toDecimalString(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Qty</Label>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="1"
-                      value={item._qty}
-                      onChange={(e) => updateLineItem(idx, "qty", toIntegerString(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Total</Label>
-                    <div className="flex items-center h-9 rounded-md border border-input bg-muted/40 px-3 text-sm font-medium">
-                      ${item.total.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {errors.lineItems && (
-              <p className="text-xs text-destructive">Add at least one item with a description</p>
-            )}
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setLineItems((prev) => [...prev, newLineItem()])}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add an Item
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* ── Pricing & Tax ───────────────────────────────────────────── */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Calculator className="h-4 w-4" />
-              Pricing &amp; Tax
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              {/* Discount type */}
-              <div className="space-y-1">
-                <Label>Discount Type</Label>
-                <Select
-                  value={discountType}
-                  onValueChange={(v) => setDiscountType(v as "percentage" | "fixed")}
+          {/* Issue Date */}
+          <div className="space-y-1">
+            <Label>Issue Date <span className="text-destructive">*</span></Label>
+            <Popover open={issueDateOpen} onOpenChange={setIssueDateOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !issueDate && "text-muted-foreground",
+                    errors.issueDate && "border-destructive"
+                  )}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="percentage">Percentage</SelectItem>
-                    <SelectItem value="fixed">Fixed Amount</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {issueDate ? format(issueDate, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={issueDate}
+                  onSelect={(d) => { setIssueDate(d); setIssueDateOpen(false); }}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            {errors.issueDate && <p className="text-xs text-destructive">Required</p>}
+          </div>
+
+          {/* Due Date */}
+          <div className="space-y-1">
+            <Label>Due Date <span className="text-destructive">*</span></Label>
+            <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !dueDate && "text-muted-foreground",
+                    errors.dueDate && "border-destructive"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dueDate ? format(dueDate, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dueDate}
+                  onSelect={(d) => { setDueDate(d); setDueDateOpen(false); }}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            {errors.dueDate && <p className="text-xs text-destructive">Required</p>}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Invoice Title ───────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <StickyNote className="h-4 w-4" />
+            Invoice Title
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Input
+            placeholder="Enter invoice title"
+            value={invoiceTitle}
+            onChange={(e) => setInvoiceTitle(e.target.value)}
+          />
+        </CardContent>
+      </Card>
+
+      {/* ── Customer Information ────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Customer Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Select
+            value={selectedClient?.id ?? ""}
+            onValueChange={(clientId) => {
+              const c = clients.find((c) => c.id === clientId);
+              if (c) setSelectedClient(c);
+            }}
+          >
+            <SelectTrigger className={cn(errors.selectedClient && "border-destructive")}>
+              <SelectValue placeholder="Select customer" />
+            </SelectTrigger>
+            <SelectContent>
+              {clients.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.full_name}
+                </SelectItem>
+              ))}
+              {clients.length === 0 && (
+                <p className="px-2 py-4 text-center text-sm text-muted-foreground">
+                  No clients found
+                </p>
+              )}
+            </SelectContent>
+          </Select>
+
+          {errors.selectedClient && (
+            <p className="text-xs text-destructive">Please select a client</p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowNewClient(true)}
+            className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add New Client
+          </button>
+
+          {/* Selected client card */}
+          {selectedClient && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <User className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <p className="font-semibold text-sm">{selectedClient.full_name}</p>
+                    {selectedClient.company && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Building2 className="w-3 h-3 flex-shrink-0" />
+                        {selectedClient.company}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Mail className="w-3 h-3 flex-shrink-0" /> {selectedClient.email}
+                    </p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Phone className="w-3 h-3 flex-shrink-0" /> {selectedClient.phone}
+                    </p>
+                    {selectedClientAddress && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <MapPin className="w-3 h-3 flex-shrink-0" /> {selectedClientAddress}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Line Items ──────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <List className="h-4 w-4" />
+            Line Items
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {lineItems.map((item, idx) => (
+            <div key={item._id} className="border border-border rounded-lg p-4 space-y-3">
+              {/* ── Item header ──────────────────────────────────── */}
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-muted-foreground">Item {idx + 1}</p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => setLineItems((prev) => prev.filter((_, i) => i !== idx))}
+                  disabled={lineItems.length === 1}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
-              {/* Discount value */}
-              <div className="space-y-1">
-                <Label>Discount Value</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                    {discountType === "percentage" ? "%" : "$"}
-                  </span>
+
+              {/* ── Description ──────────────────────────────────── */}
+              <Input
+                placeholder="Description"
+                value={item.description}
+                onChange={(e) => updateLineItem(idx, "description", e.target.value)}
+                className={cn(errors.lineItems && !item.description && "border-destructive")}
+              />
+
+              {/* ── Price / Qty / Total ───────────────────────────── */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Price</Label>
                   <Input
                     type="text"
                     inputMode="decimal"
-                    placeholder="0"
-                    value={discountValue}
-                    onChange={(e) => setDiscountValue(toDecimalString(e.target.value))}
-                    className="pl-7"
+                    placeholder="0.00"
+                    value={item._price}
+                    onChange={(e) => updateLineItem(idx, "price", toDecimalString(e.target.value))}
                   />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Qty</Label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="1"
+                    value={item._qty}
+                    onChange={(e) => updateLineItem(idx, "qty", toIntegerString(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Total</Label>
+                  <div className="flex items-center h-9 rounded-md border border-input bg-muted/40 px-3 text-sm font-medium">
+                    ${item.total.toFixed(2)}
+                  </div>
                 </div>
               </div>
             </div>
+          ))}
 
-            {/* Tax rate */}
+          {errors.lineItems && (
+            <p className="text-xs text-destructive">Add at least one item with a description</p>
+          )}
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setLineItems((prev) => [...prev, newLineItem()])}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add an Item
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* ── Pricing & Tax ───────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Calculator className="h-4 w-4" />
+            Pricing &amp; Tax
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            {/* Discount type */}
             <div className="space-y-1">
-              <Label>Tax Rate %</Label>
+              <Label>Discount Type</Label>
+              <Select
+                value={discountType}
+                onValueChange={(v) => setDiscountType(v as "percentage" | "fixed")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="percentage">Percentage</SelectItem>
+                  <SelectItem value="fixed">Fixed Amount</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Discount value */}
+            <div className="space-y-1">
+              <Label>Discount Value</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                  {discountType === "percentage" ? "%" : "$"}
+                </span>
                 <Input
                   type="text"
                   inputMode="decimal"
                   placeholder="0"
-                  value={taxRate}
-                  onChange={(e) => setTaxRate(toDecimalString(e.target.value))}
+                  value={discountValue}
+                  onChange={(e) => setDiscountValue(toDecimalString(e.target.value))}
                   className="pl-7"
                 />
               </div>
             </div>
-
-            {/* Live totals */}
-            <div className="bg-muted/30 rounded-md p-3 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-medium">${subtotal.toFixed(2)}</span>
-              </div>
-              {discountAmount > 0 && (
-                <div className="flex justify-between text-destructive">
-                  <span>Discount</span>
-                  <span>-${discountAmount.toFixed(2)}</span>
-                </div>
-              )}
-              {taxAmount > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tax</span>
-                  <span className="font-medium">${taxAmount.toFixed(2)}</span>
-                </div>
-              )}
-              <div className="flex justify-between border-t border-border/50 pt-2 font-bold">
-                <span>Total</span>
-                <span className="text-primary">${total.toFixed(2)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* ── Notes ───────────────────────────────────────────────────── */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <StickyNote className="h-4 w-4" />
-              Notes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              placeholder="Add any additional notes..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
-          </CardContent>
-        </Card>
-
-        {/* ── Attachments ─────────────────────────────────────────────── */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Paperclip className="h-4 w-4" />
-              Attachments
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,.pdf"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                const files = Array.from(e.target.files ?? []);
-                setAttachmentFiles((prev) => [...prev, ...files]);
-                e.target.value = "";
-              }}
-            />
-
-            {attachmentFiles.length > 0 && (
-              <ul className="space-y-2">
-                {attachmentFiles.map((file, idx) => (
-                  <li key={idx} className="flex items-center justify-between gap-2 text-sm bg-muted/30 rounded-md px-3 py-2">
-                    <span className="truncate text-muted-foreground">{file.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => setAttachmentFiles((prev) => prev.filter((_, i) => i !== idx))}
-                      className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Upload Files
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Status badge for edit mode */}
-        {isEditing && (
-          <div className="flex justify-center">
-            <Badge variant="outline" className="text-xs text-muted-foreground">
-              Editing existing invoice
-            </Badge>
           </div>
-        )}
-      </div>
 
-      {/* ── Sticky footer ──────────────────────────────────────────────── */}
-      <div className="sticky bottom-0 bg-background border-t px-4 py-3">
-        <div className={`max-w-2xl mx-auto grid gap-3 ${isEditing ? "grid-cols-3" : "grid-cols-2"}`}>
-          <Button
-            variant="outline"
-            className="h-12"
-            onClick={() => navigate("/invoices")}
-            disabled={isLoading}
-          >
-            Cancel
-          </Button>
-          {isEditing && (
-            <Button
-              variant="outline"
-              className="h-12"
-              onClick={handleSave}
-              disabled={isLoading}
-            >
-              {isLoading ? "Saving..." : "Save"}
-            </Button>
+          {/* Tax rate */}
+          <div className="space-y-1">
+            <Label>Tax Rate %</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+              <Input
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={taxRate}
+                onChange={(e) => setTaxRate(toDecimalString(e.target.value))}
+                className="pl-7"
+              />
+            </div>
+          </div>
+
+          {/* Live totals */}
+          <div className="bg-muted/30 rounded-md p-3 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span className="font-medium">${subtotal.toFixed(2)}</span>
+            </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-destructive">
+                <span>Discount</span>
+                <span>-${discountAmount.toFixed(2)}</span>
+              </div>
+            )}
+            {taxAmount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tax</span>
+                <span className="font-medium">${taxAmount.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between border-t border-border/50 pt-2 font-bold">
+              <span>Total</span>
+              <span className="text-primary">${total.toFixed(2)}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Notes ───────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <StickyNote className="h-4 w-4" />
+            Notes
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            placeholder="Add any additional notes..."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+          />
+        </CardContent>
+      </Card>
+
+      {/* ── Attachments ─────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Paperclip className="h-4 w-4" />
+            Attachments
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              setAttachmentFiles((prev) => [...prev, ...files]);
+              e.target.value = "";
+            }}
+          />
+
+          {attachmentFiles.length > 0 && (
+            <ul className="space-y-2">
+              {attachmentFiles.map((file, idx) => (
+                <li key={idx} className="flex items-center justify-between gap-2 text-sm bg-muted/30 rounded-md px-3 py-2">
+                  <span className="truncate text-muted-foreground">{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setAttachmentFiles((prev) => prev.filter((_, i) => i !== idx))}
+                    className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
-          <Button className="h-12" onClick={handleNext} disabled={isLoading}>
-            {isLoading ? "Saving..." : "Next"}
-          </Button>
-        </div>
-      </div>
 
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Upload Files
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Status badge for edit mode */}
+      {isEditing && (
+        <div className="flex justify-center">
+          <Badge variant="outline" className="text-xs text-muted-foreground">
+            Editing existing invoice
+          </Badge>
+        </div>
+      )}
+    </div>
+  );
+
+  const footerButtons = (
+    <div className={`max-w-2xl mx-auto grid gap-3 ${isEditing ? "grid-cols-3" : "grid-cols-2"}`}>
+      <Button variant="outline" className="h-12" onClick={goBack} disabled={isLoading}>
+        Cancel
+      </Button>
+      {isEditing && (
+        <Button variant="outline" className="h-12" onClick={handleSave} disabled={isLoading}>
+          {isLoading ? "Saving..." : "Save"}
+        </Button>
+      )}
+      <Button className="h-12" onClick={handleNext} disabled={isLoading}>
+        {isLoading ? "Saving..." : "Next"}
+      </Button>
+    </div>
+  );
+
+  const sharedDialogs = (
+    <>
       {/* ── Exit dialog ────────────────────────────────────────────────── */}
       <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
         <AlertDialogContent className="max-w-sm">
@@ -824,7 +823,7 @@ export function CreateInvoicePage() {
             </AlertDialogAction>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
-              onClick={() => navigate("/invoices")}
+              onClick={goBack}
             >
               Discard Changes
             </AlertDialogAction>
@@ -863,8 +862,83 @@ export function CreateInvoicePage() {
           qc.invalidateQueries({ queryKey: QK.clientsForInvoice });
         }}
       />
+    </>
+  );
 
+  // ── Modal mode ──────────────────────────────────────────────────────────────
+  if (isModal) {
+    return (
+      <>
+        <Dialog open={open ?? false} onOpenChange={(o) => { if (!o) goBack(); }}>
+          <DialogContent className="left-0 top-0 translate-x-0 translate-y-0 w-screen h-screen max-w-none rounded-none p-0 flex flex-col overflow-hidden [&>button:last-child]:hidden">
+            {/* Header — clean with bottom border only */}
+            <div className="border-b flex-shrink-0 bg-background">
+              <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+                {/* Left: X + icon + title */}
+                <div className="flex items-center gap-2 min-w-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 flex-shrink-0"
+                    onClick={goBack}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <h2 className="font-semibold text-base truncate">
+                    {isEditing ? "Edit Invoice" : "New Invoice"}
+                  </h2>
+                </div>
 
+                {/* Right: action buttons */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button variant="outline" size="sm" onClick={goBack} disabled={isLoading}>
+                    Cancel
+                  </Button>
+                  {isEditing && (
+                    <Button variant="outline" size="sm" onClick={handleSave} disabled={isLoading}>
+                      {isLoading ? "Saving..." : "Save"}
+                    </Button>
+                  )}
+                  <Button size="sm" onClick={handleNext} disabled={isLoading}>
+                    {isLoading ? "Saving..." : "Next"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Scrollable form body */}
+            <div className="flex-1 overflow-y-auto bg-background">
+              {formCards}
+            </div>
+          </DialogContent>
+        </Dialog>
+        {sharedDialogs}
+      </>
+    );
+  }
+
+  // ── Page mode ───────────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-border/50 bg-background">
+        <Button variant="ghost" size="icon" onClick={() => setShowExitDialog(true)}>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-base font-semibold flex-1">
+          {isEditing ? "Edit Invoice" : "New Invoice"}
+        </h1>
+      </div>
+
+      {formCards}
+
+      {/* Sticky footer */}
+      <div className="sticky bottom-0 bg-background border-t px-4 py-3">
+        {footerButtons}
+      </div>
+
+      {sharedDialogs}
     </div>
   );
 }

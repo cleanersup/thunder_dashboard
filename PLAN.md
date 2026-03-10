@@ -395,16 +395,16 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 6 — Booking
-> Estado: 🔴 Pendiente
+> Estado: ✅ Completa
 
-- [ ] `features/booking/services/bookingService.ts` (JSDoc)
-- [ ] `features/booking/hooks/useBookingForms.ts`, `usePublicBooking.ts`
-- [ ] `features/booking/schemas/bookingSchema.ts`
-- [ ] `features/booking/components/BookingFormsList`, `BookingFormEditor`
-- [ ] `features/booking/components/PublicBookingForm`
-- [ ] `features/booking/pages/BookingPage`, `EditBookingFormPage`
-- [ ] `features/booking/pages/PublicBookingFormPage` (`/booking/:userId`) — sin auth, layout propio
-- [ ] Test: compartir link y completar booking desde browser externo
+- [x] `features/booking/services/bookingService.ts`
+- [x] `features/booking/hooks/useBookings.ts` — useBookings, useConvertToLead, useConvertToClient, useCancelBooking, useDeleteBooking
+- [x] `features/booking/schemas/bookingSchema.ts`
+- [x] `features/booking/components/BookingDetailModal` — 2 cols, Quick Actions, AddressRouteMap empresa→cliente
+- [x] `features/booking/pages/BookingPage` — KPI×4, tabla, paginación, date filter, realtime channel `bookings_changes`
+- [x] `features/booking/pages/EditBookingFormPage`
+- [x] `features/booking/pages/PublicBookingFormPage` (`/booking/:userId`) — sin auth, layout propio
+- [x] Build: 0 errores TypeScript
 
 ---
 
@@ -499,10 +499,9 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 
 ---
 
-## FASE 10 — Employees + Employee Portal
-> Estado: ✅ Completada (10A Gestión Interna). 10B Employee Portal: pendiente (alta complejidad)
+## FASE 10 — Employees
+> Estado: ✅ Completa (Employee Portal excluido — corre desde swift-slate, no se migra)
 
-### Gestión Interna (10A) ✅
 - [x] `features/employees/services/employeesService.ts` — Employee type completo, fetchAllEmployees, fetchEmployeeById, updateEmployee, updateEmployeeStatus, checkDeleteGuard, deleteEmployee
 - [x] `features/employees/services/generateEmployeeSheetPDF.ts` — portado de swift-slate (jsPDF, blue [79,129,189], secciones: Personal/Address/Employment/Availability/Signatures)
 - [x] `features/employees/hooks/useEmployees.ts` — useAllEmployees, useEmployee, useCreateEmployee, useUpdateEmployee, useUpdateEmployeeStatus, useDeleteEmployee (con guard)
@@ -513,11 +512,7 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 - [x] Router: `/employees` → `EmployeesPage`
 - [x] Fix: `available_days` keys normalizadas a lowercase en EmployeeForm (edit prefill) y generateEmployeeSheetPDF
 - [x] CRM KPI cards unificadas al mismo patrón (single Card + border-l-4)
-
-### Employee Portal (10B) — Pendiente
-- [ ] `features/employee-portal/services/employeePortalService.ts`
-- [ ] Layout propio para el portal (sin MainLayout principal)
-- [ ] Páginas: `EmployeeLoginPage`, `EmployeeDashboardPage`, `EmployeeShiftDetailPage`, `EmployeeHistoryDetailPage`
+- [x] Build: 0 errores TypeScript
 
 ---
 
@@ -562,7 +557,7 @@ F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8 → F9 → F10 → F1
 ---
 
 ## FASE 20 — Mapas y Geolocalización
-> Estado: 🟡 Parcialmente completa (F10B excluido — corre desde swift-slate)
+> Estado: ✅ Completa (Employee Portal excluido — corre desde swift-slate)
 > Descubierto: múltiples usos de mapas en swift-slate no cubiertos aún en thunder_dashboard
 
 ### Inventario completo de mapas en swift-slate
@@ -797,6 +792,7 @@ Esto significa:
 | 2026-03-04 | F15 SOLID ✅ | queryKeys.ts (QK centralizado). ErrorBoundary + wrapping en routes/index.tsx. SRP: WalkthroughsPage usa useAuth()+useSendWalkthroughStart(), CommercialEstimates usa useProfile()+fetchClient/fetchLead desde services, CreateInvoicePage usa QK.clientsForInvoice. JSDoc completo en employeesService.ts. Build: npm run build → 0 errores. Descubierto: /time-clock ausente del plan → añadido como F19. |
 | 2026-03-04 | Auditoría mapas | Inventario completo de todas las integraciones de Google Maps en swift-slate vs thunder_dashboard. SmartMapView ya usa Google Maps (no Mapbox — nota anterior incorrecta). F20 agregado: AppointmentDetailModal map fix, SmartMap geocoding audit, EmployeeLocationMap (F19 cruzada), RealTimeLocationMap/LocationMap (F10B cruzada). |
 | 2026-03-05 | F20 mapas ✅ (parcial) | AppointmentDetailModal map fix: setTimeout(350)+resize (dialog animation timing bug). EmployeeLocationMap: IN/OUT markers + polyline en EmployeeDetailView. AddressRouteMap shared component: ruta empresa→cliente con badge distancia/tiempo, usado en EstimateClientStep (Residential+Commercial). TodayRoutes (Dashboard): selección de ruta + RouteMapView inline + auto-select primera ruta. QK.routeAppointmentsByDate nueva key. useDashboardStats expone today. F10B excluido (corre desde swift-slate). Build: 0 errores. |
+| 2026-03-05 | F6 ✅, F20 ✅ | BookingDetailModal: AddressRouteMap empresa→cliente. BookingPage: realtime channel `bookings_changes`. F10B (Employee Portal) eliminado — corre desde swift-slate. F20 marcado como completo. Build: 0 errores. |
 | 2026-03-04 | F19 ✅ + SmartMap redesign ✅ | F19 Time Clock completo: types, service (fetchTodayEntries/Scheduled/All/Employee/PaidPeriods, markAsPaid, updateTimeEntryTimes con audit trail), hooks (useShiftTimeEdit state-machine + useTimeClock 6 hooks), generateTimesheetPDF (Blob + .save), 6 componentes (TimeClockKPICards, ShiftCard, ShiftTimeEditConfirmModal, EmployeeDetailView, TodayTab, TimesheetsTab), TimeClockPage redesign: tabla desktop con tabs inline + toolbar (search + date picker) + EmployeeDetailView overlay. SmartMap upgrade: useSmartMap multi-select string[] + toggleFilter(), SmartMapView InfoWindow HTML con badge tipo coloreado + email/phone links, SmartMapPage 3-card layout (KPI border-l-4 × 4 + toolbar filter tabs coloreados + map card minHeight). queryKeys.ts: 5 keys time-clock. routes: lazy TimeClockPage. Build: 0 errores. |
 
 ---

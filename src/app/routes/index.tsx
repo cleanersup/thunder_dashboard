@@ -65,6 +65,11 @@ const TimeClockPage = lazy(() =>
   import("@/features/time-clock/pages/TimeClockPage").then((m) => ({ default: m.TimeClockPage }))
 );
 
+// Phase 13 — Subscriptions ✅ (web billing pending RC Web Billing configuration)
+const SubscriptionPlansPage = lazy(() =>
+  import("@/features/subscriptions/pages/SubscriptionPlansPage").then((m) => ({ default: m.SubscriptionPlansPage }))
+);
+
 // Phase 12 — Settings ✅
 const ProfilePage         = lazy(() => import("@/features/settings/pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
 const EditProfilePage     = lazy(() => import("@/features/settings/pages/EditProfilePage").then((m) => ({ default: m.EditProfilePage })));
@@ -145,6 +150,9 @@ export function AppRouter() {
 
           {/* Phase 19 ✅ */}
           <Route path="/time-clock" element={<ProtectedRoute><TimeClockPage /></ProtectedRoute>} />
+
+          {/* Phase 13 ✅ */}
+          <Route path="/subscription-plans" element={<ProtectedRoute><SubscriptionPlansPage /></ProtectedRoute>} />
 
           {/* Phase 12 ✅ */}
           <Route path="/profile"            element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
