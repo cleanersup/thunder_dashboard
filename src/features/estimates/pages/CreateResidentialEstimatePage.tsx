@@ -23,6 +23,9 @@ import { useCreateEstimate, useUpdateEstimate } from "../hooks/useEstimates";
 import { useSendEstimateEmail } from "../hooks/useSendEstimateEmail";
 import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { useDraftEstimate } from "../hooks/useDraftEstimate";
+import { fetchEstimate } from "../services/estimatesService";
+import { fetchClient } from "@/features/crm/clients/services/clientsService";
+import { fetchLead } from "@/features/crm/leads/services/leadsService";
 import { useResidentialPricing } from "../hooks/useResidentialPricing";
 import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
 import type { DraftData } from "../types/estimate.types";
@@ -121,8 +124,16 @@ export function CreateResidentialEstimatePage() {
 
   // ── Prefill when editing ──────────────────────────────────────────────────
   useEffect(() => {
-    if (isEditing && estimateData) {
-      const d = estimateData;
+    if (!isEditing) return;
+    (async () => {
+      let d = estimateData;
+      if (!d && estimateId) {
+        const fetched = await fetchEstimate(estimateId);
+        if (!fetched) return;
+        d = fetched;
+      }
+      if (!d) return;
+
       setSelectedService(d.service_sub_type ?? "");
       const md = (d.main_data as any) ?? {};
       setSquareFootage(md.squareFootage ?? "");
@@ -135,8 +146,67 @@ export function CreateResidentialEstimatePage() {
       setPets(d.pets === "Yes" ? "yes" : d.pets === "No" ? "no" : null);
       setScope(d.service_scope ?? "");
       if (d.discount_type) { setApplyDiscount(true); setDiscountType(d.discount_type as any); setDiscountValue(d.discount_value?.toString() ?? ""); }
-    }
-  }, [isEditing, estimateData]);
+
+      const laundryStr = d.laundry ?? "";
+      if (laundryStr && laundryStr !== "No") {
+        const match = laundryStr.match(/^(wash-dry|wash-dry-fold)\s*-\s*(\d+)\s*pounds?/i);
+        if (match) {
+          setLaundryService((match[1] === "wash-dry-fold" ? "wash-dry-fold" : "wash-dry") as "wash-dry" | "wash-dry-fold");
+          setLaundryPounds(parseInt(match[2], 10) || 0);
+        }
+      }
+
+      if (d.client_id) {
+        try {
+          const client = await fetchClient(d.client_id);
+          setEstimateType("client");
+          setSelectedClient(client as ClientEntity);
+          setSelectedLead(null);
+          return;
+        } catch { /* fall through */ }
+      }
+      if (d.lead_id) {
+        try {
+          const lead = await fetchLead(d.lead_id);
+          setEstimateType("lead");
+          setSelectedLead(lead as LeadEntity);
+          setSelectedClient(null);
+          return;
+        } catch { /* fall through */ }
+      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: clientByEmail } = await supabase.from("clients").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
+      if (clientByEmail) {
+        setEstimateType("client");
+        setSelectedClient(clientByEmail as ClientEntity);
+        setSelectedLead(null);
+        return;
+      }
+      const { data: leadByEmail } = await supabase.from("leads").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
+      if (leadByEmail) {
+        setEstimateType("lead");
+        setSelectedLead(leadByEmail as LeadEntity);
+        setSelectedClient(null);
+        return;
+      }
+      const syntheticClient: ClientEntity = {
+        id: `estimate-edit-${d.id}`,
+        full_name: d.client_name,
+        company: d.company_name ?? null,
+        phone: d.phone,
+        email: d.email,
+        service_street: d.address,
+        service_apt: d.apt ?? null,
+        service_city: d.city,
+        service_state: d.state,
+        service_zip: d.zip,
+      };
+      setEstimateType("client");
+      setSelectedClient(syntheticClient);
+      setSelectedLead(null);
+    })();
+  }, [isEditing, estimateId, estimateData]);
 
   // ── Prefill from walkthrough ──────────────────────────────────────────────
   useEffect(() => {

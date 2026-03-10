@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
 import { format } from "date-fns";
+import { formatDateOnly } from "@/shared/utils/formatters";
 import { cn } from "@/shared/utils/cn";
 import { toast } from "sonner";
 import {
@@ -180,7 +181,7 @@ export function EstimatesPage() {
         clientAddress: data.address, clientApt: data.apt ?? undefined,
         clientCity: data.city, clientState: data.state, clientZip: data.zip,
         estimateNumber: data.id.substring(0, 8).toUpperCase(),
-        estimateDate: format(new Date(data.estimate_date), "MMMM dd, yyyy"),
+        estimateDate: formatDateOnly(data.estimate_date, "MMMM dd, yyyy"),
         serviceType: data.service_type, serviceSubType: data.service_sub_type ?? undefined,
         serviceScope: data.service_scope ?? undefined,
         mainData: (data.main_data as Record<string, any>) ?? undefined,

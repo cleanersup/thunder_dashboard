@@ -29,7 +29,7 @@ export function useSendEstimateSMS() {
     setIsSendingSMS(true);
     try {
       const estimateUrl = `${window.location.origin}/estimate/${estimateId}`;
-
+      console.log("estimateUrl", estimateUrl);
       const { error } = await supabase.functions.invoke("send-estimate-sms", {
         body: { phoneNumber, clientName, estimateUrl, estimateTotal, isUpdate },
       });
