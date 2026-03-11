@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { Upload, FileText, X } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 
@@ -17,8 +16,6 @@ const ACCEPTED_MIME = [
 const MAX_MB = 10;
 
 export function AppointmentContractStep({ contractFile, onChange }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
   function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     const file = files[0];
@@ -45,7 +42,6 @@ export function AppointmentContractStep({ contractFile, onChange }: Props) {
             ? "border-primary/40 bg-primary/5"
             : "border-border hover:border-primary/50 hover:bg-muted/30 cursor-pointer",
         )}
-        onClick={() => !contractFile && inputRef.current?.click()}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
@@ -74,7 +70,6 @@ export function AppointmentContractStep({ contractFile, onChange }: Props) {
         ) : (
           <label htmlFor="contract-upload" className="cursor-pointer">
             <input
-              ref={inputRef}
               id="contract-upload"
               type="file"
               className="hidden"

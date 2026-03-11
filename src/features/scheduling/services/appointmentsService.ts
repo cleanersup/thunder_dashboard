@@ -87,8 +87,8 @@ function generateRecurringDates(formData: AppointmentFormData): string[] {
   const dates: string[] = [];
   let current = startDate;
 
-  if (recurring_frequency === "weekly" && selected_week_days && selected_week_days.length > 0) {
-    // Generate for each selected day of week
+  if ((recurring_frequency === "weekly" || recurring_frequency === "multiple") && selected_week_days && selected_week_days.length > 0) {
+    // Generate for each selected day of week (weekly = once/week with optional days; multiple = multiple times/week)
     const dayMap: Record<string, number> = {
       sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
       thursday: 4, friday: 5, saturday: 6,
