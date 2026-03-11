@@ -10,7 +10,7 @@ import {
   User, Users, Plus,
   MapPin, Mail, Phone, Building2, Info,
 } from "lucide-react";
-import { Card, CardContent } from "@/shared/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/shared/utils/cn";
@@ -105,12 +105,16 @@ export function EstimateClientStep({
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-lg font-semibold">Select Client or Lead</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Choose who this estimate is for</p>
-      </div>
-
-      {/* ── Entity type toggle ─────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Users className="h-5 w-5 text-muted-foreground" />
+            Select Client or Lead
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Choose who this estimate is for</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+{/* ── Entity type toggle ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3">
         {(["client", "lead"] as EstimateEntityType[]).map((type) => (
           <button
@@ -189,42 +193,41 @@ export function EstimateClientStep({
 
       {/* ── Selected entity details card ──────────────────────────────── */}
       {selected && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                {estimateType === "client"
-                  ? <User className="w-4 h-4 text-primary" />
-                  : <Users className="w-4 h-4 text-primary" />}
-              </div>
-              <div className="min-w-0 flex-1 space-y-0.5">
-                <p className="font-semibold text-sm">{selected.full_name}</p>
-                {(estimateType === "client"
-                  ? (selected as ClientEntity).company
-                  : (selected as LeadEntity).company_name
-                ) && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Building2 className="w-3 h-3 flex-shrink-0" />
-                    {estimateType === "client"
-                      ? (selected as ClientEntity).company
-                      : (selected as LeadEntity).company_name}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Mail className="w-3 h-3 flex-shrink-0" /> {selected.email}
-                </p>
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Phone className="w-3 h-3 flex-shrink-0" /> {selected.phone}
-                </p>
-                {selectedAddress && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <MapPin className="w-3 h-3 flex-shrink-0" /> {selectedAddress}
-                  </p>
-                )}
-              </div>
+        <div className="p-4 border-y">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              {estimateType === "client"
+                ? <User className="w-4 h-4 text-primary" />
+                : <Users className="w-4 h-4 text-primary" />}
             </div>
-          </CardContent>
-        </Card>
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p className="font-semibold text-sm">{selected.full_name}</p>
+              {(estimateType === "client"
+                ? (selected as ClientEntity).company
+                : (selected as LeadEntity).company_name
+              ) && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Building2 className="w-3 h-3 flex-shrink-0" />
+                  {estimateType === "client"
+                    ? (selected as ClientEntity).company
+                    : (selected as LeadEntity).company_name}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Mail className="w-3 h-3 flex-shrink-0" /> {selected.email}
+              </p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Phone className="w-3 h-3 flex-shrink-0" /> {selected.phone}
+              </p>
+              {selectedAddress && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <MapPin className="w-3 h-3 flex-shrink-0" /> {selectedAddress}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
       )}
 
       {/* ── Route map ─────────────────────────────────────────────────── */}
@@ -234,6 +237,10 @@ export function EstimateClientStep({
           companyAddress={companyAddress}
         />
       )}
+        </CardContent>
+      </Card>
+
+
 
       {/* ── Info notice ────────────────────────────────────────────────── */}
       <Card className="border-info-subtle-border bg-info-subtle/50 dark:border-info-subtle-border dark:bg-info-subtle/20">

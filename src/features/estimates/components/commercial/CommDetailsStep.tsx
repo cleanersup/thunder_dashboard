@@ -2,8 +2,9 @@
  * @module CommDetailsStep — Step 2 (Commercial, Group B only: restaurant/food-truck)
  * Service schedule + grease level + property condition + client provides supplies + extra services.
  */
+import { Clock, Flame, Star, Plus } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent } from "@/shared/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { Switch } from "@/shared/components/ui/switch";
 import { cn } from "@/shared/utils/cn";
 
@@ -34,15 +35,18 @@ export function CommDetailsStep({
   onClientProvidesSuppliesChange, onExtraServiceToggle, onClearError,
 }: CommDetailsStepProps) {
   return (
-    <div className="space-y-[5px]">
+    <div className="space-y-5">
 
       {/* Service schedule */}
-      <Card className="rounded-none border-0">
-        <CardContent className="p-6 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Service Schedule</h2>
-            <p className="text-sm text-muted-foreground mt-1">Select the service schedule</p>
-          </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Clock className="h-5 w-5 text-muted-foreground" />
+            Service Schedule
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Select the service schedule</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             {[
               { value: "diurno",   label: "Day Shift" },
@@ -61,12 +65,15 @@ export function CommDetailsStep({
       </Card>
 
       {/* Grease level */}
-      <Card className="rounded-none border-0">
-        <CardContent className="p-6 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Grease Level</h2>
-            <p className="text-sm text-muted-foreground mt-1">Select the grease level</p>
-          </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Flame className="h-5 w-5 text-muted-foreground" />
+            Grease Level
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Select the grease level</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
             {[
               { value: "bajo",  label: "Low" },
@@ -86,12 +93,15 @@ export function CommDetailsStep({
       </Card>
 
       {/* Restaurant condition */}
-      <Card className="rounded-none border-0">
-        <CardContent className="p-6 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Restaurant Condition</h2>
-            <p className="text-sm text-muted-foreground mt-1">Select the restaurant condition</p>
-          </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Star className="h-5 w-5 text-muted-foreground" />
+            Restaurant Condition
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Select the restaurant condition</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
             {[
               { value: "bien-mantenido", label: "Well Maintained" },
@@ -111,8 +121,8 @@ export function CommDetailsStep({
       </Card>
 
       {/* Client provides supplies */}
-      <Card className="rounded-none border-0">
-        <CardContent className="p-6">
+      <Card>
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">Client Provides Supplies</p>
@@ -124,12 +134,15 @@ export function CommDetailsStep({
       </Card>
 
       {/* Extra services */}
-      <Card className="rounded-none border-0">
-        <CardContent className="p-6 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Extra Services</h2>
-            <p className="text-sm text-muted-foreground mt-1">Select additional services (optional)</p>
-          </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Plus className="h-5 w-5 text-muted-foreground" />
+            Extra Services
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Select additional services (optional)</p>
+        </CardHeader>
+        <CardContent>
           <div className="grid grid-cols-2 gap-3">
             {EXTRA_SERVICE_OPTIONS.map(({ value, label }) => (
               <Button key={value} variant="outline"

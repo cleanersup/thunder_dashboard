@@ -2,9 +2,9 @@
  * @module ResRoomsStep — Step 2 (Residential)
  * Room counters card.
  */
-import { Plus, Minus, Bed, ChefHat, Sofa, Utensils, Monitor, Bath } from "lucide-react";
+import { Plus, Minus, Bed, ChefHat, Sofa, Utensils, Monitor, Bath, Home } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent } from "@/shared/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import type { LucideIcon } from "lucide-react";
 
 export interface ResRoomsStepProps {
@@ -52,21 +52,28 @@ function Row({ label, icon: Icon, value, field, onChange }: {
 
 export function ResRoomsStep({ bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths, onChange, error }: ResRoomsStepProps) {
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Main Data</h2>
-      <p className="text-sm text-muted-foreground">Specify the rooms and areas to be cleaned</p>
+    <div className="space-y-5">
       <Card>
-        <CardContent className="p-4 divide-y">
-          <Row label="Bedrooms"     icon={Bed}      value={bedrooms}    field="bedrooms"    onChange={onChange} />
-          <Row label="Kitchen"      icon={ChefHat}  value={kitchens}    field="kitchens"    onChange={onChange} />
-          <Row label="Living Room"  icon={Sofa}     value={livingRooms} field="livingRooms" onChange={onChange} />
-          <Row label="Dining Room"  icon={Utensils} value={diningRooms} field="diningRooms" onChange={onChange} />
-          <Row label="Office"       icon={Monitor}  value={offices}     field="offices"     onChange={onChange} />
-          <Row label="Full Bath"    icon={Bath}     value={fullBaths}   field="fullBaths"   onChange={onChange} />
-          <Row label="Half Bath"    icon={Bath}     value={halfBaths}   field="halfBaths"   onChange={onChange} />
+        <CardHeader className="pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Home className="h-5 w-5 text-muted-foreground" />
+            Main Data
+          </h2>
+          <p className="text-sm text-muted-foreground">Specify the rooms and areas to be cleaned</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="p-4 divide-y">
+            <Row label="Bedrooms"     icon={Bed}      value={bedrooms}    field="bedrooms"    onChange={onChange} />
+            <Row label="Kitchen"      icon={ChefHat}  value={kitchens}    field="kitchens"    onChange={onChange} />
+            <Row label="Living Room"  icon={Sofa}     value={livingRooms} field="livingRooms" onChange={onChange} />
+            <Row label="Dining Room"  icon={Utensils} value={diningRooms} field="diningRooms" onChange={onChange} />
+            <Row label="Office"       icon={Monitor}  value={offices}     field="offices"     onChange={onChange} />
+            <Row label="Full Bath"    icon={Bath}     value={fullBaths}   field="fullBaths"   onChange={onChange} />
+            <Row label="Half Bath"    icon={Bath}     value={halfBaths}   field="halfBaths"   onChange={onChange} />
+          </div>
+          {error && <p className="text-xs text-destructive">Please add at least one room</p>}
         </CardContent>
       </Card>
-      {error && <p className="text-xs text-destructive">Please add at least one room</p>}
     </div>
   );
 }

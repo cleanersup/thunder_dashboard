@@ -2,10 +2,10 @@
  * @module CommMainStep — Step 3 (Commercial)
  * Total employees, hourly rate, cleaning duration, start/end time.
  */
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus, Users, DollarSign, Timer, AlarmClock } from "lucide-react";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
-import { Card, CardContent } from "@/shared/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { cn } from "@/shared/utils/cn";
 import { toDecimalString } from "@/shared/utils/numericInput";
 
@@ -58,15 +58,18 @@ export function CommMainStep({
   const endTime = calcEndTime(startTime, cleaningDuration);
 
   return (
-    <div className="space-y-[5px]">
+    <div className="space-y-5">
 
       {/* Total employees */}
-      <Card className="rounded-none border-0">
-        <CardContent className="p-6 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Total Employees</h2>
-            <p className="text-sm text-muted-foreground mt-1">Select the number of employees needed for this cleaning</p>
-          </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Users className="h-5 w-5 text-muted-foreground" />
+            Total Employees
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Select the number of employees needed for this cleaning</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
           <div className="flex items-center justify-between py-2 border-b border-border">
             <span className="text-sm text-foreground">Employees</span>
             <Counter value={employeeCount} onChange={(v) => { onEmployeeCountChange(v); onClearError("employeeCount"); }} />
@@ -76,12 +79,15 @@ export function CommMainStep({
       </Card>
 
       {/* Hourly rate */}
-      <Card className="rounded-none border-0">
-        <CardContent className="p-6 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Hourly Rate Per Employee</h2>
-            <p className="text-sm text-muted-foreground mt-1">Enter the hourly rate you pay per employee</p>
-          </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-muted-foreground" />
+            Hourly Rate Per Employee
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Enter the hourly rate you pay per employee</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
             <Input
@@ -95,12 +101,15 @@ export function CommMainStep({
       </Card>
 
       {/* Cleaning duration */}
-      <Card className="rounded-none border-0">
-        <CardContent className="p-6 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Cleaning Duration</h2>
-            <p className="text-sm text-muted-foreground mt-1">How many hours will it take to clean this property?</p>
-          </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Timer className="h-5 w-5 text-muted-foreground" />
+            Cleaning Duration
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">How many hours will it take to clean this property?</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
           <div className="flex items-center justify-between py-2 border-b border-border">
             <span className="text-sm text-foreground">
               {cleaningDuration} {cleaningDuration === 1 ? "hour" : "hours"}
@@ -112,12 +121,15 @@ export function CommMainStep({
       </Card>
 
       {/* Time */}
-      <Card className="rounded-none border-0">
-        <CardContent className="p-6 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Time</h2>
-            <p className="text-sm text-muted-foreground mt-1">Set the start time for the cleaning service</p>
-          </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <AlarmClock className="h-5 w-5 text-muted-foreground" />
+            Time
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Set the start time for the cleaning service</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Start Time</Label>
             <Input

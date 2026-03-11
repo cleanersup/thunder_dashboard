@@ -17,6 +17,7 @@ export interface SubscriptionInfo {
   trialDaysLeft: number;
   isLegacyUser: boolean;
   hasPaidPlan: boolean;
+  trialWelcomeShown: boolean;
 }
 
 interface SubscriptionContextType extends SubscriptionInfo {
@@ -24,6 +25,8 @@ interface SubscriptionContextType extends SubscriptionInfo {
   error: string | null;
   /** Manually re-fetches subscription state from Supabase. */
   refreshSubscription: () => Promise<void>;
+  /** Marks the trial welcome modal as shown in the DB. */
+  markTrialWelcomeShown: () => Promise<void>;
 }
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -41,6 +44,7 @@ const DEV_SUBSCRIPTION: SubscriptionInfo = {
   trialDaysLeft: 0,
   isLegacyUser: false,
   hasPaidPlan: true,
+  trialWelcomeShown: true,
 };
 
 const EMPTY_SUBSCRIPTION: SubscriptionInfo = {
@@ -52,6 +56,7 @@ const EMPTY_SUBSCRIPTION: SubscriptionInfo = {
   trialDaysLeft: 0,
   isLegacyUser: false,
   hasPaidPlan: false,
+  trialWelcomeShown: false,
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -112,7 +117,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select(
-          "created_at, plan_tier, subscription_status, subscription_expiry_date, revenue_cat_customer_id, trial_start_date",
+          "created_at, plan_tier, subscription_status, subscription_expiry_date, revenue_cat_customer_id, trial_start_date, trial_welcome_shown",
         )
         .eq("user_id", currentUser.id)
         .single();
@@ -127,6 +132,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       const createdAt = profile?.created_at ? new Date(profile.created_at) : null;
       const isLegacyUser = !!(createdAt && createdAt < TRIAL_CUTOFF_DATE);
       const expiryDate = profile?.subscription_expiry_date ? new Date(profile.subscription_expiry_date) : null;
+      const trialWelcomeShown = profile?.trial_welcome_shown ?? false;
 
       // ── Paid plan check ──
       const isExpired = expiryDate ? expiryDate < now : false;
@@ -143,6 +149,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           trialDaysLeft: 0,
           isLegacyUser,
           hasPaidPlan: true,
+          trialWelcomeShown,
         });
         return;
       }
@@ -163,6 +170,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           trialDaysLeft,
           isLegacyUser,
           hasPaidPlan: false,
+          trialWelcomeShown,
         });
         return;
       }
@@ -177,6 +185,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         trialDaysLeft: 0,
         isLegacyUser,
         hasPaidPlan: false,
+        trialWelcomeShown,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -209,8 +218,17 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   const refreshSubscription = useCallback(() => loadSubscription(false), [loadSubscription]);
 
+  const markTrialWelcomeShown = useCallback(async () => {
+    if (!currentUser) return;
+    setInfo((prev) => ({ ...prev, trialWelcomeShown: true }));
+    await supabase
+      .from("profiles")
+      .update({ trial_welcome_shown: true })
+      .eq("user_id", currentUser.id);
+  }, [currentUser]);
+
   return (
-    <SubscriptionContext.Provider value={{ ...info, isLoading, error, refreshSubscription }}>
+    <SubscriptionContext.Provider value={{ ...info, isLoading, error, refreshSubscription, markTrialWelcomeShown }}>
       {children}
     </SubscriptionContext.Provider>
   );

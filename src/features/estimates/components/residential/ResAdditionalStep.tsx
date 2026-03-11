@@ -2,9 +2,9 @@
  * @module ResAdditionalStep — Step 3 (Residential)
  * Additional services counter card.
  */
-import { Plus, Minus, Fan, UtensilsCrossed, Refrigerator, Blinds, Frame } from "lucide-react";
+import { Plus, Minus, Fan, UtensilsCrossed, Refrigerator, Blinds, Frame, Sparkles } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent } from "@/shared/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import type { LucideIcon } from "lucide-react";
 
 export interface ResAdditionalStepProps {
@@ -50,17 +50,24 @@ function Row({ label, icon: Icon, value, field, onChange }: {
 
 export function ResAdditionalStep({ fans, oven, refrigerator, blinds, windowsInside, windowsOutside, onChange }: ResAdditionalStepProps) {
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Additional</h2>
-      <p className="text-sm text-muted-foreground">Add additional details to the estimate</p>
+    <div className="space-y-5">
       <Card>
-        <CardContent className="p-4 divide-y">
-          <Row label="Fans"             icon={Fan}             value={fans}           field="fans"           onChange={onChange} />
-          <Row label="Oven"             icon={UtensilsCrossed} value={oven}           field="oven"           onChange={onChange} />
-          <Row label="Refrigerator"     icon={Refrigerator}    value={refrigerator}   field="refrigerator"   onChange={onChange} />
-          <Row label="Blinds"           icon={Blinds}          value={blinds}         field="blinds"         onChange={onChange} />
-          <Row label="Windows Inside"   icon={Frame}           value={windowsInside}  field="windowsInside"  onChange={onChange} />
-          <Row label="Windows Outside"  icon={Frame}           value={windowsOutside} field="windowsOutside" onChange={onChange} />
+        <CardHeader className="pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-muted-foreground" />
+            Additional
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Add additional details to the estimate</p>
+        </CardHeader>
+        <CardContent>
+          <div className="p-1 divide-y">
+            <Row label="Fans"             icon={Fan}             value={fans}           field="fans"           onChange={onChange} />
+            <Row label="Oven"             icon={UtensilsCrossed} value={oven}           field="oven"           onChange={onChange} />
+            <Row label="Refrigerator"     icon={Refrigerator}    value={refrigerator}   field="refrigerator"   onChange={onChange} />
+            <Row label="Blinds"           icon={Blinds}          value={blinds}         field="blinds"         onChange={onChange} />
+            <Row label="Windows Inside"   icon={Frame}           value={windowsInside}  field="windowsInside"  onChange={onChange} />
+            <Row label="Windows Outside"  icon={Frame}           value={windowsOutside} field="windowsOutside" onChange={onChange} />
+          </div>
         </CardContent>
       </Card>
     </div>

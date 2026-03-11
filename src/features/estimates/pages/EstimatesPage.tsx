@@ -26,6 +26,8 @@ import { useEstimates, useUpdateEstimateStatus } from "../hooks/useEstimates";
 import { useEstimateShare } from "../hooks/useEstimateShare";
 import { useSendEstimateEmail } from "../hooks/useSendEstimateEmail";
 import { EstimateDetailsModal } from "../components/EstimateDetailsModal";
+import { CreateResidentialEstimatePage } from "./CreateResidentialEstimatePage";
+import { CreateCommercialEstimatePage } from "./CreateCommercialEstimatePage";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { PDFService } from "@/shared/services/pdf.service";
@@ -94,6 +96,11 @@ export function EstimatesPage() {
   const [isCancelDialogOpen,      setIsCancelDialogOpen]      = useState(false);
   const [isDeleteDraftDialogOpen, setIsDeleteDraftDialogOpen] = useState(false);
   const [actionEstimate,          setActionEstimate]          = useState<any>(null);
+
+  // ── Estimate form modals ──────────────────────────────────────────────────
+  const [showResModal,   setShowResModal]   = useState(false);
+  const [showCommModal,  setShowCommModal]  = useState(false);
+  const [editModalState, setEditModalState] = useState<{ isEditing: boolean; estimateId: string; estimateData: any } | null>(null);
 
   // ── Format rows ───────────────────────────────────────────────────────────
   const formattedEstimates = rawEstimates.map((e) => ({
@@ -196,9 +203,12 @@ export function EstimatesPage() {
   }
 
   async function handleEditEstimate(estimate: any) {
-    const route = estimate.serviceType === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential";
     const { data } = await supabase.from("estimates").select("*").eq("id", estimate.id).single();
-    if (data) navigate(route, { state: { isEditing: true, estimateId: data.id, estimateData: data } });
+    if (data) {
+      setEditModalState({ isEditing: true, estimateId: data.id, estimateData: data });
+      if (estimate.serviceType === "Commercial") setShowCommModal(true);
+      else setShowResModal(true);
+    }
   }
 
   function handleContinueDraft(estimate: any) {
@@ -477,7 +487,11 @@ export function EstimatesPage() {
       <ServiceTypeDialog
         open={isTypeDialogOpen}
         onClose={() => setIsTypeDialogOpen(false)}
-        onSelect={(type) => { setIsTypeDialogOpen(false); navigate(`/estimates/new/${type}`); }}
+        onSelect={(type) => {
+          setIsTypeDialogOpen(false);
+          if (type === "residential") setShowResModal(true);
+          else setShowCommModal(true);
+        }}
       />
 
       <EstimateDetailsModal
@@ -528,6 +542,22 @@ export function EstimatesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Estimate form modals ──────────────────────────────────────────── */}
+      {showResModal && (
+        <CreateResidentialEstimatePage
+          open={showResModal}
+          onClose={() => { setShowResModal(false); setEditModalState(null); }}
+          initialState={editModalState ?? undefined}
+        />
+      )}
+      {showCommModal && (
+        <CreateCommercialEstimatePage
+          open={showCommModal}
+          onClose={() => { setShowCommModal(false); setEditModalState(null); }}
+          initialState={editModalState ?? undefined}
+        />
+      )}
     </div>
   );
 }

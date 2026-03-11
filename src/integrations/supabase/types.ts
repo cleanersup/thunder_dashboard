@@ -870,6 +870,7 @@ export type Database = {
           subscription_status: string | null
           timezone: string | null
           trial_start_date: string | null
+          trial_welcome_shown: boolean | null
           updated_at: string
           user_id: string
         }
@@ -896,6 +897,7 @@ export type Database = {
           subscription_status?: string | null
           timezone?: string | null
           trial_start_date?: string | null
+          trial_welcome_shown?: boolean | null
           updated_at?: string
           user_id: string
         }
@@ -922,6 +924,7 @@ export type Database = {
           subscription_status?: string | null
           timezone?: string | null
           trial_start_date?: string | null
+          trial_welcome_shown?: boolean | null
           updated_at?: string
           user_id?: string
         }

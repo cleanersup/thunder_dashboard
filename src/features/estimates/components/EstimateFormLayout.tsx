@@ -4,7 +4,7 @@
  * Eliminates duplicated layout code between the two wizard pages.
  */
 import type { ReactNode } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Progress } from "@/shared/components/ui/progress";
 import type { StepConfig } from "../config/steps.config";
@@ -21,6 +21,8 @@ interface EstimateFormLayoutProps {
   isLastStep:   boolean;
   isLoading:    boolean;
   isEditing?:   boolean;
+  /** When true, uses flex-based full-height layout instead of min-h-screen */
+  isModal?:     boolean;
   children:     ReactNode;
   /** Optional draft status badge rendered inside the header */
   draftIndicator?: ReactNode;
@@ -38,6 +40,7 @@ export function EstimateFormLayout({
   isLastStep,
   isLoading,
   isEditing,
+  isModal,
   children,
   draftIndicator,
   submitLabel,
@@ -50,12 +53,132 @@ export function EstimateFormLayout({
         : submitLabel ?? (isEditing ? "Update Estimate" : "Create Estimate"))
     : "Continue";
 
+  const stepTabs = (
+    <div className="flex-shrink-0 bg-card border-b overflow-x-auto">
+      <div className="px-4 flex justify-between gap-1 py-2">
+        {steps.map(({ icon: Icon, label }, i) => (
+          <div
+            key={i}
+            className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-2 py-1 rounded text-xs transition-colors ${
+              i === currentStep
+                ? "text-primary font-semibold"
+                : i < currentStep
+                ? "text-muted-foreground"
+                : "text-muted-foreground/40"
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            <span className="hidden sm:block text-center break-words line-clamp-3 max-w-[4rem] leading-tight">{label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const footerButtons = (
+    <div className={`${isModal ? "flex-shrink-0" : "sticky bottom-0"} bg-background border-t px-4 py-3 flex gap-3`}>
+      <Button
+        variant="outline"
+        className="flex-1 h-12"
+        onClick={onBack}
+        disabled={currentStep === 0 || isLoading}
+      >
+        Back
+      </Button>
+      <Button
+        className="flex-1 h-12"
+        onClick={onNext}
+        disabled={isLoading}
+      >
+        {continueLabel}
+      </Button>
+    </div>
+  );
+
+  // ── Modal layout ────────────────────────────────────────────────────────────
+  if (isModal) {
+    return (
+      <div className="bg-muted h-full flex flex-col">
+        {/* Header — full-width bar, content constrained like Invoice */}
+        <div className="flex-shrink-0 bg-white border-b">
+          <div className="px-4 py-3 flex items-center justify-between gap-4">
+            {/* Left: X + title + step info */}
+            <div className="w-1/3">
+              <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={onExit}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="w-1/3 text-center">
+              <h1 className="font-semibold text-base leading-tight">{title}</h1>
+              <p className="text-xs text-muted-foreground leading-tight">
+                Step {currentStep + 1} of {steps.length} — {steps[currentStep]?.label}
+              </p>
+            </div>
+
+            {/* Right: draft badge + Back + Continue */}
+            <div className="flex items-center gap-2 flex-shrink-0 w-1/3 justify-end">
+              {draftIndicator}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onBack}
+                disabled={currentStep === 0 || isLoading}
+              >
+                Back
+              </Button>
+              <Button size="sm" onClick={onNext} disabled={isLoading}>
+                {continueLabel}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs — constrained to same width */}
+        <div className="flex-shrink-0 bg-card border-b overflow-x-auto">
+          <div className="max-w-2xl mx-auto px-4 flex gap-1 py-2">
+            {/* Progress bar stays full-width for visual impact */}
+          <Progress
+            value={progress}
+            className="h-1 rounded-none"
+            style={{ "--progress-bar": "hsl(var(--green-vibrant))" } as React.CSSProperties}
+          />
+        </div>
+          <div className="max-w-2xl mx-auto px-4 flex justify-between gap-1 py-2">
+            {steps.map(({ icon: Icon, label }, i) => (
+              <div
+                key={i}
+                className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-2 py-1 rounded text-[10px] transition-colors ${
+                  i === currentStep
+                    ? "text-primary font-semibold"
+                    : i < currentStep
+                    ? "text-muted-foreground"
+                    : "text-muted-foreground/40"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="hidden sm:block text-center break-words line-clamp-3 max-w-[3.5rem] leading-tight">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Scrollable content — constrained to same width */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="max-w-2xl mx-auto px-4 py-6 pb-4">
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Page layout ─────────────────────────────────────────────────────────────
   return (
     <div className="bg-muted min-h-screen">
       <div className="w-full p-2.5">
 
-        {/* ── Sticky header ───────────────────────────────────────────── */}
-        <div className="sticky top-0 z-10">
+        {/* Sticky header */}
+        <div className="sticky top-0 z-10 bg-white">
           <div className="px-4 py-4 flex items-center gap-3">
             <Button
               variant="ghost"
@@ -82,50 +205,14 @@ export function EstimateFormLayout({
           />
         </div>
 
-        {/* ── Step tabs ────────────────────────────────────────────────── */}
-        <div className="bg-card border-b overflow-x-auto">
-          <div className="px-4 flex gap-1 py-2">
-            {steps.map(({ icon: Icon, label }, i) => (
-              <div
-                key={i}
-                className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-2 py-1 rounded text-xs transition-colors ${
-                  i === currentStep
-                    ? "text-primary font-semibold"
-                    : i < currentStep
-                    ? "text-muted-foreground"
-                    : "text-muted-foreground/40"
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span className="hidden sm:block">{label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        {stepTabs}
 
-        {/* ── Step content ─────────────────────────────────────────────── */}
+        {/* Step content */}
         <div className="px-4 py-6 pb-24">
           {children}
         </div>
 
-        {/* ── Sticky footer ────────────────────────────────────────────── */}
-        <div className="sticky bottom-0 bg-background border-t px-4 py-3 flex gap-3">
-          <Button
-            variant="outline"
-            className="flex-1 h-12"
-            onClick={onBack}
-            disabled={currentStep === 0 || isLoading}
-          >
-            Back
-          </Button>
-          <Button
-            className="flex-1 h-12"
-            onClick={onNext}
-            disabled={isLoading}
-          >
-            {continueLabel}
-          </Button>
-        </div>
+        {footerButtons}
 
       </div>
     </div>

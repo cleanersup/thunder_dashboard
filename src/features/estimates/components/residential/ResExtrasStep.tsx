@@ -4,9 +4,9 @@
  */
 import {
   Square, TreePine, SquareStack, Layers, Archive,
-  Package, UtensilsCrossed, MoveRight, ArrowDown, Info,
+  Package, UtensilsCrossed, MoveRight, ArrowDown, Info, Star,
 } from "lucide-react";
-import { Card, CardContent } from "@/shared/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { cn } from "@/shared/utils/cn";
 import type { LucideIcon } from "lucide-react";
 
@@ -35,27 +35,35 @@ const EXTRAS: { key: keyof ExtrasState; label: string; icon: LucideIcon }[] = [
 
 export function ResExtrasStep({ extras, onChange }: ResExtrasStepProps) {
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Extra</h2>
-      <p className="text-sm text-muted-foreground">Add extra details to the cleaning estimate</p>
-
-      <div className="grid grid-cols-2 gap-3">
-        {EXTRAS.map(({ key, label, icon: Icon }) => (
-          <div
-            key={key}
-            onClick={() => onChange(key, !extras[key])}
-            className={cn(
-              "flex flex-col items-center justify-center gap-2 p-4 rounded-lg border cursor-pointer transition-all",
-              extras[key]
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border hover:border-primary/50"
-            )}
-          >
-            <Icon className="h-5 w-5" />
-            <span className="text-xs font-medium text-center">{label}</span>
+    <div className="space-y-5">
+      <Card>
+        <CardHeader className="pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Star className="h-5 w-5 text-muted-foreground" />
+            Extra
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Add extra details to the cleaning estimate</p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3">
+            {EXTRAS.map(({ key, label, icon: Icon }) => (
+              <div
+                key={key}
+                onClick={() => onChange(key, !extras[key])}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-2 p-4 rounded-lg border cursor-pointer transition-all",
+                  extras[key]
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:border-primary/50"
+                )}
+              >
+                <Icon className="h-5 w-5" />
+                <span className="text-xs font-medium text-center">{label}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </CardContent>
+      </Card>
 
       <Card className="border-info-subtle-border bg-info-subtle/50">
         <CardContent className="p-4 flex gap-3">

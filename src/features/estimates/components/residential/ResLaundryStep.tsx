@@ -4,7 +4,7 @@
  */
 import { Plus, Minus, Droplets, Shirt, Info } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent } from "@/shared/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { Label } from "@/shared/components/ui/label";
 import { cn } from "@/shared/utils/cn";
 
@@ -26,95 +26,103 @@ export function ResLaundryStep({ laundryService, laundryPounds, onServiceChange,
   };
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Laundry</h2>
-      <p className="text-sm text-muted-foreground">Add laundry services if needed</p>
+    <div className="space-y-5">
+      <Card>
+        <CardHeader className="pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Shirt className="h-5 w-5 text-muted-foreground" />
+            Laundry
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Add laundry services if needed</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Wash and dry */}
+          <div
+            onClick={() => handleSelect("wash-dry")}
+            className={cn(
+              "border rounded-lg p-4 cursor-pointer transition-colors",
+              laundryService === "wash-dry"
+                ? "border-primary bg-primary/10"
+                : "border-border hover:border-primary/50"
+            )}
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Droplets className="h-4 w-4" />
+                <Label className="text-sm font-medium cursor-pointer">Wash and dry clothes</Label>
+              </div>
 
-      {/* Wash and dry */}
-      <div
-        onClick={() => handleSelect("wash-dry")}
-        className={cn(
-          "border rounded-lg p-4 cursor-pointer transition-colors",
-          laundryService === "wash-dry"
-            ? "border-primary bg-primary/10"
-            : "border-border hover:border-primary/50"
-        )}
-      >
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Droplets className="h-4 w-4" />
-            <Label className="text-sm font-medium cursor-pointer">Wash and dry clothes</Label>
+              {laundryService === "wash-dry" && (
+                <>
+                  <span className="text-sm text-primary">Pounds to wash</span>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => { e.stopPropagation(); onPoundsChange(Math.max(0, laundryPounds - 1)); }}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="text-lg font-medium min-w-[3ch] text-center">{laundryPounds}</span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => { e.stopPropagation(); onPoundsChange(laundryPounds + 1); }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
-          {laundryService === "wash-dry" && (
-            <>
-              <span className="text-sm text-primary">Pounds to wash</span>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={(e) => { e.stopPropagation(); onPoundsChange(Math.max(0, laundryPounds - 1)); }}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <span className="text-lg font-medium min-w-[3ch] text-center">{laundryPounds}</span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={(e) => { e.stopPropagation(); onPoundsChange(laundryPounds + 1); }}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
+          {/* Wash, dry and fold */}
+          <div
+            onClick={() => handleSelect("wash-dry-fold")}
+            className={cn(
+              "border rounded-lg p-4 cursor-pointer transition-colors",
+              laundryService === "wash-dry-fold"
+                ? "border-primary bg-primary/10"
+                : "border-border hover:border-primary/50"
+            )}
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Shirt className="h-4 w-4" />
+                <Label className="text-sm font-medium cursor-pointer">Wash, dry and fold clothes</Label>
               </div>
-            </>
-          )}
-        </div>
-      </div>
 
-      {/* Wash, dry and fold */}
-      <div
-        onClick={() => handleSelect("wash-dry-fold")}
-        className={cn(
-          "border rounded-lg p-4 cursor-pointer transition-colors",
-          laundryService === "wash-dry-fold"
-            ? "border-primary bg-primary/10"
-            : "border-border hover:border-primary/50"
-        )}
-      >
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Shirt className="h-4 w-4" />
-            <Label className="text-sm font-medium cursor-pointer">Wash, dry and fold clothes</Label>
+              {laundryService === "wash-dry-fold" && (
+                <>
+                  <span className="text-sm text-primary">Pounds to wash</span>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => { e.stopPropagation(); onPoundsChange(Math.max(0, laundryPounds - 1)); }}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="text-lg font-medium min-w-[3ch] text-center">{laundryPounds}</span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => { e.stopPropagation(); onPoundsChange(laundryPounds + 1); }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-
-          {laundryService === "wash-dry-fold" && (
-            <>
-              <span className="text-sm text-primary">Pounds to wash</span>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={(e) => { e.stopPropagation(); onPoundsChange(Math.max(0, laundryPounds - 1)); }}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <span className="text-lg font-medium min-w-[3ch] text-center">{laundryPounds}</span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={(e) => { e.stopPropagation(); onPoundsChange(laundryPounds + 1); }}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <Card className="border-info-subtle-border bg-info-subtle/50">
         <CardContent className="p-4 flex gap-3">

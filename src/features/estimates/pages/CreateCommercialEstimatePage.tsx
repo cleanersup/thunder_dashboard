@@ -14,6 +14,7 @@ import { CommSummaryStep }  from "../components/commercial/CommSummaryStep";
 import { CommPreviewStep }  from "../components/commercial/CommPreviewStep";
 import { CommSendStep, type DeliveryMethod } from "../components/commercial/CommSendStep";
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
+import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { toast } from "sonner";
 import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,11 +28,24 @@ import { fetchEstimate } from "../services/estimatesService";
 import { useCommercialPricing, isGroupB } from "../hooks/useCommercialPricing";
 import type { DraftData } from "../types/estimate.types";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface Props {
+  open?: boolean;
+  onClose?: () => void;
+  initialState?: { isEditing?: boolean; estimateId?: string; estimateData?: any; prefill?: any; };
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export function CreateCommercialEstimatePage() {
+export function CreateCommercialEstimatePage({ open, onClose, initialState }: Props = {}) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isEditing, estimateId, estimateData, prefill } = (location.state as any) || {};
+  const locationState = (location.state as any) || {};
+  const { isEditing, estimateId, estimateData, prefill } = initialState ?? locationState;
+  const isModal = onClose !== undefined;
+  const goBack = useCallback(() => {
+    if (isModal) onClose!();
+    else navigate(-1);
+  }, [isModal, onClose, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { mutateAsync: createEstimate } = useCreateEstimate();
   const { mutateAsync: updateEstimate } = useUpdateEstimate();
@@ -98,10 +112,11 @@ export function CreateCommercialEstimatePage() {
   // ── Company info check on mount ───────────────────────────────────────────
   useEffect(() => {
     if (!profile || currentStep !== 0 || isEditing) return;
+    if (isModal && !open) return; // skip when modal is mounted but not yet opened
     const complete = profile.company_address && profile.company_city &&
                      profile.company_state   && profile.company_zip;
     if (!complete) setShowCompanyInfoAlert(true);
-  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Prefill when editing ──────────────────────────────────────────────────
   useEffect(() => {
@@ -547,31 +562,17 @@ export function CreateCommercialEstimatePage() {
 
   const isLoading = isSavingForm || isSendingEmail;
 
-  return (
+  // ── Shared dialogs (outside any modal) ───────────────────────────────────
+  const formDialogs = (
     <>
       <ExitConfirmationDialog
         open={showExitDialog}
-        onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); navigate(-1); }}
-        onDiscard={() => { deleteDraft(); setShowExitDialog(false); navigate(-1); }}
+        onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); goBack(); }}
+        onDiscard={() => { deleteDraft(); setShowExitDialog(false); goBack(); }}
         onCancel={() => setShowExitDialog(false)}
       />
 
-      <EstimateFormLayout
-        title={isEditing ? "Edit Commercial Estimate" : "New Commercial Estimate"}
-        steps={COMMERCIAL_STEPS}
-        currentStep={currentStep}
-        onBack={handleBack}
-        onNext={handleNext}
-        onExit={handleExit}
-        isLastStep={currentStep === COMMERCIAL_STEPS.length - 1}
-        isLoading={isLoading}
-        isEditing={isEditing}
-        draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
-      >
-        {renderStep()}
-      </EstimateFormLayout>
-
-      {/* ── Company info alert ──────────────────────────────────────────── */}
+      {/* ── Company info alert ────────────────────────────────────────── */}
       <AlertDialog open={showCompanyInfoAlert} onOpenChange={setShowCompanyInfoAlert}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
@@ -610,12 +611,59 @@ export function CreateCommercialEstimatePage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="sm:justify-center">
-            <AlertDialogAction onClick={() => { setShowSuccess(false); navigate("/estimates"); }}>
+            <AlertDialogAction onClick={() => { setShowSuccess(false); goBack(); }}>
               View Estimates
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
+  );
+
+  // ── Modal mode ───────────────────────────────────────────────────────────
+  if (isModal) {
+    return (
+      <>
+        <FullScreenModal open={open ?? false} onClose={goBack}>
+          <EstimateFormLayout
+            title={isEditing ? "Edit Commercial Estimate" : "New Commercial Estimate"}
+            steps={COMMERCIAL_STEPS}
+            currentStep={currentStep}
+            onBack={handleBack}
+            onNext={handleNext}
+            onExit={handleExit}
+            isLastStep={currentStep === COMMERCIAL_STEPS.length - 1}
+            isLoading={isLoading}
+            isEditing={isEditing}
+            isModal
+            draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
+          >
+            {renderStep()}
+          </EstimateFormLayout>
+        </FullScreenModal>
+        {formDialogs}
+      </>
+    );
+  }
+
+  // ── Page mode ────────────────────────────────────────────────────────────
+  return (
+    <>
+      {formDialogs}
+      <EstimateFormLayout
+        title={isEditing ? "Edit Commercial Estimate" : "New Commercial Estimate"}
+        steps={COMMERCIAL_STEPS}
+        currentStep={currentStep}
+        onBack={handleBack}
+        onNext={handleNext}
+        onExit={handleExit}
+        isLastStep={currentStep === COMMERCIAL_STEPS.length - 1}
+        isLoading={isLoading}
+        isEditing={isEditing}
+        draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
+      >
+        {renderStep()}
+      </EstimateFormLayout>
     </>
   );
 }

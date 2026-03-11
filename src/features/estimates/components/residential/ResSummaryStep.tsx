@@ -2,7 +2,7 @@
  * @module ResSummaryStep — Step 8 (Residential)
  * Pricing summary, custom price override, discount toggle.
  */
-import { Users, Info, Tag, Percent, DollarSign, AlertCircle } from "lucide-react";
+import { Users, Info, Tag, Percent, DollarSign, AlertCircle, Calculator } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -47,7 +47,10 @@ export function ResSummaryStep({
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Estimate Summary</h2>
+      <h2 className="text-lg font-semibold flex items-center gap-2">
+        <DollarSign className="h-5 w-5 text-muted-foreground" />
+        Estimate Summary
+      </h2>
 
       {client && (
         <Card>
@@ -73,7 +76,10 @@ export function ResSummaryStep({
       {/* Cost Breakdown */}
       <Card>
         <CardContent className="p-4 space-y-3">
-          <h4 className="text-sm font-semibold">Operation Cost Breakdown</h4>
+          <h4 className="text-sm font-semibold flex items-center gap-2">
+            <Calculator className="h-4 w-4" />
+            Operation Cost Breakdown
+          </h4>
           {[
             { label: "Labor Cost",          val: laborCost    },
             { label: "Supplies & Materials", val: suppliesCost },

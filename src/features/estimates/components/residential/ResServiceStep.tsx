@@ -4,15 +4,15 @@
  * Selecting "Post Construction" opens a sub-type picker dialog.
  */
 import { useState } from "react";
-import { HardHat } from "lucide-react";
+import { HardHat, Briefcase, Maximize2 } from "lucide-react";
 import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
 import { Button } from "@/shared/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/shared/components/ui/dialog";
 import { toIntegerString } from "@/shared/utils/numericInput";
 import { cn } from "@/shared/utils/cn";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 
 const SERVICE_OPTIONS = [
   "Deep Cleaning",
@@ -69,9 +69,15 @@ export function ResServiceStep({
   return (
     <>
       <div className="space-y-5">
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold">Select Service Type</h2>
-          <div className="grid grid-cols-2 gap-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-muted-foreground" />
+              Select Service Type
+            </h2>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
             {SERVICE_OPTIONS.map((svc) => (
               <div
                 key={svc}
@@ -91,18 +97,26 @@ export function ResServiceStep({
             ))}
           </div>
           {error && <p className="text-xs text-destructive">Please select a service type</p>}
-        </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Maximize2 className="h-4 w-4 text-muted-foreground" />
+              Square Footage
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1.5">
+            <Input
+              type="text"
+              inputMode="numeric"
+              placeholder="e.g. 1500"
+              value={squareFootage}
+              onChange={(e) => onSqftChange(toIntegerString(e.target.value))}
+            />
+          </CardContent>
+        </Card>
 
-        <div className="space-y-1.5">
-          <Label>Square Footage</Label>
-          <Input
-            type="text"
-            inputMode="numeric"
-            placeholder="e.g. 1500"
-            value={squareFootage}
-            onChange={(e) => onSqftChange(toIntegerString(e.target.value))}
-          />
-        </div>
       </div>
 
       {/* Post Construction sub-type dialog */}

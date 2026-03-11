@@ -2,7 +2,7 @@
  * @module CommSummaryStep — Step 5 (Commercial)
  * Pricing summary, custom price override, discount toggle.
  */
-import { Tag, Percent, DollarSign, AlertCircle, Info } from "lucide-react";
+import { Tag, Percent, DollarSign, AlertCircle, Info, Calculator } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -53,7 +53,10 @@ export function CommSummaryStep({
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Estimate Summary</h2>
+      <h2 className="text-lg font-semibold flex items-center gap-2">
+        <DollarSign className="h-5 w-5 text-muted-foreground" />
+        Estimate Summary
+      </h2>
 
       {client && (
         <Card>
@@ -76,7 +79,10 @@ export function CommSummaryStep({
       {/* Cost Breakdown */}
       <Card>
         <CardContent className="p-4 space-y-3">
-          <h4 className="text-sm font-semibold">Operation Cost Breakdown</h4>
+          <h4 className="text-sm font-semibold flex items-center gap-2">
+            <Calculator className="h-4 w-4" />
+            Operation Cost Breakdown
+          </h4>
           {[
             { label: "Labor Cost",          val: costs.laborCost },
             { label: "Supplies & Materials", val: costs.suppliesCost },

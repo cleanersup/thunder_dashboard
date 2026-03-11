@@ -17,6 +17,7 @@ import { ResSummaryStep }  from "../components/residential/ResSummaryStep";
 import { ResPreviewStep } from "../components/residential/ResPreviewStep";
 import { ResSendStep, type DeliveryMethod } from "../components/residential/ResSendStep";
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
+import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateEstimate, useUpdateEstimate } from "../hooks/useEstimates";
@@ -30,11 +31,24 @@ import { useResidentialPricing } from "../hooks/useResidentialPricing";
 import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
 import type { DraftData } from "../types/estimate.types";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface Props {
+  open?: boolean;
+  onClose?: () => void;
+  initialState?: { isEditing?: boolean; estimateId?: string; estimateData?: any; prefill?: any; };
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export function CreateResidentialEstimatePage() {
+export function CreateResidentialEstimatePage({ open, onClose, initialState }: Props = {}) {
   const navigate    = useNavigate();
   const location    = useLocation();
-  const { isEditing, estimateId, estimateData, prefill } = (location.state as any) || {};
+  const locationState = (location.state as any) || {};
+  const { isEditing, estimateId, estimateData, prefill } = initialState ?? locationState;
+  const isModal = onClose !== undefined;
+  const goBack = useCallback(() => {
+    if (isModal) onClose!();
+    else navigate(-1);
+  }, [isModal, onClose, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
   const createEst   = useCreateEstimate();
   const updateEst   = useUpdateEstimate();
   const { sendEstimateEmail, isSending } = useSendEstimateEmail();
@@ -50,10 +64,11 @@ export function CreateResidentialEstimatePage() {
   // ── Company info check on mount ───────────────────────────────────────────
   useEffect(() => {
     if (!profile || step !== 0 || isEditing) return;
+    if (isModal && !open) return; // skip when modal is mounted but not yet opened
     const complete = profile.company_address && profile.company_city &&
                      profile.company_state   && profile.company_zip;
     if (!complete) setShowCompanyInfoAlert(true);
-  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Step 0: Client ────────────────────────────────────────────────────────
   const [estimateType,   setEstimateType]   = useState<EstimateEntityType | null>(null);
@@ -482,31 +497,17 @@ export function CreateResidentialEstimatePage() {
 
   const isLoading = createEst.isPending || updateEst.isPending || isSending;
 
-  return (
+  // ── Shared dialogs (outside any modal) ───────────────────────────────────
+  const formDialogs = (
     <>
       <ExitConfirmationDialog
         open={showExitDialog}
-        onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); navigate(-1); }}
-        onDiscard={() => { deleteDraft(); setShowExitDialog(false); navigate(-1); }}
+        onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); goBack(); }}
+        onDiscard={() => { deleteDraft(); setShowExitDialog(false); goBack(); }}
         onCancel={() => setShowExitDialog(false)}
       />
 
-      <EstimateFormLayout
-        title="Residential Estimate"
-        steps={RESIDENTIAL_STEPS}
-        currentStep={step}
-        onBack={handleBack}
-        onNext={handleNext}
-        onExit={handleExit}
-        isLastStep={step === RESIDENTIAL_STEPS.length - 1}
-        isLoading={isLoading}
-        isEditing={isEditing}
-        draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
-      >
-        {renderStep()}
-      </EstimateFormLayout>
-
-      {/* ── Company info alert ──────────────────────────────────────────── */}
+      {/* ── Company info alert ────────────────────────────────────────── */}
       <AlertDialog open={showCompanyInfoAlert} onOpenChange={setShowCompanyInfoAlert}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
@@ -545,12 +546,59 @@ export function CreateResidentialEstimatePage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="sm:justify-center">
-            <AlertDialogAction onClick={() => { setShowSuccess(false); navigate("/estimates"); }}>
+            <AlertDialogAction onClick={() => { setShowSuccess(false); goBack(); }}>
               View Estimates
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
+  );
+
+  // ── Modal mode ───────────────────────────────────────────────────────────
+  if (isModal) {
+    return (
+      <>
+        <FullScreenModal open={open ?? false} onClose={goBack}>
+          <EstimateFormLayout
+            title="Residential Estimate"
+            steps={RESIDENTIAL_STEPS}
+            currentStep={step}
+            onBack={handleBack}
+            onNext={handleNext}
+            onExit={handleExit}
+            isLastStep={step === RESIDENTIAL_STEPS.length - 1}
+            isLoading={isLoading}
+            isEditing={isEditing}
+            isModal
+            draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
+          >
+            {renderStep()}
+          </EstimateFormLayout>
+        </FullScreenModal>
+        {formDialogs}
+      </>
+    );
+  }
+
+  // ── Page mode ────────────────────────────────────────────────────────────
+  return (
+    <>
+      {formDialogs}
+      <EstimateFormLayout
+        title="Residential Estimate"
+        steps={RESIDENTIAL_STEPS}
+        currentStep={step}
+        onBack={handleBack}
+        onNext={handleNext}
+        onExit={handleExit}
+        isLastStep={step === RESIDENTIAL_STEPS.length - 1}
+        isLoading={isLoading}
+        isEditing={isEditing}
+        draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
+      >
+        {renderStep()}
+      </EstimateFormLayout>
     </>
   );
 }

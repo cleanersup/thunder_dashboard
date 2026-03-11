@@ -30,10 +30,8 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import {
-  Dialog, DialogContent,
-} from "@/shared/components/ui/dialog";
 import { ClientForm } from "@/features/crm/clients/components/ClientForm";
+import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { Calendar } from "@/shared/components/ui/calendar";
 import { cn }       from "@/shared/utils/cn";
 import { toast }    from "sonner";
@@ -869,50 +867,49 @@ export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}
   if (isModal) {
     return (
       <>
-        <Dialog open={open ?? false} onOpenChange={(o) => { if (!o) goBack(); }}>
-          <DialogContent className="left-0 top-0 translate-x-0 translate-y-0 w-screen h-screen max-w-none rounded-none p-0 flex flex-col overflow-hidden [&>button:last-child]:hidden">
-            {/* Header — clean with bottom border only */}
-            <div className="border-b flex-shrink-0 bg-background">
-              <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-                {/* Left: X + icon + title */}
-                <div className="flex items-center gap-2 min-w-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 flex-shrink-0"
-                    onClick={goBack}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                  <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <h2 className="font-semibold text-base truncate">
-                    {isEditing ? "Edit Invoice" : "New Invoice"}
-                  </h2>
-                </div>
+        <FullScreenModal open={open ?? false} onClose={goBack}>
+          {/* Header — clean with bottom border only */}
+          <div className="border-b flex-shrink-0 bg-white">
+            <div className="px-4 py-3 flex items-center justify-between gap-4">
+              {/* Left: X + icon + title */}
+              <div className="w-1/3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 flex-shrink-0"
+                  onClick={goBack}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="w-1/3 text-center">
+                <h1 className="font-semibold text-base leading-tight">
+                  {isEditing ? "Edit Invoice" : "New Invoice"}
+                </h1>
+              </div>
 
-                {/* Right: action buttons */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Button variant="outline" size="sm" onClick={goBack} disabled={isLoading}>
-                    Cancel
+              {/* Right: action buttons */}
+              <div className="flex items-center gap-2 flex-shrink-0 w-1/3 justify-end">
+                <Button variant="outline" size="sm" onClick={goBack} disabled={isLoading}>
+                  Cancel
+                </Button>
+                {isEditing && (
+                  <Button variant="outline" size="sm" onClick={handleSave} disabled={isLoading}>
+                    {isLoading ? "Saving..." : "Save"}
                   </Button>
-                  {isEditing && (
-                    <Button variant="outline" size="sm" onClick={handleSave} disabled={isLoading}>
-                      {isLoading ? "Saving..." : "Save"}
-                    </Button>
-                  )}
-                  <Button size="sm" onClick={handleNext} disabled={isLoading}>
-                    {isLoading ? "Saving..." : "Next"}
-                  </Button>
-                </div>
+                )}
+                <Button size="sm" onClick={handleNext} disabled={isLoading}>
+                  {isLoading ? "Saving..." : "Next"}
+                </Button>
               </div>
             </div>
+          </div>
 
-            {/* Scrollable form body */}
-            <div className="flex-1 overflow-y-auto bg-background">
-              {formCards}
-            </div>
-          </DialogContent>
-        </Dialog>
+          {/* Scrollable form body */}
+          <div className="flex-1 overflow-y-auto bg-background">
+            {formCards}
+          </div>
+        </FullScreenModal>
         {sharedDialogs}
       </>
     );
