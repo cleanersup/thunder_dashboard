@@ -329,7 +329,10 @@ export function SubscriptionPlansContent() {
 
   const handlePurchase = async (pkg: string) => {
     await purchase(pkg);
+    // First refresh immediately, then again after a short delay to allow
+    // the RC → Supabase webhook to process before the user sees the result.
     await refreshSubscription();
+    setTimeout(() => refreshSubscription(), 3000);
   };
 
   const handleRestore = async () => {

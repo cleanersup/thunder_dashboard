@@ -106,39 +106,39 @@ export function AppRouter() {
           <Route path="/home" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
 
           {/* Phase 5 ✅ */}
-          <Route path="/crm" element={<ProtectedRoute><CRMPage /></ProtectedRoute>} />
-          <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+          <Route path="/crm" element={<ProtectedRoute requireFeature="crm"><CRMPage /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute requireSubscription={false}><NotificationsPage /></ProtectedRoute>} />
 
           {/* Phase 6 ✅ */}
-          <Route path="/booking" element={<ProtectedRoute><BookingPage /></ProtectedRoute>} />
-          <Route path="/booking/edit" element={<ProtectedRoute><EditBookingFormPage /></ProtectedRoute>} />
+          <Route path="/booking" element={<ProtectedRoute requireFeature="booking"><BookingPage /></ProtectedRoute>} />
+          <Route path="/booking/edit" element={<ProtectedRoute requireFeature="booking"><EditBookingFormPage /></ProtectedRoute>} />
           {/* Public — no auth, must be after /booking/edit to avoid conflict */}
           <Route path="/booking/:userId" element={<PublicBookingFormPage />} />
 
           {/* Phase 7 ✅ */}
-          <Route path="/estimates" element={<ProtectedRoute><EstimatesPage /></ProtectedRoute>} />
-          <Route path="/estimates/new/residential" element={<ProtectedRoute><CreateResidentialEstimatePage /></ProtectedRoute>} />
-          <Route path="/estimates/new/commercial"  element={<ProtectedRoute><CreateCommercialEstimatePage /></ProtectedRoute>} />
+          <Route path="/estimates" element={<ProtectedRoute requireFeature="estimates"><EstimatesPage /></ProtectedRoute>} />
+          <Route path="/estimates/new/residential" element={<ProtectedRoute requireFeature="estimates"><CreateResidentialEstimatePage /></ProtectedRoute>} />
+          <Route path="/estimates/new/commercial"  element={<ProtectedRoute requireFeature="estimates"><CreateCommercialEstimatePage /></ProtectedRoute>} />
           {/* Public — no auth required */}
           <Route path="/public/estimate/:token" element={<PublicEstimateViewPage />} />
 
           {/* Phase 8 ✅ */}
-          <Route path="/invoices"              element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
-          <Route path="/invoices/new"          element={<ProtectedRoute><CreateInvoicePage /></ProtectedRoute>} />
-          <Route path="/invoices/:id/edit"     element={<ProtectedRoute><CreateInvoicePage /></ProtectedRoute>} />
-          <Route path="/invoices/:id/preview"  element={<ProtectedRoute><InvoicePreviewPage /></ProtectedRoute>} />
+          <Route path="/invoices"              element={<ProtectedRoute requireFeature="invoices"><InvoicesPage /></ProtectedRoute>} />
+          <Route path="/invoices/new"          element={<ProtectedRoute requireFeature="invoices"><CreateInvoicePage /></ProtectedRoute>} />
+          <Route path="/invoices/:id/edit"     element={<ProtectedRoute requireFeature="invoices"><CreateInvoicePage /></ProtectedRoute>} />
+          <Route path="/invoices/:id/preview"  element={<ProtectedRoute requireFeature="invoices"><InvoicePreviewPage /></ProtectedRoute>} />
           {/* Public — no auth required */}
           <Route path="/invoice/payment/:id" element={<PublicInvoicePaymentPage />} />
-          <Route path="/stripe/return" element={<StripeReturnPage />} />
+          <Route path="/stripe/return" element={<ProtectedRoute requireSubscription={false}><StripeReturnPage /></ProtectedRoute>} />
 
           {/* Phase 9 ✅ */}
-          <Route path="/create-route"           element={<ProtectedRoute><RoutesPage /></ProtectedRoute>} />
-          <Route path="/create-route/new"       element={<ProtectedRoute><AddAppointmentPage /></ProtectedRoute>} />
-          <Route path="/create-route/:id/edit"  element={<ProtectedRoute><AddAppointmentPage /></ProtectedRoute>} />
-          <Route path="/smart-map"              element={<ProtectedRoute><SmartMapPage /></ProtectedRoute>} />
+          <Route path="/create-route"           element={<ProtectedRoute requireFeature="routes"><RoutesPage /></ProtectedRoute>} />
+          <Route path="/create-route/new"       element={<ProtectedRoute requireFeature="routes"><AddAppointmentPage /></ProtectedRoute>} />
+          <Route path="/create-route/:id/edit"  element={<ProtectedRoute requireFeature="routes"><AddAppointmentPage /></ProtectedRoute>} />
+          <Route path="/smart-map"              element={<ProtectedRoute requireFeature="smart_map"><SmartMapPage /></ProtectedRoute>} />
 
           {/* Phase 10 ✅ */}
-          <Route path="/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
+          <Route path="/employees" element={<ProtectedRoute requireFeature="employee"><EmployeesPage /></ProtectedRoute>} />
 
           {/* Phase 11 ✅ */}
           <Route path="/walkthroughs"           element={<ProtectedRoute><WalkthroughsPage /></ProtectedRoute>} />
@@ -149,17 +149,17 @@ export function AppRouter() {
           <Route path="/walkthrough/commercial/:id"  element={<ProtectedRoute><CommercialWalkthroughFormPage /></ProtectedRoute>} />
 
           {/* Phase 19 ✅ */}
-          <Route path="/time-clock" element={<ProtectedRoute><TimeClockPage /></ProtectedRoute>} />
+          <Route path="/time-clock" element={<ProtectedRoute requireFeature="time_clock"><TimeClockPage /></ProtectedRoute>} />
 
           {/* Phase 13 ✅ */}
-          <Route path="/subscription-plans" element={<ProtectedRoute><SubscriptionPlansPage /></ProtectedRoute>} />
+          <Route path="/subscription-plans" element={<ProtectedRoute requireSubscription={false}><SubscriptionPlansPage /></ProtectedRoute>} />
 
           {/* Phase 12 ✅ */}
-          <Route path="/profile"            element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-          <Route path="/edit-profile"       element={<ProtectedRoute><EditProfilePage /></ProtectedRoute>} />
-          <Route path="/edit-company-info"  element={<ProtectedRoute><EditCompanyInfoPage /></ProtectedRoute>} />
-          <Route path="/edit-security"      element={<ProtectedRoute><SecurityPage /></ProtectedRoute>} />
-          <Route path="/contract"           element={<ProtectedRoute><ContractPage /></ProtectedRoute>} />
+          <Route path="/profile"            element={<ProtectedRoute requireSubscription={false}><ProfilePage /></ProtectedRoute>} />
+          <Route path="/edit-profile"       element={<ProtectedRoute requireSubscription={false}><EditProfilePage /></ProtectedRoute>} />
+          <Route path="/edit-company-info"  element={<ProtectedRoute requireSubscription={false}><EditCompanyInfoPage /></ProtectedRoute>} />
+          <Route path="/edit-security"      element={<ProtectedRoute requireSubscription={false}><SecurityPage /></ProtectedRoute>} />
+          <Route path="/contract"           element={<ProtectedRoute requireSubscription={false}><ContractPage /></ProtectedRoute>} />
           {/* Public — no auth required */}
           <Route path="/privacy"             element={<PrivacyPage />} />
           <Route path="/contact-card/:userId" element={<ContactCardPage />} />

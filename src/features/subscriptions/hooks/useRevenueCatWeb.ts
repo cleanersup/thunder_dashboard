@@ -7,15 +7,16 @@
  *   2. Stripe connected to RevenueCat
  *   3. VITE_REVENUECAT_WEB_KEY added to .env
  *
- * Until those are configured, `isConfigured` returns false and purchase()
- * is a no-op. The SubscriptionPlansPage handles this state gracefully.
+ * NOTE: The "default" RC offering may contain only mobile packages.
+ * The web offering is found by scanning offerings.all — this lets mobile
+ * keep its own "current" offering without affecting the web flow.
  */
 import { useState, useEffect, useCallback } from "react";
 
 const WEB_KEY = import.meta.env.VITE_REVENUECAT_WEB_KEY as string | undefined;
 
 export interface RCWebState {
-  /** True when the SDK is initialised and ready to purchase. */
+  /** True when the SDK is initialised and at least one web billing package is available. */
   isConfigured: boolean;
   isLoading: boolean;
   error: string | null;
@@ -23,6 +24,26 @@ export interface RCWebState {
   purchase: (packageIdentifier: string) => Promise<void>;
   /** Restore purchases made on any platform. */
   restorePurchases: () => Promise<void>;
+}
+
+/** Collect all availablePackages across every offering. */
+function collectAllPackages(offerings: any): any[] {
+  const pkgs: any[] = [];
+  if (offerings?.current?.availablePackages?.length) {
+    pkgs.push(...offerings.current.availablePackages);
+  }
+  if (offerings?.all) {
+    Object.values(offerings.all).forEach((o: any) => {
+      if (o?.availablePackages?.length) {
+        o.availablePackages.forEach((p: any) => {
+          if (!pkgs.some((existing) => existing.identifier === p.identifier)) {
+            pkgs.push(p);
+          }
+        });
+      }
+    });
+  }
+  return pkgs;
 }
 
 /**
@@ -50,7 +71,16 @@ export function useRevenueCatWeb(appUserId: string | undefined): RCWebState {
         // (same appUserID used by the mobile SDK → cross-platform sync)
         await Purchases.configure(WEB_KEY, appUserId);
 
-        if (!cancelled) setIsConfigured(true);
+        // Check across ALL offerings — offerings.current may point to the mobile
+        // offering which has no web billing packages.
+        const instance  = Purchases.getSharedInstance();
+        const offerings = await instance.getOfferings();
+        const hasWebPackages = collectAllPackages(offerings).length > 0;
+
+        if (!cancelled) {
+          console.log("[RC Web] Init OK. Web packages found:", hasWebPackages);
+          setIsConfigured(hasWebPackages);
+        }
       } catch (err) {
         if (!cancelled) {
           console.error("[RC Web] Init error:", err);
@@ -72,26 +102,12 @@ export function useRevenueCatWeb(appUserId: string | undefined): RCWebState {
     const { Purchases } = await import("@revenuecat/purchases-js");
     const instance  = Purchases.getSharedInstance();
     const offerings = await instance.getOfferings();
-    const current   = offerings.current;
-    if (!current) throw new Error("No offerings available");
 
-    // Find the package across all available offerings
-    // NOTE: exact API shape verified once RC Web Billing is configured in dashboard
-    const allPkgs: any[] = [];
-    const offeringsAny = offerings as any;
-    const monthly = offeringsAny.current?.monthly ?? offeringsAny.current?.MONTHLY;
-    const annual  = offeringsAny.current?.annual  ?? offeringsAny.current?.ANNUAL;
-    if (monthly?.availablePackages) allPkgs.push(...monthly.availablePackages);
-    if (annual?.availablePackages)  allPkgs.push(...annual.availablePackages);
-    // Fallback: iterate all offerings
-    if (allPkgs.length === 0 && offeringsAny.all) {
-      Object.values(offeringsAny.all).forEach((o: any) => {
-        if (o?.availablePackages) allPkgs.push(...o.availablePackages);
-      });
-    }
+    const allPkgs = collectAllPackages(offerings);
+    if (allPkgs.length === 0) throw new Error("No web billing packages available");
 
     const pkg = allPkgs.find((p: any) => p.identifier === packageIdentifier);
-    if (!pkg) throw new Error(`Package "${packageIdentifier}" not found in offerings`);
+    if (!pkg) throw new Error(`Package "${packageIdentifier}" not found`);
 
     await (instance as any).purchasePackage(pkg);
   }, [isConfigured]);

@@ -7,6 +7,8 @@ import thunderProLogo from "@/assets/logo_thunder_pro_w.png";
 import thunderLogo    from "@/assets/thunder-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/shared/hooks/useProfile";
+import { useSubscription } from "@/features/subscriptions/context/SubscriptionContext";
+import { hasFeatureAccess, type FeatureKey } from "@/shared/config/planFeatures";
 import { cn } from "@/shared/utils/cn";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
@@ -15,17 +17,24 @@ import {
   useSidebar,
 } from "@/shared/components/ui/sidebar";
 
-const MAIN_NAV = [
-  { path: "/home", icon: Home, label: "Home" },
-  { path: "/estimates", icon: Receipt, label: "Estimates" },
-  { path: "/create-route", icon: Route, label: "Route" },
-  { path: "/invoices", icon: FileText, label: "Invoices" },
-  { path: "/crm", icon: Users, label: "CRM" },
-  { path: "/booking", icon: Calendar, label: "Booking" },
-  { path: "/employees", icon: UserPlus, label: "Employees" },
-  { path: "/time-clock", icon: Clock, label: "Time Clock" },
-  { path: "/smart-map", icon: MapPin, label: "Smart Map" },
-] as const;
+type NavItem = {
+  path: string;
+  icon: React.ElementType;
+  label: string;
+  feature?: FeatureKey;
+};
+
+const MAIN_NAV: NavItem[] = [
+  { path: "/home",         icon: Home,    label: "Home" },
+  { path: "/estimates",    icon: Receipt, label: "Estimates",  feature: "estimates"  },
+  { path: "/create-route", icon: Route,   label: "Route",      feature: "routes"     },
+  { path: "/invoices",     icon: FileText,label: "Invoices",   feature: "invoices"   },
+  { path: "/crm",          icon: Users,   label: "CRM",        feature: "crm"        },
+  { path: "/booking",      icon: Calendar,label: "Booking",    feature: "booking"    },
+  { path: "/employees",    icon: UserPlus,label: "Employees",  feature: "employee"   },
+  { path: "/time-clock",   icon: Clock,   label: "Time Clock", feature: "time_clock" },
+  { path: "/smart-map",    icon: MapPin,  label: "Smart Map",  feature: "smart_map"  },
+];
 
 const ACCOUNT_NAV = [
   { path: "/profile", icon: Settings, label: "Settings" },
@@ -44,6 +53,9 @@ export function DesktopSidebar() {
   const { data: profile } = useProfile();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const { planTier, isLoading } = useSubscription();
+
+  const visibleNav = MAIN_NAV.filter(item => !item.feature || hasFeatureAccess(planTier, item.feature));
 
   const isActive = (path: string) =>
     path === "/home" ? location.pathname === "/home" : location.pathname.startsWith(path);
@@ -73,30 +85,42 @@ export function DesktopSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {MAIN_NAV.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.path);
-                return (
-                  <div key={item.path}>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={active}
-                        tooltip={item.label}
-                        className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-white data-[active=true]:text-primary text-[13px]"
-                      >
-                        <Link to={item.path}>
-                          <Icon className={cn("h-5 w-5", isCollapsed && "ml-1")} />
-                          <span>{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    {DIVIDER_AFTER.has(item.path) && (
-                      <div className="my-2 mx-2 border-t border-white/20" />
-                    )}
-                  </div>
-                );
-              })}
+              {isLoading ? (
+                // Skeleton rows — items never flash and then disappear
+                Array.from({ length: 6 }).map((_, i) => (
+                  <SidebarMenuItem key={i}>
+                    <div className={cn(
+                      "h-9 rounded-md bg-sidebar-accent/30 animate-pulse my-0.5",
+                      isCollapsed ? "w-9 mx-auto" : "w-full",
+                    )} />
+                  </SidebarMenuItem>
+                ))
+              ) : (
+                visibleNav.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.path);
+                  return (
+                    <div key={item.path}>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={active}
+                          tooltip={item.label}
+                          className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-white data-[active=true]:text-primary text-[13px]"
+                        >
+                          <Link to={item.path}>
+                            <Icon className={cn("h-5 w-5", isCollapsed && "ml-1")} />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      {DIVIDER_AFTER.has(item.path) && (
+                        <div className="my-2 mx-2 border-t border-white/20" />
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
