@@ -99,14 +99,19 @@ export function EstimateDetailsModal({ open, onOpenChange, estimateId }: Estimat
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, estimateId]);
 
-  // ── Real-time: update viewed_at ──────────────────────────────────────────
+  // ── Real-time: update viewed_at and status ───────────────────────────────
   useEffect(() => {
     if (!estimateId || !open) return;
     const channel = supabase
       .channel(`estimate-modal-${estimateId}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "estimates", filter: `id=eq.${estimateId}` },
         (payload) => {
-          if (payload.new?.viewed_at) setEstimate((prev: any) => ({ ...prev, viewed_at: payload.new.viewed_at }));
+          const n = payload.new as Record<string, unknown>;
+          setEstimate((prev: any) => ({
+            ...prev,
+            ...(n.viewed_at != null && { viewed_at: n.viewed_at }),
+            ...(n.status != null && { status: n.status }),
+          }));
         })
       .subscribe();
     return () => { supabase.removeChannel(channel); };

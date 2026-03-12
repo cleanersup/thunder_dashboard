@@ -3,9 +3,10 @@
  * Modal dialog showing full invoice details with quick actions.
  * Adapted from thunder-web-version/src/components/InvoiceDetailsModal.tsx.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { formatDateOnly } from "@/shared/utils/formatters";
 import {
   CheckCircle, Clock, Mail, Phone, MapPin, Building2, Calendar,
   FileText, Download, Eye, EyeOff, DollarSign, XCircle, Loader2, Pencil,
@@ -26,7 +27,10 @@ import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { toast }      from "sonner";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { formatCurrency } from "@/shared/utils/formatters";
+import { useQueryClient } from "@tanstack/react-query";
 import { useInvoice, useMarkInvoiceAsPaid, useCancelInvoice } from "../hooks/useInvoices";
+import { QK } from "@/shared/config/queryKeys";
+import { supabase } from "@/integrations/supabase/client";
 import { useSendInvoiceEmail } from "../hooks/useSendInvoiceEmail";
 import { generateInvoicePDF } from "../services/generateInvoicePDF";
 import type { InvoiceStatus, LineItem } from "../types/invoice.types";
@@ -65,7 +69,19 @@ export function InvoiceDetailsModal({
   const markPaid   = useMarkInvoiceAsPaid();
   const cancelInv  = useCancelInvoice();
 
+  const queryClient = useQueryClient();
   const { data: invoice, isLoading } = useInvoice(open && invoiceId ? invoiceId : undefined);
+
+  // ── Real-time: refetch invoice when it changes (viewed_at, status, etc.) ──────
+  useEffect(() => {
+    if (!invoiceId || !open) return;
+    const channel = supabase
+      .channel(`invoice-modal-${invoiceId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "invoices", filter: `id=eq.${invoiceId}` },
+        () => queryClient.invalidateQueries({ queryKey: QK.invoice(invoiceId) }))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [invoiceId, open, queryClient]);
 
   // local dialog state
   const [isPaymentDialogOpen,    setIsPaymentDialogOpen]    = useState(false);
@@ -147,8 +163,8 @@ export function InvoiceDetailsModal({
         clientEmail:   invoice.email,
         invoiceNumber: invoice.invoice_number,
         invoiceName:   invoice.invoice_name ?? undefined,
-        invoiceDate:   format(new Date(invoice.invoice_date), "MMMM d, yyyy"),
-        dueDate:       format(new Date(invoice.due_date), "MMMM d, yyyy"),
+        invoiceDate:   formatDateOnly(invoice.invoice_date, "MMMM d, yyyy"),
+        dueDate:       formatDateOnly(invoice.due_date, "MMMM d, yyyy"),
         status:        invoice.status,
         lineItems:     lineItems.map((i) => ({ ...i, qty: i.qty })),
         subtotal,
@@ -291,7 +307,7 @@ export function InvoiceDetailsModal({
                             <div>
                               <p className="text-xs text-muted-foreground">Invoice Date</p>
                               <p className="text-sm font-medium">
-                                {format(new Date(invoice.invoice_date), "MMMM d, yyyy")}
+                                {formatDateOnly(invoice.invoice_date, "MMMM d, yyyy")}
                               </p>
                             </div>
                           </div>
@@ -300,7 +316,7 @@ export function InvoiceDetailsModal({
                             <div>
                               <p className="text-xs text-muted-foreground">Due Date</p>
                               <p className="text-sm font-medium">
-                                {format(new Date(invoice.due_date), "MMMM d, yyyy")}
+                                {formatDateOnly(invoice.due_date, "MMMM d, yyyy")}
                               </p>
                             </div>
                           </div>
@@ -310,7 +326,7 @@ export function InvoiceDetailsModal({
                               <div>
                                 <p className="text-xs text-muted-foreground">Paid Date</p>
                                 <p className="text-sm font-medium" style={{ color: "hsl(var(--green-vibrant))" }}>
-                                  {format(new Date(invoice.paid_date), "MMMM d, yyyy")}
+                                  {formatDateOnly(invoice.paid_date, "MMMM d, yyyy")}
                                 </p>
                               </div>
                             </div>

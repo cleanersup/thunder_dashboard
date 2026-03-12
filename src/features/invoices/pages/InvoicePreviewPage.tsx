@@ -5,7 +5,6 @@
  */
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { format } from "date-fns";
 import { ChevronLeft, Mail, Phone, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button }    from "@/shared/components/ui/button";
@@ -14,7 +13,7 @@ import { Separator } from "@/shared/components/ui/separator";
 import { toast }     from "sonner";
 import { useProfile }             from "@/shared/hooks/useProfile";
 import { supabase }               from "@/integrations/supabase/client";
-import { formatCurrency }         from "@/shared/utils/formatters";
+import { formatCurrency, formatDateOnly } from "@/shared/utils/formatters";
 import { DeliveryMethodSelector } from "@/shared/components/DeliveryMethodSelector";
 import { useInvoice, useUpdateInvoice } from "../hooks/useInvoices";
 import { useSendInvoiceEmail }          from "../hooks/useSendInvoiceEmail";
@@ -227,13 +226,13 @@ export function InvoicePreviewPage() {
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Issue Date</p>
                   <p className="text-sm font-medium">
-                    {format(new Date(invoice.invoice_date), "MMM d, yyyy")}
+                    {formatDateOnly(invoice.invoice_date, "MMM d, yyyy")}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Due Date</p>
                   <p className="text-sm font-medium">
-                    {format(new Date(invoice.due_date), "MMM d, yyyy")}
+                    {formatDateOnly(invoice.due_date, "MMM d, yyyy")}
                   </p>
                 </div>
                 {invoice.invoice_name && (

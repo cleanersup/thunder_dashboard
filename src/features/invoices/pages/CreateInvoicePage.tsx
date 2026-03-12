@@ -6,7 +6,7 @@
  *   - Modal mode: full-screen Dialog when `open` + `onClose` props are provided
  */
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import {
   ChevronLeft, Calendar as CalendarIcon, Plus, Trash2,
@@ -44,6 +44,7 @@ import type { InvoiceFormData, LineItem } from "../types/invoice.types";
 import type { ClientEntity } from "@/shared/types/entities";
 import { calculateInvoiceTotals } from "../utils/invoiceCalculations";
 import { toDecimalString, toIntegerString } from "@/shared/utils/numericInput";
+import { parseDateOnly } from "@/shared/utils/formatters";
 import { StripeCheckModal } from "../components/StripeCheckModal";
 
 // ─── Line item helpers ────────────────────────────────────────────────────────
@@ -65,6 +66,7 @@ interface CreateInvoicePageProps {
 
 export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}) {
   const navigate      = useNavigate();
+  const location      = useLocation();
   const { id }        = useParams<{ id?: string }>();
   const { user }      = useAuth();
   const qc            = useQueryClient();
@@ -140,14 +142,58 @@ export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}
     },
   });
 
+  // ── Prefill from estimate conversion ──────────────────────────────────────
+  useEffect(() => {
+    if (isEditing) return;
+    const state = location.state as {
+      selectedClient?: { full_name: string; company?: string; phone: string; email: string; service_street: string; service_apt?: string; service_city: string; service_state: string; service_zip: string };
+      invoiceType?: string; issueDate?: Date; dueDate?: Date; invoiceTitle?: string;
+      lineItems?: { id: string; description: string; price: string; qty: string; total: number }[];
+      discountType?: string; discountValue?: string; notes?: string;
+    } | null;
+    if (!state?.selectedClient) return;
+
+    const client: ClientEntity = {
+      id: "",
+      full_name: state.selectedClient.full_name,
+      company: state.selectedClient.company ?? null,
+      phone: state.selectedClient.phone,
+      email: state.selectedClient.email,
+      service_street: state.selectedClient.service_street,
+      service_apt: state.selectedClient.service_apt ?? null,
+      service_city: state.selectedClient.service_city,
+      service_state: state.selectedClient.service_state,
+      service_zip: state.selectedClient.service_zip,
+    };
+    setSelectedClient(client);
+    setInvoiceType(state.invoiceType ?? "");
+    setIssueDate(state.issueDate);
+    setDueDate(state.dueDate);
+    setInvoiceTitle(state.invoiceTitle ?? "");
+    setDiscountType((state.discountType === "amount" ? "fixed" : (state.discountType ?? "percentage")) as "percentage" | "fixed");
+    setDiscountValue(state.discountValue ?? "");
+    setNotes(state.notes ?? "");
+    if (state.lineItems?.length) {
+      setLineItems(state.lineItems.map((i) => ({
+        _id: i.id,
+        _price: i.price,
+        _qty: i.qty,
+        description: i.description,
+        price: typeof i.price === "string" ? parseFloat(i.price) || 0 : i.price,
+        qty: parseInt(i.qty, 10) || 1,
+        total: typeof i.total === "number" ? i.total : parseFloat(String(i.total)) || 0,
+      })));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Load invoice on edit mode ──────────────────────────────────────────────
   useEffect(() => {
     if (isEditing && id) {
       fetchInvoiceById(id).then((inv) => {
         setInvoiceNumber(inv.invoice_number);
         setInvoiceType(inv.service_type);
-        setIssueDate(new Date(inv.invoice_date));
-        setDueDate(new Date(inv.due_date));
+        setIssueDate(parseDateOnly(inv.invoice_date));
+        setDueDate(parseDateOnly(inv.due_date));
         setInvoiceTitle(inv.invoice_name ?? "");
         setLineItems(
           (inv.line_items ?? []).map((i) => ({
