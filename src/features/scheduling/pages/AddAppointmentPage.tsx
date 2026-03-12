@@ -98,6 +98,9 @@ export function AddAppointmentPage() {
   const [customCleaningTypes,  setCustomCleaningTypes]  = useState<string[]>([]);
   const [contractFile,         setContractFile]         = useState<File | null>(null);
   const [uploadedPhotos,       setUploadedPhotos]       = useState<File[]>([]);
+  // Existing files from DB (shown when editing)
+  const [existingContractUrl,  setExistingContractUrl] = useState<string | null>(null);
+  const [existingPhotoUrls,    setExistingPhotoUrls]    = useState<string[]>([]);
 
   // ─── Data ──────────────────────────────────────────────────────────────────
 
@@ -154,6 +157,41 @@ export function AddAppointmentPage() {
           service_zip:     existing.clients.service_zip,
         });
       }
+      // Pre-fill existing contract and photos for display on edit
+      const contractVal = existing.uploaded_file;
+      let contractUrl: string | null = null;
+      if (typeof contractVal === "string" && contractVal.trim()) {
+        if (contractVal.startsWith("http")) {
+          contractUrl = contractVal;
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from("appointment-contracts")
+            .getPublicUrl(contractVal.replace(/^\/+/, ""));
+          contractUrl = publicUrl;
+        }
+      }
+      setExistingContractUrl(contractUrl);
+
+      const photosVal = existing.photos;
+      const photoUrls: string[] = [];
+      if (Array.isArray(photosVal)) {
+        for (const p of photosVal) {
+          let url: string | null = null;
+          if (typeof p === "string" && p.trim()) url = p;
+          else if (p && typeof p === "object" && "url" in p && typeof (p as { url: unknown }).url === "string")
+            url = (p as { url: string }).url;
+          if (url) {
+            const resolved = url.startsWith("http")
+              ? url
+              : supabase.storage.from("appointment-photos").getPublicUrl(url.replace(/^\/+/, "")).data.publicUrl;
+            photoUrls.push(resolved);
+          }
+        }
+      }
+      setExistingPhotoUrls(photoUrls);
+    } else {
+      setExistingContractUrl(null);
+      setExistingPhotoUrls([]);
     }
   }, [existing, isEdit]);
 
@@ -216,6 +254,9 @@ export function AddAppointmentPage() {
       case 3:
         if (!form.scheduled_date) errs.scheduled_date = "Date is required";
         if (!form.scheduled_time) errs.scheduled_time = "Start time is required";
+        break;
+      case 4:
+        if (!form.assigned_employees?.length) errs.assigned_employees = "An employee must be selected when creating a service for a route";
         break;
       case STEP_SEND:
         if (!form.delivery_method) errs.delivery_method = "Please select a delivery method";
@@ -349,6 +390,7 @@ export function AddAppointmentPage() {
               );
             }}
             isLoading={empLoading}
+            error={errors.assigned_employees}
           />
         );
       case 5:
@@ -364,6 +406,7 @@ export function AddAppointmentPage() {
         return (
           <AppointmentContractStep
             contractFile={contractFile}
+            existingContractUrl={existingContractUrl}
             onChange={setContractFile}
           />
         );
@@ -372,6 +415,7 @@ export function AddAppointmentPage() {
           <AppointmentNotesStep
             notes={form.notes ?? null}
             photos={uploadedPhotos}
+            existingPhotoUrls={existingPhotoUrls}
             onChange={(n) => set("notes", n)}
             onPhotosChange={setUploadedPhotos}
           />
@@ -384,7 +428,9 @@ export function AddAppointmentPage() {
             selectedClient={selectedClientObject}
             employees={employees}
             contractFile={contractFile}
+            existingContractUrl={existingContractUrl}
             uploadedPhotos={uploadedPhotos}
+            existingPhotoUrls={existingPhotoUrls}
           />
         );
       case 9:

@@ -194,6 +194,16 @@ export async function updateAppointment(
   if (data.deposit_amount !== undefined) updatePayload.deposit_amount = data.deposit_amount;
   if (data.assigned_employees !== undefined)
     updatePayload.assigned_employees = data.assigned_employees;
+  if (data.recurring_frequency !== undefined)
+    updatePayload.recurring_frequency = data.recurring_frequency === "none" ? null : data.recurring_frequency;
+  if (data.recurring_duration !== undefined) updatePayload.recurring_duration = data.recurring_duration;
+  if (data.recurring_duration_unit !== undefined)
+    updatePayload.recurring_duration_unit = data.recurring_duration_unit;
+  if (data.selected_week_days !== undefined)
+    updatePayload.selected_week_days = data.selected_week_days?.length
+      ? (data.selected_week_days as unknown as import("@/integrations/supabase/types").Database["public"]["Tables"]["route_appointments"]["Update"]["selected_week_days"])
+      : null;
+  if (data.delivery_method !== undefined) updatePayload.delivery_method = data.delivery_method;
 
   const { data: updated, error } = await supabase
     .from("route_appointments")

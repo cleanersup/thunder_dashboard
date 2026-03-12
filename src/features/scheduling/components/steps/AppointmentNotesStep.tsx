@@ -7,11 +7,12 @@ import { Button } from "@/shared/components/ui/button";
 interface Props {
   notes: string | null;
   photos: File[];
+  existingPhotoUrls?: string[];
   onChange: (notes: string | null) => void;
   onPhotosChange: (photos: File[]) => void;
 }
 
-export function AppointmentNotesStep({ notes, photos, onChange, onPhotosChange }: Props) {
+export function AppointmentNotesStep({ notes, photos, existingPhotoUrls = [], onChange, onPhotosChange }: Props) {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   function handlePhotoUpload(files: FileList | null) {
@@ -78,30 +79,56 @@ export function AppointmentNotesStep({ notes, photos, onChange, onPhotosChange }
           </label>
         </div>
 
-        {/* Photo grid */}
-        {photos.length > 0 && (
-          <div className="grid grid-cols-2 gap-3">
-            {photos.map((photo, index) => (
-              <div key={index} className="relative group">
-                <div className="aspect-square rounded-lg overflow-hidden bg-muted">
-                  <img
-                    src={URL.createObjectURL(photo)}
-                    alt={`Upload ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
+        {/* Existing photos (edit mode) */}
+        {existingPhotoUrls.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              {photos.length > 0 ? "Previously uploaded photos" : "Uploaded photos"}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {existingPhotoUrls.map((url, index) => (
+                <div key={`existing-${index}`} className="relative">
+                  <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                    <img
+                      src={url}
+                      alt={`Existing photo ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 truncate">Photo {index + 1}</p>
                 </div>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  onClick={() => removePhoto(index)}
-                  className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-                <p className="text-xs text-muted-foreground mt-1 truncate">{photo.name}</p>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* New photo uploads */}
+        {photos.length > 0 && (
+          <div className="space-y-2">
+            {existingPhotoUrls.length > 0 && <p className="text-xs text-muted-foreground">New photos to add</p>}
+            <div className="grid grid-cols-2 gap-3">
+              {photos.map((photo, index) => (
+                <div key={index} className="relative group">
+                  <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                    <img
+                      src={URL.createObjectURL(photo)}
+                      alt={`Upload ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => removePhoto(index)}
+                    className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1 truncate">{photo.name}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

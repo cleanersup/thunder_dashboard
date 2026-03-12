@@ -32,7 +32,9 @@ interface Props {
   selectedClient: ClientEntity | null;
   employees: Employee[];
   contractFile: File | null;
+  existingContractUrl?: string | null;
   uploadedPhotos: File[];
+  existingPhotoUrls?: string[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -72,7 +74,9 @@ export function AppointmentPreviewStep({
   selectedClient,
   employees,
   contractFile,
+  existingContractUrl,
   uploadedPhotos,
+  existingPhotoUrls = [],
 }: Props) {
   const route = routes.find((r) => r.id === form.route_id);
 
@@ -241,12 +245,12 @@ export function AppointmentPreviewStep({
         )}
 
         {/* Contract / Estimate */}
-        {contractFile && (
+        {(contractFile || existingContractUrl) && (
           <div className="space-y-1">
             <SectionTitle icon={FileText} label="Contract/Estimate" />
             <p className="text-sm text-foreground pl-6 flex items-center gap-2">
               <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              {contractFile.name}
+              {contractFile ? contractFile.name : "Existing contract attached"}
             </p>
           </div>
         )}
@@ -262,15 +266,24 @@ export function AppointmentPreviewStep({
         )}
 
         {/* Reference Photos */}
-        {uploadedPhotos.length > 0 && (
+        {(uploadedPhotos.length > 0 || existingPhotoUrls.length > 0) && (
           <div className="space-y-2">
             <SectionTitle icon={ImageIcon} label="Reference Photos" />
             <div className="pl-6 grid grid-cols-3 gap-2">
               {uploadedPhotos.map((photo, idx) => (
-                <div key={idx} className="aspect-square rounded-lg overflow-hidden bg-muted">
+                <div key={`new-${idx}`} className="aspect-square rounded-lg overflow-hidden bg-muted">
                   <img
                     src={URL.createObjectURL(photo)}
                     alt={`Photo ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ))}
+              {existingPhotoUrls.map((url, idx) => (
+                <div key={`existing-${idx}`} className="aspect-square rounded-lg overflow-hidden bg-muted">
+                  <img
+                    src={url}
+                    alt={`Existing photo ${idx + 1}`}
                     className="w-full h-full object-cover"
                   />
                 </div>

@@ -21,6 +21,7 @@ interface Props {
   endTime: string | null | undefined;
   onToggle: (id: string) => void;
   isLoading: boolean;
+  error?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ export function AppointmentStaffStep({
   endTime,
   onToggle,
   isLoading,
+  error,
 }: Props) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -83,6 +85,10 @@ export function AppointmentStaffStep({
           Choose one or more employees for this service
         </p>
       </div>
+
+      {error && (
+        <p className="text-sm text-destructive font-medium">{error}</p>
+      )}
 
       <EntityPickerField
         multiple
