@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
@@ -77,6 +77,24 @@ export function EstimatesPage() {
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
   const { data: rawEstimates = [], isLoading } = useEstimates();
+
+  // ── Real-time: refetch list when estimates change (viewed_at, status, etc.) ─
+  useEffect(() => {
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      ch = supabase
+        .channel("estimates-list-realtime")
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "estimates", filter: `user_id=eq.${user.id}` },
+          () => queryClient.invalidateQueries({ queryKey: QK.estimates }))
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "estimates", filter: `user_id=eq.${user.id}` },
+          () => queryClient.invalidateQueries({ queryKey: QK.estimates }))
+        .on("postgres_changes", { event: "DELETE", schema: "public", table: "estimates", filter: `user_id=eq.${user.id}` },
+          () => queryClient.invalidateQueries({ queryKey: QK.estimates }))
+        .subscribe();
+    });
+    return () => { ch && supabase.removeChannel(ch); };
+  }, [queryClient]);
   const { generateShareLink, isGeneratingLink } = useEstimateShare();
   const { sendEstimateEmail, isSending }        = useSendEstimateEmail();
   const updateStatus = useUpdateEstimateStatus();

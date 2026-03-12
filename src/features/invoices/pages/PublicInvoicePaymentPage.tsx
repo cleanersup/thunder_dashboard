@@ -13,8 +13,8 @@ import { Button }            from "@/shared/components/ui/button";
 import { toast }             from "sonner";
 import { supabase }          from "@/integrations/supabase/client";
 import { useQuery }          from "@tanstack/react-query";
-import { formatCurrency }    from "@/shared/utils/formatters";
-import { fetchInvoiceById, markInvoiceViewed } from "../services/invoicesService";
+import { formatCurrency, formatDateOnly } from "@/shared/utils/formatters";
+import { fetchInvoiceByIdForPublic } from "../services/invoicesService";
 import { QK } from "@/shared/config/queryKeys";
 
 export function PublicInvoicePaymentPage() {
@@ -24,12 +24,7 @@ export function PublicInvoicePaymentPage() {
 
   const { data: invoice, isLoading } = useQuery({
     queryKey: QK.publicInvoice(id!),
-    queryFn: async () => {
-      const inv = await fetchInvoiceById(id!);
-      // Mark as viewed asynchronously
-      if (inv.id) markInvoiceViewed(inv.id).catch(() => {});
-      return inv;
-    },
+    queryFn: () => fetchInvoiceByIdForPublic(id!),
     enabled: !!id,
   });
 
@@ -219,9 +214,7 @@ export function PublicInvoicePaymentPage() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Due Date</span>
               <span className="text-sm font-semibold ml-auto">
-                {new Date(invoice.due_date).toLocaleDateString("en-US", {
-                  month: "long", day: "numeric", year: "numeric",
-                })}
+                {formatDateOnly(invoice.due_date, "MMMM d, yyyy")}
               </span>
             </div>
             {invoice.service_type && (
