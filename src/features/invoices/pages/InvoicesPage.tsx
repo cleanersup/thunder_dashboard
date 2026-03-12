@@ -3,7 +3,7 @@
  * Main invoices listing page with KPI cards, table, search, and filters.
  * Adapted from thunder-web-version/src/pages/Invoices.tsx.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import {
@@ -36,9 +36,12 @@ import {
 import { Calendar }  from "@/shared/components/ui/calendar";
 import { cn }        from "@/shared/utils/cn";
 import { toast }     from "sonner";
-import { formatCurrency } from "@/shared/utils/formatters";
+import { formatCurrency, formatDateOnly, parseDateOnly } from "@/shared/utils/formatters";
 import { useProfile }     from "@/shared/hooks/useProfile";
+import { useQueryClient } from "@tanstack/react-query";
 import { useInvoices, useMarkInvoiceAsPaid, useCancelInvoice } from "../hooks/useInvoices";
+import { QK } from "@/shared/config/queryKeys";
+import { supabase } from "@/integrations/supabase/client";
 import { useSendInvoiceEmail } from "../hooks/useSendInvoiceEmail";
 import { generateInvoicePDF }  from "../services/generateInvoicePDF";
 import { InvoiceDetailsModal } from "../components/InvoiceDetailsModal";
@@ -68,10 +71,29 @@ const ITEMS_PER_PAGE = 10;
 
 export function InvoicesPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: profile } = useProfile();
   const { sendInvoiceEmail, isSending } = useSendInvoiceEmail();
   const markPaid  = useMarkInvoiceAsPaid();
   const cancelInv = useCancelInvoice();
+
+  // ── Real-time: refetch list when invoices change (viewed_at, status, etc.) ───
+  useEffect(() => {
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      ch = supabase
+        .channel("invoices-list-realtime")
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "invoices", filter: `user_id=eq.${user.id}` },
+          () => queryClient.invalidateQueries({ queryKey: QK.invoices }))
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "invoices", filter: `user_id=eq.${user.id}` },
+          () => queryClient.invalidateQueries({ queryKey: QK.invoices }))
+        .on("postgres_changes", { event: "DELETE", schema: "public", table: "invoices", filter: `user_id=eq.${user.id}` },
+          () => queryClient.invalidateQueries({ queryKey: QK.invoices }))
+        .subscribe();
+    });
+    return () => { ch && supabase.removeChannel(ch); };
+  }, [queryClient]);
 
   // ── Filters ──────────────────────────────────────────────────────────────────
   const [search,       setSearch]       = useState("");
@@ -118,7 +140,7 @@ export function InvoicesPage() {
     .filter((inv) => statusFilter === "All" || inv.status === statusFilter)
     .filter((inv) => {
       if (!selectedDate) return true;
-      const d = new Date(inv.invoice_date);
+      const d = parseDateOnly(inv.invoice_date);
       return (
         d.getDate()     === selectedDate.getDate() &&
         d.getMonth()    === selectedDate.getMonth() &&
@@ -190,8 +212,8 @@ export function InvoicesPage() {
         clientEmail:   invoice.email,
         invoiceNumber: invoice.invoice_number,
         invoiceName:   invoice.invoice_name ?? undefined,
-        invoiceDate:   format(new Date(invoice.invoice_date), "MMMM d, yyyy"),
-        dueDate:       format(new Date(invoice.due_date), "MMMM d, yyyy"),
+        invoiceDate:   formatDateOnly(invoice.invoice_date, "MMMM d, yyyy"),
+        dueDate:       formatDateOnly(invoice.due_date, "MMMM d, yyyy"),
         status:        invoice.status,
         lineItems:     lineItems.map((i) => ({ ...i })),
         subtotal,
@@ -360,10 +382,10 @@ export function InvoicesPage() {
                   <TableCell className="py-2 px-4 font-medium">{invoice.invoice_number}</TableCell>
                   <TableCell className="py-2 px-4">{invoice.client_name}</TableCell>
                   <TableCell className="py-2 px-4">
-                    {format(new Date(invoice.invoice_date), "MMM dd, yyyy")}
+                    {formatDateOnly(invoice.invoice_date, "MMM dd, yyyy")}
                   </TableCell>
                   <TableCell className="py-2 px-4">
-                    {format(new Date(invoice.due_date), "MMM dd, yyyy")}
+                    {formatDateOnly(invoice.due_date, "MMM dd, yyyy")}
                   </TableCell>
                   <TableCell className="py-2 px-4">
                     <Badge

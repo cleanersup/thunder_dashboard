@@ -114,8 +114,9 @@ export function useUpdateEstimateStatus() {
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: QK.estimates });
+      qc.invalidateQueries({ queryKey: QK.estimate(id) });
       qc.invalidateQueries({ queryKey: QK.activities });
       qc.invalidateQueries({ queryKey: QK.notifications });
     },

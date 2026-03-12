@@ -84,6 +84,35 @@ export async function fetchInvoiceById(id: string): Promise<Invoice> {
   return data as Invoice;
 }
 
+/**
+ * Fetch invoice by ID for the public payment page. Mirrors fetchEstimateByToken:
+ * fetches the invoice and marks it as viewed if not already.
+ * Use this when the client opens the invoice via email/SMS link.
+ *
+ * @param id - Invoice UUID
+ * @returns Promise<Invoice>
+ */
+export async function fetchInvoiceByIdForPublic(id: string): Promise<Invoice> {
+  const { data: invoice, error } = await supabase
+    .from("invoices")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) throw error;
+  if (!invoice) throw new Error("Invoice not found");
+
+  // Mark as viewed if not already (same pattern as fetchEstimateByToken)
+  if (!invoice.viewed_at) {
+    await supabase
+      .from("invoices")
+      .update({ viewed_at: new Date().toISOString() })
+      .eq("id", id);
+  }
+
+  return invoice as Invoice;
+}
+
 // ─── Create ───────────────────────────────────────────────────────────────────
 
 /**
@@ -213,19 +242,6 @@ export async function cancelInvoice(id: string): Promise<Invoice> {
  */
 export async function markReminderSent(id: string): Promise<Invoice> {
   return updateInvoice(id, { reminder_sent: true });
-}
-
-/**
- * Record the timestamp when the invoice was viewed by the client.
- *
- * @param id - Invoice UUID
- * @returns Promise<void>
- */
-export async function markInvoiceViewed(id: string): Promise<void> {
-  await supabase
-    .from("invoices")
-    .update({ viewed_at: new Date().toISOString() })
-    .eq("id", id);
 }
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
