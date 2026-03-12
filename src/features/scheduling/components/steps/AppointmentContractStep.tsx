@@ -1,8 +1,9 @@
-import { Upload, FileText, X } from "lucide-react";
+import { Upload, FileText, X, ExternalLink } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 
 interface Props {
   contractFile: File | null;
+  existingContractUrl?: string | null;
   onChange: (file: File | null) => void;
 }
 
@@ -15,7 +16,7 @@ const ACCEPTED_MIME = [
 ];
 const MAX_MB = 10;
 
-export function AppointmentContractStep({ contractFile, onChange }: Props) {
+export function AppointmentContractStep({ contractFile, existingContractUrl, onChange }: Props) {
   function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     const file = files[0];
@@ -25,6 +26,7 @@ export function AppointmentContractStep({ contractFile, onChange }: Props) {
   }
 
   const fileSizeKB = contractFile ? (contractFile.size / 1024).toFixed(1) : null;
+  const hasContract = contractFile || existingContractUrl;
 
   return (
     <div className="space-y-6">
@@ -34,6 +36,26 @@ export function AppointmentContractStep({ contractFile, onChange }: Props) {
           Optional: Attach a contract or estimate document for the client
         </p>
       </div>
+
+      {/* Existing contract (edit mode) */}
+      {existingContractUrl && !contractFile && (
+        <div className="border rounded-lg p-4 bg-muted/30 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <FileText className="h-8 w-8 shrink-0 text-primary" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Existing contract attached</p>
+              <a
+                href={existingContractUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline flex items-center gap-1 mt-0.5"
+              >
+                View file <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         className={cn(
@@ -87,7 +109,7 @@ export function AppointmentContractStep({ contractFile, onChange }: Props) {
         )}
       </div>
 
-      {!contractFile && (
+      {!hasContract && (
         <p className="text-xs text-center text-muted-foreground">
           You can skip this step if you don't have a document to attach
         </p>
