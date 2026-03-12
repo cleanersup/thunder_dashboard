@@ -67,6 +67,7 @@ import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { QRCodeSVG } from "qrcode.react";
 import { useWalkthroughs, useUpdateWalkthroughStatus, useDeleteWalkthrough, useSendWalkthroughStart } from "../hooks/useWalkthroughs";
 import { WalkthroughDetailsModal } from "../components/WalkthroughDetailsModal";
+import { AddWalkthroughPage } from "./AddWalkthroughPage";
 import type { WalkthroughWithContact } from "../services/walkthroughsService";
 import { cn } from "@/shared/utils/cn";
 import { useNavigate } from "react-router-dom";
@@ -133,6 +134,7 @@ export function WalkthroughsPage() {
   const [cancelOpen, setCancelOpen]     = useState(false);
   const [qrOpen, setQrOpen]             = useState(false);
   const [qrTarget, setQrTarget]         = useState<WalkthroughWithContact | null>(null);
+  const [createOpen, setCreateOpen]     = useState(false);
 
   const contactCardUrl = `${import.meta.env.VITE_PUBLIC_APP_URL ?? window.location.origin}/contact-card/${user?.id ?? ""}`;
 
@@ -357,7 +359,7 @@ export function WalkthroughsPage() {
             <Button
               size="sm"
               className="h-9 gap-2"
-              onClick={() => navigate("/walkthroughs/new")}
+              onClick={() => setCreateOpen(true)}
             >
               <Plus className="h-4 w-4" />
               New
@@ -558,6 +560,12 @@ export function WalkthroughsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create walkthrough modal */}
+      <AddWalkthroughPage
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+      />
 
       {/* QR — Share contact card */}
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>

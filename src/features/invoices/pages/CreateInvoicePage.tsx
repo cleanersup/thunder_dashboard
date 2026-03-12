@@ -390,7 +390,7 @@ export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}
   // ─── Shared JSX blocks ────────────────────────────────────────────────────
 
   const formCards = (
-    <div className="max-w-2xl mx-auto p-4 space-y-4 pb-6">
+    <div className="space-y-4">
       {/* ── Invoice Details ─────────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-2">
@@ -831,16 +831,16 @@ export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}
   );
 
   const footerButtons = (
-    <div className={`max-w-2xl mx-auto grid gap-3 ${isEditing ? "grid-cols-3" : "grid-cols-2"}`}>
-      <Button variant="outline" className="h-12" onClick={goBack} disabled={isLoading}>
+    <div className={`${isModal ? "flex-shrink-0" : "sticky bottom-0"} bg-white rounded-lg border p-4 flex items-center justify-between gap-3`}>
+      <Button variant="outline" size="sm" onClick={goBack} disabled={isLoading}>
         Cancel
       </Button>
       {isEditing && (
-        <Button variant="outline" className="h-12" onClick={handleSave} disabled={isLoading}>
+        <Button variant="outline" size="sm" onClick={handleSave} disabled={isLoading}>
           {isLoading ? "Saving..." : "Save"}
         </Button>
       )}
-      <Button className="h-12" onClick={handleNext} disabled={isLoading}>
+      <Button size="sm" onClick={handleNext} disabled={isLoading}>
         {isLoading ? "Saving..." : "Next"}
       </Button>
     </div>
@@ -916,44 +916,37 @@ export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}
         <FullScreenModal open={open ?? false} onClose={goBack}>
           {/* Header — clean with bottom border only */}
           <div className="border-b flex-shrink-0 bg-white">
-            <div className="px-4 py-3 flex items-center justify-between gap-4">
-              {/* Left: X + icon + title */}
-              <div className="w-1/3">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 flex-shrink-0"
-                  onClick={goBack}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="w-1/3 text-center">
-                <h1 className="font-semibold text-base leading-tight">
-                  {isEditing ? "Edit Invoice" : "New Invoice"}
-                </h1>
-              </div>
+            <div className="max-w-2xl mx-auto">
+              <div className="px-4 py-3 flex items-center justify-between gap-4">
+                {/* Left: X + icon + title */}
+                <div className="w-1/3"></div>
+                <div className="w-1/3 text-center">
+                  <h1 className="font-semibold text-base leading-tight">
+                    {isEditing ? "Edit Invoice" : "New Invoice"}
+                  </h1>
+                </div>
 
-              {/* Right: action buttons */}
-              <div className="flex items-center gap-2 flex-shrink-0 w-1/3 justify-end">
-                <Button variant="outline" size="sm" onClick={goBack} disabled={isLoading}>
-                  Cancel
-                </Button>
-                {isEditing && (
-                  <Button variant="outline" size="sm" onClick={handleSave} disabled={isLoading}>
-                    {isLoading ? "Saving..." : "Save"}
+                {/* Right: action buttons */}
+                <div className="flex items-center w-1/3 justify-end">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 flex-shrink-0"
+                    onClick={goBack}
+                  >
+                    <X className="h-4 w-4" />
                   </Button>
-                )}
-                <Button size="sm" onClick={handleNext} disabled={isLoading}>
-                  {isLoading ? "Saving..." : "Next"}
-                </Button>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Scrollable form body */}
           <div className="flex-1 overflow-y-auto bg-background">
-            {formCards}
+            <div className="max-w-2xl mx-auto px-4 space-y-4 py-6 pb-4">
+              {formCards}
+              {footerButtons}
+            </div>
           </div>
         </FullScreenModal>
         {sharedDialogs}
@@ -978,7 +971,10 @@ export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}
 
       {/* Sticky footer */}
       <div className="sticky bottom-0 bg-background border-t px-4 py-3">
-        {footerButtons}
+        <div className="max-w-2xl mx-auto p-4 space-y-4 pb-6">
+          {formCards}
+          {footerButtons}
+        </div>
       </div>
 
       {sharedDialogs}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,6 +13,7 @@ import {
   Users,
   FileText,
   Check,
+  X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button }   from "@/shared/components/ui/button";
@@ -29,6 +30,7 @@ import { Calendar } from "@/shared/components/ui/calendar";
 import { EntityPickerField } from "@/shared/components/common/EntityPickerField";
 import type { EntityOption } from "@/shared/components/common/EntityPickerField";
 import { EmployeeForm } from "@/features/employees/components/EmployeeForm";
+import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { cn } from "@/shared/utils/cn";
 import { toast } from "sonner";
 import { walkthroughSchema } from "../schemas/walkthroughSchema";
@@ -40,11 +42,23 @@ import type { WalkthroughEntityType, ClientEntity, LeadEntity } from "../compone
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function AddWalkthroughPage() {
+interface AddWalkthroughPageProps {
+  /** When provided, renders as a full-screen Dialog. Omit for standalone page mode. */
+  open?: boolean;
+  onClose?: () => void;
+}
+
+export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = {}) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { id: walkthroughId } = useParams<{ id: string }>();
   const isEdit = Boolean(walkthroughId);
+  const isModal = onClose !== undefined;
+
+  const handleClose = useCallback(() => {
+    if (isModal) onClose?.();
+    else navigate("/walkthroughs");
+  }, [isModal, onClose, navigate]);
 
   const { data: existing }                                     = useWalkthrough(walkthroughId);
   const { data: employees = [], isLoading: isLoadingEmployees } = useAllEmployees();
@@ -184,23 +198,260 @@ export function AddWalkthroughPage() {
 
     if (isEdit && walkthroughId) {
       update({ id: walkthroughId, data: payload }, {
-        onSuccess: () => { toast.success("Walkthrough updated"); navigate("/walkthroughs"); },
+        onSuccess: () => { toast.success("Walkthrough updated"); handleClose(); },
       });
     } else {
       create(payload, {
-        onSuccess: () => { toast.success("Walkthrough scheduled"); navigate("/walkthroughs"); },
+        onSuccess: () => { toast.success("Walkthrough scheduled"); handleClose(); },
       });
     }
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  const submitLabel = isPending
+    ? (isEdit ? "Saving..." : "Scheduling...")
+    : (isEdit ? "Save Changes" : "Schedule now");
+
+  // Form cards — shared between modal and page layouts
+  const formCards = (
+    <>
+      {/* ── Client / Lead ────────────────────────────────────────── */}
+      <Card>
+        <CardContent className="p-5">
+          <WalkthroughClientPicker
+            walkthroughType={walkthroughType}
+            onTypeChange={handleTypeChange}
+            selectedClient={selectedClient}
+            selectedLead={selectedLead}
+            onClientSelect={handleClientSelect}
+            onLeadSelect={handleLeadSelect}
+            errors={pickerErrors}
+          />
+        </CardContent>
+      </Card>
+
+      {/* ── Service Type ──────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Briefcase className="h-4 w-4" />
+            Service Type
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Service Type <span className="text-destructive">*</span></Label>
+              <Select
+                value={watch("service_type")}
+                onValueChange={(v) => setValue("service_type", v as "residential" | "commercial", { shouldValidate: true })}
+              >
+                <SelectTrigger className={cn(errors.service_type && "border-destructive")}>
+                  <SelectValue placeholder="Select service type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="residential">Residential</SelectItem>
+                  <SelectItem value="commercial">Commercial</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.service_type && <p className="text-xs text-destructive">Required</p>}
+            </div>
+
+            <div className="space-y-1">
+              <Label>Walkthrough Duration</Label>
+              <Select
+                value={watch("duration") ?? ""}
+                onValueChange={(v) => setValue("duration", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 minutes</SelectItem>
+                  <SelectItem value="60">1 hour</SelectItem>
+                  <SelectItem value="90">1.5 hours</SelectItem>
+                  <SelectItem value="120">2 hours</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Schedule ──────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Schedule
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Date <span className="text-destructive">*</span></Label>
+              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground",
+                      errors.scheduled_date && "border-destructive"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "MM/dd/yyyy") : "Pick date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={selectedDate} onSelect={onDateSelect} initialFocus />
+                </PopoverContent>
+              </Popover>
+              {errors.scheduled_date && <p className="text-xs text-destructive">Required</p>}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="scheduled_time">Time <span className="text-destructive">*</span></Label>
+              <Input
+                id="scheduled_time"
+                type="time"
+                {...register("scheduled_time")}
+                className={cn(errors.scheduled_time && "border-destructive")}
+              />
+              {errors.scheduled_time && <p className="text-xs text-destructive">Required</p>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Crew ──────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Crew
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <EntityPickerField
+            multiple
+            options={employeeOptions}
+            selected={selectedEmployeeOptions}
+            onChange={handleEmployeeSelectionChange}
+            onCreateNew={() => setShowCreateEmployee(true)}
+            createNewLabel="Add New Employee"
+            placeholder="Select employees"
+            emptyMessage="No employee found."
+            isLoading={isLoadingEmployees}
+          />
+
+          {assignedEmployeeDetails.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3 dark:bg-blue-950/30 dark:border-blue-800">
+              <p className="text-sm font-medium text-foreground">
+                {assignedEmployeeDetails.length} employee{assignedEmployeeDetails.length > 1 ? "s" : ""} selected
+              </p>
+              <div className="space-y-2">
+                {assignedEmployeeDetails.map((emp) => (
+                  <div key={emp.id} className="flex items-center gap-2 text-sm">
+                    <Check className="h-4 w-4 text-primary shrink-0" />
+                    <span className="font-medium">{emp.first_name} {emp.last_name}</span>
+                    {emp.position && (
+                      <span className="text-muted-foreground">— {emp.position}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Notes ─────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Notes
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            {...register("notes")}
+            rows={3}
+            placeholder="Enter notes here..."
+          />
+        </CardContent>
+      </Card>
+    </>
+  );
+
+  const employeeModal = (
+    <EmployeeForm
+      open={showCreateEmployee}
+      onClose={() => setShowCreateEmployee(false)}
+      onCreated={(emp) => {
+        toggleEmployee(emp.id);
+        qc.invalidateQueries({ queryKey: QK.employeesAll });
+        setShowCreateEmployee(false);
+      }}
+    />
+  );
+
+  // ── Modal mode — invoice-style layout ─────────────────────────────────────
+  if (isModal) {
+    return (
+      <FullScreenModal open={open ?? false} onClose={handleClose}>
+        {/* Header — 3-col: empty | centered title | X */}
+        <div className="border-b flex-shrink-0 bg-white">
+          <div className="max-w-2xl mx-auto">
+            <div className="px-4 py-3 flex items-center justify-between gap-4">
+              <div className="w-1/3" />
+              <div className="w-1/3 text-center">
+                <h1 className="font-semibold text-base leading-tight">
+                  {isEdit ? "Edit Walkthrough" : "Schedule Walkthrough"}
+                </h1>
+              </div>
+              <div className="flex items-center w-1/3 justify-end">
+                <Button variant="ghost" size="icon" className="h-8 w-8" type="button" onClick={handleClose}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable body — form + footer buttons inside */}
+        <div className="flex-1 overflow-y-auto bg-background">
+          <div className="max-w-2xl mx-auto px-4 space-y-4 py-6 pb-4">
+            <form id="walkthrough-form" onSubmit={handleSubmit(onSubmit)}>
+              <div className="space-y-4">{formCards}</div>
+            </form>
+            {/* Footer buttons — same card style as invoice */}
+            <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
+              <Button variant="outline" size="sm" type="button" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button size="sm" type="submit" form="walkthrough-form" disabled={isPending}>
+                {submitLabel}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {employeeModal}
+      </FullScreenModal>
+    );
+  }
+
+  // ── Page mode ─────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background">
-
-      {/* ── Sticky header ────────────────────────────────────────────────── */}
+      {/* Sticky header */}
       <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-border/50 bg-background">
-        <Button variant="ghost" size="icon" type="button" onClick={() => navigate("/walkthroughs")}>
+        <Button variant="ghost" size="icon" type="button" onClick={handleClose}>
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-base font-semibold flex-1">
@@ -208,219 +459,25 @@ export function AddWalkthroughPage() {
         </h1>
       </div>
 
-      {/* ── Form ─────────────────────────────────────────────────────────── */}
       <form id="walkthrough-form" onSubmit={handleSubmit(onSubmit)}>
         <div className="max-w-2xl mx-auto p-4 space-y-4 pb-6">
-
-          {/* ── Client / Lead ────────────────────────────────────────── */}
-          <Card>
-            <CardContent className="p-5">
-              <WalkthroughClientPicker
-                walkthroughType={walkthroughType}
-                onTypeChange={handleTypeChange}
-                selectedClient={selectedClient}
-                selectedLead={selectedLead}
-                onClientSelect={handleClientSelect}
-                onLeadSelect={handleLeadSelect}
-                errors={pickerErrors}
-              />
-            </CardContent>
-          </Card>
-
-          {/* ── Service Type ──────────────────────────────────────────── */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Briefcase className="h-4 w-4" />
-                Service Type
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Service Type <span className="text-destructive">*</span></Label>
-                  <Select
-                    value={watch("service_type")}
-                    onValueChange={(v) => setValue("service_type", v as "residential" | "commercial", { shouldValidate: true })}
-                  >
-                    <SelectTrigger className={cn(errors.service_type && "border-destructive")}>
-                      <SelectValue placeholder="Select service type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="residential">Residential</SelectItem>
-                      <SelectItem value="commercial">Commercial</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {errors.service_type && <p className="text-xs text-destructive">Required</p>}
-                </div>
-
-                <div className="space-y-1">
-                  <Label>Walkthrough Duration</Label>
-                  <Select
-                    value={watch("duration") ?? ""}
-                    onValueChange={(v) => setValue("duration", v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select duration" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="30">30 minutes</SelectItem>
-                      <SelectItem value="60">1 hour</SelectItem>
-                      <SelectItem value="90">1.5 hours</SelectItem>
-                      <SelectItem value="120">2 hours</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ── Schedule ──────────────────────────────────────────────── */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Schedule
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Date <span className="text-destructive">*</span></Label>
-                  <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !selectedDate && "text-muted-foreground",
-                          errors.scheduled_date && "border-destructive"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedDate ? format(selectedDate, "MM/dd/yyyy") : "Pick date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={selectedDate} onSelect={onDateSelect} initialFocus />
-                    </PopoverContent>
-                  </Popover>
-                  {errors.scheduled_date && <p className="text-xs text-destructive">Required</p>}
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="scheduled_time">Time <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="scheduled_time"
-                    type="time"
-                    {...register("scheduled_time")}
-                    className={cn(errors.scheduled_time && "border-destructive")}
-                  />
-                  {errors.scheduled_time && <p className="text-xs text-destructive">Required</p>}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ── Crew ──────────────────────────────────────────────────── */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Crew
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <EntityPickerField
-                multiple
-                options={employeeOptions}
-                selected={selectedEmployeeOptions}
-                onChange={handleEmployeeSelectionChange}
-                onCreateNew={() => setShowCreateEmployee(true)}
-                createNewLabel="Add New Employee"
-                placeholder="Select employees"
-                emptyMessage="No employee found."
-                isLoading={isLoadingEmployees}
-              />
-
-              {/* Selected employees summary */}
-              {assignedEmployeeDetails.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3 dark:bg-blue-950/30 dark:border-blue-800">
-                  <p className="text-sm font-medium text-foreground">
-                    {assignedEmployeeDetails.length} employee{assignedEmployeeDetails.length > 1 ? "s" : ""} selected
-                  </p>
-                  <div className="space-y-2">
-                    {assignedEmployeeDetails.map((emp) => (
-                      <div key={emp.id} className="flex items-center gap-2 text-sm">
-                        <Check className="h-4 w-4 text-primary shrink-0" />
-                        <span className="font-medium">{emp.first_name} {emp.last_name}</span>
-                        {emp.position && (
-                          <span className="text-muted-foreground">— {emp.position}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ── Notes ─────────────────────────────────────────────────── */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Notes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                {...register("notes")}
-                rows={3}
-                placeholder="Enter notes here..."
-              />
-            </CardContent>
-          </Card>
-
+          {formCards}
         </div>
       </form>
 
-      {/* ── Sticky footer ─────────────────────────────────────────────────── */}
+      {/* Sticky footer */}
       <div className="sticky bottom-0 bg-background border-t px-4 py-3">
         <div className="max-w-2xl mx-auto grid grid-cols-2 gap-3">
-          <Button
-            variant="outline"
-            type="button"
-            className="h-12"
-            onClick={() => navigate("/walkthroughs")}
-          >
+          <Button variant="outline" type="button" className="h-12" onClick={handleClose}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            form="walkthrough-form"
-            className="h-12"
-            disabled={isPending}
-          >
-            {isPending
-              ? (isEdit ? "Saving..." : "Scheduling...")
-              : (isEdit ? "Save Changes" : "Schedule now")}
+          <Button type="submit" form="walkthrough-form" className="h-12" disabled={isPending}>
+            {submitLabel}
           </Button>
         </div>
       </div>
 
-      {/* ── Create employee modal ─────────────────────────────────────────── */}
-      <EmployeeForm
-        open={showCreateEmployee}
-        onClose={() => setShowCreateEmployee(false)}
-        onCreated={(emp) => {
-          toggleEmployee(emp.id);
-          qc.invalidateQueries({ queryKey: QK.employeesAll });
-          setShowCreateEmployee(false);
-        }}
-      />
-
+      {employeeModal}
     </div>
   );
 }
