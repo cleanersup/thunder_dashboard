@@ -29,7 +29,6 @@ export function useSendAppointmentSMS() {
 
       return { success: true };
     } catch (err: any) {
-      console.error("Error sending appointment SMS:", err);
       toast.error("Failed to send appointment SMS. Please try again.");
       return { success: false, error: err.message ?? "Failed to send appointment SMS" };
     } finally {

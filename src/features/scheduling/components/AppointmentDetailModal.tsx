@@ -63,6 +63,8 @@ interface AppointmentDetailModalProps {
   appointment: AppointmentWithClient | null;
   companyAddress: string;
   onAppointmentChange?: () => void;
+  /** Called with appointmentId when Edit is clicked — parent decides how to open the wizard */
+  onEdit?: (appointmentId: string) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -99,6 +101,7 @@ export function AppointmentDetailModal({
   appointment,
   companyAddress,
   onAppointmentChange,
+  onEdit,
 }: AppointmentDetailModalProps) {
   const navigate  = useNavigate();
   const [deleteOpen, setDeleteOpen]   = useState(false);
@@ -658,7 +661,8 @@ export function AppointmentDetailModal({
                           className="w-full justify-start h-10"
                           onClick={() => {
                             onClose();
-                            navigate(`/create-route/${appointment.id}/edit`);
+                            if (onEdit) onEdit(appointment.id);
+                            else navigate(`/create-route/${appointment.id}/edit`);
                           }}
                         >
                           <Edit className="w-4 h-4 mr-2 text-primary" />

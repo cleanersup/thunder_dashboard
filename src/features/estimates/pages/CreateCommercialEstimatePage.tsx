@@ -54,6 +54,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
 
   // ── Step ──────────────────────────────────────────────────────────────────
   const [currentStep,          setCurrentStep]          = useState(0);
+  const [isPrefilling,         setIsPrefilling]         = useState(!!isEditing);
   const [showExitDialog,       setShowExitDialog]       = useState(false);
   const [showCompanyInfoAlert, setShowCompanyInfoAlert] = useState(false);
 
@@ -122,95 +123,97 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   useEffect(() => {
     if (!isEditing) return;
     (async () => {
-      let d = estimateData;
-      if (!d && estimateId) {
-        const fetched = await fetchEstimate(estimateId);
-        if (!fetched) return;
-        d = fetched;
-      }
-      if (!d) return;
+      try {
+        let d = estimateData;
+        if (!d && estimateId) {
+          const fetched = await fetchEstimate(estimateId);
+          if (!fetched) return;
+          d = fetched;
+        }
+        if (!d) return;
 
-      const md = (d.main_data as any) ?? {};
-      const ad = (d.additional_data as any) ?? {};
-      const propType = md.propertyType ?? "";
-      console.log("main data", md);
-      console.log("additional data", ad);
-      const knownTypes = ["restaurant", "office", "warehouse", "school", "bank", "clinic", "church", "food-truck", "hotel", "gym", "movie-theater", "auto-dealership"];
-      const isOther = propType !== "" && !knownTypes.includes(propType);
-      setPropertyType(isOther ? "" : propType);
-      setIsOtherProperty(isOther);
-      setOtherPropertyType(isOther ? propType : "");
-      setPropertySize(md.propertySize ?? "");
-      setServiceType(md.serviceType ?? "");
-      setRecurringFrequency(md.frequency ?? "");
-      setSelectedWeekDays(Array.isArray(md.selectedWeekDays) ? md.selectedWeekDays : []);
-      setContractDuration(md.contractDuration ?? "");
-      setContractTimeUnit(md.contractTimeUnit ?? "months");
-      setClientProvidesSupplies(md.clientProvidesSupplies ?? false);
-      setServiceSchedule(ad.serviceSchedule ?? "");
-      setGreaseLevel(ad.greaseLevel ?? "");
-      setRestaurantCondition(ad.restaurantCondition ?? "");
-      setExtraServices(Array.isArray(ad.extraServices) ? ad.extraServices : []);
-      setEmployeeCount(md.employees ?? 0);
-      setHourlyRate(md.hourlyRate?.toString() ?? "");
-      setCleaningDuration(md.cleaningDuration ?? 0);
-      setStartTime(md.startTime ?? "");
-      setScopeDetails(d.service_scope ?? "");
-      if (d.discount_type && d.discount_value != null) {
-        setApplyDiscount(true);
-        setDiscountType((d.discount_type as "percentage" | "amount") ?? "percentage");
-        setDiscountValue(d.discount_value.toString());
-      }
+        const md = (d.main_data as any) ?? {};
+        const ad = (d.additional_data as any) ?? {};
+        const propType = md.propertyType ?? "";
+        const knownTypes = ["restaurant", "office", "warehouse", "school", "bank", "clinic", "church", "food-truck", "hotel", "gym", "movie-theater", "auto-dealership"];
+        const isOther = propType !== "" && !knownTypes.includes(propType);
+        setPropertyType(isOther ? "" : propType);
+        setIsOtherProperty(isOther);
+        setOtherPropertyType(isOther ? propType : "");
+        setPropertySize(md.propertySize ?? "");
+        setServiceType(md.serviceType ?? "");
+        setRecurringFrequency(md.frequency ?? "");
+        setSelectedWeekDays(Array.isArray(md.selectedWeekDays) ? md.selectedWeekDays : []);
+        setContractDuration(md.contractDuration ?? "");
+        setContractTimeUnit(md.contractTimeUnit ?? "months");
+        setClientProvidesSupplies(md.clientProvidesSupplies ?? false);
+        setServiceSchedule(ad.serviceSchedule ?? "");
+        setGreaseLevel(ad.greaseLevel ?? "");
+        setRestaurantCondition(ad.restaurantCondition ?? "");
+        setExtraServices(Array.isArray(ad.extraServices) ? ad.extraServices : []);
+        setEmployeeCount(md.employees ?? 0);
+        setHourlyRate(md.hourlyRate?.toString() ?? "");
+        setCleaningDuration(md.cleaningDuration ?? 0);
+        setStartTime(md.startTime ?? "");
+        setScopeDetails(d.service_scope ?? "");
+        if (d.discount_type && d.discount_value != null) {
+          setApplyDiscount(true);
+          setDiscountType((d.discount_type as "percentage" | "amount") ?? "percentage");
+          setDiscountValue(d.discount_value.toString());
+        }
 
-      if (d.client_id) {
-        try {
-          const client = await fetchClient(d.client_id);
+        if (d.client_id) {
+          try {
+            const client = await fetchClient(d.client_id);
+            setEstimateType("client");
+            setSelectedClient(client as ClientEntity);
+            setSelectedLead(null);
+            return;
+          } catch { /* fall through */ }
+        }
+        if (d.lead_id) {
+          try {
+            const lead = await fetchLead(d.lead_id);
+            setEstimateType("lead");
+            setSelectedLead(lead as LeadEntity);
+            setSelectedClient(null);
+            return;
+          } catch { /* fall through */ }
+        }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: clientByEmail } = await supabase.from("clients").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
+        if (clientByEmail) {
           setEstimateType("client");
-          setSelectedClient(client as ClientEntity);
+          setSelectedClient(clientByEmail as ClientEntity);
           setSelectedLead(null);
           return;
-        } catch { /* fall through */ }
-      }
-      if (d.lead_id) {
-        try {
-          const lead = await fetchLead(d.lead_id);
+        }
+        const { data: leadByEmail } = await supabase.from("leads").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
+        if (leadByEmail) {
           setEstimateType("lead");
-          setSelectedLead(lead as LeadEntity);
+          setSelectedLead(leadByEmail as LeadEntity);
           setSelectedClient(null);
           return;
-        } catch { /* fall through */ }
-      }
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: clientByEmail } = await supabase.from("clients").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
-      if (clientByEmail) {
+        }
+        const syntheticClient: ClientEntity = {
+          id: `estimate-edit-${d.id}`,
+          full_name: d.client_name,
+          company: d.company_name ?? null,
+          phone: d.phone,
+          email: d.email,
+          service_street: d.address,
+          service_apt: d.apt ?? null,
+          service_city: d.city,
+          service_state: d.state,
+          service_zip: d.zip,
+        };
         setEstimateType("client");
-        setSelectedClient(clientByEmail as ClientEntity);
+        setSelectedClient(syntheticClient);
         setSelectedLead(null);
-        return;
+      } finally {
+        setIsPrefilling(false);
       }
-      const { data: leadByEmail } = await supabase.from("leads").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
-      if (leadByEmail) {
-        setEstimateType("lead");
-        setSelectedLead(leadByEmail as LeadEntity);
-        setSelectedClient(null);
-        return;
-      }
-      const syntheticClient: ClientEntity = {
-        id: `estimate-edit-${d.id}`,
-        full_name: d.client_name,
-        company: d.company_name ?? null,
-        phone: d.phone,
-        email: d.email,
-        service_street: d.address,
-        service_apt: d.apt ?? null,
-        service_city: d.city,
-        service_state: d.state,
-        service_zip: d.zip,
-      };
-      setEstimateType("client");
-      setSelectedClient(syntheticClient);
-      setSelectedLead(null);
     })();
   }, [isEditing, estimateId, estimateData]);
 
@@ -249,8 +252,64 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   });
 
   // ── Draft ─────────────────────────────────────────────────────────────────
-  const { saveDraft, deleteDraft, isSaving, lastSaved } =
+  const { saveDraft, deleteDraft, isSaving, lastSaved, loadedDraft, clearLoadedDraft } =
     useDraftEstimate({ serviceType: "Commercial" });
+
+  // Auto-restore draft on open (runs once when loadedDraft arrives from DB)
+  useEffect(() => {
+    if (!loadedDraft || isEditing) return;
+    const { draftData } = loadedDraft;
+    const fd = draftData.formData as any;
+
+    setCurrentStep(draftData.currentStep ?? 0);
+    if (draftData.estimateType) setEstimateType(draftData.estimateType);
+
+    if (fd.propertyType           !== undefined) setPropertyType(fd.propertyType);
+    if (fd.isOtherProperty        !== undefined) setIsOtherProperty(fd.isOtherProperty);
+    if (fd.otherPropertyType      !== undefined) setOtherPropertyType(fd.otherPropertyType);
+    if (fd.propertySize           !== undefined) setPropertySize(fd.propertySize);
+    if (fd.serviceType            !== undefined) setServiceType(fd.serviceType);
+    if (fd.recurringFrequency     !== undefined) setRecurringFrequency(fd.recurringFrequency);
+    if (fd.selectedWeekDays       !== undefined) setSelectedWeekDays(fd.selectedWeekDays);
+    if (fd.contractDuration       !== undefined) setContractDuration(fd.contractDuration);
+    if (fd.contractTimeUnit       !== undefined) setContractTimeUnit(fd.contractTimeUnit);
+    if (fd.clientProvidesSupplies !== undefined) setClientProvidesSupplies(fd.clientProvidesSupplies);
+    if (fd.serviceSchedule        !== undefined) setServiceSchedule(fd.serviceSchedule);
+    if (fd.greaseLevel            !== undefined) setGreaseLevel(fd.greaseLevel);
+    if (fd.restaurantCondition    !== undefined) setRestaurantCondition(fd.restaurantCondition);
+    if (fd.extraServices          !== undefined) setExtraServices(fd.extraServices);
+    if (fd.employeeCount    !== undefined) setEmployeeCount(fd.employeeCount);
+    if (fd.hourlyRate       !== undefined) setHourlyRate(fd.hourlyRate);
+    if (fd.cleaningDuration !== undefined) setCleaningDuration(fd.cleaningDuration);
+    if (fd.startTime        !== undefined) setStartTime(fd.startTime);
+    if (fd.scopeDetails     !== undefined) setScopeDetails(fd.scopeDetails);
+    if (fd.useCustomPrice   !== undefined) setUseCustomPrice(fd.useCustomPrice);
+    if (fd.customPrice      !== undefined) setCustomPrice(fd.customPrice);
+    if (fd.applyDiscount    !== undefined) setApplyDiscount(fd.applyDiscount);
+    if (fd.discountType     !== undefined) setDiscountType(fd.discountType);
+    if (fd.discountValue    !== undefined) setDiscountValue(fd.discountValue);
+    if (fd.deliveryMethod   !== undefined) setDeliveryMethod(fd.deliveryMethod);
+
+    (async () => {
+      if (draftData.clientId) {
+        try {
+          const client = await fetchClient(draftData.clientId);
+          setEstimateType("client");
+          setSelectedClient(client as ClientEntity);
+          setSelectedLead(null);
+        } catch { /* ignore */ }
+      } else if (draftData.leadId) {
+        try {
+          const lead = await fetchLead(draftData.leadId);
+          setEstimateType("lead");
+          setSelectedLead(lead as LeadEntity);
+          setSelectedClient(null);
+        } catch { /* ignore */ }
+      }
+    })();
+
+    clearLoadedDraft();
+  }, [loadedDraft]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const collectDraftData = useCallback((): DraftData => ({
     currentStep, estimateType,
@@ -560,7 +619,13 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
     }
   }
 
-  const isLoading = isSavingForm || isSendingEmail;
+  const isLoading = isSavingForm || isSendingEmail || isPrefilling;
+
+  const stepContent = isPrefilling ? (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  ) : renderStep();
 
   // ── Shared dialogs (outside any modal) ───────────────────────────────────
   const formDialogs = (
@@ -638,7 +703,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
             isModal
             draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
           >
-            {renderStep()}
+            {stepContent}
           </EstimateFormLayout>
         </FullScreenModal>
         {formDialogs}

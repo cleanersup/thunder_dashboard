@@ -1,18 +1,19 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
 import { Plus, Building2, Phone, Mail, MapPin, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { SearchableSelect } from "@/shared/components/ui/searchable-select";
 import { ClientForm } from "@/features/crm/clients/components/ClientForm";
-import { supabase } from "@/integrations/supabase/client";
 import type { ClientEntity } from "@/shared/types/entities";
 
 interface Props {
-  selectedClient: ClientEntity | null;
-  onClientSelect: (client: ClientEntity) => void;
-  error?: string;
+  clients:          ClientEntity[];
+  isLoadingClients?: boolean;
+  selectedClient:   ClientEntity | null;
+  onClientSelect:   (client: ClientEntity) => void;
+  error?:           string;
 }
 
 function buildAddress(c: ClientEntity): string {
@@ -20,23 +21,15 @@ function buildAddress(c: ClientEntity): string {
   return `${c.service_street}${apt}, ${c.service_city}, ${c.service_state} ${c.service_zip}`;
 }
 
-export function AppointmentClientStep({ selectedClient, onClientSelect, error }: Props) {
+export function AppointmentClientStep({
+  clients,
+  isLoadingClients,
+  selectedClient,
+  onClientSelect,
+  error,
+}: Props) {
   const qc = useQueryClient();
   const [showNewClient, setShowNewClient] = useState(false);
-
-  const { data: clients = [], isLoading } = useQuery<ClientEntity[]>({
-    queryKey: QK.clientsForAppointment,
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
-      const { data } = await supabase
-        .from("clients")
-        .select("id, full_name, company, phone, email, service_street, service_city, service_state, service_zip, service_apt")
-        .eq("user_id", user.id)
-        .order("full_name");
-      return (data ?? []) as ClientEntity[];
-    },
-  });
 
   const options = clients.map((c) => ({
     value: c.id,
@@ -50,9 +43,9 @@ export function AppointmentClientStep({ selectedClient, onClientSelect, error }:
         <CardHeader>
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Users className="h-5 w-5 text-muted-foreground" />
-            Select Client or Lead
+            Select Client
           </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Choose who this estimate is for</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Choose the client for this appointment</p>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -66,7 +59,7 @@ export function AppointmentClientStep({ selectedClient, onClientSelect, error }:
               options={options}
               placeholder="Select a client"
               title="Select Client"
-              disabled={isLoading}
+              disabled={isLoadingClients}
             />
 
             {error && <p className="text-xs text-destructive">{error}</p>}
@@ -126,7 +119,7 @@ export function AppointmentClientStep({ selectedClient, onClientSelect, error }:
               onClose={() => setShowNewClient(false)}
               onSuccess={(client) => {
                 onClientSelect(client);
-                qc.invalidateQueries({ queryKey: QK.clientsForAppointment });
+                qc.invalidateQueries({ queryKey: QK.clients });
                 setShowNewClient(false);
               }}
             />

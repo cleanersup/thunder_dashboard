@@ -225,6 +225,20 @@ export async function updateAppointmentStatus(id: string, status: string): Promi
   if (error) throw error;
 }
 
+// ─── Storage utilities ────────────────────────────────────────────────────────
+
+/**
+ * Resolves a storage path or full URL to an accessible public URL.
+ * If pathOrUrl already starts with "http", returns it as-is.
+ * Otherwise treats it as a Supabase Storage object path.
+ */
+export function resolveStorageUrl(bucket: string, pathOrUrl: string): string {
+  const clean = pathOrUrl.trim();
+  if (!clean) return clean;
+  if (clean.startsWith("http")) return clean;
+  return supabase.storage.from(bucket).getPublicUrl(clean.replace(/^\/+/, "")).data.publicUrl;
+}
+
 // ─── Delete ──────────────────────────────────────────────────────────────────
 
 export async function deleteAppointment(

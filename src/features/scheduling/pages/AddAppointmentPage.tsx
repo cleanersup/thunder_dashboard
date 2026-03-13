@@ -9,15 +9,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
-import { useQuery } from "@tanstack/react-query";
-import { QK } from "@/shared/config/queryKeys";
 import { format } from "date-fns";
-import { supabase } from "@/integrations/supabase/client";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { useRoutes, useCreateRoute } from "../hooks/useRoutes";
-import { useCreateAppointment, useUpdateAppointment, useAppointment } from "../hooks/useAppointments";
+import { useCreateAppointment, useUpdateAppointment, useAppointment, useEmployeesForScheduling } from "../hooks/useAppointments";
 import { useSendAppointmentSMS }   from "../hooks/useSendAppointmentSMS";
 import { useSendAppointmentEmail } from "../hooks/useSendAppointmentEmail";
+import { resolveStorageUrl } from "../services/appointmentsService";
+import { useClients } from "@/features/crm/clients/hooks/useClients";
 import { APPOINTMENT_STEPS } from "../config/appointmentSteps.config";
 import { AppointmentFormLayout }    from "../components/AppointmentFormLayout";
 import { AppointmentRouteStep }     from "../components/steps/AppointmentRouteStep";
@@ -32,24 +31,6 @@ import { AppointmentPreviewStep }   from "../components/steps/AppointmentPreview
 import { AppointmentSendStep }      from "../components/steps/AppointmentSendStep";
 import type { AppointmentFormData } from "../types/scheduling.types";
 import type { ClientEntity } from "@/shared/types/entities";
-
-// ─── Employees query ───────────────────────────────────────────────────────────
-
-function useEmployees() {
-  return useQuery({
-    queryKey: QK.employeesForAppointment,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id, first_name, last_name, position, hourly_rate")
-        .eq("status", "active")
-        .order("first_name");
-      if (error) throw error;
-      return data ?? [];
-    },
-    staleTime: 60_000,
-  });
-}
 
 // ─── Default form state ────────────────────────────────────────────────────────
 
@@ -88,13 +69,16 @@ interface AddAppointmentPageProps {
   defaultRouteId?: string;
   /** Pre-selected date (yyyy-MM-dd) when opened as modal */
   defaultDate?: string;
+  /** Appointment ID to edit — used when the wizard is opened as a modal for editing */
+  editId?: string;
 }
 
-export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate }: AddAppointmentPageProps = {}) {
+export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate, editId }: AddAppointmentPageProps = {}) {
   const navigate = useNavigate();
-  const { id }   = useParams<{ id?: string }>();
+  const { id: urlId } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
-  const isEdit  = !!id;
+  const id     = editId ?? urlId;
+  const isEdit = !!id;
   const isModal = open !== undefined;
 
   const prefilledRouteId = defaultRouteId ?? searchParams.get("route") ?? "";
@@ -116,7 +100,8 @@ export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate 
   // ─── Data ──────────────────────────────────────────────────────────────────
 
   const { data: routes = [],   isLoading: routesLoading   } = useRoutes();
-  const { data: employees = [], isLoading: empLoading     } = useEmployees();
+  const { data: employees = [], isLoading: empLoading     } = useEmployeesForScheduling();
+  const { data: clients  = [], isLoading: clientsLoading  } = useClients();
   const { data: existing,       isLoading: existingLoading } = useAppointment(id);
 
   const { mutate: createAppointment, isPending: isCreating } = useCreateAppointment();
@@ -170,33 +155,20 @@ export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate 
       }
       // Pre-fill existing contract and photos for display on edit
       const contractVal = existing.uploaded_file;
-      let contractUrl: string | null = null;
-      if (typeof contractVal === "string" && contractVal.trim()) {
-        if (contractVal.startsWith("http")) {
-          contractUrl = contractVal;
-        } else {
-          const { data: { publicUrl } } = supabase.storage
-            .from("appointment-contracts")
-            .getPublicUrl(contractVal.replace(/^\/+/, ""));
-          contractUrl = publicUrl;
-        }
-      }
+      const contractUrl = typeof contractVal === "string" && contractVal.trim()
+        ? resolveStorageUrl("appointment-contracts", contractVal)
+        : null;
       setExistingContractUrl(contractUrl);
 
       const photosVal = existing.photos;
       const photoUrls: string[] = [];
       if (Array.isArray(photosVal)) {
         for (const p of photosVal) {
-          let url: string | null = null;
-          if (typeof p === "string" && p.trim()) url = p;
+          let raw: string | null = null;
+          if (typeof p === "string" && p.trim()) raw = p;
           else if (p && typeof p === "object" && "url" in p && typeof (p as { url: unknown }).url === "string")
-            url = (p as { url: string }).url;
-          if (url) {
-            const resolved = url.startsWith("http")
-              ? url
-              : supabase.storage.from("appointment-photos").getPublicUrl(url.replace(/^\/+/, "")).data.publicUrl;
-            photoUrls.push(resolved);
-          }
+            raw = (p as { url: string }).url;
+          if (raw) photoUrls.push(resolveStorageUrl("appointment-photos", raw));
         }
       }
       setExistingPhotoUrls(photoUrls);
@@ -351,6 +323,8 @@ export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate 
       case 1:
         return (
           <AppointmentClientStep
+            clients={clients}
+            isLoadingClients={clientsLoading}
             selectedClient={selectedClientObject}
             onClientSelect={handleClientSelect}
             error={errors.client_id}

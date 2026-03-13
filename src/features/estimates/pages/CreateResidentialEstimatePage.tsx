@@ -58,6 +58,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
 
   // ── Step ──────────────────────────────────────────────────────────────────
   const [step, setStep] = useState(0);
+  const [isPrefilling,         setIsPrefilling]         = useState(!!isEditing);
   const [showExitDialog,       setShowExitDialog]       = useState(false);
   const [showCompanyInfoAlert, setShowCompanyInfoAlert] = useState(false);
 
@@ -141,85 +142,89 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   useEffect(() => {
     if (!isEditing) return;
     (async () => {
-      let d = estimateData;
-      if (!d && estimateId) {
-        const fetched = await fetchEstimate(estimateId);
-        if (!fetched) return;
-        d = fetched;
-      }
-      if (!d) return;
-
-      setSelectedService(d.service_sub_type ?? "");
-      const md = (d.main_data as any) ?? {};
-      setSquareFootage(md.squareFootage ?? "");
-      setBedrooms(md.bedrooms ?? 0); setKitchens(md.kitchens ?? 0); setLivingRooms(md.livingRooms ?? 0);
-      setDiningRooms(md.diningRooms ?? 0); setOffices(md.offices ?? 0); setFullBaths(md.fullBaths ?? 0); setHalfBaths(md.halfBaths ?? 0);
-      const ad = (d.additional_data as any) ?? {};
-      setFans(ad.fans ?? 0); setOven(ad.oven ?? 0); setRefrigerator(ad.refrigerator ?? 0);
-      setBlinds(ad.blinds ?? 0); setWindowsInside(ad.windowsInside ?? 0); setWindowsOutside(ad.windowsOutside ?? 0);
-      if (d.extra_services) setExtras(d.extra_services as any);
-      setPets(d.pets === "Yes" ? "yes" : d.pets === "No" ? "no" : null);
-      setScope(d.service_scope ?? "");
-      if (d.discount_type) { setApplyDiscount(true); setDiscountType(d.discount_type as any); setDiscountValue(d.discount_value?.toString() ?? ""); }
-
-      const laundryStr = d.laundry ?? "";
-      if (laundryStr && laundryStr !== "No") {
-        const match = laundryStr.match(/^(wash-dry|wash-dry-fold)\s*-\s*(\d+)\s*pounds?/i);
-        if (match) {
-          setLaundryService((match[1] === "wash-dry-fold" ? "wash-dry-fold" : "wash-dry") as "wash-dry" | "wash-dry-fold");
-          setLaundryPounds(parseInt(match[2], 10) || 0);
+      try {
+        let d = estimateData;
+        if (!d && estimateId) {
+          const fetched = await fetchEstimate(estimateId);
+          if (!fetched) return;
+          d = fetched;
         }
-      }
+        if (!d) return;
 
-      if (d.client_id) {
-        try {
-          const client = await fetchClient(d.client_id);
+        setSelectedService(d.service_sub_type ?? "");
+        const md = (d.main_data as any) ?? {};
+        setSquareFootage(md.squareFootage ?? "");
+        setBedrooms(md.bedrooms ?? 0); setKitchens(md.kitchens ?? 0); setLivingRooms(md.livingRooms ?? 0);
+        setDiningRooms(md.diningRooms ?? 0); setOffices(md.offices ?? 0); setFullBaths(md.fullBaths ?? 0); setHalfBaths(md.halfBaths ?? 0);
+        const ad = (d.additional_data as any) ?? {};
+        setFans(ad.fans ?? 0); setOven(ad.oven ?? 0); setRefrigerator(ad.refrigerator ?? 0);
+        setBlinds(ad.blinds ?? 0); setWindowsInside(ad.windowsInside ?? 0); setWindowsOutside(ad.windowsOutside ?? 0);
+        if (d.extra_services) setExtras(d.extra_services as any);
+        setPets(d.pets === "Yes" ? "yes" : d.pets === "No" ? "no" : null);
+        setScope(d.service_scope ?? "");
+        if (d.discount_type) { setApplyDiscount(true); setDiscountType(d.discount_type as any); setDiscountValue(d.discount_value?.toString() ?? ""); }
+
+        const laundryStr = d.laundry ?? "";
+        if (laundryStr && laundryStr !== "No") {
+          const match = laundryStr.match(/^(wash-dry|wash-dry-fold)\s*-\s*(\d+)\s*pounds?/i);
+          if (match) {
+            setLaundryService((match[1] === "wash-dry-fold" ? "wash-dry-fold" : "wash-dry") as "wash-dry" | "wash-dry-fold");
+            setLaundryPounds(parseInt(match[2], 10) || 0);
+          }
+        }
+
+        if (d.client_id) {
+          try {
+            const client = await fetchClient(d.client_id);
+            setEstimateType("client");
+            setSelectedClient(client as ClientEntity);
+            setSelectedLead(null);
+            return;
+          } catch { /* fall through */ }
+        }
+        if (d.lead_id) {
+          try {
+            const lead = await fetchLead(d.lead_id);
+            setEstimateType("lead");
+            setSelectedLead(lead as LeadEntity);
+            setSelectedClient(null);
+            return;
+          } catch { /* fall through */ }
+        }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: clientByEmail } = await supabase.from("clients").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
+        if (clientByEmail) {
           setEstimateType("client");
-          setSelectedClient(client as ClientEntity);
+          setSelectedClient(clientByEmail as ClientEntity);
           setSelectedLead(null);
           return;
-        } catch { /* fall through */ }
-      }
-      if (d.lead_id) {
-        try {
-          const lead = await fetchLead(d.lead_id);
+        }
+        const { data: leadByEmail } = await supabase.from("leads").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
+        if (leadByEmail) {
           setEstimateType("lead");
-          setSelectedLead(lead as LeadEntity);
+          setSelectedLead(leadByEmail as LeadEntity);
           setSelectedClient(null);
           return;
-        } catch { /* fall through */ }
-      }
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: clientByEmail } = await supabase.from("clients").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
-      if (clientByEmail) {
+        }
+        const syntheticClient: ClientEntity = {
+          id: `estimate-edit-${d.id}`,
+          full_name: d.client_name,
+          company: d.company_name ?? null,
+          phone: d.phone,
+          email: d.email,
+          service_street: d.address,
+          service_apt: d.apt ?? null,
+          service_city: d.city,
+          service_state: d.state,
+          service_zip: d.zip,
+        };
         setEstimateType("client");
-        setSelectedClient(clientByEmail as ClientEntity);
+        setSelectedClient(syntheticClient);
         setSelectedLead(null);
-        return;
+      } finally {
+        setIsPrefilling(false);
       }
-      const { data: leadByEmail } = await supabase.from("leads").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
-      if (leadByEmail) {
-        setEstimateType("lead");
-        setSelectedLead(leadByEmail as LeadEntity);
-        setSelectedClient(null);
-        return;
-      }
-      const syntheticClient: ClientEntity = {
-        id: `estimate-edit-${d.id}`,
-        full_name: d.client_name,
-        company: d.company_name ?? null,
-        phone: d.phone,
-        email: d.email,
-        service_street: d.address,
-        service_apt: d.apt ?? null,
-        service_city: d.city,
-        service_state: d.state,
-        service_zip: d.zip,
-      };
-      setEstimateType("client");
-      setSelectedClient(syntheticClient);
-      setSelectedLead(null);
     })();
   }, [isEditing, estimateId, estimateData]);
 
@@ -240,8 +245,66 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Draft ─────────────────────────────────────────────────────────────────
-  const { saveDraft, deleteDraft, isSaving, lastSaved } =
+  const { saveDraft, deleteDraft, isSaving, lastSaved, loadedDraft, clearLoadedDraft } =
     useDraftEstimate({ serviceType: "Residential" });
+
+  // Auto-restore draft on open (runs once when loadedDraft arrives from DB)
+  useEffect(() => {
+    if (!loadedDraft || isEditing) return;
+    const { draftData } = loadedDraft;
+    const fd = draftData.formData as any;
+
+    setStep(draftData.currentStep ?? 0);
+    if (draftData.estimateType) setEstimateType(draftData.estimateType);
+
+    if (fd.selectedService       !== undefined) setSelectedService(fd.selectedService);
+    if (fd.squareFootage         !== undefined) setSquareFootage(fd.squareFootage);
+    if (fd.postConstructionType  !== undefined) setPostConstructionType(fd.postConstructionType);
+    if (fd.bedrooms    !== undefined) setBedrooms(fd.bedrooms);
+    if (fd.kitchens    !== undefined) setKitchens(fd.kitchens);
+    if (fd.livingRooms !== undefined) setLivingRooms(fd.livingRooms);
+    if (fd.diningRooms !== undefined) setDiningRooms(fd.diningRooms);
+    if (fd.offices     !== undefined) setOffices(fd.offices);
+    if (fd.fullBaths   !== undefined) setFullBaths(fd.fullBaths);
+    if (fd.halfBaths   !== undefined) setHalfBaths(fd.halfBaths);
+    if (fd.fans           !== undefined) setFans(fd.fans);
+    if (fd.oven           !== undefined) setOven(fd.oven);
+    if (fd.refrigerator   !== undefined) setRefrigerator(fd.refrigerator);
+    if (fd.blinds         !== undefined) setBlinds(fd.blinds);
+    if (fd.windowsInside  !== undefined) setWindowsInside(fd.windowsInside);
+    if (fd.windowsOutside !== undefined) setWindowsOutside(fd.windowsOutside);
+    if (fd.extras         !== undefined) setExtras(fd.extras);
+    if (fd.pets           !== undefined) setPets(fd.pets);
+    if (fd.laundryService !== undefined) setLaundryService(fd.laundryService);
+    if (fd.laundryPounds  !== undefined) setLaundryPounds(fd.laundryPounds);
+    if (fd.scope          !== undefined) setScope(fd.scope);
+    if (fd.useCustomPrice !== undefined) setUseCustomPrice(fd.useCustomPrice);
+    if (fd.customPrice    !== undefined) setCustomPrice(fd.customPrice);
+    if (fd.applyDiscount  !== undefined) setApplyDiscount(fd.applyDiscount);
+    if (fd.discountType   !== undefined) setDiscountType(fd.discountType);
+    if (fd.discountValue  !== undefined) setDiscountValue(fd.discountValue);
+    if (fd.deliveryMethod !== undefined) setDeliveryMethod(fd.deliveryMethod);
+
+    (async () => {
+      if (draftData.clientId) {
+        try {
+          const client = await fetchClient(draftData.clientId);
+          setEstimateType("client");
+          setSelectedClient(client as ClientEntity);
+          setSelectedLead(null);
+        } catch { /* ignore */ }
+      } else if (draftData.leadId) {
+        try {
+          const lead = await fetchLead(draftData.leadId);
+          setEstimateType("lead");
+          setSelectedLead(lead as LeadEntity);
+          setSelectedClient(null);
+        } catch { /* ignore */ }
+      }
+    })();
+
+    clearLoadedDraft();
+  }, [loadedDraft]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const collectDraftData = useCallback((): DraftData => ({
     currentStep: step, estimateType,
@@ -495,7 +558,13 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     }
   }
 
-  const isLoading = createEst.isPending || updateEst.isPending || isSending;
+  const isLoading = createEst.isPending || updateEst.isPending || isSending || isPrefilling;
+
+  const stepContent = isPrefilling ? (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  ) : renderStep();
 
   // ── Shared dialogs (outside any modal) ───────────────────────────────────
   const formDialogs = (
@@ -573,7 +642,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
             isModal
             draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
           >
-            {renderStep()}
+            {stepContent}
           </EstimateFormLayout>
         </FullScreenModal>
         {formDialogs}

@@ -1,9 +1,10 @@
 /**
  * @module useAppointments
- * React Query hooks for route_appointments CRUD.
+ * React Query hooks for route_appointments CRUD + scheduling support queries.
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAppointments,
   fetchAppointment,
@@ -97,5 +98,24 @@ export function useUpdateAppointmentStatus() {
     onError: (err: Error) => {
       toast.error(err.message);
     },
+  });
+}
+
+// ─── Support queries ──────────────────────────────────────────────────────────
+
+/** Active employees with scheduling-relevant fields (name, position, hourly rate). */
+export function useEmployeesForScheduling() {
+  return useQuery({
+    queryKey: QK.employeesForAppointment,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id, first_name, last_name, position, hourly_rate")
+        .eq("status", "active")
+        .order("first_name");
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
   });
 }

@@ -146,6 +146,10 @@ export function RoutesPage() {
   const [addApptRouteId, setAddApptRouteId] = useState("");
   const [addApptDate,    setAddApptDate]    = useState("");
 
+  // ── Edit appointment modal ────────────────────────────────────────────────
+  const [editApptOpen, setEditApptOpen] = useState(false);
+  const [editApptId,   setEditApptId]   = useState<string | undefined>(undefined);
+
   const { data: routes = [], isLoading: routesLoading } = useRoutes();
   const { data: profile }                               = useProfile();
   const companyAddress                                  = getCompanyAddress(profile);
@@ -315,6 +319,11 @@ export function RoutesPage() {
         appointment={selectedAppointment}
         companyAddress={companyAddress}
         onAppointmentChange={() => setSelectedAppointment(null)}
+        onEdit={(appointmentId) => {
+          setSelectedAppointment(null);
+          setEditApptId(appointmentId);
+          setEditApptOpen(true);
+        }}
       />
 
       <AddAppointmentPage
@@ -322,6 +331,12 @@ export function RoutesPage() {
         onClose={() => setAddApptOpen(false)}
         defaultRouteId={addApptRouteId}
         defaultDate={addApptDate}
+      />
+
+      <AddAppointmentPage
+        open={editApptOpen}
+        onClose={() => { setEditApptOpen(false); setEditApptId(undefined); }}
+        editId={editApptId}
       />
     </div>
   );

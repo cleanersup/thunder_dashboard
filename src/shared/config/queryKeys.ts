@@ -55,7 +55,6 @@ export const QK = {
   employeesForWalkthrough:   ["employees-for-walkthrough"]     as const,
   clientsForInvoice:         ["clients-for-invoice"]           as const,
   clientsForEstimate:        ["clients-for-estimate"]          as const,
-  clientsForAppointment:     ["clients-for-appointment"]       as const,
   leadsForEstimate:          ["leads-for-estimate"]            as const,
   clientsCount:              ["clients-count"]                 as const,
   employeesCount:            ["employees-count"]               as const,

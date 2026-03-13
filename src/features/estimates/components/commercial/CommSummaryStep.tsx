@@ -3,7 +3,7 @@
  * Pricing summary, custom price override, discount toggle.
  */
 import { Tag, Percent, DollarSign, AlertCircle, Info, Calculator } from "lucide-react";
-import { Card, CardContent } from "@/shared/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Switch } from "@/shared/components/ui/switch";
@@ -53,14 +53,15 @@ export function CommSummaryStep({
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold flex items-center gap-2">
-        <DollarSign className="h-5 w-5 text-muted-foreground" />
-        Estimate Summary
-      </h2>
-
       {client && (
         <Card>
-          <CardContent className="p-4">
+          <CardHeader>
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-muted-foreground" />
+              Estimate Summary
+            </h2>
+          </CardHeader>
+          <CardContent>
             <p className="text-sm font-semibold mb-1">{client.name}</p>
             <p className="text-xs text-muted-foreground">{client.email} • {client.phone}</p>
           </CardContent>

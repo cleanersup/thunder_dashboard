@@ -132,6 +132,19 @@ export function EstimatesPage() {
   const totalPages    = Math.ceil(filtered.length / itemsPerPage);
   const paginated     = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  /** Opens the residential or commercial estimate wizard modal.
+   *  Optionally sets edit state when editing an existing estimate. */
+  function openEstimateForm(
+    serviceType: string,
+    editState?: { isEditing: boolean; estimateId: string; estimateData: any },
+  ) {
+    if (editState) setEditModalState(editState);
+    if (serviceType === "Commercial") setShowCommModal(true);
+    else setShowResModal(true);
+  }
+
   // ── Row actions ───────────────────────────────────────────────────────────
   function openDetail(id: string) {
     setSelectedEstimateId(id);
@@ -197,27 +210,19 @@ export function EstimatesPage() {
   async function handleEditEstimate(estimate: any) {
     const { data } = await supabase.from("estimates").select("*").eq("id", estimate.id).single();
     if (data) {
-      setEditModalState({ isEditing: true, estimateId: data.id, estimateData: data });
-      if (estimate.serviceType === "Commercial") setShowCommModal(true);
-      else setShowResModal(true);
+      openEstimateForm(estimate.serviceType, { isEditing: true, estimateId: data.id, estimateData: data });
     }
   }
 
   function handleContinueDraft(estimate: any) {
-    const route = estimate.serviceType === "Commercial"
-      ? "/estimates/new/commercial"
-      : "/estimates/new/residential";
-    navigate(route); // No isEditing state — useDraftEstimate auto-detects on mount
+    openEstimateForm(estimate.serviceType);
   }
 
   async function handleStartFreshDraft(estimate: any) {
     try {
       await deleteDraftEstimate(estimate.id);
       queryClient.invalidateQueries({ queryKey: QK.estimates });
-      const route = estimate.serviceType === "Commercial"
-        ? "/estimates/new/commercial"
-        : "/estimates/new/residential";
-      navigate(route);
+      openEstimateForm(estimate.serviceType);
     } catch {
       toast.error("Failed to delete draft");
     }
@@ -492,6 +497,14 @@ export function EstimatesPage() {
         open={isDetailModalOpen}
         onOpenChange={setIsDetailModalOpen}
         estimateId={selectedEstimateId}
+        onEdit={(estimate) =>
+          openEstimateForm(estimate.service_type, {
+            isEditing: true,
+            estimateId: estimate.id,
+            estimateData: estimate,
+          })
+        }
+        onOpenEstimateWizard={(serviceType) => openEstimateForm(serviceType)}
       />
 
       <AlertDialog open={isAcceptDialogOpen} onOpenChange={setIsAcceptDialogOpen}>

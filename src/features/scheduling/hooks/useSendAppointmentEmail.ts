@@ -29,7 +29,6 @@ export function useSendAppointmentEmail() {
 
       return { success: true };
     } catch (err: any) {
-      console.error("Error sending appointment email:", err);
       toast.error("Failed to send appointment email. Please try again.");
       return { success: false, error: err.message ?? "Failed to send appointment email" };
     } finally {

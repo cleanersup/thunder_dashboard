@@ -63,11 +63,15 @@ interface EstimateDetailsModalProps {
   open:         boolean;
   onOpenChange: (open: boolean) => void;
   estimateId:   string | null;
+  /** Called when the user clicks Edit — parent opens the create/edit modal */
+  onEdit?:      (estimate: any) => void;
+  /** Called after Continue / Start Fresh — parent opens the estimate wizard modal */
+  onOpenEstimateWizard?: (serviceType: string) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function EstimateDetailsModal({ open, onOpenChange, estimateId }: EstimateDetailsModalProps) {
+export function EstimateDetailsModal({ open, onOpenChange, estimateId, onEdit, onOpenEstimateWizard }: EstimateDetailsModalProps) {
   const navigate      = useNavigate();
   const qc            = useQueryClient();
   const { data: profile }           = useProfile();
@@ -255,8 +259,12 @@ export function EstimateDetailsModal({ open, onOpenChange, estimateId }: Estimat
   function handleEdit() {
     if (!estimate) return;
     onOpenChange(false);
-    const route = estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential";
-    navigate(route, { state: { isEditing: true, estimateId: estimate.id, estimateData: estimate } });
+    if (onEdit) {
+      onEdit(estimate);
+    } else {
+      const route = estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential";
+      navigate(route, { state: { isEditing: true, estimateId: estimate.id, estimateData: estimate } });
+    }
   }
 
   function handleConvertToInvoice() {
@@ -284,8 +292,12 @@ export function EstimateDetailsModal({ open, onOpenChange, estimateId }: Estimat
   function handleContinueDraft() {
     if (!estimate) return;
     onOpenChange(false);
-    const route = estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential";
-    navigate(route);
+    if (onOpenEstimateWizard) {
+      onOpenEstimateWizard(estimate.service_type);
+    } else {
+      const route = estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential";
+      navigate(route);
+    }
   }
 
   async function handleStartFreshDraft() {
@@ -294,8 +306,12 @@ export function EstimateDetailsModal({ open, onOpenChange, estimateId }: Estimat
       await deleteDraftEstimate(estimate.id);
       qc.invalidateQueries({ queryKey: QK.estimates });
       onOpenChange(false);
-      const route = estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential";
-      navigate(route);
+      if (onOpenEstimateWizard) {
+        onOpenEstimateWizard(estimate.service_type);
+      } else {
+        const route = estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential";
+        navigate(route);
+      }
     } catch {
       toast.error("Failed to delete draft");
     }
