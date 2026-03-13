@@ -35,11 +35,13 @@ import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { Calendar } from "@/shared/components/ui/calendar";
 import { cn }       from "@/shared/utils/cn";
 import { toast }    from "sonner";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase }  from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth }   from "@/shared/hooks/useAuth";
+import { useProfile } from "@/shared/hooks/useProfile";
 import { QK }        from "@/shared/config/queryKeys";
-import { generateInvoiceNumber, fetchInvoiceById, updateInvoice, createInvoice } from "../services/invoicesService";
+import { useClients } from "@/features/crm/clients/hooks/useClients";
+import { useInvoice } from "../hooks/useInvoices";
+import { generateInvoiceNumber, updateInvoice, createInvoice } from "../services/invoicesService";
 import type { InvoiceFormData, LineItem } from "../types/invoice.types";
 import type { ClientEntity } from "@/shared/types/entities";
 import { calculateInvoiceTotals } from "../utils/invoiceCalculations";
@@ -62,13 +64,17 @@ interface CreateInvoicePageProps {
   /** When provided, renders as a full-screen Dialog. Omit for standalone page mode. */
   open?: boolean;
   onClose?: () => void;
+  /** Pass an invoice ID to open in edit mode from a modal (no URL param needed). */
+  editId?: string;
 }
 
-export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}) {
+export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePageProps = {}) {
   const navigate      = useNavigate();
   const location      = useLocation();
-  const { id }        = useParams<{ id?: string }>();
+  const { id: urlId } = useParams<{ id?: string }>();
+  const id            = editId ?? urlId;
   const { user }      = useAuth();
+  const { data: profile } = useProfile();
   const qc            = useQueryClient();
   const isEditing        = !!id;
   const isModal          = onClose !== undefined;
@@ -105,42 +111,19 @@ export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}
     invoiceType: false, issueDate: false, dueDate: false,
     selectedClient: false, lineItems: false,
   });
+  const [isPrefilling, setIsPrefilling] = useState(!!isEditing);
 
   // ── Stripe check on mount (new invoices only) ─────────────────────────────
   useEffect(() => {
-    if (isEditing || stripeChecked.current) return;
+    if (isEditing || stripeChecked.current || !profile) return;
     stripeChecked.current = true;
+    const p = profile as any;
+    const isConfigured = !!(p.stripe_account_id && p.stripe_onboarding_completed);
+    if (!isConfigured) setShowStripeModal(true);
+  }, [isEditing, profile]);
 
-    (async () => {
-      try {
-        const { data: { user: u } } = await supabase.auth.getUser();
-        if (!u) return;
-        const { data: profile } = await (supabase as any)
-          .from("profiles")
-          .select("stripe_account_id, stripe_onboarding_completed")
-          .eq("user_id", u.id)
-          .single();
-        const isConfigured = !!(profile?.stripe_account_id && profile?.stripe_onboarding_completed);
-        if (!isConfigured) setShowStripeModal(true);
-      } catch { /* ignore */ }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditing]);
-
-  // ── Clients query ──────────────────────────────────────────────────────────
-  const { data: clients = [] } = useQuery<ClientEntity[]>({
-    queryKey: QK.clientsForInvoice,
-    queryFn: async () => {
-      const { data: { user: u } } = await supabase.auth.getUser();
-      if (!u) return [];
-      const { data } = await supabase
-        .from("clients")
-        .select("id, full_name, company, phone, email, service_street, service_city, service_state, service_zip, service_apt")
-        .eq("user_id", u.id)
-        .order("full_name");
-      return (data ?? []) as ClientEntity[];
-    },
-  });
+  // ── Clients ────────────────────────────────────────────────────────────────
+  const { data: clients = [] } = useClients();
 
   // ── Prefill from estimate conversion ──────────────────────────────────────
   useEffect(() => {
@@ -187,44 +170,43 @@ export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load invoice on edit mode ──────────────────────────────────────────────
+  const { data: invoiceData } = useInvoice(isEditing ? id : undefined);
+
   useEffect(() => {
-    if (isEditing && id) {
-      fetchInvoiceById(id).then((inv) => {
-        setInvoiceNumber(inv.invoice_number);
-        setInvoiceType(inv.service_type);
-        setIssueDate(parseDateOnly(inv.invoice_date));
-        setDueDate(parseDateOnly(inv.due_date));
-        setInvoiceTitle(inv.invoice_name ?? "");
-        setLineItems(
-          (inv.line_items ?? []).map((i) => ({
-            ...i,
-            _id:    crypto.randomUUID(),
-            _price: String(i.price ?? ""),
-            _qty:   String(i.qty   ?? 1),
-          }))
-        );
-        setCurrentStatus((inv.status as "Draft" | "Pending" | "Paid" | "Cancelled") ?? "Draft");
-        setDiscountType((inv.discount_type as "percentage" | "fixed") ?? "percentage");
-        setDiscountValue(inv.discount_value?.toString() ?? "");
-        setTaxRate(inv.tax_rate?.toString() ?? "");
-        setNotes(inv.notes ?? "");
-        // Reconstruct ClientEntity from invoice fields
-        const fakeClient: ClientEntity = {
-          id: "",
-          full_name:      inv.client_name,
-          company:        inv.company_name ?? null,
-          email:          inv.email,
-          phone:          inv.phone,
-          service_street: inv.address,
-          service_apt:    inv.apt ?? null,
-          service_city:   inv.city,
-          service_state:  inv.state,
-          service_zip:    inv.zip,
-        };
-        setSelectedClient(fakeClient);
-      }).catch(() => toast.error("Failed to load invoice"));
-    }
-  }, [isEditing, id]);
+    if (!invoiceData) return;
+    setInvoiceNumber(invoiceData.invoice_number);
+    setInvoiceType(invoiceData.service_type);
+    setIssueDate(parseDateOnly(invoiceData.invoice_date));
+    setDueDate(parseDateOnly(invoiceData.due_date));
+    setInvoiceTitle(invoiceData.invoice_name ?? "");
+    setLineItems(
+      (invoiceData.line_items ?? []).map((i) => ({
+        ...i,
+        _id:    crypto.randomUUID(),
+        _price: String(i.price ?? ""),
+        _qty:   String(i.qty   ?? 1),
+      }))
+    );
+    setCurrentStatus((invoiceData.status as "Draft" | "Pending" | "Paid" | "Cancelled") ?? "Draft");
+    setDiscountType((invoiceData.discount_type as "percentage" | "fixed") ?? "percentage");
+    setDiscountValue(invoiceData.discount_value?.toString() ?? "");
+    setTaxRate(invoiceData.tax_rate?.toString() ?? "");
+    setNotes(invoiceData.notes ?? "");
+    const fakeClient: ClientEntity = {
+      id: "",
+      full_name:      invoiceData.client_name,
+      company:        invoiceData.company_name ?? null,
+      email:          invoiceData.email,
+      phone:          invoiceData.phone,
+      service_street: invoiceData.address,
+      service_apt:    invoiceData.apt ?? null,
+      service_city:   invoiceData.city,
+      service_state:  invoiceData.state,
+      service_zip:    invoiceData.zip,
+    };
+    setSelectedClient(fakeClient);
+    setIsPrefilling(false);
+  }, [invoiceData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-generate invoice number (new only) ────────────────────────────────
   useEffect(() => {
@@ -903,11 +885,17 @@ export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}
         onClose={() => setShowNewClient(false)}
         onSuccess={(client) => {
           setSelectedClient(client);
-          qc.invalidateQueries({ queryKey: QK.clientsForInvoice });
+          qc.invalidateQueries({ queryKey: QK.clients });
         }}
       />
     </>
   );
+
+  const formContent = isPrefilling ? (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  ) : formCards;
 
   // ── Modal mode ──────────────────────────────────────────────────────────────
   if (isModal) {
@@ -918,15 +906,12 @@ export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}
           <div className="border-b flex-shrink-0 bg-white">
             <div className="max-w-2xl mx-auto">
               <div className="px-4 py-3 flex items-center justify-between gap-4">
-                {/* Left: X + icon + title */}
                 <div className="w-1/3"></div>
                 <div className="w-1/3 text-center">
                   <h1 className="font-semibold text-base leading-tight">
                     {isEditing ? "Edit Invoice" : "New Invoice"}
                   </h1>
                 </div>
-
-                {/* Right: action buttons */}
                 <div className="flex items-center w-1/3 justify-end">
                   <Button
                     variant="ghost"
@@ -944,8 +929,8 @@ export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}
           {/* Scrollable form body */}
           <div className="flex-1 overflow-y-auto bg-background">
             <div className="max-w-2xl mx-auto px-4 space-y-4 py-6 pb-4">
-              {formCards}
-              {footerButtons}
+              {formContent}
+              {!isPrefilling && footerButtons}
             </div>
           </div>
         </FullScreenModal>
@@ -967,15 +952,11 @@ export function CreateInvoicePage({ open, onClose }: CreateInvoicePageProps = {}
         </h1>
       </div>
 
-      {formCards}
-
-      {/* Sticky footer */}
-      <div className="sticky bottom-0 bg-background border-t px-4 py-3">
-        <div className="max-w-2xl mx-auto p-4 space-y-4 pb-6">
-          {formCards}
-          {footerButtons}
-        </div>
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+        {formContent}
       </div>
+
+      {!isPrefilling && footerButtons}
 
       {sharedDialogs}
     </div>

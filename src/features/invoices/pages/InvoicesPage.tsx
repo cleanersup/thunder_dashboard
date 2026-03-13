@@ -4,7 +4,6 @@
  * Adapted from thunder-web-version/src/pages/Invoices.tsx.
  */
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import {
   Plus, FileEdit, XCircle, ChevronLeft, ChevronRight, Search,
@@ -70,7 +69,6 @@ const ITEMS_PER_PAGE = 10;
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function InvoicesPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
   const { sendInvoiceEmail, isSending } = useSendInvoiceEmail();
@@ -105,6 +103,8 @@ export function InvoicesPage() {
   const [detailId,       setDetailId]       = useState<string | null>(null);
   const [isDetailOpen,   setIsDetailOpen]   = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editInvoiceId,  setEditInvoiceId]  = useState<string | undefined>(undefined);
+  const [showEditModal,  setShowEditModal]  = useState(false);
 
   // ── Quick action state (from row dropdown, not modal) ────────────────────────
   const [actionInvoice,         setActionInvoice]         = useState<Invoice | null>(null);
@@ -421,7 +421,8 @@ export function InvoicesPage() {
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/invoices/${invoice.id}/edit`);
+                              setEditInvoiceId(invoice.id);
+                              setShowEditModal(true);
                             }}
                           >
                             <Edit className="w-4 h-4 mr-2" />
@@ -540,6 +541,11 @@ export function InvoicesPage() {
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         invoiceId={detailId}
+        onEdit={(id) => {
+          setIsDetailOpen(false);
+          setEditInvoiceId(id);
+          setShowEditModal(true);
+        }}
       />
 
       {/* ── Quick Pay Dialog ───────────────────────────────────────────────── */}
@@ -623,6 +629,15 @@ export function InvoicesPage() {
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
       />
+
+      {/* ── Edit Invoice modal ───────────────────────────────────────────── */}
+      {showEditModal && (
+        <CreateInvoicePage
+          open={showEditModal}
+          onClose={() => { setShowEditModal(false); setEditInvoiceId(undefined); }}
+          editId={editInvoiceId}
+        />
+      )}
     </div>
   );
 }

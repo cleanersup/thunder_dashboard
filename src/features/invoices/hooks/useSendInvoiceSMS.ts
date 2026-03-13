@@ -38,7 +38,6 @@ export function useSendInvoiceSMS() {
 
       return { success: true };
     } catch (err: any) {
-      console.error("Error sending invoice SMS:", err);
       toast.error("Failed to send invoice via SMS. Please try again.");
       return { success: false, error: err.message ?? "Failed to send invoice SMS" };
     } finally {

@@ -58,10 +58,11 @@ interface InvoiceDetailsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   invoiceId: string | null;
+  onEdit?: (invoiceId: string) => void;
 }
 
 export function InvoiceDetailsModal({
-  open, onOpenChange, invoiceId,
+  open, onOpenChange, invoiceId, onEdit,
 }: InvoiceDetailsModalProps) {
   const navigate = useNavigate();
   const { data: profile } = useProfile();
@@ -389,7 +390,11 @@ export function InvoiceDetailsModal({
                               <Button
                                 variant="outline" size="sm"
                                 className="justify-start h-10"
-                                onClick={() => { onOpenChange(false); navigate(`/invoices/${invoiceId}/edit`); }}
+                                onClick={() => {
+                                  onOpenChange(false);
+                                  if (onEdit && invoiceId) onEdit(invoiceId);
+                                  else if (invoiceId) navigate(`/invoices/${invoiceId}/edit`);
+                                }}
                               >
                                 <Pencil className="w-4 h-4 mr-2 text-primary" />
                                 Edit Invoice
@@ -422,9 +427,21 @@ export function InvoiceDetailsModal({
                             </>
                           )}
 
-                          {/* Pending: Send Reminder, Mark as Paid, Download PDF, Cancel */}
+                          {/* Pending: Edit, Send Reminder, Mark as Paid, Download PDF, Cancel */}
                           {invoice.status === "Pending" && (
                             <>
+                              <Button
+                                variant="outline" size="sm"
+                                className="justify-start h-10"
+                                onClick={() => {
+                                  onOpenChange(false);
+                                  if (onEdit && invoiceId) onEdit(invoiceId);
+                                  else if (invoiceId) navigate(`/invoices/${invoiceId}/edit`);
+                                }}
+                              >
+                                <Pencil className="w-4 h-4 mr-2 text-primary" />
+                                Edit Invoice
+                              </Button>
                               <Button
                                 variant="outline" size="sm"
                                 className="justify-start h-10"
