@@ -71,6 +71,10 @@ export type AppointmentFormData = {
   recurring_duration_unit?: "months" | "weeks" | "years" | null;
   selected_week_days?: string[];
   delivery_method?: "email" | "sms" | "both" | null;
+  /** Storage path for contract (set after upload) */
+  uploaded_file?: string | null;
+  /** Storage paths for photos (set after upload) */
+  photos?: string[] | null;
 };
 
 export type DeleteAppointmentMode = "single" | "following";

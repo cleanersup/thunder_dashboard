@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   User, Phone, Mail, MapPin, Clock, Calendar,
   MessageSquare, Edit, Trash2, Navigation, RefreshCcw,
+  FileText, Download,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import {
@@ -36,10 +37,12 @@ import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button }      from "@/shared/components/ui/button";
 import { ScrollArea }  from "@/shared/components/ui/scroll-area";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
+import { toast } from "sonner";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { supabase }    from "@/integrations/supabase/client";
 import { useGoogleMaps } from "@/shared/hooks/useGoogleMaps";
 import { useDeleteAppointment } from "../hooks/useAppointments";
+import { resolveStorageUrl, downloadAppointmentFile } from "../services/appointmentsService";
 import type { AppointmentWithClient, DeleteAppointmentMode } from "../types/scheduling.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -486,6 +489,104 @@ export function AppointmentDetailModal({
                               )}
                             </div>
                           )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Documents & Photos */}
+                  {(appointment.uploaded_file || (appointment.photos && appointment.photos.length > 0)) && (
+                    <Card>
+                      <CardContent className="p-5">
+                        <h4 className="text-sm font-semibold text-foreground mb-4">
+                          Documents & Photos
+                        </h4>
+                        <div className="space-y-3">
+                          {appointment.uploaded_file && (() => {
+                            const path = appointment.uploaded_file;
+                            const docName = path.split("/").pop() ?? "contract";
+                            const clientName = (client?.full_name ?? "appointment").replace(/\s+/g, "_");
+                            const ext = docName.split(".").pop() ?? "pdf";
+                            const filename = `${clientName}_contract.${ext}`;
+                            const url = resolveStorageUrl("route-files", path);
+                            return (
+                              <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 bg-secondary/20">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="p-2 rounded-lg bg-primary/10 shrink-0">
+                                    <FileText className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">
+                                      Contract / Estimate
+                                    </p>
+                                    <a
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-primary hover:underline"
+                                    >
+                                      View file
+                                    </a>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="shrink-0 h-8 w-8"
+                                  onClick={() => {
+                                    downloadAppointmentFile("route-files", path, filename).catch(() =>
+                                      toast.error("Failed to download document"),
+                                    );
+                                  }}
+                                  title="Download"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            );
+                          })()}
+                          {appointment.photos &&
+                            Array.isArray(appointment.photos) &&
+                            appointment.photos.map((p, idx) => {
+                              const path = typeof p === "string" && p.trim() ? p : (p && typeof p === "object" && "url" in p ? (p as { url: string }).url : null);
+                              if (!path) return null;
+                              const clientName = (client?.full_name ?? "appointment").replace(/\s+/g, "_");
+                              const ext = path.split(".").pop() ?? "jpg";
+                              const filename = `${clientName}_photo_${idx + 1}.${ext}`;
+                              const url = resolveStorageUrl("route-files", path);
+                              return (
+                                <div
+                                  key={idx}
+                                  className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 bg-secondary/20"
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted shrink-0">
+                                      <img
+                                        src={url}
+                                        alt={`Photo ${idx + 1}`}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                    <p className="text-sm font-medium text-foreground">
+                                      Photo {idx + 1}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="shrink-0 h-8 w-8"
+                                    onClick={() => {
+                                      downloadAppointmentFile("route-files", path, filename).catch(() =>
+                                        toast.error("Failed to download photo"),
+                                      );
+                                    }}
+                                    title="Download"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              );
+                            })}
                         </div>
                       </CardContent>
                     </Card>

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { FileService } from "@/shared/services/file.service";
 import type { EmployeeFormData } from "../schemas/employeeSchema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -257,4 +258,25 @@ export async function deleteEmployee(id: string): Promise<void> {
     .delete()
     .eq("id", id);
   if (error) throw error;
+}
+
+/**
+ * Downloads an employee document from Supabase Storage.
+ * Uses a signed URL (bucket is private) and triggers a browser file download.
+ *
+ * @param storagePath - The storage path (e.g. "userId/timestamp-abc.pdf")
+ * @param filename - Suggested filename for the download (e.g. "John_Doe_ID.pdf")
+ */
+export async function downloadEmployeeDocument(
+  storagePath: string,
+  filename: string,
+): Promise<void> {
+  const { data, error } = await supabase.storage
+    .from("employee-documents")
+    .createSignedUrl(storagePath, 3600);
+  if (error || !data?.signedUrl) throw new Error("Failed to get document URL");
+  const res = await fetch(data.signedUrl);
+  if (!res.ok) throw new Error("Failed to fetch document");
+  const blob = await res.blob();
+  FileService.downloadBlob(blob, filename);
 }

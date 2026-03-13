@@ -14,6 +14,8 @@ import {
   UserCheck,
   UserX,
   FileDown,
+  Download,
+  FileText,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { Card, CardContent } from "@/shared/components/ui/card";
@@ -25,6 +27,7 @@ import { toast } from "sonner";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { useUpdateEmployeeStatus, useDeleteEmployee } from "../hooks/useEmployees";
 import { generateEmployeeSheetPDF } from "../services/generateEmployeeSheetPDF";
+import { downloadEmployeeDocument } from "../services/employeesService";
 import { EmployeeForm } from "./EmployeeForm";
 import type { Employee } from "../services/employeesService";
 
@@ -310,6 +313,55 @@ export function EmployeeDetailsModal({
                               ${employee.hourly_rate}/hr
                             </p>
                           </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Documents */}
+                  <Card className="border border-border/50">
+                    <CardContent className="p-5 space-y-3">
+                      <h4 className="text-sm font-semibold text-foreground">Documents</h4>
+                      {!employee.documents?.length ? (
+                        <div className="flex flex-col items-center justify-center py-6 text-center">
+                          <FileText className="w-8 h-8 text-muted-foreground/40 mb-2" />
+                          <p className="text-sm text-muted-foreground">No documents uploaded</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {employee.documents.map((doc, idx) => {
+                            const docName = doc.split("/").pop() ?? "document";
+                            const employeeName = `${employee.first_name}_${employee.last_name}`.replace(/\s+/g, "_");
+                            const downloadFilename = `${employeeName}_${docName}`;
+                            return (
+                              <div
+                                key={idx}
+                                className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 bg-secondary/20"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="p-2 rounded-lg bg-primary/10 shrink-0">
+                                    <FileText className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <p className="text-sm font-medium text-foreground truncate">
+                                    {docName}
+                                  </p>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="shrink-0 h-8 w-8"
+                                  onClick={() => {
+                                    downloadEmployeeDocument(doc, downloadFilename).catch(() =>
+                                      toast.error("Failed to download document"),
+                                    );
+                                  }}
+                                  title="Download"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </CardContent>

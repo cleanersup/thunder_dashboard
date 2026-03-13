@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, Upload, X } from "lucide-react";
+import { CalendarIcon, Download, Upload, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -13,11 +13,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { Calendar } from "@/shared/components/ui/calendar";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
+import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
 import { cn } from "@/shared/utils/cn";
 import { employeeSchema, type EmployeeFormData } from "../schemas/employeeSchema";
 import { toDecimalString } from "@/shared/utils/numericInput";
 import { useCreateEmployee, useUpdateEmployee, useEmployee } from "../hooks/useEmployees";
+import { downloadEmployeeDocument } from "../services/employeesService";
 import type { EntityOption } from "@/shared/components/common/EntityPickerField";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // ─── Available Days ────────────────────────────────────────────────────────────
 
@@ -74,6 +78,7 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
     control,
     setValue,
     reset,
+    watch,
     formState: { errors },
   } = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
@@ -174,12 +179,37 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
 
   // ─── Submit ──────────────────────────────────────────────────────────────
 
-  const onSubmit = (data: EmployeeFormData) => {
-    const allDocs = [...existingDocs, ...docFiles.map((f) => f.name)];
+  const onSubmit = async (data: EmployeeFormData) => {
+    let documentPaths: string[] = [...existingDocs];
+
+    if (docFiles.length > 0) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("You must be logged in to upload documents");
+        return;
+      }
+
+      const uploadPromises = docFiles.map(async (file) => {
+        const ext = file.name.split(".").pop() ?? "";
+        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await supabase.storage
+          .from("employee-documents")
+          .upload(path, file);
+        if (error) {
+          console.error(`Failed to upload ${file.name}:`, error);
+          return null;
+        }
+        return path;
+      });
+
+      const results = await Promise.all(uploadPromises);
+      documentPaths.push(...results.filter((p): p is string => p !== null));
+    }
+
     const enriched: EmployeeFormData = {
       ...data,
       available_days: availableDays,
-      documents: allDocs.length ? allDocs : undefined,
+      documents: documentPaths.length ? documentPaths : undefined,
     };
 
     if (isEdit && employeeId) {
@@ -210,12 +240,23 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => {
+          if ((e.target as HTMLElement).closest?.(".pac-container")) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Employee" : "Add Employee"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 mt-2">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.preventDefault();
+          }}
+          className="space-y-6 mt-2"
+        >
 
           {/* ── Personal Information ─────────────────────────────────── */}
           <section className="space-y-3">
@@ -270,7 +311,18 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <Label>Street</Label>
-                <Input {...register("street")} placeholder="123 Main St" className="mt-1" />
+                <AddressAutocomplete
+                  value={watch("street") ?? ""}
+                  onChange={(v) => setValue("street", v)}
+                  onAddressSelect={(c) => {
+                    setValue("street", c.street);
+                    setValue("city", c.city);
+                    setValue("state", c.state);
+                    setValue("zip", c.zip);
+                  }}
+                  placeholder="123 Main St"
+                  className="mt-1"
+                />
               </div>
               <div>
                 <Label>Apt / Suite</Label>
@@ -460,21 +512,43 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
             {/* Existing documents (edit mode) */}
             {existingDocs.length > 0 && (
               <ul className="space-y-2">
-                {existingDocs.map((doc, idx) => (
-                  <li
-                    key={idx}
-                    className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
-                  >
-                    <span className="truncate text-foreground">{doc.split("/").pop() ?? doc}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeExistingDoc(idx)}
-                      className="ml-2 shrink-0 text-muted-foreground hover:text-destructive"
+                {existingDocs.map((doc, idx) => {
+                  const docName = doc.split("/").pop() ?? doc;
+                  const employeeName = existingEmployee
+                    ? `${existingEmployee.first_name}_${existingEmployee.last_name}`.replace(/\s+/g, "_")
+                    : "document";
+                  const downloadFilename = `${employeeName}_${docName}`;
+                  return (
+                    <li
+                      key={idx}
+                      className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
                     >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
+                      <span className="truncate text-foreground">{docName}</span>
+                      <div className="ml-2 flex shrink-0 gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            downloadEmployeeDocument(doc, downloadFilename).catch(() =>
+                              toast.error("Failed to download document"),
+                            );
+                          }}
+                          className="text-muted-foreground hover:text-foreground"
+                          title="Download"
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeExistingDoc(idx)}
+                          className="text-muted-foreground hover:text-destructive"
+                          title="Remove"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
 

@@ -8,6 +8,8 @@
  */
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { format } from "date-fns";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
@@ -15,7 +17,7 @@ import { useRoutes, useCreateRoute } from "../hooks/useRoutes";
 import { useCreateAppointment, useUpdateAppointment, useAppointment, useEmployeesForScheduling } from "../hooks/useAppointments";
 import { useSendAppointmentSMS }   from "../hooks/useSendAppointmentSMS";
 import { useSendAppointmentEmail } from "../hooks/useSendAppointmentEmail";
-import { resolveStorageUrl } from "../services/appointmentsService";
+import { resolveStorageUrl, downloadAppointmentFile } from "../services/appointmentsService";
 import { useClients } from "@/features/crm/clients/hooks/useClients";
 import { APPOINTMENT_STEPS } from "../config/appointmentSteps.config";
 import { AppointmentFormLayout }    from "../components/AppointmentFormLayout";
@@ -96,6 +98,10 @@ export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate,
   // Existing files from DB (shown when editing)
   const [existingContractUrl,  setExistingContractUrl] = useState<string | null>(null);
   const [existingPhotoUrls,    setExistingPhotoUrls]    = useState<string[]>([]);
+  const [existingPhotoPaths,   setExistingPhotoPaths]   = useState<string[]>([]);
+  // User removed existing files (edit mode)
+  const [removedExistingContract,   setRemovedExistingContract]   = useState(false);
+  const [removedExistingPhotoPaths, setRemovedExistingPhotoPaths] = useState<Set<string>>(new Set());
 
   // ─── Data ──────────────────────────────────────────────────────────────────
 
@@ -156,25 +162,35 @@ export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate,
       // Pre-fill existing contract and photos for display on edit
       const contractVal = existing.uploaded_file;
       const contractUrl = typeof contractVal === "string" && contractVal.trim()
-        ? resolveStorageUrl("appointment-contracts", contractVal)
+        ? resolveStorageUrl("route-files", contractVal)
         : null;
       setExistingContractUrl(contractUrl);
 
       const photosVal = existing.photos;
       const photoUrls: string[] = [];
+      const photoPaths: string[] = [];
       if (Array.isArray(photosVal)) {
         for (const p of photosVal) {
           let raw: string | null = null;
           if (typeof p === "string" && p.trim()) raw = p;
           else if (p && typeof p === "object" && "url" in p && typeof (p as { url: unknown }).url === "string")
             raw = (p as { url: string }).url;
-          if (raw) photoUrls.push(resolveStorageUrl("appointment-photos", raw));
+          if (raw) {
+            photoPaths.push(raw);
+            photoUrls.push(resolveStorageUrl("route-files", raw));
+          }
         }
       }
       setExistingPhotoUrls(photoUrls);
+      setExistingPhotoPaths(photoPaths);
+      setRemovedExistingContract(false);
+      setRemovedExistingPhotoPaths(new Set());
     } else {
       setExistingContractUrl(null);
       setExistingPhotoUrls([]);
+      setExistingPhotoPaths([]);
+      setRemovedExistingContract(false);
+      setRemovedExistingPhotoPaths(new Set());
     }
   }, [existing, isEdit]);
 
@@ -281,10 +297,69 @@ export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate,
     else navigate("/create-route");
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    let uploadedFilePath: string | null = null;
+    let uploadedPhotoPaths: string[] = [];
+
+    // Upload contract if new file selected
+    if (contractFile) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("You must be logged in to upload files");
+        return;
+      }
+      const ext = contractFile.name.split(".").pop() ?? "pdf";
+      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage
+        .from("route-files")
+        .upload(path, contractFile);
+      if (error) {
+        toast.error("Failed to upload contract");
+        return;
+      }
+      uploadedFilePath = path;
+    } else if (isEdit && existing?.uploaded_file && !removedExistingContract) {
+      uploadedFilePath = existing.uploaded_file;
+    }
+
+    // Upload new photos
+    if (uploadedPhotos.length > 0) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("You must be logged in to upload files");
+        return;
+      }
+      const uploadPromises = uploadedPhotos.map(async (file) => {
+        const ext = file.name.split(".").pop() ?? "jpg";
+        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await supabase.storage
+          .from("route-files")
+          .upload(path, file);
+        return error ? null : path;
+      });
+      const results = await Promise.all(uploadPromises);
+      uploadedPhotoPaths = results.filter((p): p is string => p !== null);
+    }
+
+    // Merge with existing photos for update (exclude user-removed ones)
+    const keptExistingPhotoPaths: string[] = [];
+    if (isEdit && existing?.photos && Array.isArray(existing.photos)) {
+      for (const p of existing.photos) {
+        const raw = typeof p === "string" && p.trim() ? p : (p && typeof p === "object" && "url" in p ? (p as { url: string }).url : null);
+        if (raw && !removedExistingPhotoPaths.has(raw)) keptExistingPhotoPaths.push(raw);
+      }
+    }
+    const allPhotoPaths = [...keptExistingPhotoPaths, ...uploadedPhotoPaths];
+
+    const payload = {
+      ...form,
+      uploaded_file: uploadedFilePath,
+      photos: allPhotoPaths.length ? allPhotoPaths : null,
+    };
+
     if (isEdit && id) {
       updateAppointment(
-        { id, data: form },
+        { id, data: payload },
         {
           onSuccess: () => {
             sendDelivery(id, true);
@@ -293,9 +368,8 @@ export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate,
         },
       );
     } else {
-      createAppointment(form, {
+      createAppointment(payload, {
         onSuccess: (created) => {
-          // createAppointment returns RouteAppointment[]
           const firstId = Array.isArray(created) ? created[0]?.id : undefined;
           if (firstId) sendDelivery(firstId, false);
           handleExit();
@@ -396,21 +470,47 @@ export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate,
         return (
           <AppointmentContractStep
             contractFile={contractFile}
-            existingContractUrl={existingContractUrl}
+            existingContractUrl={!removedExistingContract ? existingContractUrl : null}
+            existingContractPath={!removedExistingContract ? existing?.uploaded_file ?? null : null}
+            clientName={selectedClientObject?.full_name}
             onChange={setContractFile}
+            onDownload={(path, filename) => {
+              downloadAppointmentFile("route-files", path, filename).catch(() =>
+                toast.error("Failed to download document"),
+              );
+            }}
+            onRemoveExisting={isEdit ? () => setRemovedExistingContract(true) : undefined}
           />
         );
-      case 7:
+      case 7: {
+        const visiblePhotoIndices = existingPhotoPaths
+          .map((p, i) => (removedExistingPhotoPaths.has(p) ? -1 : i))
+          .filter((i) => i >= 0);
+        const visiblePhotoUrls = visiblePhotoIndices.map((i) => existingPhotoUrls[i]);
+        const visiblePhotoPaths = visiblePhotoIndices.map((i) => existingPhotoPaths[i]);
         return (
           <AppointmentNotesStep
             notes={form.notes ?? null}
             photos={uploadedPhotos}
-            existingPhotoUrls={existingPhotoUrls}
+            existingPhotoUrls={visiblePhotoUrls}
+            existingPhotoPaths={visiblePhotoPaths}
+            clientName={selectedClientObject?.full_name}
             onChange={(n) => set("notes", n)}
             onPhotosChange={setUploadedPhotos}
+            onDownloadPhoto={(path, filename) => {
+              downloadAppointmentFile("route-files", path, filename).catch(() =>
+                toast.error("Failed to download photo"),
+              );
+            }}
+            onRemoveExistingPhoto={isEdit ? (path) => setRemovedExistingPhotoPaths((prev) => new Set(prev).add(path)) : undefined}
           />
         );
-      case 8:
+      }
+      case 8: {
+        const previewPhotoIndices = existingPhotoPaths
+          .map((p, i) => (removedExistingPhotoPaths.has(p) ? -1 : i))
+          .filter((i) => i >= 0);
+        const previewPhotoUrls = previewPhotoIndices.map((i) => existingPhotoUrls[i]);
         return (
           <AppointmentPreviewStep
             form={form}
@@ -418,11 +518,12 @@ export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate,
             selectedClient={selectedClientObject}
             employees={employees}
             contractFile={contractFile}
-            existingContractUrl={existingContractUrl}
+            existingContractUrl={!removedExistingContract ? existingContractUrl : null}
             uploadedPhotos={uploadedPhotos}
-            existingPhotoUrls={existingPhotoUrls}
+            existingPhotoUrls={previewPhotoUrls}
           />
         );
+      }
       case 9:
         return (
           <AppointmentSendStep
