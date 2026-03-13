@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Plus, Calendar, Map, MapPin, Check, Trash2, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/shared/components/ui/button";
@@ -28,6 +27,7 @@ import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
 import { SchedulingCalendar, type CalendarViewType } from "../components/SchedulingCalendar";
 import { AppointmentDetailModal } from "../components/AppointmentDetailModal";
 import { RouteMapView } from "../components/RouteMapView";
+import { AddAppointmentPage } from "./AddAppointmentPage";
 import type { AppointmentWithClient, Route } from "../types/scheduling.types";
 
 type MapViewMode = "calendar" | "map";
@@ -132,8 +132,6 @@ function RouteSuccessModal({ open, onClose }: { open: boolean; onClose: () => vo
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function RoutesPage() {
-  const navigate = useNavigate();
-
   const [mapViewMode,    setMapViewMode]    = useState<MapViewMode>("calendar");
   const [calViewType,    setCalViewType]    = useState<CalendarViewType>("month");
   const [selectedDate,   setSelectedDate]   = useState<Date>(new Date());
@@ -142,6 +140,11 @@ export function RoutesPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithClient | null>(null);
+
+  // ── Add appointment modal ─────────────────────────────────────────────────
+  const [addApptOpen,    setAddApptOpen]    = useState(false);
+  const [addApptRouteId, setAddApptRouteId] = useState("");
+  const [addApptDate,    setAddApptDate]    = useState("");
 
   const { data: routes = [], isLoading: routesLoading } = useRoutes();
   const { data: profile }                               = useProfile();
@@ -246,13 +249,11 @@ export function RoutesPage() {
           />
 
           <Button
-            onClick={() =>
-              navigate(
-                displayRouteId !== "all"
-                  ? `/create-route/new?route=${displayRouteId}`
-                  : "/create-route/new",
-              )
-            }
+            onClick={() => {
+              setAddApptRouteId(displayRouteId !== "all" ? displayRouteId : "");
+              setAddApptDate("");
+              setAddApptOpen(true);
+            }}
             className="h-9"
           >
             <Plus className="h-4 w-4 mr-1.5" />
@@ -283,8 +284,9 @@ export function RoutesPage() {
             onViewTypeChange={setCalViewType}
             onAppointmentClick={setSelectedAppointment}
             onDayClick={(date) => {
-              const q = displayRouteId !== "all" ? `?date=${format(date, "yyyy-MM-dd")}&route=${displayRouteId}` : `?date=${format(date, "yyyy-MM-dd")}`;
-              navigate(`/create-route/new${q}`);
+              setAddApptDate(format(date, "yyyy-MM-dd"));
+              setAddApptRouteId(displayRouteId !== "all" ? displayRouteId : "");
+              setAddApptOpen(true);
             }}
           />
         )}
@@ -313,6 +315,13 @@ export function RoutesPage() {
         appointment={selectedAppointment}
         companyAddress={companyAddress}
         onAppointmentChange={() => setSelectedAppointment(null)}
+      />
+
+      <AddAppointmentPage
+        open={addApptOpen}
+        onClose={() => setAddApptOpen(false)}
+        defaultRouteId={addApptRouteId}
+        defaultDate={addApptDate}
       />
     </div>
   );

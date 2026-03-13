@@ -1,8 +1,10 @@
+import { type ElementType } from "react";
 import { format } from "date-fns";
 import {
   MapPin, User, Briefcase, CalendarDays, UserCheck,
-  DollarSign, FileText, MessageSquare, Phone, Mail, MapPinned, ImageIcon,
+  DollarSign, FileText, MessageSquare, Phone, Mail, MapPinned, ImageIcon, ClipboardList,
 } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import type { AppointmentFormData, Route } from "../../types/scheduling.types";
 import type { ClientEntity } from "@/shared/types/entities";
 
@@ -57,7 +59,7 @@ function calcTotalHours(start: string, end: string | null | undefined): number |
 
 // ─── Section header ──────────────────────────────────────────────────────────
 
-function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+function SectionTitle({ icon: Icon, label }: { icon: ElementType; label: string }) {
   return (
     <div className="flex items-center gap-2">
       <Icon className="h-4 w-4 text-primary" />
@@ -117,15 +119,19 @@ export function AppointmentPreviewStep({
       : null;
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h2 className="text-xl font-semibold">Route Preview</h2>
-        <p className="text-sm text-muted-foreground">
-          Review all information before finalizing
-        </p>
-      </div>
-
-      <div className="bg-card border rounded-xl p-5 space-y-5">
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-muted-foreground" />
+            Route Preview
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Review all information before finalizing
+          </p>
+        </CardHeader>
+        <CardContent>
+        <div className="space-y-5">
 
         {/* Route */}
         <div className="space-y-1">
@@ -292,7 +298,9 @@ export function AppointmentPreviewStep({
           </div>
         )}
 
-      </div>
+        </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

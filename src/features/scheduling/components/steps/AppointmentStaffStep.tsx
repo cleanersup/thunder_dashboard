@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
-import { Check } from "lucide-react";
+import { Check, Users } from "lucide-react";
 import { EntityPickerField } from "@/shared/components/common/EntityPickerField";
 import type { EntityOption } from "@/shared/components/common/EntityPickerField";
 import { EmployeeForm } from "@/features/employees/components/EmployeeForm";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 
 interface Employee {
   id: string;
@@ -78,31 +79,29 @@ export function AppointmentStaffStep({
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold">Select employees</h2>
-        <p className="text-sm text-muted-foreground">
-          Choose one or more employees for this service
-        </p>
-      </div>
+    <div className="space-y-5">
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Users className="h-5 w-5 text-muted-foreground" />
+            Select employees
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Choose one or more employees for this service</p>
+        </CardHeader>
+        <CardContent>
+          <EntityPickerField
+          multiple
+          options={options}
+          selected={selectedOptions}
+          onChange={handleSelectionChange}
+          onCreateNew={() => setShowCreate(true)}
+          createNewLabel="Add New Employee"
+          placeholder="Select employees"
+          emptyMessage="No employee found."
+          isLoading={isLoading}
+        />
 
-      {error && (
-        <p className="text-sm text-destructive font-medium">{error}</p>
-      )}
-
-      <EntityPickerField
-        multiple
-        options={options}
-        selected={selectedOptions}
-        onChange={handleSelectionChange}
-        onCreateNew={() => setShowCreate(true)}
-        createNewLabel="Add New Employee"
-        placeholder="Select employees"
-        emptyMessage="No employee found."
-        isLoading={isLoading}
-      />
-
-      {/* Selected employees summary card */}
+        {/* Selected employees summary card */}
       {assignedEmployees.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3 dark:bg-blue-950/30 dark:border-blue-800">
           <p className="text-sm font-medium text-foreground">
@@ -121,6 +120,14 @@ export function AppointmentStaffStep({
           </div>
         </div>
       )}
+
+        {error && (
+          <p className="text-sm text-destructive font-medium">{error}</p>
+        )}
+        </CardContent>
+      </Card>
+
+
 
       {/* Total Labor Cost card — shown when times are set and at least one employee has an hourly rate */}
       {laborCost !== null && laborCost > 0 && (

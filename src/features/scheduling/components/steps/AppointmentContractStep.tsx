@@ -1,5 +1,6 @@
 import { Upload, FileText, X, ExternalLink } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 
 interface Props {
   contractFile: File | null;
@@ -29,91 +30,99 @@ export function AppointmentContractStep({ contractFile, existingContractUrl, onC
   const hasContract = contractFile || existingContractUrl;
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold">Upload Contract or Estimate</h2>
-        <p className="text-sm text-muted-foreground">
-          Optional: Attach a contract or estimate document for the client
-        </p>
-      </div>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <FileText className="h-5 w-5 text-muted-foreground" />
+            Upload Contract or Estimate
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Optional: Attach a contract or estimate document for the client
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
 
-      {/* Existing contract (edit mode) */}
-      {existingContractUrl && !contractFile && (
-        <div className="border rounded-lg p-4 bg-muted/30 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <FileText className="h-8 w-8 shrink-0 text-primary" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Existing contract attached</p>
-              <a
-                href={existingContractUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline flex items-center gap-1 mt-0.5"
-              >
-                View file <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div
-        className={cn(
-          "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
-          contractFile
-            ? "border-primary/40 bg-primary/5"
-            : "border-border hover:border-primary/50 hover:bg-muted/30 cursor-pointer",
-        )}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          handleFiles(e.dataTransfer.files);
-        }}
-      >
-        {contractFile ? (
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <FileText className="h-8 w-8 shrink-0 text-primary" />
-              <div className="text-left min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">
-                  {contractFile.name}
-                </p>
-                <p className="text-xs text-muted-foreground">{fileSizeKB} KB</p>
+          {/* Existing contract (edit mode) */}
+          {existingContractUrl && !contractFile && (
+            <div className="border rounded-lg p-4 bg-muted/30 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <FileText className="h-8 w-8 shrink-0 text-primary" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">Existing contract attached</p>
+                  <a
+                    href={existingContractUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline flex items-center gap-1 mt-0.5"
+                  >
+                    View file <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onChange(null); }}
-              className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        ) : (
-          <label htmlFor="contract-upload" className="cursor-pointer">
-            <input
-              id="contract-upload"
-              type="file"
-              className="hidden"
-              accept={ACCEPTED}
-              onChange={(e) => handleFiles(e.target.files)}
-            />
-            <div className="flex flex-col items-center gap-3">
-              <Upload className="h-8 w-8 text-muted-foreground" />
-              <p className="text-sm font-medium text-foreground">Click to upload file</p>
-              <p className="text-xs text-muted-foreground">
-                PDF, DOC, DOCX, or TXT (Max 10MB)
-              </p>
-            </div>
-          </label>
-        )}
-      </div>
+          )}
 
-      {!hasContract && (
-        <p className="text-xs text-center text-muted-foreground">
-          You can skip this step if you don't have a document to attach
-        </p>
-      )}
+          <div
+            className={cn(
+              "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+              contractFile
+                ? "border-primary/40 bg-primary/5"
+                : "border-border hover:border-primary/50 hover:bg-muted/30 cursor-pointer",
+            )}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              handleFiles(e.dataTransfer.files);
+            }}
+          >
+            {contractFile ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileText className="h-8 w-8 shrink-0 text-primary" />
+                  <div className="text-left min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {contractFile.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{fileSizeKB} KB</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onChange(null); }}
+                  className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            ) : (
+              <label htmlFor="contract-upload" className="cursor-pointer">
+                <input
+                  id="contract-upload"
+                  type="file"
+                  className="hidden"
+                  accept={ACCEPTED}
+                  onChange={(e) => handleFiles(e.target.files)}
+                />
+                <div className="flex flex-col items-center gap-3">
+                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm font-medium text-foreground">Click to upload file</p>
+                  <p className="text-xs text-muted-foreground">
+                    PDF, DOC, DOCX, or TXT (Max 10MB)
+                  </p>
+                </div>
+              </label>
+            )}
+          </div>
+
+          {!hasContract && (
+            <p className="text-xs text-center text-muted-foreground">
+              You can skip this step if you don't have a document to attach
+            </p>
+          )}
+
+        </CardContent>
+      </Card>
     </div>
   );
 }

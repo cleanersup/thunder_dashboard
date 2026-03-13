@@ -1,4 +1,5 @@
-import { Mail, Phone } from "lucide-react";
+import { Mail, Phone, Send } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { DeliveryMethodSelector } from "@/shared/components/DeliveryMethodSelector";
 import type { AppointmentFormData } from "../../types/scheduling.types";
 
@@ -52,16 +53,25 @@ export function AppointmentSendStep({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold">Choose Delivery Method</h2>
-      </div>
-
-      <DeliveryMethodSelector
-        options={options}
-        value={deliveryMethod}
-        onChange={(v) => onChange(v as DeliveryMethod)}
-        error={error}
-      />
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Send className="h-5 w-5 text-muted-foreground" />
+            Choose Delivery Method
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Select how to send the appointment confirmation to the client
+          </p>
+        </CardHeader>
+        <CardContent>
+          <DeliveryMethodSelector
+            options={options}
+            value={deliveryMethod}
+            onChange={(v) => onChange(v as DeliveryMethod)}
+            error={error}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

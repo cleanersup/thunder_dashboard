@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Wrench, CalendarDays, Plus, Check } from "lucide-react";
+import { ChevronDown, Wrench, CalendarDays, Plus, Check, Briefcase } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from "@/shared/components/ui/dialog";
 import type { AppointmentFormData } from "../../types/scheduling.types";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 
 // ─── Constants (exact strings from swift-slate source of truth) ───────────────
 
@@ -117,150 +118,165 @@ export function AppointmentServiceStep({
   }
 
   return (
-    <div className="space-y-6">
-
-      {/* ── Service type ─────────────────────────────────────────── */}
-      <div className="space-y-3">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold">Service type</h2>
-          <p className="text-sm text-muted-foreground">
-            Choose between one-time or recurring service
-          </p>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="w-full justify-between">
-              <span className={serviceType ? "text-foreground" : "text-muted-foreground"}>
-                {serviceType || "Select service type"}
-              </span>
-              <ChevronDown className="h-4 w-4 shrink-0" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-[240px]">
-            <DropdownMenuItem
-              onClick={() => {
-                onChange("service_type", "One time");
-                onChange("recurring_frequency", "none");
-                onChange("cleaning_type", null);
-              }}
-            >
-              <CalendarDays className="h-4 w-4 mr-2" />
-              One time
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                onChange("service_type", "Recurring");
-                onChange("cleaning_type", null);
-              }}
-            >
-              <Wrench className="h-4 w-4 mr-2" />
-              Recurring
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        {errors.service_type && (
-          <p className="text-xs text-destructive">{errors.service_type}</p>
-        )}
-      </div>
-
-      {/* ── Cleaning type ─────────────────────────────────────────── */}
-      {serviceType && (
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold">Cleaning type</h2>
-            <p className="text-sm text-muted-foreground">
-              Choose the type of cleaning service
-            </p>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-full justify-between">
-                <span className={cleaningType ? "text-foreground" : "text-muted-foreground"}>
-                  {cleaningType || "Select cleaning type"}
-                </span>
-                <ChevronDown className="h-4 w-4 shrink-0" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-[240px]">
-              {isRecurring ? (
-                RECURRING_CLEANING_TYPES.map((type) => (
-                  <DropdownMenuItem key={type} onClick={() => onChange("cleaning_type", type)}>
-                    <Wrench className="h-4 w-4 mr-2" />
-                    {type}
-                  </DropdownMenuItem>
-                ))
-              ) : (
-                <>
-                  {ONE_TIME_CLEANING_TYPES.map((type) => (
-                    <DropdownMenuItem key={type} onClick={() => onChange("cleaning_type", type)}>
-                      <Wrench className="h-4 w-4 mr-2" />
-                      {type}
-                    </DropdownMenuItem>
-                  ))}
-                  {customCleaningTypes.map((type) => (
-                    <DropdownMenuItem key={type} onClick={() => onChange("cleaning_type", type)}>
-                      <Wrench className="h-4 w-4 mr-2" />
-                      {type}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuItem onClick={() => setShowAddDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add cleaning type
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {errors.cleaning_type && (
-            <p className="text-xs text-destructive">{errors.cleaning_type}</p>
-          )}
-        </div>
-      )}
-
-      {/* ── Recurring frequency ───────────────────────────────────── */}
-      {isRecurring && cleaningType && (
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold">Recurring frequency</h2>
-            <p className="text-sm text-muted-foreground">How often should this service repeat?</p>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-full justify-between">
-                <span className={freqLabel ? "text-foreground" : "text-muted-foreground"}>
-                  {freqLabel ?? "Select frequency"}
-                </span>
-                <ChevronDown className="h-4 w-4 shrink-0" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-[240px]">
-              {FREQ_OPTIONS.map(({ value, label }) => (
+    <div className="space-y-5">
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Briefcase className="h-5 w-5 text-muted-foreground" />
+            Service type
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Choose between one-time or recurring service</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* ── Service type ─────────────────────────────────────────── */}
+          <div className="space-y-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  <span className={serviceType ? "text-foreground" : "text-muted-foreground"}>
+                    {serviceType || "Select service type"}
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[240px]">
                 <DropdownMenuItem
-                  key={value}
                   onClick={() => {
-                    onChange(
-                      "recurring_frequency",
-                      value as AppointmentFormData["recurring_frequency"],
-                    );
-                    onChange("selected_week_days", []);
+                    onChange("service_type", "One time");
+                    onChange("recurring_frequency", "none");
+                    onChange("cleaning_type", null);
                   }}
                 >
                   <CalendarDays className="h-4 w-4 mr-2" />
-                  {label}
+                  One time
                 </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {errors.recurring_frequency && (
-            <p className="text-xs text-destructive">{errors.recurring_frequency}</p>
+                <DropdownMenuItem
+                  onClick={() => {
+                    onChange("service_type", "Recurring");
+                    onChange("cleaning_type", null);
+                  }}
+                >
+                  <Wrench className="h-4 w-4 mr-2" />
+                  Recurring
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {errors.service_type && (
+              <p className="text-xs text-destructive">{errors.service_type}</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+
+      {/* ── Cleaning type ─────────────────────────────────────────── */}
+          {serviceType && (
+      <Card>
+        <CardContent className="space-y-4 pt-4">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">Cleaning type</h2>
+                <p className="text-sm text-muted-foreground">
+                  Choose the type of cleaning service
+                </p>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className={cleaningType ? "text-foreground" : "text-muted-foreground"}>
+                      {cleaningType || "Select cleaning type"}
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[240px]">
+                  {isRecurring ? (
+                    RECURRING_CLEANING_TYPES.map((type) => (
+                      <DropdownMenuItem key={type} onClick={() => onChange("cleaning_type", type)}>
+                        <Wrench className="h-4 w-4 mr-2" />
+                        {type}
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <>
+                      {ONE_TIME_CLEANING_TYPES.map((type) => (
+                        <DropdownMenuItem key={type} onClick={() => onChange("cleaning_type", type)}>
+                          <Wrench className="h-4 w-4 mr-2" />
+                          {type}
+                        </DropdownMenuItem>
+                      ))}
+                      {customCleaningTypes.map((type) => (
+                        <DropdownMenuItem key={type} onClick={() => onChange("cleaning_type", type)}>
+                          <Wrench className="h-4 w-4 mr-2" />
+                          {type}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuItem onClick={() => setShowAddDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add cleaning type
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {errors.cleaning_type && (
+                <p className="text-xs text-destructive">{errors.cleaning_type}</p>
+              )}
+            </div>
+        </CardContent>
+      </Card>
           )}
-        </div>
-      )}
+
+      {/* ── Recurring frequency ───────────────────────────────────── */}
+          {isRecurring && cleaningType && (
+      <Card>
+        <CardContent className="space-y-4 pt-4">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">Recurring frequency</h2>
+                <p className="text-sm text-muted-foreground">How often should this service repeat?</p>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className={freqLabel ? "text-foreground" : "text-muted-foreground"}>
+                      {freqLabel ?? "Select frequency"}
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[240px]">
+                  {FREQ_OPTIONS.map(({ value, label }) => (
+                    <DropdownMenuItem
+                      key={value}
+                      onClick={() => {
+                        onChange(
+                          "recurring_frequency",
+                          value as AppointmentFormData["recurring_frequency"],
+                        );
+                        onChange("selected_week_days", []);
+                      }}
+                    >
+                      <CalendarDays className="h-4 w-4 mr-2" />
+                      {label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {errors.recurring_frequency && (
+                <p className="text-xs text-destructive">{errors.recurring_frequency}</p>
+              )}
+            </div>
+        </CardContent>
+      </Card>
+          )}
 
       {/* ── Days of the week ──────────────────────────────────────── */}
-      {isRecurring && recurringFrequency === "multiple" && (
-        <div className="space-y-3">
-          <div className="space-y-1">
+          {isRecurring && recurringFrequency === "multiple" && (
+      <Card>
+        <CardContent className="space-y-4 pt-4">
+            <div className="space-y-3">
+              <div className="space-y-1">
             <h2 className="text-lg font-semibold">Select days of the week</h2>
             <p className="text-sm text-muted-foreground">
               Choose which days the service should repeat
@@ -287,11 +303,15 @@ export function AppointmentServiceStep({
             <p className="text-xs text-destructive">{errors.selected_week_days}</p>
           )}
         </div>
+        </CardContent>
+      </Card>
       )}
 
       {/* ── Contract duration ─────────────────────────────────────── */}
-      {showContractDuration && (
-        <div className="space-y-4">
+          {showContractDuration && (
+      <Card>
+        <CardContent className="space-y-4 pt-4">
+            <div className="space-y-4">
           <div className="space-y-1">
             <h2 className="text-lg font-semibold">Contract duration</h2>
             <p className="text-sm text-muted-foreground">
@@ -335,10 +355,12 @@ export function AppointmentServiceStep({
             </Select>
           </div>
         </div>
+        </CardContent>
+      </Card>
       )}
 
       {/* ── Add Custom Cleaning Type dialog ───────────────────────── */}
-      <Dialog open={showAddDialog} onOpenChange={(v) => !v && setShowAddDialog(false)}>
+          <Dialog open={showAddDialog} onOpenChange={(v) => !v && setShowAddDialog(false)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Add Custom Cleaning Type</DialogTitle>

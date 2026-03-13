@@ -102,18 +102,18 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     if (!silent) setIsLoading(true);
     setError(null);
 
+    // Dev mode: mock active Professional subscription
+    if (env.features.disableSubscriptions) {
+      setInfo(DEV_SUBSCRIPTION);
+      setIsLoading(false);
+      return;
+    }
+
+    // Auth not yet resolved — keep the spinner so ProtectedRoute doesn't
+    // redirect prematurely with hasActiveSubscription=false.
+    if (!currentUser) return;
+
     try {
-      // Dev mode: mock active Professional subscription
-      if (env.features.disableSubscriptions) {
-        setInfo(DEV_SUBSCRIPTION);
-        return;
-      }
-
-      if (!currentUser) {
-        setInfo(EMPTY_SUBSCRIPTION);
-        return;
-      }
-
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select(

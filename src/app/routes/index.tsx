@@ -133,7 +133,6 @@ export function AppRouter() {
 
           {/* Phase 9 ✅ */}
           <Route path="/create-route"           element={<ProtectedRoute requireFeature="routes"><RoutesPage /></ProtectedRoute>} />
-          <Route path="/create-route/new"       element={<ProtectedRoute requireFeature="routes"><AddAppointmentPage /></ProtectedRoute>} />
           <Route path="/create-route/:id/edit"  element={<ProtectedRoute requireFeature="routes"><AddAppointmentPage /></ProtectedRoute>} />
           <Route path="/smart-map"              element={<ProtectedRoute requireFeature="smart_map"><SmartMapPage /></ProtectedRoute>} />
 

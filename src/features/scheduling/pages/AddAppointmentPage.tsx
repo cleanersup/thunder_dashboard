@@ -8,6 +8,7 @@
  */
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { useQuery } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
 import { format } from "date-fns";
@@ -80,14 +81,24 @@ const STEP_SEND = 9;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function AddAppointmentPage() {
+interface AddAppointmentPageProps {
+  open?: boolean;
+  onClose?: () => void;
+  /** Pre-selected route ID when opened as modal */
+  defaultRouteId?: string;
+  /** Pre-selected date (yyyy-MM-dd) when opened as modal */
+  defaultDate?: string;
+}
+
+export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate }: AddAppointmentPageProps = {}) {
   const navigate = useNavigate();
   const { id }   = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
-  const isEdit = !!id;
+  const isEdit  = !!id;
+  const isModal = open !== undefined;
 
-  const prefilledRouteId = searchParams.get("route") ?? "";
-  const prefilledDate    = searchParams.get("date")  ?? format(new Date(), "yyyy-MM-dd");
+  const prefilledRouteId = defaultRouteId ?? searchParams.get("route") ?? "";
+  const prefilledDate    = defaultDate    ?? searchParams.get("date")  ?? format(new Date(), "yyyy-MM-dd");
 
   const [step,   setStep]   = useState(0);
   const [form,   setForm]   = useState<AppointmentFormData>(() => emptyForm(prefilledRouteId, prefilledDate));
@@ -293,6 +304,11 @@ export function AddAppointmentPage() {
     }
   }
 
+  function handleExit() {
+    if (isModal) onClose?.();
+    else navigate("/create-route");
+  }
+
   function handleSubmit() {
     if (isEdit && id) {
       updateAppointment(
@@ -300,7 +316,7 @@ export function AddAppointmentPage() {
         {
           onSuccess: () => {
             sendDelivery(id, true);
-            navigate("/create-route");
+            handleExit();
           },
         },
       );
@@ -310,7 +326,7 @@ export function AddAppointmentPage() {
           // createAppointment returns RouteAppointment[]
           const firstId = Array.isArray(created) ? created[0]?.id : undefined;
           if (firstId) sendDelivery(firstId, false);
-          navigate("/create-route");
+          handleExit();
         },
       });
     }
@@ -460,19 +476,30 @@ export function AddAppointmentPage() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
-  return (
+  const layout = (
     <AppointmentFormLayout
       title={isEdit ? "Edit Appointment" : "New Appointment"}
       steps={APPOINTMENT_STEPS}
       currentStep={step}
       onBack={handleBack}
       onNext={handleNext}
-      onExit={() => navigate("/create-route")}
+      onExit={handleExit}
       isLastStep={step === LAST_STEP}
       isLoading={isPending}
       isEditing={isEdit}
+      isModal={isModal}
     >
       {renderStep()}
     </AppointmentFormLayout>
   );
+
+  if (isModal) {
+    return (
+      <FullScreenModal open={open ?? false} onClose={handleExit}>
+        {layout}
+      </FullScreenModal>
+    );
+  }
+
+  return layout;
 }

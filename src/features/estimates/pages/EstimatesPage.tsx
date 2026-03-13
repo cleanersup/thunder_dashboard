@@ -20,7 +20,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { Calendar } from "@/shared/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { useEstimates, useUpdateEstimateStatus } from "../hooks/useEstimates";
 import { useEstimateShare } from "../hooks/useEstimateShare";
@@ -44,30 +43,6 @@ function getStatusBadge(status: string) {
     case "Canceled": return "bg-destructive/10 text-destructive border-destructive/30";
     default:         return "bg-muted text-muted-foreground border-border";
   }
-}
-
-// ─── Service type selection dialog ────────────────────────────────────────────
-
-function ServiceTypeDialog({ open, onClose, onSelect }: { open: boolean; onClose: () => void; onSelect: (type: "residential" | "commercial") => void }) {
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Select Service Type</DialogTitle>
-        </DialogHeader>
-        <div className="grid grid-cols-2 gap-3 pt-2">
-          <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => onSelect("residential")}>
-            <BookOpen className="w-6 h-6 text-primary" />
-            <span className="text-sm font-medium">Residential</span>
-          </Button>
-          <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => onSelect("commercial")}>
-            <FileSignature className="w-6 h-6 text-primary" />
-            <span className="text-sm font-medium">Commercial</span>
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -107,7 +82,6 @@ export function EstimatesPage() {
   const itemsPerPage = 10;
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
-  const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null);
   const [isDetailModalOpen,  setIsDetailModalOpen]  = useState(false);
   const [isAcceptDialogOpen,      setIsAcceptDialogOpen]      = useState(false);
@@ -362,9 +336,21 @@ export function EstimatesPage() {
                 </Button>
               )}
 
-              <Button className="h-9" onClick={() => setIsTypeDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-1" /> New
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="h-9">
+                    <Plus className="w-4 h-4 mr-1" /> New
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem onClick={() => setShowResModal(true)}>
+                    <BookOpen className="w-4 h-4 mr-2" /> Residential
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowCommModal(true)}>
+                    <FileSignature className="w-4 h-4 mr-2" /> Commercial
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardContent>
@@ -502,16 +488,6 @@ export function EstimatesPage() {
       </Card>
 
       {/* ── Dialogs ────────────────────────────────────────────────────────── */}
-      <ServiceTypeDialog
-        open={isTypeDialogOpen}
-        onClose={() => setIsTypeDialogOpen(false)}
-        onSelect={(type) => {
-          setIsTypeDialogOpen(false);
-          if (type === "residential") setShowResModal(true);
-          else setShowCommModal(true);
-        }}
-      />
-
       <EstimateDetailsModal
         open={isDetailModalOpen}
         onOpenChange={setIsDetailModalOpen}
