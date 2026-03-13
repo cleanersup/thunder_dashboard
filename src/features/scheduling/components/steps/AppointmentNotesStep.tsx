@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Upload, X, MessageSquare, ImageIcon } from "lucide-react";
+import { Upload, X, MessageSquare, ImageIcon, Download, Trash2 } from "lucide-react";
 import { Label } from "@/shared/components/ui/label";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Button } from "@/shared/components/ui/button";
@@ -9,11 +9,25 @@ interface Props {
   notes: string | null;
   photos: File[];
   existingPhotoUrls?: string[];
+  existingPhotoPaths?: string[];
+  clientName?: string | null;
   onChange: (notes: string | null) => void;
   onPhotosChange: (photos: File[]) => void;
+  onDownloadPhoto?: (path: string, filename: string) => void;
+  onRemoveExistingPhoto?: (path: string) => void;
 }
 
-export function AppointmentNotesStep({ notes, photos, existingPhotoUrls = [], onChange, onPhotosChange }: Props) {
+export function AppointmentNotesStep({
+  notes,
+  photos,
+  existingPhotoUrls = [],
+  existingPhotoPaths = [],
+  clientName,
+  onChange,
+  onPhotosChange,
+  onDownloadPhoto,
+  onRemoveExistingPhoto,
+}: Props) {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   function handlePhotoUpload(files: FileList | null) {
@@ -103,18 +117,50 @@ export function AppointmentNotesStep({ notes, photos, existingPhotoUrls = [], on
                 {photos.length > 0 ? "Previously uploaded photos" : "Uploaded photos"}
               </p>
               <div className="grid grid-cols-2 gap-3">
-                {existingPhotoUrls.map((url, index) => (
-                  <div key={`existing-${index}`} className="relative">
-                    <div className="aspect-square rounded-lg overflow-hidden bg-muted">
-                      <img
-                        src={url}
-                        alt={`Existing photo ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
+                {existingPhotoUrls.map((url, index) => {
+                  const path = existingPhotoPaths[index];
+                  const name = (clientName ?? "photo").replace(/\s+/g, "_");
+                  const ext = path?.split(".").pop() ?? "jpg";
+                  const filename = `${name}_photo_${index + 1}.${ext}`;
+                  return (
+                    <div key={`existing-${index}`} className="relative group">
+                      <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                        <img
+                          src={url}
+                          alt={`Existing photo ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {path && onDownloadPhoto && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => onDownloadPhoto(path, filename)}
+                            title="Download"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {path && onRemoveExistingPhoto && (
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => onRemoveExistingPhoto(path)}
+                            title="Remove"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">Photo {index + 1}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1 truncate">Photo {index + 1}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

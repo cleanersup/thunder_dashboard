@@ -1,11 +1,15 @@
-import { Upload, FileText, X, ExternalLink } from "lucide-react";
+import { Upload, FileText, X, ExternalLink, Download, Trash2 } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 
 interface Props {
   contractFile: File | null;
   existingContractUrl?: string | null;
+  existingContractPath?: string | null;
+  clientName?: string | null;
   onChange: (file: File | null) => void;
+  onDownload?: (path: string, filename: string) => void;
+  onRemoveExisting?: () => void;
 }
 
 const ACCEPTED = ".pdf,.doc,.docx,.txt";
@@ -17,7 +21,15 @@ const ACCEPTED_MIME = [
 ];
 const MAX_MB = 10;
 
-export function AppointmentContractStep({ contractFile, existingContractUrl, onChange }: Props) {
+export function AppointmentContractStep({
+  contractFile,
+  existingContractUrl,
+  existingContractPath,
+  clientName,
+  onChange,
+  onDownload,
+  onRemoveExisting,
+}: Props) {
   function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     const file = files[0];
@@ -50,16 +62,43 @@ export function AppointmentContractStep({ contractFile, existingContractUrl, onC
                 <FileText className="h-8 w-8 shrink-0 text-primary" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">Existing contract attached</p>
-                  <a
-                    href={existingContractUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline flex items-center gap-1 mt-0.5"
-                  >
-                    View file <ExternalLink className="h-3 w-3" />
-                  </a>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <a
+                      href={existingContractUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      View file <ExternalLink className="h-3 w-3" />
+                    </a>
+                    {existingContractPath && onDownload && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const name = (clientName ?? "contract").replace(/\s+/g, "_");
+                          const ext = existingContractPath.split(".").pop() ?? "pdf";
+                          const filename = `${name}_contract.${ext}`;
+                          onDownload(existingContractPath, filename);
+                        }}
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                      >
+                        <Download className="h-3 w-3" />
+                        Download
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
+              {onRemoveExisting && (
+                <button
+                  type="button"
+                  onClick={onRemoveExisting}
+                  className="shrink-0 p-2 text-muted-foreground hover:text-destructive transition-colors"
+                  title="Remove document"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </div>
           )}
 

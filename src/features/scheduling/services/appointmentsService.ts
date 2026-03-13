@@ -3,6 +3,7 @@
  * CRUD operations for the route_appointments table via Supabase.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { FileService } from "@/shared/services/file.service";
 import { addWeeks, addMonths, format, parseISO, setDay, startOfWeek } from "date-fns";
 import type {
   AppointmentWithClient,
@@ -161,6 +162,8 @@ export async function createAppointment(
     selected_week_days: data.selected_week_days?.length
       ? (data.selected_week_days as unknown as import("@/integrations/supabase/types").Database["public"]["Tables"]["route_appointments"]["Insert"]["selected_week_days"])
       : null,
+    uploaded_file: data.uploaded_file ?? null,
+    photos: data.photos?.length ? (data.photos as unknown as import("@/integrations/supabase/types").Database["public"]["Tables"]["route_appointments"]["Insert"]["photos"]) : null,
   }));
 
   const { data: created, error } = await supabase
@@ -204,6 +207,11 @@ export async function updateAppointment(
       ? (data.selected_week_days as unknown as import("@/integrations/supabase/types").Database["public"]["Tables"]["route_appointments"]["Update"]["selected_week_days"])
       : null;
   if (data.delivery_method !== undefined) updatePayload.delivery_method = data.delivery_method;
+  if (data.uploaded_file !== undefined) updatePayload.uploaded_file = data.uploaded_file;
+  if (data.photos !== undefined)
+    updatePayload.photos = data.photos?.length
+      ? (data.photos as unknown as import("@/integrations/supabase/types").Database["public"]["Tables"]["route_appointments"]["Update"]["photos"])
+      : null;
 
   const { data: updated, error } = await supabase
     .from("route_appointments")
@@ -237,6 +245,29 @@ export function resolveStorageUrl(bucket: string, pathOrUrl: string): string {
   if (!clean) return clean;
   if (clean.startsWith("http")) return clean;
   return supabase.storage.from(bucket).getPublicUrl(clean.replace(/^\/+/, "")).data.publicUrl;
+}
+
+/**
+ * Downloads an appointment document or photo from Supabase Storage.
+ * Uses a signed URL (buckets may be private) and triggers a browser file download.
+ *
+ * @param bucket - Storage bucket name (e.g. "route-files" for contracts and photos)
+ * @param storagePath - The storage path (e.g. "userId/timestamp-abc.pdf")
+ * @param filename - Suggested filename for the download
+ */
+export async function downloadAppointmentFile(
+  bucket: string,
+  storagePath: string,
+  filename: string,
+): Promise<void> {
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(storagePath, 3600);
+  if (error || !data?.signedUrl) throw new Error("Failed to get file URL");
+  const res = await fetch(data.signedUrl);
+  if (!res.ok) throw new Error("Failed to fetch file");
+  const blob = await res.blob();
+  FileService.downloadBlob(blob, filename);
 }
 
 // ─── Delete ──────────────────────────────────────────────────────────────────
