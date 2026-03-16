@@ -109,13 +109,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       return;
     }
 
-    // No user — resolve immediately so ProtectedRoute can render AuthGuard,
-    // which will redirect unauthenticated users (via /subscription-plans → /auth).
-    if (!currentUser) {
-      setInfo(EMPTY_SUBSCRIPTION);
-      setIsLoading(false);
-      return;
-    }
+    // Auth not yet resolved — keep the spinner so ProtectedRoute doesn't
+    // redirect prematurely with hasActiveSubscription=false.
+    if (!currentUser) return;
 
     try {
       const { data: profile, error: profileError } = await supabase
