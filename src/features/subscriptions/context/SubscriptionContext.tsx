@@ -123,26 +123,8 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         .single();
 
       if (profileError) {
-        // PGRST116 = "no rows returned" — profile row not yet created (trigger delay after signup).
-        // Treat as a new user in trial rather than blocking them.
-        if (profileError.code === "PGRST116") {
-          const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-          const trialDaysLeft = 14;
-          setInfo({
-            hasActiveSubscription: true,
-            planTier: "professional",
-            subscriptionStatus: "trial",
-            expiryDate: trialEnd.toISOString(),
-            isTrial: true,
-            trialDaysLeft,
-            isLegacyUser: false,
-            hasPaidPlan: false,
-            trialWelcomeShown: false,
-          });
-        } else {
-          setError(profileError.message);
-          setInfo(EMPTY_SUBSCRIPTION);
-        }
+        setError(profileError.message);
+        setInfo(EMPTY_SUBSCRIPTION);
         return;
       }
 
