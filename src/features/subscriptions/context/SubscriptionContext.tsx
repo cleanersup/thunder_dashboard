@@ -111,7 +111,11 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
     // Auth not yet resolved — keep the spinner so ProtectedRoute doesn't
     // redirect prematurely with hasActiveSubscription=false.
-    if (!currentUser) return;
+    if (!currentUser) {
+      setInfo(EMPTY_SUBSCRIPTION);
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const { data: profile, error: profileError } = await supabase
