@@ -3,12 +3,12 @@
  * Main invoices listing page with KPI cards, table, search, and filters.
  * Adapted from thunder-web-version/src/pages/Invoices.tsx.
  */
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
 import {
   Plus, FileEdit, XCircle, ChevronLeft, ChevronRight, Search,
   Calendar as CalendarIcon, CheckCircle, Clock, MoreHorizontal,
-  Eye, Mail, Download, Edit, Share,
+  Eye, EyeOff, Mail, Download, Edit, Share,
 } from "lucide-react";
 import { Card, CardContent }         from "@/shared/components/ui/card";
 import { Button }                     from "@/shared/components/ui/button";
@@ -36,62 +36,26 @@ import { Calendar }  from "@/shared/components/ui/calendar";
 import { cn }        from "@/shared/utils/cn";
 import { toast }     from "sonner";
 import { formatCurrency, formatDateOnly, parseDateOnly } from "@/shared/utils/formatters";
-import { useProfile }     from "@/shared/hooks/useProfile";
-import { useQueryClient } from "@tanstack/react-query";
 import { useInvoices, useMarkInvoiceAsPaid, useCancelInvoice } from "../hooks/useInvoices";
-import { QK } from "@/shared/config/queryKeys";
-import { supabase } from "@/integrations/supabase/client";
-import { useSendInvoiceEmail } from "../hooks/useSendInvoiceEmail";
-import { generateInvoicePDF }  from "../services/generateInvoicePDF";
-import { InvoiceDetailsModal } from "../components/InvoiceDetailsModal";
-import { CreateInvoicePage }   from "./CreateInvoicePage";
-import type { Invoice, InvoiceStatus, LineItem } from "../types/invoice.types";
-import { calculateInvoiceTotals } from "../utils/invoiceCalculations";
-
-// ─── Status badge helpers ─────────────────────────────────────────────────────
-
-const STATUS_BADGE: Record<InvoiceStatus, string> = {
-  Paid:      "bg-green-100 text-green-700 border-green-200",
-  Pending:   "bg-orange-100 text-orange-700 border-orange-200",
-  Draft:     "bg-blue-100 text-blue-700 border-blue-200",
-  Cancelled: "bg-red-100 text-red-700 border-red-200",
-};
-
-const STATUS_BORDER: Record<InvoiceStatus, string> = {
-  Pending:   "hsl(var(--orange-vibrant))",
-  Paid:      "hsl(var(--green-vibrant))",
-  Draft:     "hsl(var(--blue-vibrant))",
-  Cancelled: "hsl(var(--destructive))",
-};
+import { useSendInvoiceEmail }      from "../hooks/useSendInvoiceEmail";
+import { useInvoicesListRealtime }  from "../hooks/useInvoiceRealtime";
+import { useInvoicePDFDownload }    from "../hooks/useInvoicePDFDownload";
+import { InvoiceDetailsModal }      from "../components/InvoiceDetailsModal";
+import { CreateInvoicePage }        from "./CreateInvoicePage";
+import { INVOICE_STATUS_BADGE, INVOICE_STATUS_BORDER } from "../utils/invoiceStatusHelpers";
+import type { Invoice, InvoiceStatus } from "../types/invoice.types";
 
 const ITEMS_PER_PAGE = 10;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function InvoicesPage() {
-  const queryClient = useQueryClient();
-  const { data: profile } = useProfile();
   const { sendInvoiceEmail, isSending } = useSendInvoiceEmail();
+  const { downloadPDF } = useInvoicePDFDownload();
   const markPaid  = useMarkInvoiceAsPaid();
   const cancelInv = useCancelInvoice();
 
-  // ── Real-time: refetch list when invoices change (viewed_at, status, etc.) ───
-  useEffect(() => {
-    let ch: ReturnType<typeof supabase.channel> | null = null;
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      ch = supabase
-        .channel("invoices-list-realtime")
-        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "invoices", filter: `user_id=eq.${user.id}` },
-          () => queryClient.invalidateQueries({ queryKey: QK.invoices }))
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "invoices", filter: `user_id=eq.${user.id}` },
-          () => queryClient.invalidateQueries({ queryKey: QK.invoices }))
-        .on("postgres_changes", { event: "DELETE", schema: "public", table: "invoices", filter: `user_id=eq.${user.id}` },
-          () => queryClient.invalidateQueries({ queryKey: QK.invoices }))
-        .subscribe();
-    });
-    return () => { ch && supabase.removeChannel(ch); };
-  }, [queryClient]);
+  useInvoicesListRealtime();
 
   // ── Filters ──────────────────────────────────────────────────────────────────
   const [search,       setSearch]       = useState("");
@@ -128,10 +92,10 @@ export function InvoicesPage() {
   const cancelledTotal = cancelled.reduce((s, i) => s + i.total, 0);
 
   const kpiCards = [
-    { title: "Pending",   value: `$${formatCurrency(pendingTotal)}`,   subtitle: `${pending.length} invoices`,   icon: Clock,     borderColor: STATUS_BORDER.Pending   },
-    { title: "Paid",      value: `$${formatCurrency(paidTotal)}`,      subtitle: `${paid.length} invoices`,      icon: CheckCircle, borderColor: STATUS_BORDER.Paid    },
-    { title: "Draft",     value: `$${formatCurrency(draftTotal)}`,     subtitle: `${drafts.length} invoices`,    icon: FileEdit,  borderColor: STATUS_BORDER.Draft     },
-    { title: "Cancelled", value: `$${formatCurrency(cancelledTotal)}`, subtitle: `${cancelled.length} invoices`, icon: XCircle,   borderColor: STATUS_BORDER.Cancelled },
+    { title: "Pending",   value: `$${formatCurrency(pendingTotal)}`,   subtitle: `${pending.length} invoices`,   icon: Clock,     borderColor: INVOICE_STATUS_BORDER.Pending   },
+    { title: "Paid",      value: `$${formatCurrency(paidTotal)}`,      subtitle: `${paid.length} invoices`,      icon: CheckCircle, borderColor: INVOICE_STATUS_BORDER.Paid    },
+    { title: "Draft",     value: `$${formatCurrency(draftTotal)}`,     subtitle: `${drafts.length} invoices`,    icon: FileEdit,  borderColor: INVOICE_STATUS_BORDER.Draft     },
+    { title: "Cancelled", value: `$${formatCurrency(cancelledTotal)}`, subtitle: `${cancelled.length} invoices`, icon: XCircle,   borderColor: INVOICE_STATUS_BORDER.Cancelled },
   ];
 
   // ── Filtering + pagination ────────────────────────────────────────────────────
@@ -185,52 +149,6 @@ export function InvoicesPage() {
     });
   };
 
-  const handleDownloadPDF = (invoice: Invoice) => {
-    if (!profile) { toast.error("Company profile not loaded"); return; }
-
-    try {
-      const lineItems: LineItem[] = invoice.line_items ?? [];
-      const taxRate  = invoice.tax_rate ?? 0;
-      const { subtotal, discountAmount: discAmt, taxAmount: taxAmt } = calculateInvoiceTotals({
-        lineItems,
-        discountType:  invoice.discount_type,
-        discountValue: invoice.discount_value,
-        taxRate,
-      });
-
-      const doc = generateInvoicePDF({
-        companyLogo:   profile.company_logo   ?? undefined,
-        companyName:   profile.company_name   ?? "",
-        companyPhone:  profile.company_phone  ?? "",
-        companyEmail:  profile.company_email  ?? "",
-        companyStreet: profile.company_address ?? "",
-        companyCity:   profile.company_city   ?? "",
-        companyState:  profile.company_state  ?? "",
-        companyZip:    profile.company_zip    ?? "",
-        clientName:    invoice.client_name,
-        clientPhone:   invoice.phone,
-        clientEmail:   invoice.email,
-        invoiceNumber: invoice.invoice_number,
-        invoiceName:   invoice.invoice_name ?? undefined,
-        invoiceDate:   formatDateOnly(invoice.invoice_date, "MMMM d, yyyy"),
-        dueDate:       formatDateOnly(invoice.due_date, "MMMM d, yyyy"),
-        status:        invoice.status,
-        lineItems:     lineItems.map((i) => ({ ...i })),
-        subtotal,
-        taxRate,
-        taxAmount:     taxAmt,
-        discountType:  invoice.discount_type ?? undefined,
-        discountValue: invoice.discount_value ?? undefined,
-        discountAmount: discAmt,
-        total:         invoice.total,
-        notes:         invoice.notes ?? undefined,
-      });
-      doc.save(`Invoice_${invoice.invoice_number}.pdf`);
-      toast.success("Invoice PDF downloaded");
-    } catch {
-      toast.error("Failed to generate PDF");
-    }
-  };
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
@@ -388,12 +306,25 @@ export function InvoicesPage() {
                     {formatDateOnly(invoice.due_date, "MMM dd, yyyy")}
                   </TableCell>
                   <TableCell className="py-2 px-4">
-                    <Badge
-                      variant="outline"
-                      className={cn("font-medium text-[13px]", STATUS_BADGE[invoice.status as InvoiceStatus] ?? "")}
-                    >
-                      {invoice.status}
-                    </Badge>
+                    <div className="flex flex-col gap-1">
+                      <Badge
+                        variant="outline"
+                        className={cn("font-medium text-[13px] w-fit", INVOICE_STATUS_BADGE[invoice.status as InvoiceStatus] ?? "")}
+                      >
+                        {invoice.status}
+                      </Badge>
+                      {invoice.status === "Pending" && (
+                        <span className={cn(
+                          "flex items-center gap-1 text-[11px]",
+                          invoice.viewed_at ? "text-green-600" : "text-muted-foreground",
+                        )}>
+                          {invoice.viewed_at
+                            ? <><Eye className="w-3 h-3" /> Viewed</>
+                            : <><EyeOff className="w-3 h-3" /> Not viewed</>
+                          }
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="py-2 px-4 font-semibold">
                     ${formatCurrency(invoice.total)}
@@ -474,7 +405,7 @@ export function InvoicesPage() {
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDownloadPDF(invoice);
+                            downloadPDF(invoice);
                           }}
                         >
                           <Download className="w-4 h-4 mr-2" />

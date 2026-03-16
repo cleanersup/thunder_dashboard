@@ -41,22 +41,14 @@ import { useProfile } from "@/shared/hooks/useProfile";
 import { QK }        from "@/shared/config/queryKeys";
 import { useClients } from "@/features/crm/clients/hooks/useClients";
 import { useInvoice } from "../hooks/useInvoices";
+import { useLineItems } from "../hooks/useLineItems";
 import { generateInvoiceNumber, updateInvoice, createInvoice } from "../services/invoicesService";
-import type { InvoiceFormData, LineItem } from "../types/invoice.types";
+import type { InvoiceFormData } from "../types/invoice.types";
 import type { ClientEntity } from "@/shared/types/entities";
 import { calculateInvoiceTotals } from "../utils/invoiceCalculations";
 import { toDecimalString, toIntegerString } from "@/shared/utils/numericInput";
 import { parseDateOnly } from "@/shared/utils/formatters";
 import { StripeCheckModal } from "../components/StripeCheckModal";
-
-// ─── Line item helpers ────────────────────────────────────────────────────────
-
-// _price / _qty hold the raw text while typing so mid-entry "25." isn't lost
-type LocalLineItem = LineItem & { _id: string; _price: string; _qty: string };
-
-function newLineItem(): LocalLineItem {
-  return { _id: crypto.randomUUID(), _price: "", _qty: "1", description: "", price: 0, qty: 1, total: 0 };
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -93,7 +85,7 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
   const [dueDate,       setDueDate]       = useState<Date | undefined>();
   const [invoiceTitle,  setInvoiceTitle]  = useState("");
   const [selectedClient, setSelectedClient] = useState<ClientEntity | null>(null);
-  const [lineItems, setLineItems] = useState<LocalLineItem[]>([newLineItem()]);
+  const { lineItems, updateLineItem, addLineItem, removeLineItem, resetLineItems } = useLineItems();
   const [discountType,  setDiscountType]  = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
   const [taxRate,       setTaxRate]       = useState("");
@@ -157,7 +149,7 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
     setDiscountValue(state.discountValue ?? "");
     setNotes(state.notes ?? "");
     if (state.lineItems?.length) {
-      setLineItems(state.lineItems.map((i) => ({
+      resetLineItems(state.lineItems.map((i) => ({
         _id: i.id,
         _price: i.price,
         _qty: i.qty,
@@ -179,7 +171,7 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
     setIssueDate(parseDateOnly(invoiceData.invoice_date));
     setDueDate(parseDateOnly(invoiceData.due_date));
     setInvoiceTitle(invoiceData.invoice_name ?? "");
-    setLineItems(
+    resetLineItems(
       (invoiceData.line_items ?? []).map((i) => ({
         ...i,
         _id:    crypto.randomUUID(),
@@ -214,27 +206,6 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
       generateInvoiceNumber().then(setInvoiceNumber).catch(() => {});
     }
   }, [isEditing]);
-
-  // ── Line item helpers ──────────────────────────────────────────────────────
-  const updateLineItem = (idx: number, field: "description" | "price" | "qty", raw: string) => {
-    setLineItems((prev) => {
-      const next = [...prev];
-      const item = { ...next[idx] };
-      if (field === "description") {
-        item.description = raw;
-      } else if (field === "price") {
-        item._price = raw;
-        item.price  = parseFloat(raw) || 0;
-        item.total  = item.price * item.qty;
-      } else if (field === "qty") {
-        item._qty = raw;
-        item.qty  = parseInt(raw) || 1;
-        item.total = item.price * item.qty;
-      }
-      next[idx] = item;
-      return next;
-    });
-  };
 
   // ── Totals ─────────────────────────────────────────────────────────────────
   const { subtotal, discountAmount, taxAmount, total } = calculateInvoiceTotals({
@@ -316,13 +287,8 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
       };
 
       if (isEditing && id) {
-        const discV   = parseFloat(discountValue) || 0;
-        const taxR    = parseFloat(taxRate) || 0;
-        const sub     = lineItems.reduce((s, i) => s + i.total, 0);
-        const discAmt = discountType === "percentage" ? sub * (discV / 100) : discV;
-        const after   = sub - discAmt;
-        const taxAmt  = after * (taxR / 100);
-        const tot     = after + taxAmt;
+        const discV = parseFloat(discountValue) || 0;
+        const taxR  = parseFloat(taxRate) || 0;
 
         await updateInvoice(id, {
           invoice_name:   invoiceTitle || null,
@@ -334,7 +300,7 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
           discount_type:  discV > 0 ? discountType : null,
           discount_value: discV > 0 ? discV : null,
           tax_rate:       taxR > 0 ? taxR : null,
-          total:          tot,
+          total,
           notes:          notes || null,
         });
         if (toPreview) {
@@ -582,7 +548,7 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => setLineItems((prev) => prev.filter((_, i) => i !== idx))}
+                  onClick={() => removeLineItem(idx)}
                   disabled={lineItems.length === 1}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -637,7 +603,7 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setLineItems((prev) => [...prev, newLineItem()])}
+            onClick={addLineItem}
           >
             <Plus className="h-4 w-4 mr-1" />
             Add an Item

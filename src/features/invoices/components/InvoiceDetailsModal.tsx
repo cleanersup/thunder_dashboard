@@ -3,7 +3,7 @@
  * Modal dialog showing full invoice details with quick actions.
  * Adapted from thunder-web-version/src/components/InvoiceDetailsModal.tsx.
  */
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { formatDateOnly } from "@/shared/utils/formatters";
@@ -25,32 +25,13 @@ import { Card, CardContent } from "@/shared/components/ui/card";
 import { Input }      from "@/shared/components/ui/input";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { toast }      from "sonner";
-import { useProfile } from "@/shared/hooks/useProfile";
 import { formatCurrency } from "@/shared/utils/formatters";
-import { useQueryClient } from "@tanstack/react-query";
 import { useInvoice, useMarkInvoiceAsPaid, useCancelInvoice } from "../hooks/useInvoices";
-import { QK } from "@/shared/config/queryKeys";
-import { supabase } from "@/integrations/supabase/client";
-import { useSendInvoiceEmail } from "../hooks/useSendInvoiceEmail";
-import { generateInvoicePDF } from "../services/generateInvoicePDF";
+import { useSendInvoiceEmail }        from "../hooks/useSendInvoiceEmail";
+import { useInvoiceDetailRealtime }   from "../hooks/useInvoiceRealtime";
+import { useInvoicePDFDownload }      from "../hooks/useInvoicePDFDownload";
+import { INVOICE_STATUS_COLOR, INVOICE_STATUS_BG } from "../utils/invoiceStatusHelpers";
 import type { InvoiceStatus, LineItem } from "../types/invoice.types";
-import { calculateInvoiceTotals } from "../utils/invoiceCalculations";
-
-// ─── Status helpers ───────────────────────────────────────────────────────────
-
-const STATUS_COLOR: Record<InvoiceStatus, string> = {
-  Pending:   "hsl(var(--orange-vibrant))",
-  Paid:      "hsl(var(--green-vibrant))",
-  Draft:     "hsl(var(--muted-foreground))",
-  Cancelled: "hsl(var(--destructive))",
-};
-
-const STATUS_BG: Record<InvoiceStatus, string> = {
-  Pending:   "hsl(var(--orange-vibrant) / 0.1)",
-  Paid:      "hsl(var(--green-vibrant) / 0.1)",
-  Draft:     "hsl(var(--muted))",
-  Cancelled: "hsl(var(--destructive) / 0.1)",
-};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -65,24 +46,14 @@ export function InvoiceDetailsModal({
   open, onOpenChange, invoiceId, onEdit,
 }: InvoiceDetailsModalProps) {
   const navigate = useNavigate();
-  const { data: profile } = useProfile();
+  const { downloadPDF } = useInvoicePDFDownload();
   const { sendInvoiceEmail, isSending } = useSendInvoiceEmail();
   const markPaid   = useMarkInvoiceAsPaid();
   const cancelInv  = useCancelInvoice();
 
-  const queryClient = useQueryClient();
   const { data: invoice, isLoading } = useInvoice(open && invoiceId ? invoiceId : undefined);
 
-  // ── Real-time: refetch invoice when it changes (viewed_at, status, etc.) ──────
-  useEffect(() => {
-    if (!invoiceId || !open) return;
-    const channel = supabase
-      .channel(`invoice-modal-${invoiceId}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "invoices", filter: `id=eq.${invoiceId}` },
-        () => queryClient.invalidateQueries({ queryKey: QK.invoice(invoiceId) }))
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [invoiceId, open, queryClient]);
+  useInvoiceDetailRealtime(invoiceId, open);
 
   // local dialog state
   const [isPaymentDialogOpen,    setIsPaymentDialogOpen]    = useState(false);
@@ -134,62 +105,13 @@ export function InvoiceDetailsModal({
     if (result.success) setIsEmailSuccessDialogOpen(true);
   };
 
-  const handleDownloadPDF = () => {
-    if (!invoice || !profile) {
-      toast.error("Unable to generate PDF. Missing invoice or company information.");
-      return;
-    }
-
-    try {
-      const lineItems: LineItem[] = (invoice.line_items ?? []);
-      const taxRate  = invoice.tax_rate ?? 0;
-      const { subtotal, discountAmount, taxAmount } = calculateInvoiceTotals({
-        lineItems,
-        discountType:  invoice.discount_type,
-        discountValue: invoice.discount_value,
-        taxRate,
-      });
-
-      const doc = generateInvoicePDF({
-        companyLogo:   profile.company_logo   ?? undefined,
-        companyName:   profile.company_name   ?? "",
-        companyPhone:  profile.company_phone  ?? "",
-        companyEmail:  profile.company_email  ?? "",
-        companyStreet: profile.company_address ?? "",
-        companyCity:   profile.company_city   ?? "",
-        companyState:  profile.company_state  ?? "",
-        companyZip:    profile.company_zip    ?? "",
-        clientName:    invoice.client_name,
-        clientPhone:   invoice.phone,
-        clientEmail:   invoice.email,
-        invoiceNumber: invoice.invoice_number,
-        invoiceName:   invoice.invoice_name ?? undefined,
-        invoiceDate:   formatDateOnly(invoice.invoice_date, "MMMM d, yyyy"),
-        dueDate:       formatDateOnly(invoice.due_date, "MMMM d, yyyy"),
-        status:        invoice.status,
-        lineItems:     lineItems.map((i) => ({ ...i, qty: i.qty })),
-        subtotal,
-        taxRate,
-        taxAmount,
-        discountType:  invoice.discount_type ?? undefined,
-        discountValue: invoice.discount_value ?? undefined,
-        discountAmount,
-        total:         invoice.total,
-        notes:         invoice.notes ?? undefined,
-      });
-      doc.save(`Invoice_${invoice.invoice_number}.pdf`);
-      toast.success("Invoice PDF downloaded successfully");
-    } catch {
-      toast.error("Failed to generate PDF");
-    }
-  };
 
   // ── Render states ────────────────────────────────────────────────────────────
 
   if (!open) return null;
 
-  const statusColor = STATUS_COLOR[(invoice?.status as InvoiceStatus) ?? "Draft"];
-  const statusBg    = STATUS_BG[(invoice?.status as InvoiceStatus) ?? "Draft"];
+  const statusColor = INVOICE_STATUS_COLOR[(invoice?.status as InvoiceStatus) ?? "Draft"];
+  const statusBg    = INVOICE_STATUS_BG[(invoice?.status as InvoiceStatus) ?? "Draft"];
 
   const lineItems: LineItem[] = (invoice?.line_items ?? []);
   const subtotal = lineItems.reduce((s, i) => s + i.total, 0);
@@ -411,7 +333,7 @@ export function InvoiceDetailsModal({
                               <Button
                                 variant="outline" size="sm"
                                 className="justify-start h-10"
-                                onClick={handleDownloadPDF}
+                                onClick={() => invoice && downloadPDF(invoice)}
                               >
                                 <Download className="w-4 h-4 mr-2 text-primary" />
                                 Download PDF
@@ -462,7 +384,7 @@ export function InvoiceDetailsModal({
                               <Button
                                 variant="outline" size="sm"
                                 className="justify-start h-10"
-                                onClick={handleDownloadPDF}
+                                onClick={() => invoice && downloadPDF(invoice)}
                               >
                                 <Download className="w-4 h-4 mr-2 text-primary" />
                                 Download PDF
@@ -483,7 +405,7 @@ export function InvoiceDetailsModal({
                             <Button
                               variant="outline" size="sm"
                               className="justify-start h-10"
-                              onClick={handleDownloadPDF}
+                              onClick={() => invoice && downloadPDF(invoice)}
                             >
                               <Download className="w-4 h-4 mr-2 text-primary" />
                               Download PDF
@@ -495,7 +417,7 @@ export function InvoiceDetailsModal({
                             <Button
                               variant="outline" size="sm"
                               className="justify-start h-10"
-                              onClick={handleDownloadPDF}
+                              onClick={() => invoice && downloadPDF(invoice)}
                             >
                               <Download className="w-4 h-4 mr-2 text-primary" />
                               Download PDF

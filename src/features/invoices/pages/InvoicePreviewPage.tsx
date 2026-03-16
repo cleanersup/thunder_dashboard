@@ -12,23 +12,14 @@ import { Badge }     from "@/shared/components/ui/badge";
 import { Separator } from "@/shared/components/ui/separator";
 import { toast }     from "sonner";
 import { useProfile }             from "@/shared/hooks/useProfile";
-import { supabase }               from "@/integrations/supabase/client";
 import { formatCurrency, formatDateOnly } from "@/shared/utils/formatters";
+import { INVOICE_STATUS_COLOR }   from "../utils/invoiceStatusHelpers";
 import { DeliveryMethodSelector } from "@/shared/components/DeliveryMethodSelector";
 import { useInvoice, useUpdateInvoice } from "../hooks/useInvoices";
 import { useSendInvoiceEmail }          from "../hooks/useSendInvoiceEmail";
 import { useSendInvoiceSMS }            from "../hooks/useSendInvoiceSMS";
 import { useStripeConnect }             from "../hooks/useStripeConnect";
 import type { LineItem, InvoiceStatus } from "../types/invoice.types";
-
-// ─── Status colors ────────────────────────────────────────────────────────────
-
-const STATUS_COLOR: Record<InvoiceStatus, string> = {
-  Pending:   "hsl(var(--orange-vibrant))",
-  Paid:      "hsl(var(--green-vibrant))",
-  Draft:     "hsl(var(--muted-foreground))",
-  Cancelled: "hsl(var(--destructive))",
-};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -76,7 +67,7 @@ export function InvoicePreviewPage() {
   const taxAmt    = (subtotal - discAmt) * (taxRate / 100);
   const total     = subtotal - discAmt + taxAmt;
 
-  const statusColor = STATUS_COLOR[(invoice.status as InvoiceStatus) ?? "Draft"];
+  const statusColor = INVOICE_STATUS_COLOR[(invoice.status as InvoiceStatus) ?? "Draft"];
   const isBusy      = isSending || updateInvoice.isPending;
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -107,13 +98,9 @@ export function InvoicePreviewPage() {
     navigate("/invoices");
 
     // Post-send Stripe setup reminder (500ms delay, matching swift-slate)
-    setTimeout(async () => {
-      const { data: p } = await supabase
-        .from("profiles")
-        .select("stripe_account_id, stripe_onboarding_completed")
-        .eq("user_id", invoice.user_id)
-        .single();
-      const isConfigured = !!((p as any)?.stripe_account_id && (p as any)?.stripe_onboarding_completed);
+    setTimeout(() => {
+      const p = profile as any;
+      const isConfigured = !!(p?.stripe_account_id && p?.stripe_onboarding_completed);
       if (!isConfigured) {
         toast("Set up Stripe to receive online payments", {
           description: "Your clients will be able to pay directly from the invoice link.",
