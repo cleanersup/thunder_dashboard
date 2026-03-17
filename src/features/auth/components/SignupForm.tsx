@@ -30,6 +30,8 @@ const US_STATES = [
 ];
 
 interface SignupFormProps {
+  /** Pre-fill email from URL query param (e.g. from landing page redirect) */
+  defaultEmail?: string;
   onSwitchToLogin: () => void;
 }
 
@@ -39,7 +41,7 @@ interface SignupFormProps {
  *
  * @param onSwitchToLogin - Called when user clicks "Already have an account? Sign in"
  */
-export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
+export function SignupForm({ defaultEmail, onSwitchToLogin }: SignupFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { mutate: doSignup, isPending } = useSignup();
@@ -52,7 +54,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { agreeToTerms: false },
+    defaultValues: { email: defaultEmail ?? "", agreeToTerms: false },
   });
 
   const phoneNumber = watch("phoneNumber") ?? "";

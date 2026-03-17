@@ -35,7 +35,10 @@ export default function AuthPage() {
         // White bg on mobile, transparent (shows AuthBackground) on desktop
         <>
           <div className="fixed inset-0 bg-white lg:hidden -z-10" />
-          <SignupForm onSwitchToLogin={() => setSearchParams({})} />
+          <SignupForm
+            defaultEmail={searchParams.get("email") ?? undefined}
+            onSwitchToLogin={() => setSearchParams({})}
+          />
         </>
       )}
     </div>
