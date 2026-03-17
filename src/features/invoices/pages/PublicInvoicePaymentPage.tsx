@@ -3,7 +3,7 @@
  * Unauthenticated public page for client invoice payment via Stripe.
  * Adapted from swift-slate/src/pages/InvoicePayment.tsx — Capacitor removed.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import {
   CheckCircle, CreditCard, Loader2, Calendar, FileText, DollarSign,
@@ -16,6 +16,7 @@ import { useQuery }          from "@tanstack/react-query";
 import { formatCurrency, formatDateOnly } from "@/shared/utils/formatters";
 import { fetchInvoiceByIdForPublic } from "../services/invoicesService";
 import { QK } from "@/shared/config/queryKeys";
+import { env } from "@/config/env";
 
 export function PublicInvoicePaymentPage() {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +28,17 @@ export function PublicInvoicePaymentPage() {
     queryFn: () => fetchInvoiceByIdForPublic(id!),
     enabled: !!id,
   });
+
+  // Mark invoice as viewed — use Supabase headers so Kong routes the request correctly
+  useEffect(() => {
+    if (!invoice?.id || invoice.viewed_at) return;
+    fetch(`${env.supabase.url}/functions/v1/mark-viewed?type=invoice&id=${invoice.id}`, {
+      headers: {
+        apikey: env.supabase.publishableKey,
+        Authorization: `Bearer ${env.supabase.publishableKey}`,
+      },
+    }).catch(() => {});
+  }, [invoice?.id]);
 
   const { data: profile } = useQuery({
     queryKey: QK.publicProfile(invoice?.user_id ?? ""),

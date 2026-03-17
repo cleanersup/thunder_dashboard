@@ -3,7 +3,6 @@
  * CRUD operations for the invoices table via Supabase.
  */
 import { supabase } from "@/integrations/supabase/client";
-import { env } from "@/config/env";
 import type { Invoice, InvoiceFilters, InvoiceFormData } from "../types/invoice.types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -102,11 +101,6 @@ export async function fetchInvoiceByIdForPublic(id: string): Promise<Invoice> {
 
   if (error) throw error;
   if (!invoice) throw new Error("Invoice not found");
-
-  // Mark as viewed via edge function (service role key bypasses RLS — anon clients cannot UPDATE)
-  if (!invoice.viewed_at) {
-    await fetch(`${env.supabase.url}/functions/v1/mark-viewed?type=invoice&id=${id}`);
-  }
 
   return invoice as Invoice;
 }
