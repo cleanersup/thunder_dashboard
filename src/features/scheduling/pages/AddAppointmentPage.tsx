@@ -67,6 +67,8 @@ const STEP_SEND = 9;
 interface AddAppointmentPageProps {
   open?: boolean;
   onClose?: () => void;
+  /** Called after a successful appointment update (e.g. to refetch calendar data) */
+  onUpdated?: () => void;
   /** Pre-selected route ID when opened as modal */
   defaultRouteId?: string;
   /** Pre-selected date (yyyy-MM-dd) when opened as modal */
@@ -75,7 +77,7 @@ interface AddAppointmentPageProps {
   editId?: string;
 }
 
-export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate, editId }: AddAppointmentPageProps = {}) {
+export function AddAppointmentPage({ open, onClose, onUpdated, defaultRouteId, defaultDate, editId }: AddAppointmentPageProps = {}) {
   const navigate = useNavigate();
   const { id: urlId } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
@@ -363,6 +365,7 @@ export function AddAppointmentPage({ open, onClose, defaultRouteId, defaultDate,
         {
           onSuccess: () => {
             sendDelivery(id, true);
+            onUpdated?.();
             handleExit();
           },
         },
