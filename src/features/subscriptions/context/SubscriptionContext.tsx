@@ -109,11 +109,11 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       return;
     }
 
-    // Auth not yet resolved — keep the spinner so ProtectedRoute doesn't
+    // Auth not yet resolved — keep loading so ProtectedRoute doesn't
     // redirect prematurely with hasActiveSubscription=false.
     if (!currentUser) {
       setInfo(EMPTY_SUBSCRIPTION);
-      setIsLoading(false);
+      setIsLoading(true);
       return;
     }
 

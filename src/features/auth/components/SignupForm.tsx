@@ -30,6 +30,8 @@ const US_STATES = [
 ];
 
 interface SignupFormProps {
+  /** Pre-fill email from URL query param (e.g. from landing page redirect) */
+  defaultEmail?: string;
   onSwitchToLogin: () => void;
 }
 
@@ -39,7 +41,7 @@ interface SignupFormProps {
  *
  * @param onSwitchToLogin - Called when user clicks "Already have an account? Sign in"
  */
-export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
+export function SignupForm({ defaultEmail, onSwitchToLogin }: SignupFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { mutate: doSignup, isPending } = useSignup();
@@ -52,7 +54,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { agreeToTerms: false },
+    defaultValues: { email: defaultEmail ?? "", agreeToTerms: false },
   });
 
   const phoneNumber = watch("phoneNumber") ?? "";
@@ -204,7 +206,26 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
                 }
               />
               <Label htmlFor="agreeToTerms" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
-                By signing up, you agree to our Terms of Use and Privacy Policy
+                By signing up, you agree to our{" "}
+                <a
+                  href="https://thunderpro.co/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="underline hover:text-foreground"
+                >
+                  Terms of Use
+                </a>{" "}
+                and{" "}
+                <a
+                  href="https://thunderpro.co/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="underline hover:text-foreground"
+                >
+                  Privacy Policy
+                </a>
               </Label>
             </div>
             {errors.agreeToTerms && (

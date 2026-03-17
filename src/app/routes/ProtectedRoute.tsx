@@ -43,18 +43,17 @@ export function ProtectedRoute({
     }
   }, [hasActiveSubscription, planTier, isLoading, requireSubscription, requireFeature, navigate]);
 
-  // Show spinner while resolving subscription/tier to avoid content flash
-  if ((requireSubscription || !!requireFeature) && isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-background">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const showSubscriptionSpinner = (requireSubscription || !!requireFeature) && isLoading;
 
   return (
     <AuthGuard>
-      <MainLayout>{children}</MainLayout>
+      {showSubscriptionSpinner ? (
+        <div className="flex items-center justify-center h-screen bg-background">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <MainLayout>{children}</MainLayout>
+      )}
     </AuthGuard>
   );
 }
