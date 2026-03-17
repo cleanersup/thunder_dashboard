@@ -206,7 +206,26 @@ export function SignupForm({ defaultEmail, onSwitchToLogin }: SignupFormProps) {
                 }
               />
               <Label htmlFor="agreeToTerms" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
-                By signing up, you agree to our Terms of Use and Privacy Policy
+                By signing up, you agree to our{" "}
+                <a
+                  href="https://thunderpro.co/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="underline hover:text-foreground"
+                >
+                  Terms of Use
+                </a>{" "}
+                and{" "}
+                <a
+                  href="https://thunderpro.co/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="underline hover:text-foreground"
+                >
+                  Privacy Policy
+                </a>
               </Label>
             </div>
             {errors.agreeToTerms && (
