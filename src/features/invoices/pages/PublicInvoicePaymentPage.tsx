@@ -29,9 +29,9 @@ export function PublicInvoicePaymentPage() {
     enabled: !!id,
   });
 
-  // Mark invoice as viewed — use Supabase headers so Kong routes the request correctly
+  // Mark invoice as viewed — call every time id is available; edge fn handles idempotency
   useEffect(() => {
-    if (!invoice?.id || invoice.viewed_at) return;
+    if (!invoice?.id) return;
     fetch(`${env.supabase.url}/functions/v1/mark-viewed?type=invoice&id=${invoice.id}`, {
       headers: {
         apikey: env.supabase.publishableKey,
