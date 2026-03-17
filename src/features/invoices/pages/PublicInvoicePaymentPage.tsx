@@ -16,7 +16,6 @@ import { useQuery }          from "@tanstack/react-query";
 import { formatCurrency, formatDateOnly } from "@/shared/utils/formatters";
 import { fetchInvoiceByIdForPublic } from "../services/invoicesService";
 import { QK } from "@/shared/config/queryKeys";
-import { env } from "@/config/env";
 
 export function PublicInvoicePaymentPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,14 +28,11 @@ export function PublicInvoicePaymentPage() {
     enabled: !!id,
   });
 
-  // Mark invoice as viewed — call every time id is available; edge fn handles idempotency
+  // Mark invoice as viewed — edge fn handles idempotency (only sets viewed_at once)
   useEffect(() => {
     if (!invoice?.id) return;
-    fetch(`${env.supabase.url}/functions/v1/mark-viewed?type=invoice&id=${invoice.id}`, {
-      headers: {
-        apikey: env.supabase.publishableKey,
-        Authorization: `Bearer ${env.supabase.publishableKey}`,
-      },
+    supabase.functions.invoke(`mark-viewed?type=invoice&id=${invoice.id}`, {
+      method: "GET",
     }).catch(() => {});
   }, [invoice?.id]);
 
