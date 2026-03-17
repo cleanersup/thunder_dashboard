@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthBackground } from "../components/AuthBackground";
 import { LoginForm } from "../components/LoginForm";
@@ -12,7 +12,8 @@ import { SignupForm } from "../components/SignupForm";
  */
 export default function AuthPage() {
   const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isLogin = searchParams.get("mode") !== "signup";
 
   // Redirect already-authenticated users
   useEffect(() => {
@@ -27,14 +28,14 @@ export default function AuthPage() {
 
       {isLogin ? (
         <LoginForm
-          onSwitchToSignup={() => setIsLogin(false)}
+          onSwitchToSignup={() => setSearchParams({ mode: "signup" })}
           onForgotPassword={() => navigate("/forgot-password")}
         />
       ) : (
         // White bg on mobile, transparent (shows AuthBackground) on desktop
         <>
           <div className="fixed inset-0 bg-white lg:hidden -z-10" />
-          <SignupForm onSwitchToLogin={() => setIsLogin(true)} />
+          <SignupForm onSwitchToLogin={() => setSearchParams({})} />
         </>
       )}
     </div>

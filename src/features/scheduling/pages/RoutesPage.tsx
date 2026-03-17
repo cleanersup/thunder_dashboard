@@ -158,7 +158,7 @@ export function RoutesPage() {
   const { mutate: deleteRoute, isPending: isDeleting  } = useDeleteRoute();
 
   const filters = routeFilter !== "all" ? { routeId: routeFilter } : undefined;
-  const { data: appointments = [], isLoading: apptsLoading } = useAppointments(filters);
+  const { data: appointments = [], isLoading: apptsLoading, refetch: refetchAppointments } = useAppointments(filters);
 
   const isLoading = routesLoading || apptsLoading;
 
@@ -336,6 +336,7 @@ export function RoutesPage() {
       <AddAppointmentPage
         open={editApptOpen}
         onClose={() => { setEditApptOpen(false); setEditApptId(undefined); }}
+        onUpdated={refetchAppointments}
         editId={editApptId}
       />
     </div>

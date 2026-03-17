@@ -16,6 +16,7 @@ import {
   FileDown,
   Download,
   FileText,
+  MapPin,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { Card, CardContent } from "@/shared/components/ui/card";
@@ -39,6 +40,17 @@ function formatPhone(phone: string) {
     return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
   }
   return phone;
+}
+
+function formatAddress(emp: Employee): string | null {
+  const parts: string[] = [];
+  if (emp.street) parts.push(emp.street);
+  if (emp.apt_suite) parts.push(emp.apt_suite);
+  if (emp.city || emp.state || emp.zip) {
+    const cityStateZip = [emp.city, emp.state, emp.zip].filter(Boolean).join(", ");
+    if (cityStateZip) parts.push(cityStateZip);
+  }
+  return parts.length > 0 ? parts.join(", ") : null;
 }
 
 function statusBadgeClass(status: string) {
@@ -274,6 +286,18 @@ export function EmployeeDetailsModal({
                           </a>
                         )}
                       </div>
+
+                      {formatAddress(employee) && (
+                        <div className="flex items-center gap-3">
+                          <MapPin className="w-4 h-4 text-primary shrink-0" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Address</p>
+                            <p className="text-sm font-medium text-foreground">
+                              {formatAddress(employee)}
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
                       {employee.birthday && (
                         <div className="flex items-center gap-3">
