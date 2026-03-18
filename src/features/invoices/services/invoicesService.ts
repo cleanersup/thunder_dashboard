@@ -102,14 +102,6 @@ export async function fetchInvoiceByIdForPublic(id: string): Promise<Invoice> {
   if (error) throw error;
   if (!invoice) throw new Error("Invoice not found");
 
-  // Mark as viewed if not already — same pattern as fetchEstimateByToken
-  if (!invoice.viewed_at) {
-    await supabase
-      .from("invoices")
-      .update({ viewed_at: new Date().toISOString() })
-      .eq("id", id);
-  }
-
   return invoice as Invoice;
 }
 
