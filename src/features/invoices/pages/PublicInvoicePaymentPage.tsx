@@ -3,7 +3,7 @@
  * Unauthenticated public page for client invoice payment via Stripe.
  * Adapted from swift-slate/src/pages/InvoicePayment.tsx — Capacitor removed.
  */
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   CheckCircle, CreditCard, Loader2, Calendar, FileText, DollarSign,
@@ -27,14 +27,6 @@ export function PublicInvoicePaymentPage() {
     queryFn: () => fetchInvoiceByIdForPublic(id!),
     enabled: !!id,
   });
-
-  // Mark invoice as viewed — edge fn handles idempotency (only sets viewed_at once)
-  useEffect(() => {
-    if (!invoice?.id) return;
-    supabase.functions.invoke(`mark-viewed?type=invoice&id=${invoice.id}`, {
-      method: "GET",
-    }).catch(() => {});
-  }, [invoice?.id]);
 
   const { data: profile } = useQuery({
     queryKey: QK.publicProfile(invoice?.user_id ?? ""),

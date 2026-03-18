@@ -102,6 +102,14 @@ export async function fetchInvoiceByIdForPublic(id: string): Promise<Invoice> {
   if (error) throw error;
   if (!invoice) throw new Error("Invoice not found");
 
+  // Mark as viewed if not already — mirrors fetchEstimateByToken pattern.
+  // Uses edge function because invoices RLS blocks anon direct UPDATE.
+  if (!invoice.viewed_at) {
+    supabase.functions.invoke(`mark-viewed?type=invoice&id=${id}`, {
+      method: "GET",
+    }).catch(() => {});
+  }
+
   return invoice as Invoice;
 }
 
