@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { formatDateOnly } from "@/shared/utils/formatters";
 import {
   CheckCircle, Clock, Mail, Phone, MapPin, Building2, Calendar,
-  FileText, Download, Eye, EyeOff, DollarSign, XCircle, Loader2, Pencil,
+  FileText, Download, DollarSign, XCircle, Loader2, Pencil,
 } from "lucide-react";
 import {
   Dialog, DialogContent,
@@ -260,29 +260,6 @@ export function InvoiceDetailsModal({
                               <div>
                                 <p className="text-xs text-muted-foreground">Status</p>
                                 <p className="text-sm font-medium text-destructive">Cancelled</p>
-                              </div>
-                            </div>
-                          )}
-                          {invoice.status === "Pending" && (
-                            <div className="flex items-center gap-3">
-                              {invoice.viewed_at ? (
-                                <Eye className="w-4 h-4" style={{ color: "hsl(var(--green-vibrant))" }} />
-                              ) : (
-                                <EyeOff className="w-4 h-4 text-muted-foreground" />
-                              )}
-                              <div>
-                                <p className="text-xs text-muted-foreground">Client View Status</p>
-                                <p
-                                  className="text-sm font-medium"
-                                  style={{ color: invoice.viewed_at ? "hsl(var(--green-vibrant))" : "hsl(var(--muted-foreground))" }}
-                                >
-                                  {invoice.viewed_at ? "Viewed" : "Not viewed yet"}
-                                </p>
-                                {invoice.viewed_at && (
-                                  <p className="text-xs text-muted-foreground">
-                                    {format(new Date(invoice.viewed_at), "MMM d, yyyy 'at' h:mm a")}
-                                  </p>
-                                )}
                               </div>
                             </div>
                           )}

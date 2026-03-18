@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import {
   Plus, FileEdit, XCircle, ChevronLeft, ChevronRight, Search,
   Calendar as CalendarIcon, CheckCircle, Clock, MoreHorizontal,
-  Eye, EyeOff, Mail, Download, Edit, Share,
+  Eye, Mail, Download, Edit, Share,
 } from "lucide-react";
 import { Card, CardContent }         from "@/shared/components/ui/card";
 import { Button }                     from "@/shared/components/ui/button";
@@ -313,17 +313,6 @@ export function InvoicesPage() {
                       >
                         {invoice.status}
                       </Badge>
-                      {invoice.status === "Pending" && (
-                        <span className={cn(
-                          "flex items-center gap-1 text-[11px]",
-                          invoice.viewed_at ? "text-green-600" : "text-muted-foreground",
-                        )}>
-                          {invoice.viewed_at
-                            ? <><Eye className="w-3 h-3" /> Viewed</>
-                            : <><EyeOff className="w-3 h-3" /> Not viewed</>
-                          }
-                        </span>
-                      )}
                     </div>
                   </TableCell>
                   <TableCell className="py-2 px-4 font-semibold">
