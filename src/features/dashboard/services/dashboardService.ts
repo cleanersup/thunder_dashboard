@@ -7,38 +7,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Activity, TodayRoute } from "../types/dashboard.types";
 
-// ─── Invoices ─────────────────────────────────────────────────────────────────
-
-/**
- * Fetches all invoices for the current user, newest first.
- * Used to compute monthly revenue, pending totals, and chart data.
- * @throws {Error} On Supabase query failure
- */
-export async function fetchInvoices() {
-  const { data, error } = await supabase
-    .from("invoices")
-    .select("*")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return data ?? [];
-}
-
-// ─── Estimates ────────────────────────────────────────────────────────────────
-
-/**
- * Fetches all estimates for the current user.
- * Used to compute pending estimate count and total.
- * @throws {Error} On Supabase query failure
- */
-export async function fetchEstimates() {
-  const { data, error } = await supabase
-    .from("estimates")
-    .select("*")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return data ?? [];
-}
-
 // ─── Count stats ──────────────────────────────────────────────────────────────
 
 /**

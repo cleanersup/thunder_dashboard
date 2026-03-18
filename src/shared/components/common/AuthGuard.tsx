@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -12,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const [isChecking, setIsChecking] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -33,17 +35,21 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
         setIsAuthenticated(false);
+        queryClient.clear(); // Clear cache on logout to prevent cross-user data leaks
         navigate("/auth", { replace: true });
       } else {
+        if (event === "SIGNED_IN") {
+          queryClient.clear(); // Clear stale cache on login so fresh data is always fetched
+        }
         setIsAuthenticated(true);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, location]);
+  }, [navigate, location, queryClient]);
 
   if (isChecking) {
     return (

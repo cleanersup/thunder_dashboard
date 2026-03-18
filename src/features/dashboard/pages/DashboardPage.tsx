@@ -1,7 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import { DollarSign, Users, Receipt, Route } from "lucide-react";
-import { format as formatDate } from "date-fns";
-import { PageHeader } from "@/shared/components/common/PageHeader";
 import { StatCardSkeleton } from "@/shared/components/common/SkeletonCard";
 import { useDashboardStats } from "../hooks/useDashboardStats";
 import { StatsCard } from "../components/StatsCard";
@@ -11,7 +9,6 @@ import { PendingInvoicesChart } from "../components/PendingInvoicesChart";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { TodayRoutes } from "../components/TodayRoutes";
 import { formatCurrency } from "@/shared/utils/formatters";
-import { useProfile } from "@/shared/hooks/useProfile";
 
 /**
  * DashboardPage — main home screen for authenticated users.
@@ -26,7 +23,6 @@ import { useProfile } from "@/shared/hooks/useProfile";
  */
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { data: profile } = useProfile();
   const {
     clientsCount,
     monthlyRevenue,
@@ -48,15 +44,8 @@ export default function DashboardPage() {
     isLoading,
   } = useDashboardStats();
 
-  const greeting = profile?.first_name ? `Welcome back, ${profile.first_name}` : "Dashboard";
-
   return (
     <div className="p-2.5 space-y-2.5 pb-24 lg:pb-4">
-      <PageHeader
-        title={greeting}
-        subtitle={formatDate(now, "EEEE, MMMM d, yyyy")}
-      />
-
       {/* ── Stat cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         {isLoading ? (

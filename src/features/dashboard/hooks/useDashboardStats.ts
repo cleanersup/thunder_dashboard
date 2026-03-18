@@ -18,8 +18,6 @@ import {
 } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  fetchInvoices,
-  fetchEstimates,
   fetchClientsCount,
   fetchEmployeesCount,
   fetchLeadsCount,
@@ -27,6 +25,8 @@ import {
   fetchActivities,
   fetchTodayRoutes,
 } from "../services/dashboardService";
+import { fetchInvoices } from "../../invoices/services/invoicesService";
+import { fetchEstimates } from "../../estimates/services/estimatesService";
 import { getUserTimezone, getCurrentDateInTimezone } from "@/shared/utils/formatters";
 import type { SparklinePoint, WeeklySalesPoint, PendingByMonthPoint } from "../types/dashboard.types";
 import { QK } from "@/shared/config/queryKeys";
