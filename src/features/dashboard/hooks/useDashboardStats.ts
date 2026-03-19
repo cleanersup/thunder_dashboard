@@ -47,7 +47,7 @@ export function useDashboardStats() {
 
   const { data: allInvoices = [], isLoading: invoicesLoading } = useQuery({
     queryKey: QK.invoices,
-    queryFn: fetchInvoices,
+    queryFn: () => fetchInvoices(),
     staleTime: 5 * 60 * 1000,
   });
 
