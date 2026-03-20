@@ -33,10 +33,7 @@ import { Button } from "@/shared/components/ui/button";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
-import { QK } from "@/shared/config/queryKeys";
-import { supabase } from "@/integrations/supabase/client";
-import { useUpdateWalkthroughStatus, useDeleteWalkthrough } from "../hooks/useWalkthroughs";
+import { useUpdateWalkthroughStatus, useDeleteWalkthrough, useWalkthroughEmployees, useCurrentUserId, useSendWalkthroughStart } from "../hooks/useWalkthroughs";
 import type { WalkthroughWithContact } from "../services/walkthroughsService";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -58,40 +55,19 @@ export function WalkthroughDetailsModal({
 }: WalkthroughDetailsModalProps) {
   const navigate = useNavigate();
 
-  const { mutate: updateStatus } = useUpdateWalkthroughStatus();
+  const { mutate: updateStatus }                       = useUpdateWalkthroughStatus();
   const { mutate: deleteMutate, isPending: isDeleting } = useDeleteWalkthrough();
+  const { mutateAsync: sendStart, isPending: isStarting } = useSendWalkthroughStart();
 
-  const [cancelOpen,  setCancelOpen]  = useState(false);
-  const [deleteOpen,  setDeleteOpen]  = useState(false);
-  const [qrOpen,      setQrOpen]      = useState(false);
-  const [isStarting,  setIsStarting]  = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [qrOpen,     setQrOpen]     = useState(false);
 
-  // Fetch current user ID for the contact card QR URL
-  const { data: userId } = useQuery({
-    queryKey: QK.currentUserId,
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      return user?.id ?? null;
-    },
-  });
+  const { data: userId }      = useCurrentUserId();
+  const assignedIds           = walkthrough?.assigned_employees ?? [];
+  const { data: employeeList = [] } = useWalkthroughEmployees(assignedIds, open);
 
   const contactCardUrl = `${import.meta.env.VITE_PUBLIC_APP_URL ?? window.location.origin}/contact-card/${userId ?? ""}`;
-
-  // Fetch assigned employees by IDs
-  const assignedIds = walkthrough?.assigned_employees ?? [];
-  const { data: employeeList = [] } = useQuery({
-    queryKey: [...QK.walkthroughEmployees, assignedIds.join(",")],
-    queryFn: async () => {
-      if (assignedIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id, first_name, last_name")
-        .in("id", assignedIds);
-      if (error) return [];
-      return data ?? [];
-    },
-    enabled: open && assignedIds.length > 0,
-  });
 
   if (!walkthrough) return null;
 
@@ -106,20 +82,11 @@ export function WalkthroughDetailsModal({
 
   /** Sends start notification then shows QR dialog. On QR confirm, navigates to the on-site form. */
   async function handleStartWalkthrough() {
-    setIsStarting(true);
     try {
-      await supabase.functions.invoke("send-walkthrough-start", {
-        body: { walkthroughId: walkthrough!.id },
-      });
-      // Fire-and-forget SMS
-      void supabase.functions.invoke("send-walkthrough-start-sms", {
-        body: { walkthroughId: walkthrough!.id },
-      });
+      await sendStart(walkthrough!.id);
       setQrOpen(true);
     } catch {
       toast.error("Failed to send start notification");
-    } finally {
-      setIsStarting(false);
     }
   }
 

@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { WalkthroughFormData } from "../schemas/walkthroughSchema";
 import { fetchContactInfo } from "../utils/walkthroughUtils";
+export type { ContactInfo } from "../utils/walkthroughUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -194,4 +195,108 @@ export async function deleteWalkthrough(id: string): Promise<void> {
     .eq("id", id);
 
   if (error) throw error;
+}
+
+// ─── Form submission ──────────────────────────────────────────────────────────
+
+/** Fetches a walkthrough + its contact info for the on-site form pages. */
+export async function fetchWalkthroughForForm(id: string) {
+  const { data, error } = await supabase
+    .from("walkthroughs")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const contactInfo = await fetchContactInfo(data.walkthrough_type, data.client_id, data.lead_id);
+  return { ...data, contactInfo } as typeof data & { contactInfo: Awaited<ReturnType<typeof fetchContactInfo>> };
+}
+
+export interface ResidentialWalkthroughData {
+  property_type:   string;
+  service_type:    string;
+  square_footage:  string;
+  bedrooms:        string;
+  kitchen:         string;
+  living_room:     string;
+  dining_room:     string;
+  office:          string;
+  full_bath:       string;
+  half_bath:       string;
+  fans:            string;
+  oven:            string;
+  refrigerator:    string;
+  blinds:          string;
+  windows_inside:  string;
+  windows_outside: string;
+  extra_services:  string[];
+  has_pets:        string;
+  notes:           string;
+  photos:          string[];
+}
+
+export async function submitResidentialWalkthroughData(
+  walkthroughId: string,
+  formData: ResidentialWalkthroughData,
+): Promise<void> {
+  const user = await getCurrentUser();
+  const { error } = await supabase
+    .from("residential_walkthrough_data")
+    .insert({ walkthrough_id: walkthroughId, user_id: user.id, ...formData });
+  if (error) throw error;
+}
+
+export interface CommercialWalkthroughData {
+  property_type:            string;
+  property_size:            string;
+  service_type:             string;
+  service_schedule:         string;
+  grease_level:             string;
+  restaurant_condition:     string;
+  extra_services:           string[];
+  recurring_frequency:      string;
+  selected_week_days:       string[];
+  employee_count:           string;
+  hourly_rate:              string;
+  cleaning_duration:        string;
+  start_time:               string;
+  client_provides_supplies: boolean;
+  notes:                    string;
+  photos:                   string[];
+}
+
+export async function submitCommercialWalkthroughData(
+  walkthroughId: string,
+  formData: CommercialWalkthroughData,
+): Promise<void> {
+  const user = await getCurrentUser();
+  const { error } = await supabase
+    .from("commercial_walkthrough_data")
+    .insert({ walkthrough_id: walkthroughId, user_id: user.id, ...formData });
+  if (error) throw error;
+}
+
+// ─── Employees ────────────────────────────────────────────────────────────────
+
+export interface AssignedEmployee {
+  id: string;
+  first_name: string;
+  last_name: string;
+}
+
+export async function fetchAssignedEmployees(ids: string[]): Promise<AssignedEmployee[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from("employees")
+    .select("id, first_name, last_name")
+    .in("id", ids);
+  if (error) throw error;
+  return (data ?? []) as AssignedEmployee[];
+}
+
+// ─── Current user ─────────────────────────────────────────────────────────────
+
+export async function fetchCurrentUserId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id ?? null;
 }
