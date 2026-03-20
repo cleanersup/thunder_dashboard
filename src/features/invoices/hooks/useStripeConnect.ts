@@ -28,6 +28,8 @@ export function useStripeConnect() {
 
       const { data, error: fnError } = await supabase.functions.invoke("stripe-onboard", {
         headers: { Authorization: `Bearer ${session.access_token}` },
+        // Pass the web app's return URL so Stripe redirects back here (not to swift-slate staging)
+        body: { returnUrl: `${window.location.origin}/stripe/return` },
       });
       if (fnError) throw fnError;
       if (!data?.url) throw new Error("No onboarding URL returned");

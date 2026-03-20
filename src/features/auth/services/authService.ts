@@ -62,6 +62,7 @@ export async function signUp(data: SignUpData): Promise<SignUpResult> {
         verification_code: verificationCode,
         first_name: data.firstName,
         last_name: data.lastName,
+        platform: "web",
       },
     },
   });

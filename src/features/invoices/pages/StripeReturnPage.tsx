@@ -6,19 +6,27 @@
  */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { QK } from "@/shared/config/queryKeys";
 
 export function StripeReturnPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [isChecking, setIsChecking] = useState(true);
   const [countdown, setCountdown] = useState(5);
 
   // ── Sync account status on mount ──────────────────────────────────────────
   useEffect(() => {
     supabase.functions.invoke("stripe-check-account")
+      .then(() => {
+        // Invalidate profile so ProfilePage and StripeCheckModal reflect the
+        // updated stripe_onboarding_completed / stripe_charges_enabled values
+        queryClient.invalidateQueries({ queryKey: QK.profile });
+      })
       .finally(() => setIsChecking(false));
-  }, []);
+  }, [queryClient]);
 
   // ── Countdown + redirect once checking is done ────────────────────────────
   useEffect(() => {

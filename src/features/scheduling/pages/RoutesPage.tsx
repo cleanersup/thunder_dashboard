@@ -19,6 +19,7 @@ import {
   DropdownMenuItem,
 } from "@/shared/components/ui/dropdown-menu";
 import { Separator } from "@/shared/components/ui/separator";
+import { Card, CardContent } from "@/shared/components/ui/card";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { useRoutes, useCreateRoute, useDeleteRoute } from "../hooks/useRoutes";
@@ -194,107 +195,117 @@ export function RoutesPage() {
   const displayRouteId = routeFilter === "all" && routes.length > 0 ? routes[0].id : routeFilter;
 
   return (
-    <div className="flex flex-col min-h-full">
-      {/* ── Toggle: Calendar / Map ─────────────────────────────────── */}
-      <div className="flex items-center justify-center gap-3 py-4 border-b border-border bg-background">
-        <Calendar className={`h-4 w-4 ${mapViewMode === "calendar" ? "text-primary" : "text-muted-foreground"}`} />
-        <span className={`text-sm font-medium ${mapViewMode === "calendar" ? "text-foreground" : "text-muted-foreground"}`}>
-          Calendar
-        </span>
-        <Switch
-          checked={mapViewMode === "map"}
-          onCheckedChange={(v) => setMapViewMode(v ? "map" : "calendar")}
-        />
-        <span className={`text-sm font-medium ${mapViewMode === "map" ? "text-foreground" : "text-muted-foreground"}`}>
-          Map
-        </span>
-        <Map className={`h-4 w-4 ${mapViewMode === "map" ? "text-primary" : "text-muted-foreground"}`} />
-      </div>
+    <div className="min-h-full bg-background p-2.5 space-y-2.5">
+      {/* ── Toolbar Card: Toggle + Controls ────────────────────────── */}
+      <Card className="border border-border/50 shadow-none">
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            {/* Left: Calendar/Map toggle + date chip + view type dropdown */}
+            <div className="flex items-center gap-3">
+              {/* Toggle */}
+              <div className="flex items-center gap-2">
+                <Calendar className={`h-4 w-4 ${mapViewMode === "calendar" ? "text-primary" : "text-muted-foreground"}`} />
+                <span className={`text-sm font-medium ${mapViewMode === "calendar" ? "text-foreground" : "text-muted-foreground"}`}>
+                  Calendar
+                </span>
+                <Switch
+                  checked={mapViewMode === "map"}
+                  onCheckedChange={(v) => setMapViewMode(v ? "map" : "calendar")}
+                />
+                <span className={`text-sm font-medium ${mapViewMode === "map" ? "text-foreground" : "text-muted-foreground"}`}>
+                  Map
+                </span>
+                <Map className={`h-4 w-4 ${mapViewMode === "map" ? "text-primary" : "text-muted-foreground"}`} />
+              </div>
 
-      {/* ── Control bar ────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 px-6 py-3 border-b border-border flex-wrap">
-        {/* Left: date chip + Day/Week/Month/Year dropdown */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 border border-border rounded-md px-3 py-1.5 text-sm text-foreground">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            {format(new Date(), "MMMM do, yyyy")}
-          </div>
+              <Separator orientation="vertical" className="h-6" />
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 min-w-[90px] justify-between">
-                {VIEW_TYPE_LABELS[calViewType]}
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              {/* Date chip */}
+              <div className="flex items-center gap-1.5 border border-border rounded-md px-3 py-1.5 text-sm text-foreground bg-white">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                {format(new Date(), "MMMM do, yyyy")}
+              </div>
+
+              {/* View type dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5 min-w-[90px] justify-between bg-white">
+                    {VIEW_TYPE_LABELS[calViewType]}
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-28">
+                  {(["day", "week", "month", "year"] as CalendarViewType[]).map((vt) => (
+                    <DropdownMenuItem
+                      key={vt}
+                      onClick={() => setCalViewType(vt)}
+                      className={calViewType === vt ? "bg-accent" : ""}
+                    >
+                      {VIEW_TYPE_LABELS[vt]}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Right: route selector + add service button */}
+            <div className="flex items-center gap-2">
+              <RouteSelector
+                routes={routes}
+                value={displayRouteId}
+                onChange={setRouteFilter}
+                onDelete={setDeleteTarget}
+                onAddNew={handleAddNewRoute}
+                isCreating={isCreating}
+              />
+
+              <Button
+                onClick={() => {
+                  setAddApptRouteId(displayRouteId !== "all" ? displayRouteId : "");
+                  setAddApptDate("");
+                  setAddApptOpen(true);
+                }}
+                className="h-9"
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                Add Service
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-28">
-              {(["day", "week", "month", "year"] as CalendarViewType[]).map((vt) => (
-                <DropdownMenuItem
-                  key={vt}
-                  onClick={() => setCalViewType(vt)}
-                  className={calViewType === vt ? "bg-accent" : ""}
-                >
-                  {VIEW_TYPE_LABELS[vt]}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Right: route selector + add service button */}
-        <div className="flex items-center gap-2">
-          <RouteSelector
-            routes={routes}
-            value={displayRouteId}
-            onChange={setRouteFilter}
-            onDelete={setDeleteTarget}
-            onAddNew={handleAddNewRoute}
-            isCreating={isCreating}
-          />
-
-          <Button
-            onClick={() => {
-              setAddApptRouteId(displayRouteId !== "all" ? displayRouteId : "");
-              setAddApptDate("");
-              setAddApptOpen(true);
-            }}
-            className="h-9"
-          >
-            <Plus className="h-4 w-4 mr-1.5" />
-            Add Service
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Main content ───────────────────────────────────────────── */}
-      <div className="flex-1 p-6">
-        {isLoading ? (
-          <div className="flex justify-center py-16"><LoadingSpinner /></div>
-        ) : mapViewMode === "map" ? (
-          <RouteMapView
-            appointments={
-              effectiveRouteId !== "all"
-                ? appointments.filter((a) => a.route_id === effectiveRouteId)
-                : appointments
-            }
-            className="h-[calc(100vh-220px)] min-h-[400px] w-full"
-          />
-        ) : (
-          <SchedulingCalendar
-            appointments={appointments}
-            viewType={calViewType}
-            selectedDate={selectedDate}
-            onSelectedDateChange={setSelectedDate}
-            onViewTypeChange={setCalViewType}
-            onAppointmentClick={setSelectedAppointment}
-            onDayClick={(date) => {
-              setAddApptDate(format(date, "yyyy-MM-dd"));
-              setAddApptRouteId(displayRouteId !== "all" ? displayRouteId : "");
-              setAddApptOpen(true);
-            }}
-          />
-        )}
-      </div>
+      {/* ── Main content Card ───────────────────────────────────────── */}
+      <Card className="border border-border/50 shadow-none">
+        <CardContent className="p-4">
+          {isLoading ? (
+            <div className="flex justify-center py-16"><LoadingSpinner /></div>
+          ) : mapViewMode === "map" ? (
+            <RouteMapView
+              appointments={
+                effectiveRouteId !== "all"
+                  ? appointments.filter((a) => a.route_id === effectiveRouteId)
+                  : appointments
+              }
+              className="h-[calc(100vh-260px)] min-h-[400px] w-full"
+            />
+          ) : (
+            <SchedulingCalendar
+              appointments={appointments}
+              viewType={calViewType}
+              selectedDate={selectedDate}
+              onSelectedDateChange={setSelectedDate}
+              onViewTypeChange={setCalViewType}
+              onAppointmentClick={setSelectedAppointment}
+              onDayClick={(date) => {
+                setAddApptDate(format(date, "yyyy-MM-dd"));
+                setAddApptRouteId(displayRouteId !== "all" ? displayRouteId : "");
+                setAddApptOpen(true);
+              }}
+            />
+          )}
+        </CardContent>
+      </Card>
 
       {/* ── Modals & dialogs ───────────────────────────────────────── */}
       <RouteSuccessModal
