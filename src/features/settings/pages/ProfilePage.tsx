@@ -2,12 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  Building2,
   UserPen,
   Building,
   Shield,
   CreditCard,
-  Sparkles,
   Mail,
   Phone,
   MapPin,
@@ -15,15 +13,18 @@ import {
   EyeOff,
   Loader2,
   FileSignature,
+  LayoutGrid,
+  Upload,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
-import { Separator } from "@/shared/components/ui/separator";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
 import { toast } from "@/shared/components/ui/use-toast";
+import { Card, CardContent } from "@/shared/components/ui/card";
+import { Progress } from "@/shared/components/ui/progress";
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { useLocation } from "react-router-dom";
 import { SubscriptionPlansContent } from "@/features/subscriptions/components/SubscriptionPlansContent";
@@ -43,6 +44,7 @@ import {
   type EditCompanyFormData,
   type SecurityFormData,
 } from "../schemas/settingsSchemas";
+import { cn } from "@/shared/utils/cn";
 import type { Database } from "@/integrations/supabase/types";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -58,14 +60,14 @@ type SettingsSection =
 
 const NAV_ITEMS: Array<{
   section: SettingsSection;
-  icon: React.ReactNode;
+  icon: React.ElementType;
   label: string;
 }> = [
-  { section: "edit-profile",  icon: <UserPen className="w-4 h-4" />,      label: "Edit Profile" },
-  { section: "company-info",  icon: <Building className="w-4 h-4" />,      label: "Company Information" },
-  { section: "security",      icon: <Shield className="w-4 h-4" />,        label: "Security" },
-  { section: "subscriptions", icon: <CreditCard className="w-4 h-4" />,    label: "Subscriptions" },
-  { section: "stripe",        icon: <Building2 className="w-4 h-4" />,     label: "Stripe Dashboard" }
+  { section: "edit-profile",  icon: UserPen,   label: "Edit Profile" },
+  { section: "company-info",  icon: Building,  label: "Company Information" },
+  { section: "security",      icon: Shield,    label: "Security" },
+  { section: "subscriptions", icon: CreditCard, label: "Subscriptions" },
+  { section: "stripe",        icon: LayoutGrid, label: "Stripe Dashboard" },
 ];
 
 // ─── Edit Profile section ────────────────────────────────────────────────────
@@ -358,6 +360,26 @@ function ContractSection() {
   );
 }
 
+// ─── Profile completion helper ────────────────────────────────────────────────
+
+function calculateProfileCompletion(profile: Profile) {
+  const fields = [
+    profile.first_name,
+    profile.last_name,
+    profile.phone_number,
+    profile.company_name,
+    profile.company_email,
+    profile.company_phone,
+    profile.company_address,
+    profile.company_city,
+    profile.company_state,
+    profile.company_zip,
+    profile.company_logo,
+  ];
+  const filled = fields.filter((f) => f && f.trim() !== "").length;
+  return Math.round((filled / fields.length) * 100);
+}
+
 // ─── Main ProfilePage ─────────────────────────────────────────────────────────
 
 export function ProfilePage() {
@@ -398,7 +420,9 @@ export function ProfilePage() {
         const fnName = isConfigured ? "stripe-dashboard-link" : "stripe-onboard";
         const { data, error } = await supabase.functions.invoke(fnName);
         if (error) throw error;
+        if (data?.error) throw new Error(data.error);
         if (data?.url) window.open(data.url, "_blank");
+        else throw new Error("No redirect URL returned");
       } catch {
         toast({ title: "Failed to open Stripe Dashboard", variant: "destructive" });
       } finally {
@@ -423,114 +447,137 @@ export function ProfilePage() {
     ? `${profile.first_name?.[0] ?? ""}${profile.last_name?.[0] ?? ""}`.toUpperCase()
     : "?";
 
-  const fullAddress = [
-    profile?.company_address,
-    profile?.company_apt_suite,
-    profile?.company_city,
-    profile?.company_state,
-    profile?.company_zip,
-  ]
-    .filter(Boolean)
-    .join(", ");
-
-  const INFO_ROWS = [
-    { icon: <Sparkles className="w-4 h-4 text-violet-500" />, bg: "bg-violet-50", label: "Company Name", value: profile?.company_name },
-    { icon: <Mail className="w-4 h-4 text-blue-500" />,       bg: "bg-blue-50",   label: "Email",        value: profile?.company_email },
-    { icon: <Phone className="w-4 h-4 text-green-500" />,     bg: "bg-green-50",  label: "Phone",        value: profile?.company_phone },
-    { icon: <MapPin className="w-4 h-4 text-purple-500" />,   bg: "bg-purple-50", label: "Address",      value: fullAddress || undefined },
-  ];
+  const profileCompletion = profile ? calculateProfileCompletion(profile) : 0;
 
   return (
-    <div className="flex min-h-full bg-background">
+    <>
+    <div className="min-h-full bg-background p-4 flex justify-center">
       {/* Hidden file input */}
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
 
-      {/* ── Left panel ───────────────────────────────────────────────────────── */}
-      <div className="w-[320px] flex-shrink-0 flex flex-col border-r border-border bg-background">
-        {/* Avatar + name */}
-        <div className="flex flex-col items-center gap-3 p-6 pb-5">
-          <div className="relative cursor-pointer group" onClick={handleLogoClick} title="Click to change logo">
-            <Avatar className="w-28 h-28 ring-4 ring-background shadow-md">
-              <AvatarImage src={profile?.company_logo ?? undefined} alt="Company logo" />
-              <AvatarFallback className="bg-primary/10 text-primary text-2xl font-bold">
-                {uploadLogo.isPending ? <Loader2 className="w-7 h-7 animate-spin" /> : initials || <Building2 className="w-8 h-8" />}
-              </AvatarFallback>
-            </Avatar>
-            <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <span className="text-white text-xs font-medium">Change</span>
-            </div>
-          </div>
-          <h2 className="text-lg font-bold text-center">
-            {profile?.first_name} {profile?.last_name}
-          </h2>
-        </div>
+      <div className="w-full max-w-2xl space-y-4 mx-auto">
 
-        <Separator />
+        {/* Profile Card + Tabs: constrained to max-w-2xl for visual balance */}
+        <div className="max-w-2xl mx-auto w-full space-y-4">
 
-        {/* Info rows */}
-        <div className="p-4 space-y-4">
-          {INFO_ROWS.filter((r) => r.value).map((row) => (
-            <div key={row.label} className="flex items-start gap-3">
-              <div className={`p-1.5 rounded-lg flex-shrink-0 ${row.bg}`}>{row.icon}</div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">{row.label}</p>
-                <p className="text-sm font-medium truncate">{row.value}</p>
+        {/* ── Profile Card ──────────────────────────────────────────────────── */}
+        <Card className="border border-border/50 shadow-none">
+          <CardContent className="p-6 flex flex-col items-center text-center">
+            {/* Avatar */}
+            <div className="relative group flex-shrink-0 cursor-pointer" onClick={handleLogoClick} title="Click to change logo">
+              <Avatar className="w-16 h-16 border-2 border-background shadow-md">
+                <AvatarImage src={profile?.company_logo ?? undefined} alt="Company logo" />
+                <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                  {uploadLogo.isPending
+                    ? <Loader2 className="w-6 h-6 animate-spin" />
+                    : initials || <Upload className="w-6 h-6" />}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                <Upload className="w-4 h-4 text-white" />
               </div>
             </div>
-          ))}
-        </div>
 
-        <Separator />
+            {/* Name + company */}
+            <div className="text-center mt-3">
+              <h2 className="text-base font-semibold text-foreground">
+                {profile?.first_name && profile?.last_name
+                  ? `${profile.first_name} ${profile.last_name}`
+                  : "Complete Your Profile"}
+              </h2>
+              <p className="text-sm text-muted-foreground">{profile?.company_name || "Not set"}</p>
+            </div>
 
-        {/* Settings nav */}
-        <div className="p-4 flex-1">
-          <p className="text-base font-bold mb-3">Settings</p>
-          <div className="space-y-1">
-            {NAV_ITEMS.map((item) => {
-              const isActive = activeSection === item.section &&
-                item.section !== "stripe";
-              return (
-                <button
-                  key={item.section}
-                  onClick={() => handleNavClick(item.section)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors text-left
-                    ${isActive
-                      ? "border border-primary text-primary bg-background"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                    }`}
-                >
-                  {item.icon}
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+            {/* Profile completion progress */}
+            {profileCompletion < 100 && (
+              <div className="flex items-center gap-2 mt-3">
+                <Progress value={profileCompletion} className="h-1.5 w-20" />
+                <span className="text-xs font-medium text-muted-foreground">{profileCompletion}%</span>
+              </div>
+            )}
+
+            {/* Horizontal contact info */}
+            <div className="flex items-center justify-center gap-5 mt-4 pt-4 border-t border-border/50 w-full flex-wrap">
+              <div className="flex items-center gap-2">
+                <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs text-foreground">{profile?.company_email || "Not set"}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs text-foreground">{profile?.company_phone || "Not set"}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs text-foreground">
+                  {profile?.company_city && profile?.company_state
+                    ? `${profile.company_city}, ${profile.company_state}`
+                    : "Not set"}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── Tabs Navigation Card ──────────────────────────────────────────── */}
+        <Card className="border border-border/50 shadow-none">
+          <CardContent className="p-0">
+            <div className="flex justify-center px-2 pt-2 flex-wrap">
+              {NAV_ITEMS.map((item) => {
+                const isActive = activeSection === item.section && item.section !== "stripe";
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.section}
+                    onClick={() => handleNavClick(item.section)}
+                    disabled={item.section === "stripe" && stripeLoading}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-3 text-xs font-medium whitespace-nowrap transition-colors border-b-2 -mb-px disabled:opacity-50 disabled:cursor-not-allowed",
+                      isActive
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                    )}
+                  >
+                    {item.section === "stripe" && stripeLoading
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Icon className="w-4 h-4" />}
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        </div>{/* end max-w-2xl */}
+
+        {/* ── Content Card ──────────────────────────────────────────────────── */}
+        <Card className="border border-border/50 shadow-none">
+          <CardContent className="p-6">
+            {profile && activeSection === "edit-profile"  && <EditProfileSection profile={profile} />}
+            {profile && activeSection === "company-info"  && <CompanyInfoSection profile={profile} />}
+            {activeSection === "security"                  && <SecuritySection />}
+            {activeSection === "contract"                  && <ContractSection />}
+            {activeSection === "subscriptions"             && <SubscriptionPlansContent />}
+          </CardContent>
+        </Card>
+
       </div>
-
-      {/* ── Right panel ──────────────────────────────────────────────────────── */}
-      <div className="flex-1 p-8 overflow-y-auto">
-        {profile && activeSection === "edit-profile"  && <EditProfileSection profile={profile} />}
-        {profile && activeSection === "company-info"  && <CompanyInfoSection profile={profile} />}
-        {activeSection === "security"                  && <SecuritySection />}
-        {activeSection === "contract"                  && <ContractSection />}
-        {activeSection === "subscriptions"             && <SubscriptionPlansContent />}
-      </div>
-
-      {/* Stripe loading dialog */}
-      <AlertDialog open={stripeLoading}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Opening Stripe Dashboard</AlertDialogTitle>
-            <AlertDialogDescription>
-              Please wait while we redirect you to your Stripe account…
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="flex justify-center py-4">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
+
+    {/* Stripe loading dialog */}
+    <AlertDialog open={stripeLoading}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Opening Stripe Dashboard</AlertDialogTitle>
+          <AlertDialogDescription>
+            Please wait while we redirect you to your Stripe account…
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="flex justify-center py-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

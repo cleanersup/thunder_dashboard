@@ -12,7 +12,8 @@ import {
 import { format, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
-import { Badge  } from "@/shared/components/ui/badge";
+import { Switch } from "@/shared/components/ui/switch";
+import { Label  } from "@/shared/components/ui/label";
 import { cn }     from "@/shared/utils/cn";
 import { toast }  from "sonner";
 import { useAuth } from "@/shared/hooks/useAuth";
@@ -250,6 +251,16 @@ export function PlanCard({
       "border shadow-none flex flex-col relative overflow-hidden transition-shadow hover:shadow-sm",
       isCurrent ? cn("border-2", plan.borderClass) : "border-border/50",
     )}>
+      {isCurrent && (
+        <div className="absolute top-0 left-0">
+          <div
+            className="text-white text-[10px] font-bold px-3 py-1 rounded-br-lg"
+            style={{ backgroundColor: plan.accentColor }}
+          >
+            ACTIVE
+          </div>
+        </div>
+      )}
       {"popular" in plan && plan.popular && (
         <div className="absolute top-0 right-0">
           <div
@@ -270,11 +281,6 @@ export function PlanCard({
             <Icon className="h-4 w-4" style={{ color: plan.accentColor }} />
           </div>
           <span className="font-bold text-base">{plan.name}</span>
-          {isCurrent && (
-            <Badge variant="outline" className="text-[10px] h-5 px-1.5 ml-auto">
-              Active
-            </Badge>
-          )}
         </div>
 
         <div className="flex items-end gap-1">
@@ -347,32 +353,35 @@ export function SubscriptionPlansContent() {
       <StatusBanner />
 
       {/* Billing toggle */}
-      <div className="flex items-center bg-muted rounded-lg p-1 gap-1 w-fit">
-        <button
-          onClick={() => setBilling("monthly")}
+      <div className="flex items-center justify-center gap-3 bg-muted/30 p-3 rounded-lg">
+        <Label
+          htmlFor="billing-toggle"
           className={cn(
-            "px-4 py-1.5 rounded-md text-sm font-medium transition-colors",
-            billing === "monthly"
-              ? "bg-background shadow-sm text-foreground"
-              : "text-muted-foreground hover:text-foreground",
+            "text-sm font-medium cursor-pointer",
+            billing === "monthly" ? "text-foreground" : "text-muted-foreground"
           )}
         >
           Monthly
-        </button>
-        <button
-          onClick={() => setBilling("annual")}
+        </Label>
+        <Switch
+          id="billing-toggle"
+          checked={billing === "annual"}
+          onCheckedChange={(checked) => setBilling(checked ? "annual" : "monthly")}
+        />
+        <Label
+          htmlFor="billing-toggle"
           className={cn(
-            "px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5",
-            billing === "annual"
-              ? "bg-background shadow-sm text-foreground"
-              : "text-muted-foreground hover:text-foreground",
+            "text-sm font-medium cursor-pointer",
+            billing === "annual" ? "text-foreground" : "text-muted-foreground"
           )}
         >
           Annual
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700">
-            SAVE 17%
+        </Label>
+        {billing === "annual" && (
+          <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded-full font-semibold">
+            Save 17%
           </span>
-        </button>
+        )}
       </div>
 
       {/* Plan cards grid */}
