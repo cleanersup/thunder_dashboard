@@ -75,26 +75,40 @@ export async function updatePassword(
 }
 
 // ─── Logo Upload ──────────────────────────────────────────────────────────────
+// Same as swift-slate Profile: store data URL on profiles.company_logo (no Storage bucket).
+
+const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+
+function readFileAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Could not read image"));
+      }
+    };
+    reader.onerror = () => reject(new Error("Could not read image"));
+    reader.readAsDataURL(file);
+  });
+}
 
 export async function uploadLogo(userId: string, file: File): Promise<string> {
-  const { error: uploadError } = await supabase.storage
-    .from("avatars")
-    .upload(`${userId}/logo`, file, { upsert: true });
+  if (file.size > MAX_LOGO_BYTES) {
+    throw new Error("Image must be smaller than 5MB");
+  }
 
-  if (uploadError) throw uploadError;
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from("avatars").getPublicUrl(`${userId}/logo`);
+  const logoDataUrl = await readFileAsDataURL(file);
 
   const { error: updateError } = await supabase
     .from("profiles")
-    .update({ company_logo: publicUrl })
+    .update({ company_logo: logoDataUrl })
     .eq("user_id", userId);
 
   if (updateError) throw updateError;
 
-  return publicUrl;
+  return logoDataUrl;
 }
 
 // ─── Public Profile ───────────────────────────────────────────────────────────

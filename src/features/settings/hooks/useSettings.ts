@@ -80,8 +80,12 @@ export function useUploadLogo() {
       queryClient.invalidateQueries({ queryKey: QK.profile });
       toast({ title: "Logo updated" });
     },
-    onError: () => {
-      toast({ title: "Failed to upload logo", variant: "destructive" });
+    onError: (err) => {
+      toast({
+        title: "Failed to upload logo",
+        description: err instanceof Error ? err.message : undefined,
+        variant: "destructive",
+      });
     },
   });
 }
