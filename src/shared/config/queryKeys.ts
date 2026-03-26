@@ -61,6 +61,10 @@ export const QK = {
   leadsCount:                ["leads-count"]                   as const,
   bookingsCount:             ["bookings-count"]                as const,
 
+  // ── Contracts (CON) ──────────────────────────────────────────────────────────
+  contracts:   ["contracts"] as const,
+  contract:    (id: string) => ["contract", id] as const,
+
   // ── Time Clock (F19) ─────────────────────────────────────────────────────────
   timeEntriesToday:     (date: string) => ["time-entries-today", date]                             as const,
   timeEntriesScheduled: ["time-entries-scheduled"]                                                 as const,
