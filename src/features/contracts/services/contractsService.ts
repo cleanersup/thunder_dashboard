@@ -217,6 +217,17 @@ export async function renewContract(
   return created as Contract;
 }
 
+export async function updateContractStatus(
+  id: string,
+  status: string
+): Promise<void> {
+  const { error } = await db
+    .from("contracts")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export async function acceptContract(token: string): Promise<void> {
   const { error } = await db
     .from("contracts")

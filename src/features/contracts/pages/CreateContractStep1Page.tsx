@@ -152,16 +152,23 @@ export function CreateContractStep1Page({
       const created = await createM.mutateAsync(formData);
       contractId = created.id;
     }
-    if (!USE_MOCKS) {
-      if (formData.delivery_method === "email") {
+    // Email is best-effort: contract is already saved regardless of send outcome
+    if (!USE_MOCKS && formData.delivery_method === "email") {
+      try {
         await sendEmail.mutateAsync({ contractId, recipientEmail: formData.recipient_email });
+        // Update status to Pending after successful email send
+        const svc = await import("../services/contractsService");
+        await svc.updateContractStatus(contractId, "Pending");
+      } catch {
+        // sendEmail shows its own error toast; we don't re-throw so the success
+        // flow still proceeds and the user sees the contract in the list
       }
     }
   };
 
   // ── Save draft (exit dialog) ─────────────────────────────────────────────────
   const handleSaveDraft = async () => {
-    if (!formData.recipient_id) { toast.error("Please select a recipient"); return; }
+    if (!formData.recipient_name.trim()) { toast.error("Please enter a recipient name"); return; }
     if (isEditing && editId) {
       updateM.mutate({ id: editId, data: formData }, { onSuccess: goBack });
     } else {
