@@ -34,7 +34,8 @@ export function RouteMapView({ appointments, className = "h-64" }: RouteMapViewP
       streetViewControl: false,
       mapTypeControl: false,
       fullscreenControl: false,
-      gestureHandling: "cooperative",
+      // greedy: wheel/trackpad zooms without ⌘/Ctrl (cooperative required modifier keys)
+      gestureHandling: "greedy",
       zoomControlOptions: {
         position: google.maps.ControlPosition.RIGHT_BOTTOM,
       },

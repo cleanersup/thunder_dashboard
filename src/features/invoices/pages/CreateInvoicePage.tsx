@@ -778,19 +778,30 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
     </div>
   );
 
+  /* Match EstimateFormLayout: primary actions grouped on the right. Page route (/invoices/new
+     from estimate conversion) previously rendered footer full-bleed + justify-between →
+     Cancel/Next on opposite screen edges; constrain width and group like modal + estimates. */
   const footerButtons = (
-    <div className={`${isModal ? "flex-shrink-0" : "sticky bottom-0"} bg-white rounded-lg border p-4 flex items-center justify-between gap-3`}>
-      <Button variant="outline" size="sm" onClick={goBack} disabled={isLoading}>
-        Cancel
-      </Button>
-      {isEditing && (
-        <Button variant="outline" size="sm" onClick={handleSave} disabled={isLoading}>
-          {isLoading ? "Saving..." : "Save"}
-        </Button>
+    <div
+      className={cn(
+        isModal ? "flex-shrink-0" : "sticky bottom-0 w-full max-w-2xl mx-auto px-4 pb-6",
       )}
-      <Button size="sm" onClick={handleNext} disabled={isLoading}>
-        {isLoading ? "Saving..." : "Next"}
-      </Button>
+    >
+      <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
+        <Button variant="outline" size="sm" onClick={goBack} disabled={isLoading}>
+          Cancel
+        </Button>
+        <div className="flex items-center gap-2">
+          {isEditing && (
+            <Button variant="outline" size="sm" onClick={handleSave} disabled={isLoading}>
+              {isLoading ? "Saving..." : "Save"}
+            </Button>
+          )}
+          <Button size="sm" onClick={handleNext} disabled={isLoading}>
+            {isLoading ? "Saving..." : "Next"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 
