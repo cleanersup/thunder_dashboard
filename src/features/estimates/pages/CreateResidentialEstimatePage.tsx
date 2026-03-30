@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FileText, Building2 } from "lucide-react";
@@ -48,7 +49,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const goBack = useCallback(() => {
     if (isModal) onClose!();
     else navigate(-1);
-  }, [isModal, onClose, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isModal, onClose, navigate]);
   const createEst   = useCreateEstimate();
   const updateEst   = useUpdateEstimate();
   const { sendEstimateEmail, isSending } = useSendEstimateEmail();
@@ -316,6 +317,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       extras, pets, laundryService, laundryPounds, scope,
       useCustomPrice, customPrice, applyDiscount, discountType, discountValue, deliveryMethod,
     },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [
     step, estimateType, selectedClient, selectedLead, selectedService, squareFootage,
     bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths,

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FileText, Building2 } from "lucide-react";
@@ -45,7 +46,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   const goBack = useCallback(() => {
     if (isModal) onClose!();
     else navigate(-1);
-  }, [isModal, onClose, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isModal, onClose, navigate]);
 
   const { mutateAsync: createEstimate } = useCreateEstimate();
   const { mutateAsync: updateEstimate } = useUpdateEstimate();
