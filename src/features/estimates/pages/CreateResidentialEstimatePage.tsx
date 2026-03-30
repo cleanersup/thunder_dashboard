@@ -380,7 +380,8 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       discount_value: applyDiscount && discountValue ? parseFloat(discountValue) : null,
       subtotal, total, labor_cost: laborCost, supplies_cost: suppliesCost,
       overhead_cost: overheadCost, total_operation_cost: totalOpCost,
-      status: "Pending", estimate_date: new Date().toISOString(),
+      status: (deliveryMethod === "email" || deliveryMethod === "sms" || deliveryMethod === "both") ? "Pending" : "Draft",
+      estimate_date: new Date().toISOString(),
     };
 
     try {
@@ -572,7 +573,13 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       <ExitConfirmationDialog
         open={showExitDialog}
         onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); goBack(); }}
-        onDiscard={() => { deleteDraft(); setShowExitDialog(false); goBack(); }}
+        onDiscard={() => {
+          // In edit mode never delete the original estimate — just close.
+          // deleteDraft() is only safe for NEW auto-saved drafts.
+          if (!isEditing) deleteDraft();
+          setShowExitDialog(false);
+          goBack();
+        }}
         onCancel={() => setShowExitDialog(false)}
       />
 
@@ -628,7 +635,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   if (isModal) {
     return (
       <>
-        <FullScreenModal open={open ?? false} onClose={goBack}>
+        <FullScreenModal open={open ?? false} onClose={handleExit}>
           <EstimateFormLayout
             title="Residential Estimate"
             steps={RESIDENTIAL_STEPS}

@@ -435,7 +435,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
         subtotal, total,
         discount_type:  applyDiscount && discountValue ? discountType : null,
         discount_value: applyDiscount && discountValue ? parseFloat(discountValue) : null,
-        status:         "Pending" as const,
+        status: (deliveryMethod === "email" || deliveryMethod === "sms" || deliveryMethod === "both") ? "Pending" : "Draft",
         estimate_date:  new Date().toISOString().split("T")[0],
       };
 
@@ -633,7 +633,11 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       <ExitConfirmationDialog
         open={showExitDialog}
         onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); goBack(); }}
-        onDiscard={() => { deleteDraft(); setShowExitDialog(false); goBack(); }}
+        onDiscard={() => {
+          if (!isEditing) deleteDraft();
+          setShowExitDialog(false);
+          goBack();
+        }}
         onCancel={() => setShowExitDialog(false)}
       />
 
@@ -689,7 +693,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   if (isModal) {
     return (
       <>
-        <FullScreenModal open={open ?? false} onClose={goBack}>
+        <FullScreenModal open={open ?? false} onClose={handleExit}>
           <EstimateFormLayout
             title={isEditing ? "Edit Commercial Estimate" : "New Commercial Estimate"}
             steps={COMMERCIAL_STEPS}

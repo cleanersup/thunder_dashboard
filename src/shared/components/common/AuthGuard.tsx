@@ -37,19 +37,29 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
+        // User signed out — clear cache to prevent cross-user data leaks
         setIsAuthenticated(false);
-        queryClient.clear(); // Clear cache on logout to prevent cross-user data leaks
+        queryClient.clear();
         navigate("/auth", { replace: true });
+      } else if (event === "SIGNED_IN") {
+        // Only clear cache on an actual login transition (not token refreshes).
+        // TOKEN_REFRESHED fires for silent refreshes; SIGNED_IN only fires when
+        // the user was previously unauthenticated and just logged in.
+        setIsAuthenticated((prev) => {
+          if (!prev) queryClient.clear();
+          return true;
+        });
       } else {
-        if (event === "SIGNED_IN") {
-          queryClient.clear(); // Clear stale cache on login so fresh data is always fetched
-        }
+        // TOKEN_REFRESHED, USER_UPDATED, INITIAL_SESSION, etc.
+        // Do NOT clear the cache — this would unmount ProtectedRoute children
+        // and lose all local state (open modals, form data, etc.).
         setIsAuthenticated(true);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, location, queryClient]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount — location must NOT be a dependency here.
 
   if (isChecking) {
     return (
