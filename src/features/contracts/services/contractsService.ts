@@ -114,8 +114,6 @@ export async function createContract(
     recipient_email: data.recipient_email || null,
     recipient_phone: data.recipient_phone || null,
     recipient_address: data.recipient_address || null,
-    recipient_type: data.recipient_type,
-    recipient_id: data.recipient_id ?? null,
     start_date: data.start_date,
     end_date: data.end_date,
     who_we_are: data.who_we_are || null,
@@ -149,8 +147,6 @@ export async function updateContract(
   if ("recipient_email" in data)   payload.recipient_email   = data.recipient_email || null;
   if ("recipient_phone" in data)   payload.recipient_phone   = data.recipient_phone || null;
   if ("recipient_address" in data) payload.recipient_address = data.recipient_address || null;
-  if ("recipient_type" in data)    payload.recipient_type    = data.recipient_type;
-  if ("recipient_id" in data)      payload.recipient_id      = data.recipient_id ?? null;
   if ("start_date" in data)        payload.start_date        = data.start_date;
   if ("end_date" in data)          payload.end_date          = data.end_date;
   if ("total" in data)             payload.total             = parseFloat(data.total!) || 0;
@@ -176,4 +172,81 @@ export async function updateContract(
 export async function deleteContract(id: string): Promise<void> {
   const { error } = await db.from("contracts").delete().eq("id", id);
   if (error) throw error;
+}
+
+export async function renewContract(
+  originalId: string,
+  newStartDate: string,
+  newEndDate: string
+): Promise<Contract> {
+  const original = await fetchContractById(originalId);
+  const contractNumber = await generateContractNumber();
+
+  const payload = {
+    user_id: original.user_id,
+    contract_number: contractNumber,
+    recipient_name: original.recipient_name,
+    recipient_email: original.recipient_email,
+    recipient_phone: original.recipient_phone,
+    recipient_address: original.recipient_address,
+    start_date: newStartDate,
+    end_date: newEndDate,
+    who_we_are: original.who_we_are,
+    why_choose_us: original.why_choose_us,
+    our_services: original.our_services,
+    service_coverage: original.service_coverage,
+    sections: original.sections,
+    total: original.total,
+    payment_frequency: original.payment_frequency,
+    status: "Draft",
+    delivery_method: original.delivery_method,
+  };
+
+  const { data: created, error: createError } = await db
+    .from("contracts")
+    .insert(payload)
+    .select()
+    .single();
+  if (createError) throw createError;
+
+  await db
+    .from("contracts")
+    .update({ renewed_at: new Date().toISOString() })
+    .eq("id", originalId);
+
+  return created as Contract;
+}
+
+export async function acceptContract(token: string): Promise<void> {
+  const { error } = await db
+    .from("contracts")
+    .update({
+      status: "Active",
+      accepted_at: new Date().toISOString(),
+    })
+    .eq("accept_token", token);
+  if (error) throw error;
+}
+
+// ─── Public helpers ───────────────────────────────────────────────────────────
+
+export interface ContractOwnerProfile {
+  company_name:    string | null;
+  company_logo:    string | null;
+  company_email:   string | null;
+  company_phone:   string | null;
+  company_address: string | null;
+  company_city:    string | null;
+  company_state:   string | null;
+  company_zip:     string | null;
+}
+
+export async function fetchContractOwnerProfile(userId: string): Promise<ContractOwnerProfile | null> {
+  const { data, error } = await db
+    .from("profiles")
+    .select("company_name, company_logo, company_email, company_phone, company_address, company_city, company_state, company_zip")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data as ContractOwnerProfile | null;
 }

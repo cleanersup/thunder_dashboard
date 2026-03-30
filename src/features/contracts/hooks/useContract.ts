@@ -2,7 +2,8 @@
  * @module useContract
  * React Query hook for a single contract by ID.
  */
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { QK } from "@/shared/config/queryKeys";
 import type { Contract } from "../types/contract.types";
 
@@ -42,5 +43,28 @@ export function useContractByToken(token: string | undefined) {
     enabled: !!token,
     staleTime: 0,
     retry: false,
+  });
+}
+
+export function useAcceptContract(token: string | undefined) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!token) throw new Error("No token");
+      if (USE_MOCKS) {
+        const svc = await import("../mocks/contractsMockService");
+        return svc.acceptContractMock(token);
+      }
+      const svc = await import("../services/contractsService");
+      return svc.acceptContract(token);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contract-public", token] });
+      toast.success("Contract accepted");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message ?? "Failed to accept contract");
+    },
   });
 }

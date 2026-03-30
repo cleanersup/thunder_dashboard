@@ -18,7 +18,7 @@ export type ContractPaymentFrequency =
   | "biweekly"
   | "monthly";
 
-export type ContractRecipientType = "client" | "lead";
+export type ContractRecipientType = "client";
 
 export type ContractDeliveryMethod = "email" | "sms" | "both";
 
@@ -113,7 +113,7 @@ export interface ContractStep2Data {
 
 /** Step 3 form data */
 export interface ContractStep3Data {
-  delivery_method: ContractDeliveryMethod;
+  delivery_method: ContractDeliveryMethod | null;
 }
 
 /** Combined wizard form data */

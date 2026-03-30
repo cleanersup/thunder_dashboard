@@ -48,6 +48,15 @@ async function doUpdate(id: string, data: Partial<ContractFormData>): Promise<Co
   return svc.updateContract(id, data);
 }
 
+async function doRenew(id: string, startDate: string, endDate: string): Promise<Contract> {
+  if (USE_MOCKS) {
+    const svc = await import("../mocks/contractsMockService");
+    return svc.renewContractMock(id, startDate, endDate);
+  }
+  const svc = await import("../services/contractsService");
+  return svc.renewContract(id, startDate, endDate);
+}
+
 async function doDelete(id: string): Promise<void> {
   if (USE_MOCKS) {
     const svc = await import("../mocks/contractsMockService");
@@ -106,6 +115,23 @@ export function useUpdateContract() {
     },
     onError: (err: Error) => {
       toast.error(err.message ?? "Failed to update contract");
+    },
+  });
+}
+
+export function useRenewContract() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, startDate, endDate }: { id: string; startDate: string; endDate: string }) =>
+      doRenew(id, startDate, endDate),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: QK.contracts });
+      qc.invalidateQueries({ queryKey: QK.contract(created.id) });
+      toast.success("Contract renewed — draft created");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message ?? "Failed to renew contract");
     },
   });
 }

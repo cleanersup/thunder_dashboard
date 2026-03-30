@@ -37,8 +37,9 @@ import { walkthroughSchema } from "../schemas/walkthroughSchema";
 import type { WalkthroughFormData } from "../schemas/walkthroughSchema";
 import { useCreateWalkthrough, useUpdateWalkthrough, useWalkthrough } from "../hooks/useWalkthroughs";
 import { useAllEmployees } from "@/features/employees/hooks/useEmployees";
-import { WalkthroughClientPicker } from "../components/WalkthroughClientPicker";
-import type { WalkthroughEntityType, ClientEntity, LeadEntity } from "../components/WalkthroughClientPicker";
+import { EstimateClientStep } from "@/features/estimates/components/EstimateClientStep";
+import type { ClientEntity, LeadEntity } from "@/shared/types/entities";
+type WalkthroughEntityType = "client" | "lead";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -219,14 +220,15 @@ export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = 
       {/* ── Client / Lead ────────────────────────────────────────── */}
       <Card>
         <CardContent className="p-5">
-          <WalkthroughClientPicker
-            walkthroughType={walkthroughType}
-            onTypeChange={handleTypeChange}
+          <EstimateClientStep
+            estimateType={walkthroughType}
+            onEstimateTypeChange={handleTypeChange}
             selectedClient={selectedClient}
             selectedLead={selectedLead}
             onClientSelect={handleClientSelect}
             onLeadSelect={handleLeadSelect}
             errors={pickerErrors}
+            infoText="Verify the email and phone number — they will be used to send the walkthrough confirmation."
           />
         </CardContent>
       </Card>

@@ -35,9 +35,11 @@ import { cn }              from "@/shared/utils/cn";
 import { formatCurrency }  from "@/shared/utils/formatters";
 import { useIsMobile }     from "@/shared/hooks/useIsMobile";
 import { useContracts, useDeleteContract } from "../hooks/useContracts";
-import { CreateContractStep1Page } from "./CreateContractStep1Page";
-import { useSendContractEmail }  from "../hooks/useSendContractEmail";
-import { useSendContractSMS }    from "../hooks/useSendContractSMS";
+import { CreateContractStep1Page }  from "./CreateContractStep1Page";
+import { useSendContractEmail }     from "../hooks/useSendContractEmail";
+import { useContractAccess }        from "../hooks/useContractAccess";
+import { ContractDetailModal }      from "../components/ContractDetailModal";
+import { RenewContractModal }       from "../components/RenewContractModal";
 import { ContractStatusBadge, CONTRACT_STATUS_COLOR } from "../components/ContractStatusBadge";
 import type { Contract, ContractStatus } from "../types/contract.types";
 
@@ -62,8 +64,10 @@ export function ContractsPage() {
   const [currentPage,  setCurrentPage]  = useState(1);
 
   // ── Modal state ───────────────────────────────────────────────────────────
-  const [showCreate,   setShowCreate]   = useState(false);
-  const [editId,       setEditId]       = useState<string | undefined>();
+  const [showCreate,    setShowCreate]    = useState(false);
+  const [editId,        setEditId]        = useState<string | undefined>();
+  const [viewContract,  setViewContract]  = useState<Contract | null>(null);
+  const [renewTarget,   setRenewTarget]   = useState<Contract | null>(null);
 
   // ── Confirm delete ────────────────────────────────────────────────────────
   const [deleteContract, setDeleteContract] = useState<Contract | null>(null);
@@ -72,7 +76,7 @@ export function ContractsPage() {
   const { data: allContracts = [], isLoading } = useContracts();
   const deleteM    = useDeleteContract();
   const sendEmail  = useSendContractEmail();
-  const sendSMS    = useSendContractSMS();
+  const { hasAccess, daysRemaining, reason } = useContractAccess();
 
   // ── KPIs ──────────────────────────────────────────────────────────────────
   const active   = allContracts.filter((c) => c.status === "Active");
@@ -136,17 +140,12 @@ export function ContractsPage() {
 
   // ── Action helpers ────────────────────────────────────────────────────────
   const handleSend = (contract: Contract) => {
-    if (contract.delivery_method === "sms") {
-      sendSMS.mutate(contract.id);
-    } else if (contract.delivery_method === "email") {
-      sendEmail.mutate(contract.id);
-    } else {
-      sendEmail.mutate(contract.id);
-      sendSMS.mutate(contract.id);
+    if (contract.recipient_email) {
+      sendEmail.mutate({ contractId: contract.id, recipientEmail: contract.recipient_email });
     }
   };
 
-  const isSending = sendEmail.isPending || sendSMS.isPending;
+  const isSending = sendEmail.isPending;
 
   const canEdit   = (s: ContractStatus) => s === "Draft" || s === "Pending";
   const canSend   = (s: ContractStatus) => s === "Pending" || s === "Active" || s === "Expiring";
@@ -156,6 +155,25 @@ export function ContractsPage() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-full bg-background p-2.5">
+
+      {/* CON-12: Trial notice banner */}
+      {hasAccess && reason === "basic_trial" && daysRemaining !== null && (
+        <div className="mb-2.5 px-4 py-2.5 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm flex items-center justify-between">
+          <span>
+            <span className="font-semibold">Trial:</span> Contracts feature available for{" "}
+            <span className="font-semibold">{daysRemaining} more day{daysRemaining !== 1 ? "s" : ""}</span>.
+            Upgrade to keep access.
+          </span>
+        </div>
+      )}
+
+      {/* CON-12: No access banner */}
+      {!hasAccess && (
+        <div className="mb-2.5 px-4 py-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+          <span className="font-semibold">Contracts requires an Essential or Professional plan.</span>{" "}
+          Upgrade to create and manage contracts.
+        </div>
+      )}
 
       {/* ── KPI Cards ─────────────────────────────────────────────────────── */}
       <Card className="border border-border/50 shadow-none mb-2.5">
@@ -299,6 +317,7 @@ export function ContractsPage() {
                 <TableRow
                   key={contract.id}
                   className="cursor-pointer hover:bg-muted/50 border-b border-border/50"
+                  onClick={() => setViewContract(contract)}
                 >
                   <TableCell className="py-2 px-4 font-medium">{contract.recipient_name}</TableCell>
                   <TableCell className="py-2 px-4 font-mono text-xs">{contract.contract_number}</TableCell>
@@ -327,7 +346,7 @@ export function ContractsPage() {
 
                         {/* View */}
                         <DropdownMenuItem
-                          onClick={(e) => { e.stopPropagation(); /* CON-6: open detail modal */ }}
+                          onClick={(e) => { e.stopPropagation(); setViewContract(contract); }}
                         >
                           <Eye className="w-4 h-4 mr-2" />
                           View Details
@@ -360,7 +379,7 @@ export function ContractsPage() {
                         {/* Renew */}
                         {canRenew(contract.status) && (
                           <DropdownMenuItem
-                            onClick={(e) => { e.stopPropagation(); setEditId(contract.id); setShowCreate(true); }}
+                            onClick={(e) => { e.stopPropagation(); setRenewTarget(contract); }}
                           >
                             <RotateCcw className="w-4 h-4 mr-2" />
                             Renew
@@ -419,11 +438,26 @@ export function ContractsPage() {
         )}
       </Card>
 
+      {/* ── Detail modal (CON-6) ───────────────────────────────────────────── */}
+      <ContractDetailModal
+        contract={viewContract}
+        open={!!viewContract}
+        onClose={() => setViewContract(null)}
+        onEdit={(c) => { setEditId(c.id); setShowCreate(true); }}
+      />
+
       {/* ── Create / Edit modal ────────────────────────────────────────────── */}
       <CreateContractStep1Page
         open={showCreate}
         onClose={() => { setShowCreate(false); setEditId(undefined); }}
         editId={editId}
+      />
+
+      {/* ── Renew modal (CON-8) ────────────────────────────────────────────── */}
+      <RenewContractModal
+        contract={renewTarget}
+        open={!!renewTarget}
+        onClose={() => setRenewTarget(null)}
       />
 
       {/* ── Delete confirmation ────────────────────────────────────────────── */}

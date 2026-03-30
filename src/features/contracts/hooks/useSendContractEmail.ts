@@ -8,9 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 export function useSendContractEmail() {
   return useMutation({
-    mutationFn: async (contractId: string) => {
+    mutationFn: async ({ contractId, recipientEmail }: { contractId: string; recipientEmail: string }) => {
       const { data, error } = await supabase.functions.invoke("send-contract-email", {
-        body: { contractId },
+        body: { contractId, recipientEmail },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

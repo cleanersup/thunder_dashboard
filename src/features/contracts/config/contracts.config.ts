@@ -39,3 +39,38 @@ export const DEFAULT_CLAUSE_TITLES: Record<DefaultClauseKey, string> = {
   liability_insurance:  "Liability & Insurance",
   confidentiality:      "Confidentiality",
 };
+
+// ─── Step 2 section definitions ───────────────────────────────────────────────
+
+/** Full section metadata for Step 2 (order = default display order) */
+export const DEFAULT_SECTIONS = [
+  { key: "scope_of_work",        title: "Scope of Work",                      placeholder: "Describe the specific work, tasks, and deliverables covered under this contract." },
+  { key: "purpose_of_agreement", title: "Purpose of the Agreement",           placeholder: "Explain the purpose and intent of this agreement between both parties." },
+  { key: "price_and_payment",    title: "Price and Payment Terms",            placeholder: "Detail the pricing structure, payment schedule, accepted methods, and any late payment penalties." },
+  { key: "cancellation_policy",  title: "Cancellation Policy",                placeholder: "Outline the terms and conditions for cancellation, including notice periods and any fees." },
+  { key: "no_refund",            title: "No Refund Clause",                   placeholder: "State the no refund policy and any exceptions or conditions that may apply." },
+  { key: "non_compete",          title: "Non-Compete Clause",                 placeholder: "Define non-compete restrictions, duration, and geographic limitations." },
+  { key: "anti_harassment",      title: "Anti-Harassment and Respect Policy", placeholder: "Detail the expected standards of conduct and anti-harassment policies." },
+  { key: "liability_insurance",  title: "Liability and Insurance",            placeholder: "Specify liability limits, insurance requirements, and indemnification terms." },
+  { key: "confidentiality",      title: "Confidentiality",                    placeholder: "Outline the confidentiality obligations, scope of protected information, and duration." },
+] as const;
+
+/** Maps clause key → profile column name for saving defaults */
+export const CLAUSE_PROFILE_MAP: Record<string, string> = {
+  scope_of_work:        "clause_scope_of_work",
+  purpose_of_agreement: "clause_purpose_of_agreement",
+  price_and_payment:    "clause_price_and_payment",
+  cancellation_policy:  "clause_cancellation_policy",
+  no_refund:            "clause_no_refund",
+  non_compete:          "clause_non_compete",
+  anti_harassment:      "clause_anti_harassment",
+  liability_insurance:  "clause_liability_insurance",
+  confidentiality:      "clause_confidentiality",
+};
+
+/** Keys that cannot be auto-generated — user must write manually */
+export const MANUAL_ONLY_KEYS = new Set([
+  "scope_of_work",
+  "purpose_of_agreement",
+  "price_and_payment",
+]);

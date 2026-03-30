@@ -90,7 +90,7 @@ export async function createContractMock(data: ContractFormData): Promise<Contra
     total: parseFloat(data.total) || 0,
     payment_frequency: data.payment_frequency,
     status: "Draft",
-    delivery_method: data.delivery_method,
+    delivery_method: data.delivery_method ?? "email",
     accept_token: null,
     accepted_ip: null,
   };
@@ -144,6 +144,43 @@ export async function acceptContractMock(token: string): Promise<void> {
     accepted_at: new Date().toISOString(),
     accepted_ip: "127.0.0.1",
   };
+}
+
+export async function renewContractMock(
+  originalId: string,
+  newStartDate: string,
+  newEndDate: string
+): Promise<Contract> {
+  await delay();
+  const original = store.find((c) => c.id === originalId);
+  if (!original) throw new Error(`Contract ${originalId} not found`);
+
+  const now = new Date().toISOString();
+  const contractNumber = await generateContractNumberMock();
+
+  const newContract: Contract = {
+    ...original,
+    id: `mock-contract-${Date.now()}`,
+    contract_number: contractNumber,
+    start_date: newStartDate,
+    end_date: newEndDate,
+    status: "Draft",
+    created_at: now,
+    updated_at: now,
+    sent_at: null,
+    accepted_at: null,
+    renewed_at: null,
+    accept_token: null,
+    accepted_ip: null,
+  };
+
+  store = [
+    newContract,
+    ...store.map((c) =>
+      c.id === originalId ? { ...c, renewed_at: now } : c
+    ),
+  ];
+  return { ...newContract };
 }
 
 export async function generateContractNumberMock(): Promise<string> {
