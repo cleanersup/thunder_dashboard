@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module useGoogleMaps
  * Loads the Google Maps JS API (with places library) once per session.

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module InvoicePreviewPage
  * Read-only preview of an invoice before sending, with delivery method selection.

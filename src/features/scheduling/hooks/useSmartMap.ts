@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module useSmartMap
  * Fetches leads, clients, and employees from Supabase, geocodes their

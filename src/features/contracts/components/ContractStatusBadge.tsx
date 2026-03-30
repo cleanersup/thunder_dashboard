@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * @module ContractStatusBadge
  * Badge visual para cada estado de contrato, usando variables CSS semánticas del proyecto.

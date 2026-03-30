@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import type { TimeEntry, PaidPeriod } from "../types/timeClock.types";

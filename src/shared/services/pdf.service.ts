@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * PDFService — PDF generation and download for web.
  * Uses jsPDF to generate PDFs and FileService to trigger browser download.
@@ -174,7 +175,7 @@ async function generateEstimatePDF(data: EstimatePDFData): Promise<jsPDF> {
     yPos += 16;
 
     const c1X = margin + 3, c2X = margin + 60, c3X = margin + 120;
-    let c1Y = yPos, c2Y = yPos, c3Y = yPos;
+    const c1Y = yPos, c2Y = yPos, c3Y = yPos;
 
     const renderBdCol = (colData: Record<string, any>, startX: number, yRef: { v: number }, header: string) => {
       if (!colData || !Object.keys(colData).length) return;

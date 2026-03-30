@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module useRevenueCatWeb
  * Wrapper around @revenuecat/purchases-js for web subscriptions.

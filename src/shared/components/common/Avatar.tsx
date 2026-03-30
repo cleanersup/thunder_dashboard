@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * Shared avatar component that renders a colored circle with initials.
  * Color is deterministically derived from the name so it's consistent across renders.

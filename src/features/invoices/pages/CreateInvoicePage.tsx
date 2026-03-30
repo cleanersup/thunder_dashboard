@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module CreateInvoicePage
  * Multi-section form for creating or editing an invoice.

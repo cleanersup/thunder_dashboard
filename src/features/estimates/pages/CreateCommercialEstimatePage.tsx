@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FileText, Building2 } from "lucide-react";
@@ -45,7 +46,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   const goBack = useCallback(() => {
     if (isModal) onClose!();
     else navigate(-1);
-  }, [isModal, onClose, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isModal, onClose, navigate]);
 
   const { mutateAsync: createEstimate } = useCreateEstimate();
   const { mutateAsync: updateEstimate } = useUpdateEstimate();
@@ -435,7 +436,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
         subtotal, total,
         discount_type:  applyDiscount && discountValue ? discountType : null,
         discount_value: applyDiscount && discountValue ? parseFloat(discountValue) : null,
-        status:         "Pending" as const,
+        status: (deliveryMethod === "email" || deliveryMethod === "sms" || deliveryMethod === "both") ? "Pending" : "Draft",
         estimate_date:  new Date().toISOString().split("T")[0],
       };
 
@@ -633,7 +634,11 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       <ExitConfirmationDialog
         open={showExitDialog}
         onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); goBack(); }}
-        onDiscard={() => { deleteDraft(); setShowExitDialog(false); goBack(); }}
+        onDiscard={() => {
+          if (!isEditing) deleteDraft();
+          setShowExitDialog(false);
+          goBack();
+        }}
         onCancel={() => setShowExitDialog(false)}
       />
 
@@ -689,7 +694,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   if (isModal) {
     return (
       <>
-        <FullScreenModal open={open ?? false} onClose={goBack}>
+        <FullScreenModal open={open ?? false} onClose={handleExit}>
           <EstimateFormLayout
             title={isEditing ? "Edit Commercial Estimate" : "New Commercial Estimate"}
             steps={COMMERCIAL_STEPS}

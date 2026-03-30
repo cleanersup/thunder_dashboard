@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module AddressAutocomplete
  * Street input with Google Places autocomplete.

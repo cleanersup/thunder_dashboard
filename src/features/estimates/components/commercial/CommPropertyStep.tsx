@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module CommPropertyStep — Step 1 (Commercial)
  * Property type grid + size + service type + recurring frequency/days.

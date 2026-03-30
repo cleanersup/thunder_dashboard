@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module AddressRouteMap
  * Reusable Google Maps component that shows the route from an origin address

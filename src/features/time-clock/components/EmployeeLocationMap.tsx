@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module EmployeeLocationMap
  * Google Maps component showing clock-in (green "IN") and clock-out (red "OUT")

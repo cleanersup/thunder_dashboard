@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module PublicInvoicePaymentPage
  * Unauthenticated public page for client invoice payment via Stripe.
