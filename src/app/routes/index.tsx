@@ -65,6 +65,11 @@ const TimeClockPage = lazy(() =>
   import("@/features/time-clock/pages/TimeClockPage").then((m) => ({ default: m.TimeClockPage }))
 );
 
+// Phase 14 — Contracts ✅ (CON-1 skeleton)
+const ContractsPage        = lazy(() => import("@/features/contracts/pages/ContractsPage").then((m) => ({ default: m.ContractsPage })));
+const CreateContractPage   = lazy(() => import("@/features/contracts/pages/CreateContractStep1Page").then((m) => ({ default: m.CreateContractStep1Page })));
+const PublicContractPage   = lazy(() => import("@/features/contracts/pages/PublicContractPage").then((m) => ({ default: m.PublicContractPage })));
+
 // Phase 13 — Subscriptions ✅ (web billing pending RC Web Billing configuration)
 const SubscriptionPlansPage = lazy(() =>
   import("@/features/subscriptions/pages/SubscriptionPlansPage").then((m) => ({ default: m.SubscriptionPlansPage }))
@@ -76,7 +81,6 @@ const EditProfilePage     = lazy(() => import("@/features/settings/pages/EditPro
 const EditCompanyInfoPage = lazy(() => import("@/features/settings/pages/EditCompanyInfoPage").then((m) => ({ default: m.EditCompanyInfoPage })));
 const SecurityPage        = lazy(() => import("@/features/settings/pages/SecurityPage").then((m) => ({ default: m.SecurityPage })));
 const ContactCardPage     = lazy(() => import("@/features/settings/pages/ContactCardPage").then((m) => ({ default: m.ContactCardPage })));
-const ContractPage        = lazy(() => import("@/features/settings/pages/ContractPage").then((m) => ({ default: m.ContractPage })));
 const PrivacyPage         = lazy(() => import("@/features/settings/pages/PrivacyPage").then((m) => ({ default: m.PrivacyPage })));
 
 /**
@@ -153,12 +157,20 @@ export function AppRouter() {
           {/* Phase 13 ✅ */}
           <Route path="/subscription-plans" element={<ProtectedRoute requireSubscription={false}><SubscriptionPlansPage /></ProtectedRoute>} />
 
+          {/* Phase 14 ✅ — Contracts */}
+          <Route path="/contracts"          element={<ProtectedRoute requireSubscription={false}><ContractsPage /></ProtectedRoute>} />
+          <Route path="/contracts/new"      element={<ProtectedRoute requireSubscription={false}><CreateContractPage /></ProtectedRoute>} />
+          <Route path="/contracts/:id/edit" element={<ProtectedRoute requireSubscription={false}><CreateContractPage /></ProtectedRoute>} />
+          {/* Legacy redirect */}
+          <Route path="/contract"           element={<Navigate to="/contracts" replace />} />
+          {/* Public — no auth required */}
+          <Route path="/public/contract/:token" element={<PublicContractPage />} />
+
           {/* Phase 12 ✅ */}
           <Route path="/profile"            element={<ProtectedRoute requireSubscription={false}><ProfilePage /></ProtectedRoute>} />
           <Route path="/edit-profile"       element={<ProtectedRoute requireSubscription={false}><EditProfilePage /></ProtectedRoute>} />
           <Route path="/edit-company-info"  element={<ProtectedRoute requireSubscription={false}><EditCompanyInfoPage /></ProtectedRoute>} />
           <Route path="/edit-security"      element={<ProtectedRoute requireSubscription={false}><SecurityPage /></ProtectedRoute>} />
-          <Route path="/contract"           element={<ProtectedRoute requireSubscription={false}><ContractPage /></ProtectedRoute>} />
           {/* Public — no auth required */}
           <Route path="/privacy"             element={<PrivacyPage />} />
           <Route path="/contact-card/:userId" element={<ContactCardPage />} />

@@ -10,8 +10,8 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import {
   ChevronLeft, Calendar as CalendarIcon, Plus, Trash2,
-  User, FileText, List, Calculator, StickyNote,
-  Building2, Mail, Phone, MapPin, Paperclip, X,
+  FileText, List, Calculator, StickyNote,
+  Paperclip, X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button }   from "@/shared/components/ui/button";
@@ -30,16 +30,13 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import { ClientForm } from "@/features/crm/clients/components/ClientForm";
+import { ClientPicker } from "@/shared/components/common/ClientPicker";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { Calendar } from "@/shared/components/ui/calendar";
 import { cn }       from "@/shared/utils/cn";
 import { toast }    from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
 import { useAuth }   from "@/shared/hooks/useAuth";
 import { useProfile } from "@/shared/hooks/useProfile";
-import { QK }        from "@/shared/config/queryKeys";
-import { useClients } from "@/features/crm/clients/hooks/useClients";
 import { useInvoice } from "../hooks/useInvoices";
 import { useLineItems } from "../hooks/useLineItems";
 import { generateInvoiceNumber, updateInvoice, createInvoice } from "../services/invoicesService";
@@ -67,7 +64,6 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
   const id            = editId ?? urlId;
   const { user }      = useAuth();
   const { data: profile } = useProfile();
-  const qc            = useQueryClient();
   const isEditing        = !!id;
   const isModal          = onClose !== undefined;
   const goBack           = useCallback(() => {
@@ -95,7 +91,6 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
   const [isLoading,     setIsLoading]     = useState(false);
   const [showExitDialog,    setShowExitDialog]    = useState(false);
   const [showClientWarning, setShowClientWarning] = useState(false);
-  const [showNewClient,     setShowNewClient]     = useState(false);
   const [showStripeModal,   setShowStripeModal]   = useState(false);
   const [issueDateOpen, setIssueDateOpen] = useState(false);
   const [dueDateOpen,   setDueDateOpen]   = useState(false);
@@ -113,9 +108,6 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
     const isConfigured = !!(p.stripe_account_id && p.stripe_onboarding_completed);
     if (!isConfigured) setShowStripeModal(true);
   }, [isEditing, profile]);
-
-  // ── Clients ────────────────────────────────────────────────────────────────
-  const { data: clients = [] } = useClients();
 
   // ── Prefill from estimate conversion ──────────────────────────────────────
   useEffect(() => {
@@ -325,16 +317,6 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
     }
   };
 
-  // ── Selected client address ────────────────────────────────────────────────
-  const selectedClientAddress = selectedClient
-    ? [
-        selectedClient.service_street,
-        selectedClient.service_city,
-        selectedClient.service_state,
-        selectedClient.service_zip,
-      ].filter(Boolean).join(", ")
-    : null;
-
   // ─── Shared JSX blocks ────────────────────────────────────────────────────
 
   const formCards = (
@@ -449,85 +431,11 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
       </Card>
 
       {/* ── Customer Information ────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Customer Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Select
-            value={selectedClient?.id ?? ""}
-            onValueChange={(clientId) => {
-              const c = clients.find((c) => c.id === clientId);
-              if (c) setSelectedClient(c);
-            }}
-          >
-            <SelectTrigger className={cn(errors.selectedClient && "border-destructive")}>
-              <SelectValue placeholder="Select customer" />
-            </SelectTrigger>
-            <SelectContent>
-              {clients.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.full_name}
-                </SelectItem>
-              ))}
-              {clients.length === 0 && (
-                <p className="px-2 py-4 text-center text-sm text-muted-foreground">
-                  No clients found
-                </p>
-              )}
-            </SelectContent>
-          </Select>
-
-          {errors.selectedClient && (
-            <p className="text-xs text-destructive">Please select a client</p>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setShowNewClient(true)}
-            className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add New Client
-          </button>
-
-          {/* Selected client card */}
-          {selectedClient && (
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <User className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <p className="font-semibold text-sm">{selectedClient.full_name}</p>
-                    {selectedClient.company && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Building2 className="w-3 h-3 flex-shrink-0" />
-                        {selectedClient.company}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Mail className="w-3 h-3 flex-shrink-0" /> {selectedClient.email}
-                    </p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Phone className="w-3 h-3 flex-shrink-0" /> {selectedClient.phone}
-                    </p>
-                    {selectedClientAddress && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <MapPin className="w-3 h-3 flex-shrink-0" /> {selectedClientAddress}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </CardContent>
-      </Card>
+      <ClientPicker
+        selectedClient={selectedClient}
+        onClientSelect={setSelectedClient}
+        error={errors.selectedClient}
+      />
 
       {/* ── Line Items ──────────────────────────────────────────────── */}
       <Card>
@@ -856,15 +764,6 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
       {/* ── Stripe check modal ──────────────────────────────────────────── */}
       <StripeCheckModal open={showStripeModal} onOpenChange={setShowStripeModal} />
 
-      {/* ── Add New Client dialog (reuses CRM ClientForm) ──────────────── */}
-      <ClientForm
-        open={showNewClient}
-        onClose={() => setShowNewClient(false)}
-        onSuccess={(client) => {
-          setSelectedClient(client);
-          qc.invalidateQueries({ queryKey: QK.clients });
-        }}
-      />
     </>
   );
 
