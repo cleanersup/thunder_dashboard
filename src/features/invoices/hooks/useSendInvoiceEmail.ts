@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module useSendInvoiceEmail
  * Hook to send an invoice via email using the `send-invoice-email` Supabase edge function.

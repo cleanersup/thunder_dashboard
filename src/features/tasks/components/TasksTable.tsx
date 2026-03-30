@@ -167,7 +167,7 @@ export function TasksTable({ searchQuery, showForm, onCloseForm }: TasksTablePro
       ),
       className: "w-12 text-right",
     },
-  ], []); // eslint-disable-line react-hooks/exhaustive-deps
+  ], []);
 
   const filteredTasks = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();

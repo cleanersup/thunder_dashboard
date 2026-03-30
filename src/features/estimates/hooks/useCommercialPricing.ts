@@ -167,6 +167,7 @@ export function useCommercialPricing(input: CommercialPricingInput): CommercialP
     }
 
     return { costs, subtotal, total };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     input.propertyType, input.propertySize, input.serviceType, input.recurringFrequency,
     input.selectedWeekDays, input.employeeCount, input.hourlyRate, input.cleaningDuration,

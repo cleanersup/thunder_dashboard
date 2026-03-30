@@ -109,7 +109,6 @@ export function CreateContractStep1Page({
       our_services:     (p.our_services_default   as string) ?? (p.our_services       as string) ?? "",
       service_coverage: (p.service_coverage_default as string) ?? (p.service_coverage as string) ?? "",
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, isEditing]);
 
   // ── Prefill from existing contract on edit ───────────────────────────────────
@@ -139,7 +138,6 @@ export function CreateContractStep1Page({
     if (c.recipient_id) {
       fetchClient(c.recipient_id).then(setInitialClient).catch(() => null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingContract, isEditing]);
 
   // ── Send handler (used by ContractSendStep) ──────────────────────────────────

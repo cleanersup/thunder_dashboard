@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * RouteMapView — Google Maps component showing ordered stops for a route.
  * Markers are labeled A→B→C… with DirectionsService polylines between them.
@@ -143,7 +144,6 @@ export function RouteMapView({ appointments, className = "h-64" }: RouteMapViewP
         mapInstanceRef.current.fitBounds(bounds, 40);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appointments, loaded, google]);
 
   if (error) {

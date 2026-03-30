@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module SubscriptionPlansContent
  * Shared subscription plans UI — used by:

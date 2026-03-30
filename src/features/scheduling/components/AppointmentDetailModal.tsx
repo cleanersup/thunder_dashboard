@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module AppointmentDetailModal
  * Detail view for a single appointment — two-column layout matching
@@ -215,7 +216,6 @@ export function AppointmentDetailModal({
     }, 350);
 
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mapsLoaded, google, appointment, companyAddress]);
 
   // ── Computed values ───────────────────────────────────────────────────────

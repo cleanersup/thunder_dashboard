@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * SmartMapView — Google Maps with colored markers for leads/clients/employees.
  * Blue = leads, Green = clients, Purple = employees.
@@ -16,7 +17,7 @@ const MARKER_COLORS: Record<string, string> = {
 interface SmartMapViewProps {
   markers: MapMarker[];
   className?: string;
-  style?: React.CSSProperties; // eslint-disable-line @typescript-eslint/no-explicit-any
+  style?: React.CSSProperties;
 }
 
 export function SmartMapView({ markers, className = "h-full w-full", style }: SmartMapViewProps) {

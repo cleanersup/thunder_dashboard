@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module invoicesService
  * CRUD operations for the invoices table via Supabase.

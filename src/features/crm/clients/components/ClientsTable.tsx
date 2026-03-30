@@ -173,7 +173,7 @@ export function ClientsTable({ searchQuery, showForm, onCloseForm }: ClientsTabl
       ),
       className: "w-12 text-right",
     },
-  ], []); // eslint-disable-line react-hooks/exhaustive-deps
+  ], []);
 
   const filteredClients = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();

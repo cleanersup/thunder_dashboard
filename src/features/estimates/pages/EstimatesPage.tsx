@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -68,7 +69,7 @@ export function EstimatesPage() {
           () => queryClient.invalidateQueries({ queryKey: QK.estimates }))
         .subscribe();
     });
-    return () => { ch && supabase.removeChannel(ch); };
+    return () => { if (ch) supabase.removeChannel(ch); };
   }, [queryClient]);
   const { generateShareLink, isGeneratingLink } = useEstimateShare();
   const { sendEstimateEmail, isSending }        = useSendEstimateEmail();

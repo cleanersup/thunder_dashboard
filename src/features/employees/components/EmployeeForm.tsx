@@ -180,7 +180,7 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
   // ─── Submit ──────────────────────────────────────────────────────────────
 
   const onSubmit = async (data: EmployeeFormData) => {
-    let documentPaths: string[] = [...existingDocs];
+    const documentPaths: string[] = [...existingDocs];
 
     if (docFiles.length > 0) {
       const { data: { user } } = await supabase.auth.getUser();

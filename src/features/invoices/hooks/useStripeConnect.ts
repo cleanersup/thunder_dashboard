@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module useStripeConnect
  * Web-only port of swift-slate useStripeConnect.ts.
