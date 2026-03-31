@@ -11,36 +11,8 @@ import { CheckCircle, FileSignature, AlertCircle, Loader2 } from "lucide-react";
 import { Button }  from "@/shared/components/ui/button";
 import { ContractPreview } from "../components/ContractPreview";
 import { useContractByToken, useAcceptContract } from "../hooks/useContract";
-import { fetchContractOwnerProfile } from "../services/contractsService";
-import { useQuery } from "@tanstack/react-query";
+import { useContractOwnerProfile } from "../hooks/useContractOwnerProfile";
 import { format, parseISO } from "date-fns";
-
-const USE_MOCKS = import.meta.env.VITE_USE_CONTRACT_MOCKS === "true";
-
-// ─── Owner profile query ───────────────────────────────────────────────────────
-
-function useContractOwnerProfile(userId: string | undefined) {
-  return useQuery({
-    queryKey: ["contract-owner-profile", userId],
-    queryFn: async () => {
-      if (USE_MOCKS) {
-        return {
-          company_name: "Thunder Pro Services",
-          company_logo: null,
-          company_email: "info@thunderpro.com",
-          company_phone: "(555) 123-4567",
-          company_address: "123 Main Street",
-          company_city: "Miami",
-          company_state: "FL",
-          company_zip: "33101",
-        };
-      }
-      return fetchContractOwnerProfile(userId!);
-    },
-    enabled: !!userId,
-    staleTime: 60_000,
-  });
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

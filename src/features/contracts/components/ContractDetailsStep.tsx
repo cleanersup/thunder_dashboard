@@ -97,6 +97,7 @@ export function ContractDetailsStep({
 
   // ── Client select handler ─────────────────────────────────────────────────
   const handleClientSelect = (client: ClientEntity) => {
+    if (!client.id) { toast.error("Selected client has no valid ID"); return; }
     setSelectedClient(client);
     const addr = [client.service_street, client.service_city, client.service_state, client.service_zip]
       .filter(Boolean).join(", ");
