@@ -11,7 +11,7 @@ export const contractStep1Schema = z.object({
   recipient_email: z.string().email("Invalid email").or(z.literal("")),
   recipient_phone: z.string().optional().default(""),
   recipient_address: z.string().optional().default(""),
-  recipient_type: z.enum(["client", "lead"]),
+  recipient_type: z.literal("client"),
   recipient_id: z.string().nullable().optional(),
   start_date: z.string().min(1, "Start date is required"),
   end_date: z.string().min(1, "End date is required"),

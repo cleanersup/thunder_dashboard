@@ -150,16 +150,19 @@ export function CreateContractStep1Page({
       const created = await createM.mutateAsync(formData);
       contractId = created.id;
     }
-    // Email is best-effort: contract is already saved regardless of send outcome
+
+    // Contract is complete — always set to Pending regardless of delivery method
+    if (!USE_MOCKS) {
+      const svc = await import("../services/contractsService");
+      await svc.updateContractStatus(contractId, "Pending");
+    }
+
+    // Email send is best-effort: failure doesn't block the success flow
     if (!USE_MOCKS && formData.delivery_method === "email") {
       try {
         await sendEmail.mutateAsync({ contractId, recipientEmail: formData.recipient_email });
-        // Update status to Pending after successful email send
-        const svc = await import("../services/contractsService");
-        await svc.updateContractStatus(contractId, "Pending");
       } catch {
-        // sendEmail shows its own error toast; we don't re-throw so the success
-        // flow still proceeds and the user sees the contract in the list
+        // sendEmail shows its own error toast
       }
     }
   };

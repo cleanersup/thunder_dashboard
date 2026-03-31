@@ -2,7 +2,10 @@
  * @module ContractsPage
  * CON-2: Main contracts list page — 3-panel analytics, toolbar, table with actions.
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { QK } from "@/shared/config/queryKeys";
 import { format } from "date-fns";
 import {
   Plus, Search, MoreHorizontal, ChevronLeft, ChevronRight,
@@ -90,10 +93,29 @@ export function ContractsPage() {
   const [deleteContract, setDeleteContract] = useState<Contract | null>(null);
 
   // ── Data ──────────────────────────────────────────────────────────────────
+  const queryClient = useQueryClient();
   const { data: allContracts = [], isLoading } = useContracts();
   const deleteM    = useDeleteContract();
   const sendEmail  = useSendContractEmail();
   const { hasAccess, daysRemaining, reason } = useContractAccess();
+
+  // ── Real-time: refetch when contract status changes (e.g. client accepts) ─
+  useEffect(() => {
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      ch = supabase
+        .channel("contracts-list-realtime")
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "contracts", filter: `user_id=eq.${user.id}` },
+          () => queryClient.invalidateQueries({ queryKey: QK.contracts }))
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "contracts", filter: `user_id=eq.${user.id}` },
+          () => queryClient.invalidateQueries({ queryKey: QK.contracts }))
+        .on("postgres_changes", { event: "DELETE", schema: "public", table: "contracts", filter: `user_id=eq.${user.id}` },
+          () => queryClient.invalidateQueries({ queryKey: QK.contracts }))
+        .subscribe();
+    });
+    return () => { if (ch) supabase.removeChannel(ch); };
+  }, [queryClient]);
 
   // ── Analytics ─────────────────────────────────────────────────────────────
   const active   = allContracts.filter((c) => c.status === "Active");
