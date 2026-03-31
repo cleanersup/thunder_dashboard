@@ -74,3 +74,24 @@ export const MANUAL_ONLY_KEYS = new Set([
   "purpose_of_agreement",
   "price_and_payment",
 ]);
+
+/**
+ * Maps frontend clause key (snake_case) → backend clauseType (camelCase).
+ * The edge function `generate-company-description` uses camelCase keys.
+ */
+export const CLAUSE_KEY_TO_BACKEND: Record<string, string> = {
+  cancellation_policy: "cancellationPolicy",
+  no_refund:           "noRefundClause",
+  non_compete:         "nonCompeteClause",
+  anti_harassment:     "antiHarassment",
+  liability_insurance: "liabilityInsurance",
+  confidentiality:     "confidentiality",
+};
+
+/** Maps Step 1 field name → profile column for saving defaults */
+export const DESCRIPTION_PROFILE_MAP: Record<string, string> = {
+  who_we_are:       "who_we_are_default",
+  why_choose_us:    "why_choose_us_default",
+  our_services:     "our_services_default",
+  service_coverage: "service_coverage_default",
+};

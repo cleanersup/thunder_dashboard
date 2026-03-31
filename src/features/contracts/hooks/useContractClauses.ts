@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { CLAUSE_PROFILE_MAP } from "../config/contracts.config";
+import { CLAUSE_PROFILE_MAP, CLAUSE_KEY_TO_BACKEND } from "../config/contracts.config";
 import type { ContractClause } from "../types/contract.types";
 
 /**
@@ -27,8 +27,9 @@ export function useContractClauses() {
   ): Promise<string | null> => {
     setGeneratingKey(key);
     try {
+      const backendKey = CLAUSE_KEY_TO_BACKEND[key] ?? key;
       const { data, error } = await supabase.functions.invoke("generate-company-description", {
-        body: { companyName, type: "contract_clause", clauseType: key, clauseTitle: title },
+        body: { companyName, type: "contract_clause", clauseType: backendKey, clauseTitle: title },
       });
       if (error) throw error;
       if (data?.description) {

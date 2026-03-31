@@ -672,11 +672,14 @@ export function ContractsPage() {
       />
 
       {/* ── Create / Edit modal ────────────────────────────────────────────── */}
-      <CreateContractStep1Page
-        open={showCreate}
-        onClose={() => { setShowCreate(false); setEditId(undefined); }}
-        editId={editId}
-      />
+      {showCreate && (
+        <CreateContractStep1Page
+          key={editId ?? "new"}
+          open={showCreate}
+          onClose={() => { setShowCreate(false); setEditId(undefined); }}
+          editId={editId}
+        />
+      )}
 
       {/* ── Renew modal (CON-8) ────────────────────────────────────────────── */}
       <RenewContractModal

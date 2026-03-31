@@ -7,7 +7,7 @@ import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import {
   CalendarIcon, DollarSign, Building2, Check,
-  ClipboardList, Globe, Sparkles, Loader2,
+  ClipboardList, Globe, Sparkles, Loader2, Save,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button }   from "@/shared/components/ui/button";
@@ -68,7 +68,7 @@ export function ContractDetailsStep({
   );
 
   // ── Auto-generate ─────────────────────────────────────────────────────────
-  const { generateField, generatingField } = useContractDescription();
+  const { generateField, generatingField, saveDescription, savingField } = useContractDescription();
 
   // Dialogs for fields that accept a user-provided list before generating
   const [showServicesDialog, setShowServicesDialog] = useState(false);
@@ -327,22 +327,37 @@ export function ContractDetailsStep({
               <Building2 className="w-4 h-4" />
               Who We Are
             </CardTitle>
-            {!formData.who_we_are.trim() && (
-              <Button
-                variant="outline" size="sm"
-                className="h-7 text-xs gap-1"
-                disabled={generatingField !== null}
-                onClick={async () => {
-                  const result = await generateField("who_we_are");
-                  if (result) onChange({ who_we_are: result });
-                }}
-              >
-                {generatingField === "who_we_are"
-                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                  : <><Sparkles className="w-3 h-3" /> Auto Generate</>
-                }
-              </Button>
-            )}
+            <div className="flex items-center gap-1.5">
+              {!formData.who_we_are.trim() && (
+                <Button
+                  variant="outline" size="sm"
+                  className="h-7 text-xs gap-1"
+                  disabled={generatingField !== null}
+                  onClick={async () => {
+                    const result = await generateField("who_we_are");
+                    if (result) onChange({ who_we_are: result });
+                  }}
+                >
+                  {generatingField === "who_we_are"
+                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
+                    : <><Sparkles className="w-3 h-3" /> Auto Generate</>
+                  }
+                </Button>
+              )}
+              {formData.who_we_are.trim() && (
+                <Button
+                  variant="outline" size="sm"
+                  className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
+                  disabled={savingField !== null}
+                  onClick={() => saveDescription("who_we_are", formData.who_we_are)}
+                >
+                  {savingField === "who_we_are"
+                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
+                    : <><Save className="w-3 h-3" /> Save as Default</>
+                  }
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0 pt-3">
@@ -363,22 +378,37 @@ export function ContractDetailsStep({
               <Check className="w-4 h-4" />
               Why Choose Us
             </CardTitle>
-            {!formData.why_choose_us.trim() && (
-              <Button
-                variant="outline" size="sm"
-                className="h-7 text-xs gap-1"
-                disabled={generatingField !== null}
-                onClick={async () => {
-                  const result = await generateField("why_choose_us");
-                  if (result) onChange({ why_choose_us: result });
-                }}
-              >
-                {generatingField === "why_choose_us"
-                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                  : <><Sparkles className="w-3 h-3" /> Auto Generate</>
-                }
-              </Button>
-            )}
+            <div className="flex items-center gap-1.5">
+              {!formData.why_choose_us.trim() && (
+                <Button
+                  variant="outline" size="sm"
+                  className="h-7 text-xs gap-1"
+                  disabled={generatingField !== null}
+                  onClick={async () => {
+                    const result = await generateField("why_choose_us");
+                    if (result) onChange({ why_choose_us: result });
+                  }}
+                >
+                  {generatingField === "why_choose_us"
+                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
+                    : <><Sparkles className="w-3 h-3" /> Auto Generate</>
+                  }
+                </Button>
+              )}
+              {formData.why_choose_us.trim() && (
+                <Button
+                  variant="outline" size="sm"
+                  className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
+                  disabled={savingField !== null}
+                  onClick={() => saveDescription("why_choose_us", formData.why_choose_us)}
+                >
+                  {savingField === "why_choose_us"
+                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
+                    : <><Save className="w-3 h-3" /> Save as Default</>
+                  }
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0 pt-3">
@@ -399,19 +429,34 @@ export function ContractDetailsStep({
               <ClipboardList className="w-4 h-4" />
               Our Services
             </CardTitle>
-            {!formData.our_services.trim() && (
-              <Button
-                variant="outline" size="sm"
-                className="h-7 text-xs gap-1"
-                disabled={generatingField !== null}
-                onClick={() => setShowServicesDialog(true)}
-              >
-                {generatingField === "our_services"
-                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                  : <><Sparkles className="w-3 h-3" /> Auto Generate</>
-                }
-              </Button>
-            )}
+            <div className="flex items-center gap-1.5">
+              {!formData.our_services.trim() && (
+                <Button
+                  variant="outline" size="sm"
+                  className="h-7 text-xs gap-1"
+                  disabled={generatingField !== null}
+                  onClick={() => setShowServicesDialog(true)}
+                >
+                  {generatingField === "our_services"
+                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
+                    : <><Sparkles className="w-3 h-3" /> Auto Generate</>
+                  }
+                </Button>
+              )}
+              {formData.our_services.trim() && (
+                <Button
+                  variant="outline" size="sm"
+                  className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
+                  disabled={savingField !== null}
+                  onClick={() => saveDescription("our_services", formData.our_services)}
+                >
+                  {savingField === "our_services"
+                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
+                    : <><Save className="w-3 h-3" /> Save as Default</>
+                  }
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0 pt-3">
@@ -432,19 +477,34 @@ export function ContractDetailsStep({
               <Globe className="w-4 h-4" />
               Service Coverage
             </CardTitle>
-            {!formData.service_coverage.trim() && (
-              <Button
-                variant="outline" size="sm"
-                className="h-7 text-xs gap-1"
-                disabled={generatingField !== null}
-                onClick={() => setShowCitiesDialog(true)}
-              >
-                {generatingField === "service_coverage"
-                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                  : <><Sparkles className="w-3 h-3" /> Auto Generate</>
-                }
-              </Button>
-            )}
+            <div className="flex items-center gap-1.5">
+              {!formData.service_coverage.trim() && (
+                <Button
+                  variant="outline" size="sm"
+                  className="h-7 text-xs gap-1"
+                  disabled={generatingField !== null}
+                  onClick={() => setShowCitiesDialog(true)}
+                >
+                  {generatingField === "service_coverage"
+                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
+                    : <><Sparkles className="w-3 h-3" /> Auto Generate</>
+                  }
+                </Button>
+              )}
+              {formData.service_coverage.trim() && (
+                <Button
+                  variant="outline" size="sm"
+                  className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
+                  disabled={savingField !== null}
+                  onClick={() => saveDescription("service_coverage", formData.service_coverage)}
+                >
+                  {savingField === "service_coverage"
+                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
+                    : <><Save className="w-3 h-3" /> Save as Default</>
+                  }
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0 pt-3">
