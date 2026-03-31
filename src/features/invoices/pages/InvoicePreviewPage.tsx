@@ -325,23 +325,23 @@ export function InvoicePreviewPage() {
         </Card>
       </div>
 
-      {/* ── Sticky footer ──────────────────────────────────────────────── */}
-      <div className="sticky bottom-0 bg-background border-t px-4 py-3 flex gap-3">
-        <Button
-          variant="outline"
-          className="flex-1 h-12"
-          onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
-          disabled={isBusy}
-        >
-          Back
-        </Button>
-        <Button
-          className="flex-1 h-12"
-          onClick={handleSend}
-          disabled={isBusy}
-        >
-          {isBusy ? "Sending..." : "Send Invoice"}
-        </Button>
+      {/* ── Footer — match CreateInvoicePage (sm buttons, card bar, max-w-2xl) ─ */}
+      <div className="sticky bottom-0 w-full max-w-2xl mx-auto px-4 pb-6">
+        <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
+            disabled={isBusy}
+          >
+            Back
+          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={handleSend} disabled={isBusy}>
+              {isBusy ? "Sending..." : "Send Invoice"}
+            </Button>
+          </div>
+        </div>
       </div>
 
     </div>
