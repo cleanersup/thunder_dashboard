@@ -114,11 +114,9 @@ export function ContractDetailModal({ contract, open, onClose, onEdit }: Contrac
               Timestamps
             </h3>
             <InfoRow icon={CalendarIcon} label="Created"  value={fmtDate(contract.created_at)} />
-            {contract.sent_at && (
-              <InfoRow icon={Send}       label="Sent"     value={fmtDate(contract.sent_at)} />
-            )}
-            {contract.accepted_at && (
-              <InfoRow icon={FileSignature} label="Accepted" value={fmtDate(contract.accepted_at)} />
+            <InfoRow icon={CalendarIcon} label="Updated"  value={fmtDate(contract.updated_at)} />
+            {contract.renewed_at && (
+              <InfoRow icon={FileSignature} label="Renewed" value={fmtDate(contract.renewed_at)} />
             )}
           </div>
         </div>

@@ -53,14 +53,12 @@ export function PublicContractPage() {
     );
   }
 
-  const isAlreadyAccepted = !!contract.accepted_at || accepted;
+  const isAlreadyAccepted = contract.status === "Active" || accepted;
 
   // ── Accepted confirmation ─────────────────────────────────────────────────
 
   if (isAlreadyAccepted) {
-    const acceptedDate = accepted
-      ? new Date().toISOString()
-      : contract.accepted_at!;
+    const acceptedDate = new Date().toISOString();
 
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background px-4 text-center">

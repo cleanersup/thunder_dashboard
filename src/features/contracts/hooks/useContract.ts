@@ -1,36 +1,20 @@
 /**
  * @module useContract
- * React Query hook for a single contract by ID.
+ * React Query hooks for a single contract by ID or public token.
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { QK } from "@/shared/config/queryKeys";
-import type { Contract } from "../types/contract.types";
-
-const USE_MOCKS = import.meta.env.VITE_USE_CONTRACT_MOCKS === "true";
-
-async function getContract(id: string): Promise<Contract> {
-  if (USE_MOCKS) {
-    const svc = await import("../mocks/contractsMockService");
-    return svc.fetchContractByIdMock(id);
-  }
-  const svc = await import("../services/contractsService");
-  return svc.fetchContractById(id);
-}
-
-async function getContractByToken(token: string): Promise<Contract> {
-  if (USE_MOCKS) {
-    const svc = await import("../mocks/contractsMockService");
-    return svc.fetchContractByTokenMock(token);
-  }
-  const svc = await import("../services/contractsService");
-  return svc.fetchContractByToken(token);
-}
+import {
+  fetchContractById,
+  fetchContractByToken,
+  acceptContract,
+} from "../services/contractsService";
 
 export function useContract(id: string | undefined) {
   return useQuery({
     queryKey: QK.contract(id!),
-    queryFn: () => getContract(id!),
+    queryFn: () => fetchContractById(id!),
     enabled: !!id,
     staleTime: 30_000,
   });
@@ -39,7 +23,7 @@ export function useContract(id: string | undefined) {
 export function useContractByToken(token: string | undefined) {
   return useQuery({
     queryKey: ["contract-public", token],
-    queryFn: () => getContractByToken(token!),
+    queryFn: () => fetchContractByToken(token!),
     enabled: !!token,
     staleTime: 0,
     retry: false,
@@ -50,14 +34,9 @@ export function useAcceptContract(token: string | undefined) {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: () => {
       if (!token) throw new Error("No token");
-      if (USE_MOCKS) {
-        const svc = await import("../mocks/contractsMockService");
-        return svc.acceptContractMock(token);
-      }
-      const svc = await import("../services/contractsService");
-      return svc.acceptContract(token);
+      return acceptContract(token);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["contract-public", token] });

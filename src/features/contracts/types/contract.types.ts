@@ -34,17 +34,14 @@ export interface Contract {
   recipient_email: string | null;
   recipient_phone: string | null;
   recipient_address: string | null;
-  recipient_type: ContractRecipientType;
-  recipient_id: string | null;
 
   // Dates
   start_date: string; // ISO date
   end_date: string;   // ISO date
   created_at: string;
   updated_at: string;
-  sent_at: string | null;
-  accepted_at: string | null;
   renewed_at: string | null;
+  viewed_at: string | null;
 
   // Company info (pre-populated from profile defaults)
   who_we_are: string | null;
@@ -62,11 +59,14 @@ export interface Contract {
 
   // Status & delivery
   status: ContractStatus;
-  delivery_method: ContractDeliveryMethod;
+  delivery_method: ContractDeliveryMethod | null;
 
-  // Acceptance
-  accept_token: string | null;
-  accepted_ip: string | null;
+  // Public share
+  public_share_token: string | null;
+
+  // recipient_id: stored in DB, links to CRM client
+  recipient_id: string | null;
+
 }
 
 // ─── Clause ───────────────────────────────────────────────────────────────────

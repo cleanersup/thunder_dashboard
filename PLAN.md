@@ -1,9 +1,9 @@
 # Thunder Dashboard — Plan Maestro de Migración Web
 
 > **Estado actual:** 🟢 En progreso
-> **Fase activa:** F21 Contracts ✅ COMPLETA (+ auditoría SOLID) — siguiente: F22 Auto Generate Contracts
-> **Última actualización:** 2026-03-26
-> **Sesión anterior:** Auditoría SOLID de feature Contracts + refactor wizard CreateContractStep1Page (1331 líneas → ~200 thin orchestrator). Extraídos: ContractDetailsStep (usa EstimateClientStep), ContractClausesStep, ContractSendStep, ContractFormLayout (header estilo invoice), useContractClauses (saca Supabase del componente). Build: 0 errores. Siguiente: F22 Auto Generate Contracts (Claude Haiku).
+> **Fase activa:** F21 Contracts ✅ COMPLETA (+ auditoría SOLID + bug fixes post-lanzamiento)
+> **Última actualización:** 2026-04-01
+> **Sesión anterior:** Bug fixes post-lanzamiento contracts: fix DB schema (public_share_token, recipient_id, profile columns company_description/why_choose_us/our_services/service_coverage), UX Step 1 fields (Auto Generate + Use Default + Save as Default + Clear siempre visibles). F22 Auto Generate con Claude Haiku — CANCELADA.
 
 ---
 
@@ -795,7 +795,8 @@ Esto significa:
 | 2026-03-05 | F6 ✅, F20 ✅ | BookingDetailModal: AddressRouteMap empresa→cliente. BookingPage: realtime channel `bookings_changes`. F10B (Employee Portal) eliminado — corre desde swift-slate. F20 marcado como completo. Build: 0 errores. |
 | 2026-03-04 | F19 ✅ + SmartMap redesign ✅ | F19 Time Clock completo: types, service (fetchTodayEntries/Scheduled/All/Employee/PaidPeriods, markAsPaid, updateTimeEntryTimes con audit trail), hooks (useShiftTimeEdit state-machine + useTimeClock 6 hooks), generateTimesheetPDF (Blob + .save), 6 componentes (TimeClockKPICards, ShiftCard, ShiftTimeEditConfirmModal, EmployeeDetailView, TodayTab, TimesheetsTab), TimeClockPage redesign: tabla desktop con tabs inline + toolbar (search + date picker) + EmployeeDetailView overlay. SmartMap upgrade: useSmartMap multi-select string[] + toggleFilter(), SmartMapView InfoWindow HTML con badge tipo coloreado + email/phone links, SmartMapPage 3-card layout (KPI border-l-4 × 4 + toolbar filter tabs coloreados + map card minHeight). queryKeys.ts: 5 keys time-clock. routes: lazy TimeClockPage. Build: 0 errores. |
 | 2026-03-26 | CON-4 ✅ CON-5 ✅ CON-6 ✅ CON-11 ✅ CON-12 ✅ | Step 2 Policies: drag-to-reorder nativo, Auto Generate (generate-company-description edge fn), Save as Default (profile cols clause_*), Add Custom Policy modal, delete confirm, init desde profile. Step 3 Preview + Send: ContractPreview HTML (paginado), generateContractPDF (jsPDF adaptado a ContractClause[]), DeliveryMethodSelector, Download PDF, Send Contract (createM/updateM → sendEmail/sendSMS), success dialog. ContractDetailModal (DetailModal+InfoRow, 2-col grid, Resend Email/SMS, Edit action). CON-12: useContractAccess trial banner + no-access banner en ContractsPage. View Details wireable + row click → detail modal. Build: 0 errores. |
-| 2026-03-20 | F21 + F22 planificadas | Contratos: plan completo de migración desde thunder-web-version. F21 = feature completa sin IA. F22 = Auto Generate con Claude Haiku (Anthropic). |
+| 2026-03-20 | F21 planificada | Contratos: plan completo de migración desde thunder-web-version. |
+| 2026-04-01 | F22 cancelada | Auto Generate con Claude Haiku — descartado, no se implementará. |
 | 2026-03-25 | Profile redesign ✅ | ProfilePage: centered max-w-2xl card + underline tabs (info/company/security/subscriptions). SubscriptionPlansContent: Switch billing toggle + ACTIVE badge top-left ribbon. Stripe error handling: data.error detection + AlertDialog feedback. Build: 0 errores. |
 | 2026-03-26 | CON-3 footer fix ✅ | Footer wizard: removido fixed bottom-0. Ahora inline dentro del scroll (mt-4, justify-between). Botones: Cancel (outline, px-6) izquierda → abre exit dialog — Next (primary, px-6) derecha. Max-w-2xl centrado en desktop. "Leave" en exit dialog usa goBack() (cierra modal o navega). Build: 0 errores. |
 | 2026-03-26 | CON-3 ✅ + FullScreenModal ✅ | CreateContractPage convertido a FullScreenModal (abre desde ContractsPage con showCreate/editId state, no navega). ContractsPage: import CreateContractStep1Page, modal state, New Contract button + Edit/Renew dropdown items abren modal. Build: 0 errores. |

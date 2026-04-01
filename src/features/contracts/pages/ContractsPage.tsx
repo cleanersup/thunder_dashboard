@@ -588,7 +588,7 @@ export function ContractsPage() {
                               onClick={(e) => { e.stopPropagation(); handleSend(contract); }}
                             >
                               <Send className="w-4 h-4 mr-2" />
-                              {contract.sent_at ? "Resend" : "Send"}
+                              Resend
                             </DropdownMenuItem>
                           </>
                         )}

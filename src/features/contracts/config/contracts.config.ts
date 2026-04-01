@@ -90,8 +90,8 @@ export const CLAUSE_KEY_TO_BACKEND: Record<string, string> = {
 
 /** Maps Step 1 field name → profile column for saving defaults */
 export const DESCRIPTION_PROFILE_MAP: Record<string, string> = {
-  who_we_are:       "who_we_are_default",
-  why_choose_us:    "why_choose_us_default",
-  our_services:     "our_services_default",
-  service_coverage: "service_coverage_default",
+  who_we_are:       "company_description",
+  why_choose_us:    "why_choose_us",
+  our_services:     "our_services",
+  service_coverage: "service_coverage",
 };

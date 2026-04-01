@@ -53,7 +53,19 @@ export function ContractSendStep({
       description: `Send PDF contract to ${formData.recipient_email || "recipient's email"}`,
       detail: "PDF Attachment · Professional Format",
     },
-  ], [formData.recipient_email]);
+    {
+      value: "sms",
+      title: "SMS Delivery",
+      description: `Send contract link to ${formData.recipient_phone || "recipient's phone"}`,
+      detail: "Text Message · Direct Link",
+    },
+    {
+      value: "both",
+      title: "Email & SMS",
+      description: "Send via email and text message",
+      detail: "PDF Attachment + Direct Link",
+    },
+  ], [formData.recipient_email, formData.recipient_phone]);
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -86,7 +98,7 @@ export function ContractSendStep({
   };
 
   const handleSend = async () => {
-    if (!formData.delivery_method || formData.delivery_method !== "email") {
+    if (!formData.delivery_method) {
       toast.error("Please select a delivery method");
       return;
     }

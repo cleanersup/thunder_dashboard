@@ -6,6 +6,8 @@
  * CON-3: Step 1 (Details) — CON-4: Step 2 (Policies) — CON-5: Step 3 (Preview + Send)
  */
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
@@ -23,6 +25,7 @@ import {
 } from "../hooks/useContracts";
 import { useContractNumber }    from "../hooks/useContractNumber";
 import { useSendContractEmail } from "../hooks/useSendContractEmail";
+import { useSendContractSMS }   from "../hooks/useSendContractSMS";
 import { fetchClient }          from "@/features/crm/clients/services/clientsService";
 import { ContractFormLayout }   from "../components/ContractFormLayout";
 import { ContractDetailsStep }  from "../components/ContractDetailsStep";
@@ -30,8 +33,7 @@ import { ContractClausesStep }  from "../components/ContractClausesStep";
 import { ContractSendStep }     from "../components/ContractSendStep";
 import type { ContractFormData } from "../types/contract.types";
 import type { ClientEntity } from "@/shared/types/entities";
-
-const USE_MOCKS = import.meta.env.VITE_USE_CONTRACT_MOCKS === "true";
+import type { ContractDescriptionDefaults } from "../components/ContractDetailsStep";
 
 // ─── Default form data ────────────────────────────────────────────────────────
 
@@ -72,6 +74,7 @@ export function CreateContractStep1Page({
   editId: editIdProp,
 }: CreateContractPageProps = {}) {
   const navigate             = useNavigate();
+  const queryClient          = useQueryClient();
   const { id: editIdParam }  = useParams<{ id: string }>();
   const editId               = editIdProp ?? editIdParam;
   const isEditing            = !!editId;
@@ -98,16 +101,17 @@ export function CreateContractStep1Page({
   const createM   = useCreateContract();
   const updateM   = useUpdateContract();
   const sendEmail = useSendContractEmail();
+  const sendSMS   = useSendContractSMS();
 
   // ── Prefill from profile on new contract ────────────────────────────────────
   useEffect(() => {
     if (isEditing || !profile) return;
     const p = profile as Record<string, unknown>;
     patch({
-      who_we_are:       (p.who_we_are_default    as string) ?? (p.company_description as string) ?? "",
-      why_choose_us:    (p.why_choose_us_default  as string) ?? (p.why_choose_us      as string) ?? "",
-      our_services:     (p.our_services_default   as string) ?? (p.our_services       as string) ?? "",
-      service_coverage: (p.service_coverage_default as string) ?? (p.service_coverage as string) ?? "",
+      who_we_are:       (p.company_description as string) ?? "",
+      why_choose_us:    (p.why_choose_us       as string) ?? "",
+      our_services:     (p.our_services        as string) ?? "",
+      service_coverage: (p.service_coverage    as string) ?? "",
     });
   }, [profile, isEditing]);
 
@@ -120,8 +124,8 @@ export function CreateContractStep1Page({
       recipient_email:   c.recipient_email   ?? "",
       recipient_phone:   c.recipient_phone   ?? "",
       recipient_address: c.recipient_address ?? "",
-      recipient_type:    c.recipient_type,
-      recipient_id:      c.recipient_id,
+      recipient_type:    "client",
+      recipient_id:      c.recipient_id ?? null,
       start_date:        c.start_date,
       end_date:          c.end_date,
       total:             String(c.total),
@@ -134,7 +138,7 @@ export function CreateContractStep1Page({
       delivery_method:   c.delivery_method,
     });
 
-    // Load client entity so ClientPicker can pre-select it
+    // Pre-select the client in the picker if recipient_id is stored
     if (c.recipient_id) {
       fetchClient(c.recipient_id).then(setInitialClient).catch(() => null);
     }
@@ -142,27 +146,47 @@ export function CreateContractStep1Page({
 
   // ── Send handler (used by ContractSendStep) ──────────────────────────────────
   const handleSend = async (): Promise<void> => {
-    let contractId: string;
-    if (isEditing && editId) {
-      const updated = await updateM.mutateAsync({ id: editId, data: formData });
-      contractId = updated.id;
-    } else {
-      const created = await createM.mutateAsync(formData);
-      contractId = created.id;
-    }
+    // Keep the full contract object to access accept_token for the SMS URL
+    const contract = isEditing && editId
+      ? await updateM.mutateAsync({ id: editId, data: formData })
+      : await createM.mutateAsync(formData);
+
+    const contractId = contract.id;
 
     // Contract is complete — always set to Pending regardless of delivery method
-    if (!USE_MOCKS) {
-      const svc = await import("../services/contractsService");
-      await svc.updateContractStatus(contractId, "Pending");
-    }
+    const svc = await import("../services/contractsService");
+    await svc.updateContractStatus(contractId, "Pending");
+    // Invalidate so the table reflects "Pending" immediately (not "Draft")
+    queryClient.invalidateQueries({ queryKey: QK.contracts });
 
-    // Email send is best-effort: failure doesn't block the success flow
-    if (!USE_MOCKS && formData.delivery_method === "email") {
+    // Build the public URL for the client to view/accept the contract
+    const contractUrl = contract.public_share_token
+      ? `${window.location.origin}/public/contract/${contract.public_share_token}`
+      : `${window.location.origin}/public/contract/${contractId}`;
+
+    const total = parseFloat(formData.total) || undefined;
+
+    // Email — best-effort
+    if (formData.delivery_method === "email" || formData.delivery_method === "both") {
       try {
         await sendEmail.mutateAsync({ contractId, recipientEmail: formData.recipient_email });
       } catch {
         // sendEmail shows its own error toast
+      }
+    }
+
+    // SMS — best-effort
+    if (formData.delivery_method === "sms" || formData.delivery_method === "both") {
+      try {
+        await sendSMS.mutateAsync({
+          phoneNumber:   formData.recipient_phone,
+          clientName:    formData.recipient_name,
+          contractUrl,
+          contractTotal: total,
+          isUpdate:      isEditing,
+        });
+      } catch {
+        // sendSMS shows its own error toast
       }
     }
   };
@@ -177,6 +201,19 @@ export function CreateContractStep1Page({
     }
   };
 
+  // ── Saved description defaults (from profile) — drives "Load Default" buttons ─
+  const savedDefaults: ContractDescriptionDefaults | undefined = profile
+    ? (() => {
+        const p = profile as Record<string, unknown>;
+        return {
+          who_we_are:       ((p.company_description as string) ?? "").trim() ? (p.company_description as string) : "",
+          why_choose_us:    ((p.why_choose_us       as string) ?? "").trim() ? (p.why_choose_us       as string) : "",
+          our_services:     ((p.our_services        as string) ?? "").trim() ? (p.our_services        as string) : "",
+          service_coverage: ((p.service_coverage    as string) ?? "").trim() ? (p.service_coverage    as string) : "",
+        };
+      })()
+    : undefined;
+
   // ── Step content ─────────────────────────────────────────────────────────────
   const profileRecord = (profile ?? null) as Record<string, unknown> | null;
 
@@ -188,6 +225,7 @@ export function CreateContractStep1Page({
           onChange={patch}
           contractNumber={contractNumber}
           initialClient={initialClient}
+          savedDefaults={savedDefaults}
           onNext={() => setStep(2)}
           onCancel={() => setShowExit(true)}
         />

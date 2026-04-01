@@ -3,11 +3,11 @@
  * Step 1 of the contract wizard: recipient (client only), contract period, value, company info.
  * Uses the shared ClientPicker — same component as invoices.
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import {
   CalendarIcon, DollarSign, Building2, Check,
-  ClipboardList, Globe, Sparkles, Loader2, Save,
+  ClipboardList, Globe, Sparkles, Loader2, Save, RotateCcw, X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button }   from "@/shared/components/ui/button";
@@ -34,12 +34,22 @@ import type { ContractFormData, ContractPaymentFrequency } from "../types/contra
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+/** Saved defaults from the user's profile, used to show "Load Default" buttons. */
+export interface ContractDescriptionDefaults {
+  who_we_are:       string;
+  why_choose_us:    string;
+  our_services:     string;
+  service_coverage: string;
+}
+
 interface ContractDetailsStepProps {
   formData:        ContractFormData;
   onChange:        (partial: Partial<ContractFormData>) => void;
   contractNumber:  string | undefined;
   /** Edit-mode: pre-selected client. */
   initialClient?:  ClientEntity | null;
+  /** Saved profile defaults — drives "Load Default" buttons. */
+  savedDefaults?:  ContractDescriptionDefaults;
   /** Called after successful validation. */
   onNext:   () => void;
   /** Called when the user clicks Cancel. */
@@ -53,11 +63,17 @@ export function ContractDetailsStep({
   onChange,
   contractNumber,
   initialClient = null,
+  savedDefaults,
   onNext,
   onCancel,
 }: ContractDetailsStepProps) {
   // ── Recipient state ───────────────────────────────────────────────────────
   const [selectedClient, setSelectedClient] = useState<ClientEntity | null>(initialClient);
+
+  // Sync when parent loads the client async (edit mode)
+  useEffect(() => {
+    if (initialClient) setSelectedClient(initialClient);
+  }, [initialClient]);
 
   // ── Date state (kept in sync with formData) ───────────────────────────────
   const [startDate, setStartDate] = useState<Date | undefined>(
@@ -66,6 +82,15 @@ export function ContractDetailsStep({
   const [endDate, setEndDate] = useState<Date | undefined>(
     formData.end_date ? new Date(formData.end_date) : undefined,
   );
+
+  // Sync dates when parent loads contract data async (edit mode / draft reopen)
+  useEffect(() => {
+    if (formData.start_date) setStartDate(new Date(formData.start_date));
+  }, [formData.start_date]);
+
+  useEffect(() => {
+    if (formData.end_date) setEndDate(new Date(formData.end_date));
+  }, [formData.end_date]);
 
   // ── Auto-generate ─────────────────────────────────────────────────────────
   const { generateField, generatingField, saveDescription, savingField } = useContractDescription();
@@ -322,29 +347,43 @@ export function ContractDetailsStep({
       {/* Who We Are */}
       <Card className="rounded-lg border px-6 py-4">
         <CardHeader className="p-0">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Building2 className="w-4 h-4" />
+            Who We Are
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 pt-3 space-y-2">
+          <Textarea
+            value={formData.who_we_are}
+            onChange={(e) => onChange({ who_we_are: e.target.value })}
+            placeholder="Briefly describe your company: name, what you do, and the services you provide."
+            className="min-h-[100px] resize-y"
+          />
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              Who We Are
-            </CardTitle>
             <div className="flex items-center gap-1.5">
-              {!formData.who_we_are.trim() && (
+              <Button
+                variant="outline" size="sm" className="h-7 text-xs gap-1"
+                disabled={generatingField !== null}
+                onClick={async () => {
+                  const result = await generateField("who_we_are");
+                  if (result) onChange({ who_we_are: result });
+                }}
+              >
+                {generatingField === "who_we_are"
+                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
+                  : <><Sparkles className="w-3 h-3" /> Auto Generate</>}
+              </Button>
+              {savedDefaults?.who_we_are && (
                 <Button
-                  variant="outline" size="sm"
-                  className="h-7 text-xs gap-1"
-                  disabled={generatingField !== null}
-                  onClick={async () => {
-                    const result = await generateField("who_we_are");
-                    if (result) onChange({ who_we_are: result });
-                  }}
+                  variant="outline" size="sm" className="h-7 text-xs gap-1"
+                  onClick={() => onChange({ who_we_are: savedDefaults.who_we_are })}
                 >
-                  {generatingField === "who_we_are"
-                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                    : <><Sparkles className="w-3 h-3" /> Auto Generate</>
-                  }
+                  <RotateCcw className="w-3 h-3" /> Use Default
                 </Button>
               )}
-              {formData.who_we_are.trim() && (
+            </div>
+            {formData.who_we_are.trim() && (
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant="outline" size="sm"
                   className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
@@ -353,49 +392,60 @@ export function ContractDetailsStep({
                 >
                   {savingField === "who_we_are"
                     ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
-                    : <><Save className="w-3 h-3" /> Save as Default</>
-                  }
+                    : <><Save className="w-3 h-3" /> Save as Default</>}
                 </Button>
-              )}
-            </div>
+                <Button
+                  variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground"
+                  onClick={() => onChange({ who_we_are: "" })}
+                >
+                  <X className="w-3 h-3" /> Clear
+                </Button>
+              </div>
+            )}
           </div>
-        </CardHeader>
-        <CardContent className="p-0 pt-3">
-          <Textarea
-            value={formData.who_we_are}
-            onChange={(e) => onChange({ who_we_are: e.target.value })}
-            placeholder="Briefly describe your company: name, what you do, and the services you provide."
-            className="min-h-[100px] resize-y"
-          />
         </CardContent>
       </Card>
 
       {/* Why Choose Us */}
       <Card className="rounded-lg border px-6 py-4">
         <CardHeader className="p-0">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Check className="w-4 h-4" />
+            Why Choose Us
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 pt-3 space-y-2">
+          <Textarea
+            value={formData.why_choose_us}
+            onChange={(e) => onChange({ why_choose_us: e.target.value })}
+            placeholder="Explain why clients should choose your company: experience, quality, reliability, and what sets you apart."
+            className="min-h-[100px] resize-y"
+          />
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Check className="w-4 h-4" />
-              Why Choose Us
-            </CardTitle>
             <div className="flex items-center gap-1.5">
-              {!formData.why_choose_us.trim() && (
+              <Button
+                variant="outline" size="sm" className="h-7 text-xs gap-1"
+                disabled={generatingField !== null}
+                onClick={async () => {
+                  const result = await generateField("why_choose_us");
+                  if (result) onChange({ why_choose_us: result });
+                }}
+              >
+                {generatingField === "why_choose_us"
+                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
+                  : <><Sparkles className="w-3 h-3" /> Auto Generate</>}
+              </Button>
+              {savedDefaults?.why_choose_us && (
                 <Button
-                  variant="outline" size="sm"
-                  className="h-7 text-xs gap-1"
-                  disabled={generatingField !== null}
-                  onClick={async () => {
-                    const result = await generateField("why_choose_us");
-                    if (result) onChange({ why_choose_us: result });
-                  }}
+                  variant="outline" size="sm" className="h-7 text-xs gap-1"
+                  onClick={() => onChange({ why_choose_us: savedDefaults.why_choose_us })}
                 >
-                  {generatingField === "why_choose_us"
-                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                    : <><Sparkles className="w-3 h-3" /> Auto Generate</>
-                  }
+                  <RotateCcw className="w-3 h-3" /> Use Default
                 </Button>
               )}
-              {formData.why_choose_us.trim() && (
+            </div>
+            {formData.why_choose_us.trim() && (
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant="outline" size="sm"
                   className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
@@ -404,46 +454,57 @@ export function ContractDetailsStep({
                 >
                   {savingField === "why_choose_us"
                     ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
-                    : <><Save className="w-3 h-3" /> Save as Default</>
-                  }
+                    : <><Save className="w-3 h-3" /> Save as Default</>}
                 </Button>
-              )}
-            </div>
+                <Button
+                  variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground"
+                  onClick={() => onChange({ why_choose_us: "" })}
+                >
+                  <X className="w-3 h-3" /> Clear
+                </Button>
+              </div>
+            )}
           </div>
-        </CardHeader>
-        <CardContent className="p-0 pt-3">
-          <Textarea
-            value={formData.why_choose_us}
-            onChange={(e) => onChange({ why_choose_us: e.target.value })}
-            placeholder="Explain why clients should choose your company: experience, quality, reliability, and what sets you apart."
-            className="min-h-[100px] resize-y"
-          />
         </CardContent>
       </Card>
 
       {/* Our Services */}
       <Card className="rounded-lg border px-6 py-4">
         <CardHeader className="p-0">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <ClipboardList className="w-4 h-4" />
+            Our Services
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 pt-3 space-y-2">
+          <Textarea
+            value={formData.our_services}
+            onChange={(e) => onChange({ our_services: e.target.value })}
+            placeholder="Describe the services included in this contract."
+            className="min-h-[100px] resize-y"
+          />
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <ClipboardList className="w-4 h-4" />
-              Our Services
-            </CardTitle>
             <div className="flex items-center gap-1.5">
-              {!formData.our_services.trim() && (
+              <Button
+                variant="outline" size="sm" className="h-7 text-xs gap-1"
+                disabled={generatingField !== null}
+                onClick={() => setShowServicesDialog(true)}
+              >
+                {generatingField === "our_services"
+                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
+                  : <><Sparkles className="w-3 h-3" /> Auto Generate</>}
+              </Button>
+              {savedDefaults?.our_services && (
                 <Button
-                  variant="outline" size="sm"
-                  className="h-7 text-xs gap-1"
-                  disabled={generatingField !== null}
-                  onClick={() => setShowServicesDialog(true)}
+                  variant="outline" size="sm" className="h-7 text-xs gap-1"
+                  onClick={() => onChange({ our_services: savedDefaults.our_services })}
                 >
-                  {generatingField === "our_services"
-                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                    : <><Sparkles className="w-3 h-3" /> Auto Generate</>
-                  }
+                  <RotateCcw className="w-3 h-3" /> Use Default
                 </Button>
               )}
-              {formData.our_services.trim() && (
+            </div>
+            {formData.our_services.trim() && (
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant="outline" size="sm"
                   className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
@@ -452,46 +513,57 @@ export function ContractDetailsStep({
                 >
                   {savingField === "our_services"
                     ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
-                    : <><Save className="w-3 h-3" /> Save as Default</>
-                  }
+                    : <><Save className="w-3 h-3" /> Save as Default</>}
                 </Button>
-              )}
-            </div>
+                <Button
+                  variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground"
+                  onClick={() => onChange({ our_services: "" })}
+                >
+                  <X className="w-3 h-3" /> Clear
+                </Button>
+              </div>
+            )}
           </div>
-        </CardHeader>
-        <CardContent className="p-0 pt-3">
-          <Textarea
-            value={formData.our_services}
-            onChange={(e) => onChange({ our_services: e.target.value })}
-            placeholder="Describe the services included in this contract."
-            className="min-h-[100px] resize-y"
-          />
         </CardContent>
       </Card>
 
       {/* Service Coverage */}
       <Card className="rounded-lg border px-6 py-4">
         <CardHeader className="p-0">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Globe className="w-4 h-4" />
+            Service Coverage
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 pt-3 space-y-2">
+          <Textarea
+            value={formData.service_coverage}
+            onChange={(e) => onChange({ service_coverage: e.target.value })}
+            placeholder="Describe the geographic area or locations covered by this contract."
+            className="min-h-[80px] resize-y"
+          />
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Globe className="w-4 h-4" />
-              Service Coverage
-            </CardTitle>
             <div className="flex items-center gap-1.5">
-              {!formData.service_coverage.trim() && (
+              <Button
+                variant="outline" size="sm" className="h-7 text-xs gap-1"
+                disabled={generatingField !== null}
+                onClick={() => setShowCitiesDialog(true)}
+              >
+                {generatingField === "service_coverage"
+                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
+                  : <><Sparkles className="w-3 h-3" /> Auto Generate</>}
+              </Button>
+              {savedDefaults?.service_coverage && (
                 <Button
-                  variant="outline" size="sm"
-                  className="h-7 text-xs gap-1"
-                  disabled={generatingField !== null}
-                  onClick={() => setShowCitiesDialog(true)}
+                  variant="outline" size="sm" className="h-7 text-xs gap-1"
+                  onClick={() => onChange({ service_coverage: savedDefaults.service_coverage })}
                 >
-                  {generatingField === "service_coverage"
-                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                    : <><Sparkles className="w-3 h-3" /> Auto Generate</>
-                  }
+                  <RotateCcw className="w-3 h-3" /> Use Default
                 </Button>
               )}
-              {formData.service_coverage.trim() && (
+            </div>
+            {formData.service_coverage.trim() && (
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant="outline" size="sm"
                   className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
@@ -500,20 +572,17 @@ export function ContractDetailsStep({
                 >
                   {savingField === "service_coverage"
                     ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
-                    : <><Save className="w-3 h-3" /> Save as Default</>
-                  }
+                    : <><Save className="w-3 h-3" /> Save as Default</>}
                 </Button>
-              )}
-            </div>
+                <Button
+                  variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground"
+                  onClick={() => onChange({ service_coverage: "" })}
+                >
+                  <X className="w-3 h-3" /> Clear
+                </Button>
+              </div>
+            )}
           </div>
-        </CardHeader>
-        <CardContent className="p-0 pt-3">
-          <Textarea
-            value={formData.service_coverage}
-            onChange={(e) => onChange({ service_coverage: e.target.value })}
-            placeholder="Describe the geographic area or locations covered by this contract."
-            className="min-h-[80px] resize-y"
-          />
         </CardContent>
       </Card>
 

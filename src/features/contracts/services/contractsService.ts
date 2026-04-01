@@ -76,7 +76,7 @@ export async function fetchContractByToken(token: string): Promise<Contract> {
   const { data, error } = await db
     .from("contracts")
     .select("*")
-    .eq("accept_token", token)
+    .eq("public_share_token", token)
     .single();
 
   if (error) throw error;
@@ -114,6 +114,7 @@ export async function createContract(
     recipient_email: data.recipient_email || null,
     recipient_phone: data.recipient_phone || null,
     recipient_address: data.recipient_address || null,
+    recipient_id: data.recipient_id || null,
     start_date: data.start_date,
     end_date: data.end_date,
     who_we_are: data.who_we_are || null,
@@ -147,6 +148,7 @@ export async function updateContract(
   if ("recipient_email" in data)   payload.recipient_email   = data.recipient_email || null;
   if ("recipient_phone" in data)   payload.recipient_phone   = data.recipient_phone || null;
   if ("recipient_address" in data) payload.recipient_address = data.recipient_address || null;
+  if ("recipient_id" in data)      payload.recipient_id      = data.recipient_id || null;
   if ("start_date" in data)        payload.start_date        = data.start_date;
   if ("end_date" in data)          payload.end_date          = data.end_date;
   if ("total" in data)             payload.total             = parseFloat(data.total!) || 0;
@@ -231,11 +233,8 @@ export async function updateContractStatus(
 export async function acceptContract(token: string): Promise<void> {
   const { error } = await db
     .from("contracts")
-    .update({
-      status: "Active",
-      accepted_at: new Date().toISOString(),
-    })
-    .eq("accept_token", token);
+    .update({ status: "Active" })
+    .eq("public_share_token", token);
   if (error) throw error;
 }
 
