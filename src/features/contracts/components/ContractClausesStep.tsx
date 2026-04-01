@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   X, Plus, ClipboardList, FileSignature, DollarSign, Check,
   MapPin, Building2, Globe, Sparkles, Loader2, Save,
-  GripVertical, FileText, Trash2,
+  GripVertical, FileText, Trash2, RotateCcw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button }   from "@/shared/components/ui/button";
@@ -221,33 +221,7 @@ export function ContractClausesStep({
                     </span>
                   )}
                 </CardTitle>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {!isManual && !clause.body?.trim() && (
-                    <Button
-                      variant="outline" size="sm"
-                      className="h-7 text-xs gap-1"
-                      disabled={generatingKey !== null}
-                      onClick={() => handleGenerate(clause.key, clause.title)}
-                    >
-                      {generatingKey === clause.key
-                        ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                        : <><Sparkles className="w-3 h-3" /> Auto Generate</>
-                      }
-                    </Button>
-                  )}
-                  {unsaved && (
-                    <Button
-                      variant="outline" size="sm"
-                      className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
-                      disabled={savingKey !== null}
-                      onClick={() => handleSaveClause(clause.key, clause.title)}
-                    >
-                      {savingKey === clause.key
-                        ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
-                        : <><Save className="w-3 h-3" /> Save as Default</>
-                      }
-                    </Button>
-                  )}
+                <div className="flex items-center gap-1 flex-shrink-0">
                   <Button
                     variant="ghost" size="sm"
                     className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -259,13 +233,61 @@ export function ContractClausesStep({
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="px-6 pb-4 pt-0">
+            <CardContent className="px-6 pb-4 pt-0 space-y-2">
               <Textarea
                 value={clause.body}
                 onChange={(e) => updateClause(clause.key, e.target.value)}
                 placeholder={placeholder}
                 className="min-h-[100px] resize-y"
               />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  {!isManual && (
+                    <Button
+                      variant="outline" size="sm"
+                      className="h-7 text-xs gap-1"
+                      disabled={generatingKey !== null}
+                      onClick={() => handleGenerate(clause.key, clause.title)}
+                    >
+                      {generatingKey === clause.key
+                        ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
+                        : <><Sparkles className="w-3 h-3" /> Auto Generate</>}
+                    </Button>
+                  )}
+                  {savedClauseKeys[clause.key] && (
+                    <Button
+                      variant="outline" size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={() => updateClause(clause.key, savedClauseKeys[clause.key])}
+                    >
+                      <RotateCcw className="w-3 h-3" /> Use Default
+                    </Button>
+                  )}
+                </div>
+                {clause.body?.trim() && (
+                  <div className="flex items-center gap-1.5">
+                    {unsaved && (
+                      <Button
+                        variant="outline" size="sm"
+                        className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
+                        disabled={savingKey !== null}
+                        onClick={() => handleSaveClause(clause.key, clause.title)}
+                      >
+                        {savingKey === clause.key
+                          ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
+                          : <><Save className="w-3 h-3" /> Save as Default</>}
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost" size="sm"
+                      className="h-7 text-xs gap-1 text-muted-foreground"
+                      onClick={() => updateClause(clause.key, "")}
+                    >
+                      <X className="w-3 h-3" /> Clear
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         );

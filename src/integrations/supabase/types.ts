@@ -848,9 +848,19 @@ export type Database = {
       }
       profiles: {
         Row: {
+          clause_anti_harassment: string | null
+          clause_cancellation_policy: string | null
+          clause_confidentiality: string | null
+          clause_liability_insurance: string | null
+          clause_no_refund: string | null
+          clause_non_compete: string | null
+          clause_price_and_payment: string | null
+          clause_purpose_of_agreement: string | null
+          clause_scope_of_work: string | null
           company_address: string | null
           company_apt_suite: string | null
           company_city: string | null
+          company_description: string | null
           company_email: string | null
           company_logo: string | null
           company_name: string | null
@@ -858,13 +868,16 @@ export type Database = {
           company_state: string | null
           company_zip: string | null
           created_at: string
+          custom_clauses: Json | null
           first_name: string
           id: string
           last_name: string
+          our_services: string | null
           phone_number: string | null
           plan_tier: string | null
           referral_code: string | null
           revenue_cat_customer_id: string | null
+          service_coverage: string | null
           state: string | null
           subscription_expiry_date: string | null
           subscription_status: string | null
@@ -873,11 +886,22 @@ export type Database = {
           trial_welcome_shown: boolean | null
           updated_at: string
           user_id: string
+          why_choose_us: string | null
         }
         Insert: {
+          clause_anti_harassment?: string | null
+          clause_cancellation_policy?: string | null
+          clause_confidentiality?: string | null
+          clause_liability_insurance?: string | null
+          clause_no_refund?: string | null
+          clause_non_compete?: string | null
+          clause_price_and_payment?: string | null
+          clause_purpose_of_agreement?: string | null
+          clause_scope_of_work?: string | null
           company_address?: string | null
           company_apt_suite?: string | null
           company_city?: string | null
+          company_description?: string | null
           company_email?: string | null
           company_logo?: string | null
           company_name?: string | null
@@ -885,13 +909,16 @@ export type Database = {
           company_state?: string | null
           company_zip?: string | null
           created_at?: string
+          custom_clauses?: Json | null
           first_name: string
           id?: string
           last_name: string
+          our_services?: string | null
           phone_number?: string | null
           plan_tier?: string | null
           referral_code?: string | null
           revenue_cat_customer_id?: string | null
+          service_coverage?: string | null
           state?: string | null
           subscription_expiry_date?: string | null
           subscription_status?: string | null
@@ -900,11 +927,22 @@ export type Database = {
           trial_welcome_shown?: boolean | null
           updated_at?: string
           user_id: string
+          why_choose_us?: string | null
         }
         Update: {
+          clause_anti_harassment?: string | null
+          clause_cancellation_policy?: string | null
+          clause_confidentiality?: string | null
+          clause_liability_insurance?: string | null
+          clause_no_refund?: string | null
+          clause_non_compete?: string | null
+          clause_price_and_payment?: string | null
+          clause_purpose_of_agreement?: string | null
+          clause_scope_of_work?: string | null
           company_address?: string | null
           company_apt_suite?: string | null
           company_city?: string | null
+          company_description?: string | null
           company_email?: string | null
           company_logo?: string | null
           company_name?: string | null
@@ -912,13 +950,16 @@ export type Database = {
           company_state?: string | null
           company_zip?: string | null
           created_at?: string
+          custom_clauses?: Json | null
           first_name?: string
           id?: string
           last_name?: string
+          our_services?: string | null
           phone_number?: string | null
           plan_tier?: string | null
           referral_code?: string | null
           revenue_cat_customer_id?: string | null
+          service_coverage?: string | null
           state?: string | null
           subscription_expiry_date?: string | null
           subscription_status?: string | null
@@ -927,6 +968,7 @@ export type Database = {
           trial_welcome_shown?: boolean | null
           updated_at?: string
           user_id?: string
+          why_choose_us?: string | null
         }
         Relationships: []
       }

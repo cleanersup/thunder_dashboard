@@ -76,20 +76,26 @@ export function ContractDetailsStep({
   }, [initialClient]);
 
   // ── Date state (kept in sync with formData) ───────────────────────────────
+  // Parse "yyyy-MM-dd" as local time to avoid UTC-offset day shift.
+  const parseLocalDate = (iso: string): Date => {
+    const [y, m, d] = iso.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  };
+
   const [startDate, setStartDate] = useState<Date | undefined>(
-    formData.start_date ? new Date(formData.start_date) : undefined,
+    formData.start_date ? parseLocalDate(formData.start_date) : undefined,
   );
   const [endDate, setEndDate] = useState<Date | undefined>(
-    formData.end_date ? new Date(formData.end_date) : undefined,
+    formData.end_date ? parseLocalDate(formData.end_date) : undefined,
   );
 
   // Sync dates when parent loads contract data async (edit mode / draft reopen)
   useEffect(() => {
-    if (formData.start_date) setStartDate(new Date(formData.start_date));
+    if (formData.start_date) setStartDate(parseLocalDate(formData.start_date));
   }, [formData.start_date]);
 
   useEffect(() => {
-    if (formData.end_date) setEndDate(new Date(formData.end_date));
+    if (formData.end_date) setEndDate(parseLocalDate(formData.end_date));
   }, [formData.end_date]);
 
   // ── Auto-generate ─────────────────────────────────────────────────────────
