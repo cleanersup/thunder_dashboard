@@ -3,11 +3,12 @@
  * Feature-level configuration for the Contracts module.
  *
  * CONTRACT_CUTOFF_DATE — the date after which Basic plan users lose access.
- * Set this to (launch_date + 90 days) when the feature goes live in production.
- * Currently set to 90 days from the project reference date (2026-03-25).
+ * Driven by VITE_CONTRACT_CUTOFF_DATE env var (ISO date, e.g. "2026-06-23").
+ * Set this to launch_date + 90 days before deploying to production.
  */
 
-export const CONTRACT_CUTOFF_DATE = new Date("2026-06-23T00:00:00Z");
+const _cutoffRaw = import.meta.env.VITE_CONTRACT_CUTOFF_DATE ?? "2026-06-23";
+export const CONTRACT_CUTOFF_DATE = new Date(`${_cutoffRaw}T00:00:00Z`);
 
 /**
  * Default clause keys that map to profile columns.

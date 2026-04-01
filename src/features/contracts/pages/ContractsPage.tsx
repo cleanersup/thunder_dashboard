@@ -48,7 +48,8 @@ import { useSendContractEmail }     from "../hooks/useSendContractEmail";
 import { useContractAccess }        from "../hooks/useContractAccess";
 import { ContractDetailModal }      from "../components/ContractDetailModal";
 import { RenewContractModal }       from "../components/RenewContractModal";
-import { ContractTrialModal, wasContractTrialModalShown } from "../components/ContractTrialModal";
+import { ContractTrialModal } from "../components/ContractTrialModal";
+import { wasContractTrialModalShown } from "../utils/contractTrialStorage";
 import { CONTRACT_CUTOFF_DATE }     from "../config/contracts.config";
 import type { Contract, ContractStatus } from "../types/contract.types";
 

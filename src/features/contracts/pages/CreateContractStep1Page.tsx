@@ -12,7 +12,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialog,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
@@ -267,24 +267,23 @@ export function CreateContractStep1Page({
 
       {/* Exit confirmation (shared across all steps) */}
       <AlertDialog open={showExit} onOpenChange={setShowExit}>
-        <AlertDialogContent className="max-w-sm">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Leave without saving?</AlertDialogTitle>
             <AlertDialogDescription>
               Your changes will be lost. You can save as a draft to continue later.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
-            <AlertDialogCancel className="mt-0">Keep editing</AlertDialogCancel>
-            <Button variant="outline" onClick={handleSaveDraft} disabled={createM.isPending}>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setShowExit(false)}>
+              Keep editing
+            </Button>
+            <Button variant="destructive" className="flex-1" onClick={goBack}>
+              Leave
+            </Button>
+            <Button className="flex-1" onClick={handleSaveDraft} disabled={createM.isPending}>
               Save as Draft
             </Button>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
-              onClick={goBack}
-            >
-              Leave
-            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

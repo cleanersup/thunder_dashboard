@@ -22,7 +22,6 @@ import {
   Download,
   Trash2,
   CalendarIcon,
-  ChevronLeft,
   Loader2,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
@@ -283,17 +282,6 @@ export function WalkthroughsPage() {
       <Card className="border border-border/50 shadow-none">
         <CardContent className="p-3">
           <div className="flex flex-wrap items-center gap-2">
-            {/* Back to Estimates */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 gap-1.5"
-              onClick={() => navigate("/estimates")}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Back to Estimates
-            </Button>
-
             <div className="flex-1" />
 
             {/* Status filter */}

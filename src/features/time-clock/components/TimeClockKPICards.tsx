@@ -24,7 +24,6 @@ export function TimeClockKPICards({ entries }: Props) {
       subtitle: "employees active",
       icon:     Clock,
       color:    "hsl(var(--blue-vibrant))",
-      bgClass:  "bg-blue-500/20",
     },
     {
       title:    "Total Hours",
@@ -32,7 +31,6 @@ export function TimeClockKPICards({ entries }: Props) {
       subtitle: "hours worked",
       icon:     CalendarDays,
       color:    "hsl(var(--orange-vibrant))",
-      bgClass:  "bg-orange-500/20",
     },
     {
       title:    "Pay Now",
@@ -40,7 +38,6 @@ export function TimeClockKPICards({ entries }: Props) {
       subtitle: "pending payment",
       icon:     DollarSign,
       color:    "hsl(var(--green-vibrant))",
-      bgClass:  "bg-green-500/20",
     },
     {
       title:    "Overtime",
@@ -48,7 +45,6 @@ export function TimeClockKPICards({ entries }: Props) {
       subtitle: "overtime hours",
       icon:     TrendingUp,
       color:    "hsl(var(--purple-vibrant))",
-      bgClass:  "bg-purple-500/20",
     },
   ];
 
@@ -56,7 +52,7 @@ export function TimeClockKPICards({ entries }: Props) {
     <Card className="border border-border/50 shadow-none">
       <CardContent className="p-4">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {kpis.map(({ title, value, subtitle, icon: Icon, color, bgClass }) => (
+          {kpis.map(({ title, value, subtitle, icon: Icon, color }) => (
             <div key={title} className="border-l-4 pl-4" style={{ borderLeftColor: color }}>
               <div className="flex items-start justify-between">
                 <div>
@@ -64,7 +60,7 @@ export function TimeClockKPICards({ entries }: Props) {
                   <p className="text-2xl font-bold mt-1" style={{ color }}>{value}</p>
                   <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
                 </div>
-                <div className={`p-2 rounded-lg ${bgClass}`}>
+                <div className="p-2 rounded-lg bg-secondary/50">
                   <Icon className="w-5 h-5" style={{ color }} />
                 </div>
               </div>

@@ -117,8 +117,8 @@ export function ContractSendStep({
   return (
     <>
       {/* Delivery Method */}
-      <Card className="rounded-lg border">
-        <CardContent className="px-6 py-4">
+      <Card className="border-none">
+        <CardContent className="p-0">
           <DeliveryMethodSelector
             options={deliveryOptions}
             value={formData.delivery_method}

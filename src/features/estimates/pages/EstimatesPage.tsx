@@ -288,20 +288,6 @@ export function EstimatesPage() {
       <Card className="border border-border/50 shadow-none">
         <CardContent className="p-3">
           <div className="flex items-center justify-between gap-4">
-            {/* Left: action buttons */}
-            <div className="flex items-center gap-2">
-              <Button variant="outline" className="flex items-center gap-2 h-9 px-3 rounded-md border-0 hover:opacity-90" style={{ background: "var(--gradient-walkthrough)" }}
-                onClick={() => navigate("/walkthroughs")}>
-                <BookOpen className="w-4 h-4 text-white" />
-                <span className="text-sm font-medium text-white">Walkthrough</span>
-              </Button>
-              <Button variant="outline" className="flex items-center gap-2 h-9 px-3 rounded-md border-0 hover:opacity-90" style={{ background: "var(--gradient-contract)" }}
-                onClick={() => toast.info("Contracts coming soon!")}>
-                <FileSignature className="w-4 h-4 text-white" />
-                <span className="text-sm font-medium text-white">Contract</span>
-              </Button>
-            </div>
-
             {/* Right: filters + New */}
             <div className="flex items-center gap-2">
               <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as typeof statusFilter); setCurrentPage(1); }}>

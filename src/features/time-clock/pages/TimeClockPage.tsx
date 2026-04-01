@@ -196,11 +196,12 @@ export function TimeClockPage() {
           queryClient={queryClient}
         />
       ) : (
+        <>
         <Card className="border border-border/50 shadow-none">
           <CardContent className="p-0">
 
             {/* ── Toolbar ──────────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between gap-4 px-4 pt-1 pb-0 border-b border-border">
+            <div className="flex items-center justify-between gap-4 px-4 pt-1 pb-0">
               {/* Tab links */}
               <div className="flex items-center">
                 {TABS.map(({ key, label }) => (
@@ -291,6 +292,12 @@ export function TimeClockPage() {
                 )}
               </div>
             </div>
+
+          </CardContent>
+        </Card>
+
+        {/* ── Table Card ───────────────────────────────────────────────────────── */}
+        <Card className="border border-border/50 shadow-none overflow-hidden">
 
             {/* ── Today Table ──────────────────────────────────────────────── */}
             {activeTab === "today" && (
@@ -545,8 +552,8 @@ export function TimeClockPage() {
               </Table>
             )}
 
-          </CardContent>
         </Card>
+        </>
       )}
 
       {/* ── Shift Edit Confirm Modal ──────────────────────────────────────────── */}

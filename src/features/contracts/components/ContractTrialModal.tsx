@@ -16,8 +16,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { format } from "date-fns";
 import { CONTRACT_CUTOFF_DATE } from "../config/contracts.config";
-
-const STORAGE_KEY = "contract-trial-modal-shown";
+import { markContractTrialModalShown } from "../utils/contractTrialStorage";
 
 interface ContractTrialModalProps {
   open:          boolean;
@@ -29,7 +28,7 @@ export function ContractTrialModal({ open, daysRemaining, onClose }: ContractTri
   const cutoffFormatted = format(CONTRACT_CUTOFF_DATE, "MMMM d, yyyy");
 
   const handleClose = () => {
-    localStorage.setItem(STORAGE_KEY, "true");
+    markContractTrialModalShown();
     onClose();
   };
 
@@ -96,9 +95,4 @@ export function ContractTrialModal({ open, daysRemaining, onClose }: ContractTri
       </DialogContent>
     </Dialog>
   );
-}
-
-/** Returns true if the trial modal has already been shown in this browser. */
-export function wasContractTrialModalShown(): boolean {
-  return localStorage.getItem(STORAGE_KEY) === "true";
 }
