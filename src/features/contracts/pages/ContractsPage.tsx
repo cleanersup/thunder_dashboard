@@ -723,7 +723,10 @@ export function ContractsPage() {
         contract={viewContract}
         open={!!viewContract}
         onClose={() => setViewContract(null)}
-        onEdit={(c) => { setEditId(c.id); setShowCreate(true); }}
+        onEdit={(c)     => { setViewContract(null); setEditId(c.id); setShowCreate(true); }}
+        onRenew={(c)    => { setViewContract(null); setRenewTarget(c); }}
+        onDownload={(_c) => { /* PDF download — to be implemented */ }}
+        onDelete={(c)   => { setViewContract(null); setDeleteContract(c); }}
       />
 
       {/* ── Create / Edit modal ────────────────────────────────────────────── */}

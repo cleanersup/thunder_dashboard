@@ -2,11 +2,13 @@
  * @module ContractDetailModal
  * CON-6: Detail modal for a Contract record.
  * Shows all contract information + quick actions by status.
+ * Actions mirror the table row dropdown menu exactly.
  */
 import { format, parseISO } from "date-fns";
 import {
   User, Mail, Phone, MapPin, CalendarIcon, DollarSign,
   FileSignature, ClipboardList, Send, Edit2, Mail as MailIcon,
+  RotateCcw, Download, Trash2,
 } from "lucide-react";
 import { Button }              from "@/shared/components/ui/button";
 import { Separator }           from "@/shared/components/ui/separator";
@@ -31,24 +33,35 @@ const FREQ_LABEL: Record<string, string> = {
   monthly:    "Monthly",
 };
 
+// ─── Status predicates (mirror ContractsPage) ─────────────────────────────────
+
+const canEdit   = (s: ContractStatus) => s === "Draft" || s === "Pending";
+const canSend   = (s: ContractStatus) => s === "Pending" || s === "Active" || s === "Expiring";
+const canRenew  = (s: ContractStatus) => s === "Active" || s === "Expiring" || s === "Expired";
+const canDelete = (s: ContractStatus) => s === "Draft" || s === "Pending" || s === "Expired";
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface ContractDetailModalProps {
-  contract:  Contract | null;
-  open:      boolean;
-  onClose:   () => void;
-  onEdit?:   (contract: Contract) => void;
+  contract:    Contract | null;
+  open:        boolean;
+  onClose:     () => void;
+  onEdit?:     (contract: Contract) => void;
+  onRenew?:    (contract: Contract) => void;
+  onDownload?: (contract: Contract) => void;
+  onDelete?:   (contract: Contract) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function ContractDetailModal({ contract, open, onClose, onEdit }: ContractDetailModalProps) {
+export function ContractDetailModal({
+  contract, open, onClose, onEdit, onRenew, onDownload, onDelete,
+}: ContractDetailModalProps) {
   const sendEmail = useSendContractEmail();
 
   if (!contract) return null;
 
-  const badgeInfo = STATUS_BADGE_MAP[contract.status] ?? STATUS_BADGE_MAP.Draft;
-  const canSend   = contract.status !== "Draft";
+  const badgeInfo     = STATUS_BADGE_MAP[contract.status] ?? STATUS_BADGE_MAP.Draft;
   const activeClauses = contract.sections.filter((c) => c.body?.trim()).length;
 
   const fmtDate = (iso: string | null) =>
@@ -108,7 +121,6 @@ export function ContractDetailModal({ contract, open, onClose, onEdit }: Contrac
             />
           </div>
 
-          {/* Dates */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Timestamps
@@ -129,7 +141,9 @@ export function ContractDetailModal({ contract, open, onClose, onEdit }: Contrac
             Actions
           </h3>
           <div className="flex flex-wrap gap-2">
-            {onEdit && (
+
+            {/* Edit */}
+            {canEdit(contract.status) && onEdit && (
               <Button
                 variant="outline"
                 size="sm"
@@ -139,7 +153,9 @@ export function ContractDetailModal({ contract, open, onClose, onEdit }: Contrac
                 <Edit2 className="w-3.5 h-3.5" /> Edit
               </Button>
             )}
-            {canSend && contract.recipient_email && (
+
+            {/* Resend */}
+            {canSend(contract.status) && contract.recipient_email && (
               <Button
                 variant="outline"
                 size="sm"
@@ -147,9 +163,46 @@ export function ContractDetailModal({ contract, open, onClose, onEdit }: Contrac
                 disabled={sendEmail.isPending}
                 onClick={() => sendEmail.mutate({ contractId: contract.id, recipientEmail: contract.recipient_email! })}
               >
-                <MailIcon className="w-3.5 h-3.5" /> Resend Email
+                <MailIcon className="w-3.5 h-3.5" /> Resend
               </Button>
             )}
+
+            {/* Renew */}
+            {canRenew(contract.status) && onRenew && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => { onClose(); onRenew(contract); }}
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Renew
+              </Button>
+            )}
+
+            {/* Download PDF */}
+            {onDownload && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => onDownload(contract)}
+              >
+                <Download className="w-3.5 h-3.5" /> Download PDF
+              </Button>
+            )}
+
+            {/* Delete */}
+            {canDelete(contract.status) && onDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/60"
+                onClick={() => { onClose(); onDelete(contract); }}
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Delete
+              </Button>
+            )}
+
           </div>
         </div>
       </div>
