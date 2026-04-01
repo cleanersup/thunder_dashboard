@@ -42,10 +42,12 @@ import {
 import { Calendar }        from "@/shared/components/ui/calendar";
 import { cn }              from "@/shared/utils/cn";
 import { useNavigate } from "react-router-dom";
+import { useProfile } from "@/shared/hooks/useProfile";
 import { useContracts, useDeleteContract } from "../hooks/useContracts";
 import { CreateContractStep1Page }  from "./CreateContractStep1Page";
 import { useSendContractEmail }     from "../hooks/useSendContractEmail";
 import { useContractAccess }        from "../hooks/useContractAccess";
+import { downloadContractPdf }      from "../services/generateContractPDF";
 import { ContractDetailModal }      from "../components/ContractDetailModal";
 import { RenewContractModal }       from "../components/RenewContractModal";
 import { ContractTrialModal } from "../components/ContractTrialModal";
@@ -101,6 +103,7 @@ export function ContractsPage() {
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const queryClient = useQueryClient();
+  const { data: profile }                    = useProfile();
   const { data: allContracts = [], isLoading } = useContracts();
   const deleteM    = useDeleteContract();
   const sendEmail  = useSendContractEmail();
@@ -226,6 +229,29 @@ export function ContractsPage() {
     if (contract.recipient_email) {
       sendEmail.mutate({ contractId: contract.id, recipientEmail: contract.recipient_email });
     }
+  };
+
+  const handleDownloadPDF = (contract: Contract) => {
+    const p = profile as Record<string, unknown> | null | undefined;
+    downloadContractPdf({
+      companyLogo:     (p?.company_logo    as string) || null,
+      companyName:     (p?.company_name    as string) || "",
+      companyAddress:  (p?.company_address as string) || "",
+      companyCity:     (p?.company_city    as string) || "",
+      companyState:    (p?.company_state   as string) || "",
+      companyZip:      (p?.company_zip     as string) || "",
+      companyPhone:    (p?.company_phone   as string) || "",
+      companyEmail:    (p?.company_email   as string) || "",
+      contractNumber:  contract.contract_number,
+      recipientName:   contract.recipient_name,
+      startDate:       contract.start_date,
+      endDate:         contract.end_date,
+      whoWeAre:        contract.who_we_are        ?? "",
+      whyChooseUs:     contract.why_choose_us     ?? "",
+      ourServices:     contract.our_services      ?? "",
+      serviceCoverage: contract.service_coverage  ?? "",
+      sections:        contract.sections,
+    });
   };
 
   const isSending = sendEmail.isPending;
@@ -660,7 +686,7 @@ export function ContractsPage() {
 
                         {/* Download PDF */}
                         <DropdownMenuItem
-                          onClick={(e) => { e.stopPropagation(); setViewContract(contract); }}
+                          onClick={(e) => { e.stopPropagation(); handleDownloadPDF(contract); }}
                         >
                           <Download className="w-4 h-4 mr-2" />
                           Download PDF
@@ -725,7 +751,7 @@ export function ContractsPage() {
         onClose={() => setViewContract(null)}
         onEdit={(c)     => { setViewContract(null); setEditId(c.id); setShowCreate(true); }}
         onRenew={(c)    => { setViewContract(null); setRenewTarget(c); }}
-        onDownload={(_c) => { /* PDF download — to be implemented */ }}
+        onDownload={handleDownloadPDF}
         onDelete={(c)   => { setViewContract(null); setDeleteContract(c); }}
       />
 
