@@ -12,13 +12,14 @@ export type FeatureKey =
   | "smart_map"
   | "employee"
   | "time_clock"
-  | "walkthrough";
+  | "walkthrough"
+  | "contracts";
 
 export type GatingPlanTier = "basic" | "essential" | "professional";
 
 export const PLAN_FEATURES: Record<GatingPlanTier, FeatureKey[]> = {
-  basic: ["estimates", "walkthrough","invoices", "crm", "employee"],
-  essential: ["estimates", "walkthrough", "invoices", "crm", "routes", "booking", "employee"],
+  basic: ["estimates", "walkthrough", "invoices", "crm", "employee"],
+  essential: ["estimates", "walkthrough", "invoices", "crm", "routes", "booking", "employee", "contracts"],
   professional: [
     "estimates",
     "walkthrough",
@@ -29,6 +30,7 @@ export const PLAN_FEATURES: Record<GatingPlanTier, FeatureKey[]> = {
     "employee",
     "smart_map",
     "time_clock",
+    "contracts",
   ],
 };
 

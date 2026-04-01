@@ -157,10 +157,10 @@ export function AppRouter() {
           {/* Phase 13 ✅ */}
           <Route path="/subscription-plans" element={<ProtectedRoute requireSubscription={false}><SubscriptionPlansPage /></ProtectedRoute>} />
 
-          {/* Phase 14 ✅ — Contracts */}
-          <Route path="/contracts"          element={<ProtectedRoute requireSubscription={false}><ContractsPage /></ProtectedRoute>} />
-          <Route path="/contracts/new"      element={<ProtectedRoute requireSubscription={false}><CreateContractPage /></ProtectedRoute>} />
-          <Route path="/contracts/:id/edit" element={<ProtectedRoute requireSubscription={false}><CreateContractPage /></ProtectedRoute>} />
+          {/* Phase 14 ✅ — Contracts (basic trial + essential + professional) */}
+          <Route path="/contracts"          element={<ProtectedRoute><ContractsPage /></ProtectedRoute>} />
+          <Route path="/contracts/new"      element={<ProtectedRoute><CreateContractPage /></ProtectedRoute>} />
+          <Route path="/contracts/:id/edit" element={<ProtectedRoute><CreateContractPage /></ProtectedRoute>} />
           {/* Legacy redirect */}
           <Route path="/contract"           element={<Navigate to="/contracts" replace />} />
           {/* Public — no auth required */}

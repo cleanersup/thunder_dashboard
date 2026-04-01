@@ -41,12 +41,15 @@ import {
 } from "@/shared/components/ui/alert-dialog";
 import { Calendar }        from "@/shared/components/ui/calendar";
 import { cn }              from "@/shared/utils/cn";
+import { useNavigate } from "react-router-dom";
 import { useContracts, useDeleteContract } from "../hooks/useContracts";
 import { CreateContractStep1Page }  from "./CreateContractStep1Page";
 import { useSendContractEmail }     from "../hooks/useSendContractEmail";
 import { useContractAccess }        from "../hooks/useContractAccess";
 import { ContractDetailModal }      from "../components/ContractDetailModal";
 import { RenewContractModal }       from "../components/RenewContractModal";
+import { ContractTrialModal, wasContractTrialModalShown } from "../components/ContractTrialModal";
+import { CONTRACT_CUTOFF_DATE }     from "../config/contracts.config";
 import type { Contract, ContractStatus } from "../types/contract.types";
 
 const ITEMS_PER_PAGE = 10;
@@ -77,6 +80,8 @@ function freqSuffix(freq: string | null) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ContractsPage() {
+  const navigate = useNavigate();
+
   // ── Filters ──────────────────────────────────────────────────────────────
   const [search,       setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | ContractStatus>("All");
@@ -88,6 +93,7 @@ export function ContractsPage() {
   const [editId,        setEditId]        = useState<string | undefined>();
   const [viewContract,  setViewContract]  = useState<Contract | null>(null);
   const [renewTarget,   setRenewTarget]   = useState<Contract | null>(null);
+  const [showTrialModal, setShowTrialModal] = useState(false);
 
   // ── Confirm delete ────────────────────────────────────────────────────────
   const [deleteContract, setDeleteContract] = useState<Contract | null>(null);
@@ -98,6 +104,20 @@ export function ContractsPage() {
   const deleteM    = useDeleteContract();
   const sendEmail  = useSendContractEmail();
   const { hasAccess, daysRemaining, reason } = useContractAccess();
+
+  // ── Redirect if access expired (basic_expired or no_plan) ──────────────
+  useEffect(() => {
+    if (!hasAccess && reason !== "basic_trial") {
+      navigate("/subscription-plans", { replace: true });
+    }
+  }, [hasAccess, reason, navigate]);
+
+  // ── Trial modal: show once when basic user enters for the first time ────
+  useEffect(() => {
+    if (reason === "basic_trial" && !wasContractTrialModalShown()) {
+      setShowTrialModal(true);
+    }
+  }, [reason]);
 
   // ── Real-time: refetch when contract status changes (e.g. client accepts) ─
   useEffect(() => {
@@ -218,22 +238,56 @@ export function ContractsPage() {
   return (
     <div className="min-h-full bg-background p-2.5">
 
-      {/* CON-12: Trial notice banner */}
+      {/* Trial countdown banner */}
       {hasAccess && reason === "basic_trial" && daysRemaining !== null && (
-        <div className="mb-2.5 px-4 py-2.5 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm flex items-center justify-between">
-          <span>
-            <span className="font-semibold">Trial:</span> Contracts feature available for{" "}
-            <span className="font-semibold">{daysRemaining} more day{daysRemaining !== 1 ? "s" : ""}</span>.
-            Upgrade to keep access.
-          </span>
+        <div className="mb-2.5 flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <Clock className="w-4 h-4 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-amber-900">
+                Free access ends in{" "}
+                <span className="tabular-nums">{daysRemaining} day{daysRemaining !== 1 ? "s" : ""}</span>
+              </p>
+              <p className="text-xs text-amber-700">
+                Contracts requires the Essential plan after{" "}
+                {format(CONTRACT_CUTOFF_DATE, "MMMM d, yyyy")}.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="h-8 text-xs shrink-0"
+            onClick={() => navigate("/subscription-plans")}
+          >
+            Upgrade to Keep Access
+          </Button>
         </div>
       )}
 
-      {/* CON-12: No access banner */}
+      {/* No access banner */}
       {!hasAccess && (
-        <div className="mb-2.5 px-4 py-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-          <span className="font-semibold">Contracts requires an Essential or Professional plan.</span>{" "}
-          Upgrade to create and manage contracts.
+        <div className="mb-2.5 flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-destructive/10 border border-destructive/20">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-destructive/15 flex items-center justify-center flex-shrink-0">
+              <FileSignature className="w-4 h-4 text-destructive" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-destructive">Contracts is a premium feature</p>
+              <p className="text-xs text-destructive/80">
+                Available on the Essential plan ($79/mo) or higher.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="destructive"
+            className="h-8 text-xs shrink-0"
+            onClick={() => navigate("/subscription-plans")}
+          >
+            View Plans
+          </Button>
         </div>
       )}
 
@@ -720,6 +774,15 @@ export function ContractsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Trial modal (shown once per browser for basic_trial users) ───────── */}
+      {reason === "basic_trial" && daysRemaining !== null && (
+        <ContractTrialModal
+          open={showTrialModal}
+          daysRemaining={daysRemaining}
+          onClose={() => setShowTrialModal(false)}
+        />
+      )}
     </div>
   );
 }

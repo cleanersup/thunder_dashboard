@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { useSubscription } from "@/features/subscriptions/context/SubscriptionContext";
 import { hasFeatureAccess, type FeatureKey } from "@/shared/config/planFeatures";
+import { useContractAccess } from "@/features/contracts/hooks/useContractAccess";
 import { cn } from "@/shared/utils/cn";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
@@ -30,7 +31,7 @@ const MAIN_NAV: NavItem[] = [
   { path: "/walkthroughs", icon: FileText, label: "Walkthrough",  feature: "walkthrough"  },
   { path: "/create-route", icon: Route,   label: "Route",      feature: "routes"     },
   { path: "/invoices",     icon: FileText,        label: "Invoices",   feature: "invoices"   },
-  { path: "/contracts",   icon: FileSignature,   label: "Contracts"                        },
+  { path: "/contracts",   icon: FileSignature,   label: "Contracts",  feature: "contracts"  },
   { path: "/crm",          icon: Users,   label: "CRM",        feature: "crm"        },
   { path: "/booking",      icon: Calendar,label: "Booking",    feature: "booking"    },
   { path: "/employees",    icon: UserPlus,label: "Employees",  feature: "employee"   },
@@ -56,8 +57,12 @@ export function DesktopSidebar() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
   const { planTier, isLoading } = useSubscription();
+  const { hasAccess: hasContractAccess } = useContractAccess();
 
-  const visibleNav = MAIN_NAV.filter(item => !item.feature || hasFeatureAccess(planTier, item.feature));
+  const visibleNav = MAIN_NAV.filter((item) => {
+    if (item.path === "/contracts") return hasContractAccess;
+    return !item.feature || hasFeatureAccess(planTier, item.feature);
+  });
 
   const isActive = (path: string) =>
     path === "/home" ? location.pathname === "/home" : location.pathname.startsWith(path);
