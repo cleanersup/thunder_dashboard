@@ -14,6 +14,7 @@ import { Button }              from "@/shared/components/ui/button";
 import { Separator }           from "@/shared/components/ui/separator";
 import { DetailModal, InfoRow } from "@/shared/components/common/DetailModal";
 import { useSendContractEmail } from "../hooks/useSendContractEmail";
+import { useSendContractSMS }   from "../hooks/useSendContractSMS";
 import type { Contract, ContractStatus } from "../types/contract.types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ export function ContractDetailModal({
   contract, open, onClose, onEdit, onRenew, onDownload, onDelete,
 }: ContractDetailModalProps) {
   const sendEmail = useSendContractEmail();
+  const sendSMS   = useSendContractSMS();
 
   if (!contract) return null;
 
@@ -155,13 +157,30 @@ export function ContractDetailModal({
             )}
 
             {/* Resend */}
-            {canSend(contract.status) && contract.recipient_email && (
+            {canSend(contract.status) &&
+              (contract.recipient_email?.trim() || contract.recipient_phone?.trim()) && (
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-1.5"
-                disabled={sendEmail.isPending}
-                onClick={() => sendEmail.mutate({ contractId: contract.id, recipientEmail: contract.recipient_email! })}
+                disabled={sendEmail.isPending || sendSMS.isPending}
+                onClick={() => {
+                  const email = contract.recipient_email?.trim();
+                  if (email) sendEmail.mutate({ contractId: contract.id, recipientEmail: email });
+                  const phone = contract.recipient_phone?.trim();
+                  if (phone) {
+                    const contractUrl = contract.public_share_token
+                      ? `${window.location.origin}/public/contract/${contract.public_share_token}`
+                      : `${window.location.origin}/public/contract/${contract.id}`;
+                    sendSMS.mutate({
+                      phoneNumber: phone,
+                      clientName: contract.recipient_name,
+                      contractUrl,
+                      contractTotal: Number(contract.total),
+                      isUpdate: true,
+                    });
+                  }
+                }}
               >
                 <MailIcon className="w-3.5 h-3.5" /> Resend
               </Button>

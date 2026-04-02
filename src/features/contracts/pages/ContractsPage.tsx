@@ -46,6 +46,7 @@ import { useProfile } from "@/shared/hooks/useProfile";
 import { useContracts, useDeleteContract } from "../hooks/useContracts";
 import { CreateContractStep1Page }  from "./CreateContractStep1Page";
 import { useSendContractEmail }     from "../hooks/useSendContractEmail";
+import { useSendContractSMS }       from "../hooks/useSendContractSMS";
 import { useContractAccess }        from "../hooks/useContractAccess";
 import { downloadContractPdf }      from "../services/generateContractPDF";
 import { ContractDetailModal }      from "../components/ContractDetailModal";
@@ -107,6 +108,7 @@ export function ContractsPage() {
   const { data: allContracts = [], isLoading } = useContracts();
   const deleteM    = useDeleteContract();
   const sendEmail  = useSendContractEmail();
+  const sendSMS    = useSendContractSMS();
   const { hasAccess, daysRemaining, reason } = useContractAccess();
 
   // ── Redirect if access expired (basic_expired or no_plan) ──────────────
@@ -226,8 +228,20 @@ export function ContractsPage() {
 
   // ── Action helpers ────────────────────────────────────────────────────────
   const handleSend = (contract: Contract) => {
-    if (contract.recipient_email) {
-      sendEmail.mutate({ contractId: contract.id, recipientEmail: contract.recipient_email });
+    const email = contract.recipient_email?.trim();
+    if (email) sendEmail.mutate({ contractId: contract.id, recipientEmail: email });
+    const phone = contract.recipient_phone?.trim();
+    if (phone) {
+      const contractUrl = contract.public_share_token
+        ? `${window.location.origin}/public/contract/${contract.public_share_token}`
+        : `${window.location.origin}/public/contract/${contract.id}`;
+      sendSMS.mutate({
+        phoneNumber: phone,
+        clientName: contract.recipient_name,
+        contractUrl,
+        contractTotal: Number(contract.total),
+        isUpdate: true,
+      });
     }
   };
 
@@ -254,7 +268,7 @@ export function ContractsPage() {
     });
   };
 
-  const isSending = sendEmail.isPending;
+  const isSending = sendEmail.isPending || sendSMS.isPending;
 
   const canEdit   = (s: ContractStatus) => s === "Draft" || s === "Pending";
   const canSend   = (s: ContractStatus) => s === "Pending" || s === "Active" || s === "Expiring";
@@ -661,7 +675,8 @@ export function ContractsPage() {
                         )}
 
                         {/* Send / Resend */}
-                        {canSend(contract.status) && (
+                        {canSend(contract.status) &&
+                          (contract.recipient_email?.trim() || contract.recipient_phone?.trim()) && (
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
