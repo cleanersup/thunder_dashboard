@@ -10,6 +10,8 @@ import { useProfile } from "@/shared/hooks/useProfile";
 import { useSubscription } from "@/features/subscriptions/context/SubscriptionContext";
 import { hasFeatureAccess, type FeatureKey } from "@/shared/config/planFeatures";
 import { useContractAccess } from "@/features/contracts/hooks/useContractAccess";
+import { useNavBadge }       from "@/shared/hooks/useNavBadge";
+import { NavBadgeNew }       from "@/shared/components/common/NavBadgeNew";
 import { cn } from "@/shared/utils/cn";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
@@ -58,6 +60,7 @@ export function DesktopSidebar() {
   const isCollapsed = state === "collapsed";
   const { planTier, isLoading } = useSubscription();
   const { hasAccess: hasContractAccess } = useContractAccess();
+  const contractsBadge = useNavBadge({ storageKey: "nav-new-contracts", expiryDate: "2026-06-01", clickThreshold: 10 });
 
   const visibleNav = MAIN_NAV.filter((item) => {
     if (item.path === "/contracts") return hasContractAccess;
@@ -115,9 +118,15 @@ export function DesktopSidebar() {
                           tooltip={item.label}
                           className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-white data-[active=true]:text-primary text-[13px]"
                         >
-                          <Link to={item.path}>
+                          <Link
+                            to={item.path}
+                            onClick={item.path === "/contracts" ? contractsBadge.markSeen : undefined}
+                          >
                             <Icon className={cn("h-5 w-5", isCollapsed && "ml-1")} />
                             <span>{item.label}</span>
+                            {item.path === "/contracts" && (
+                              <NavBadgeNew visible={contractsBadge.visible} collapsed={isCollapsed} />
+                            )}
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
