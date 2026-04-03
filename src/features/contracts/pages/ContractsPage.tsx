@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { QK } from "@/shared/config/queryKeys";
 import { format } from "date-fns";
+import { formatDateOnly } from "@/shared/utils/formatters";
 import {
   Plus, Search, MoreHorizontal, ChevronLeft, ChevronRight,
   Calendar as CalendarIcon, Edit, RotateCcw, Trash2,
@@ -614,10 +615,10 @@ export function ContractsPage() {
                   <TableCell className="py-2 px-4">
                     <div className="flex flex-col">
                       <span className="text-xs text-muted-foreground">
-                        Start: {contract.start_date ? format(new Date(contract.start_date), "MMM d, yyyy") : "—"}
+                        Start: {contract.start_date ? formatDateOnly(contract.start_date, "MMM d, yyyy") : "—"}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        End: {contract.end_date ? format(new Date(contract.end_date), "MMM d, yyyy") : "—"}
+                        End: {contract.end_date ? formatDateOnly(contract.end_date, "MMM d, yyyy") : "—"}
                       </span>
                     </div>
                   </TableCell>
