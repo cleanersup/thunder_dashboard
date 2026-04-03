@@ -4,8 +4,10 @@
  * Moves Supabase direct calls out of the wizard page into a proper hook.
  */
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { QK }       from "@/shared/config/queryKeys";
 import { CLAUSE_PROFILE_MAP, CLAUSE_KEY_TO_BACKEND } from "../config/contracts.config";
 import type { ContractClause } from "../types/contract.types";
 
@@ -13,6 +15,7 @@ import type { ContractClause } from "../types/contract.types";
  * Provides AI-generate and save-as-default operations for contract clauses.
  */
 export function useContractClauses() {
+  const queryClient = useQueryClient();
   const [generatingKey, setGeneratingKey] = useState<string | null>(null);
   const [savingKey,     setSavingKey]     = useState<string | null>(null);
 
@@ -67,6 +70,7 @@ export function useContractClauses() {
           .from("profiles")
           .update({ custom_clauses: customData } as Record<string, unknown>)
           .eq("user_id", user.id);
+        queryClient.invalidateQueries({ queryKey: QK.profile });
         toast.success("Custom policy saved as default");
       } else {
         const profileCol = CLAUSE_PROFILE_MAP[key];
@@ -75,6 +79,7 @@ export function useContractClauses() {
           .from("profiles")
           .update({ [profileCol]: body } as Record<string, string>)
           .eq("user_id", user.id);
+        queryClient.invalidateQueries({ queryKey: QK.profile });
         toast.success(`${title} saved as default`);
       }
     } catch {

@@ -10,8 +10,10 @@
  *  - service_coverage  — template + optional cities[] appended as bullets
  */
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast }    from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { QK }       from "@/shared/config/queryKeys";
 import { DESCRIPTION_PROFILE_MAP } from "../config/contracts.config";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -30,6 +32,7 @@ interface GenerateOptions {
  * Provides auto-generate and save-as-default for the contract wizard Step 1 text fields.
  */
 export function useContractDescription() {
+  const queryClient = useQueryClient();
   const [generatingField, setGeneratingField] = useState<DescriptionField | null>(null);
   const [savingField,     setSavingField]     = useState<DescriptionField | null>(null);
 
@@ -79,6 +82,7 @@ export function useContractDescription() {
       const profileCol = DESCRIPTION_PROFILE_MAP[field];
       await db.from("profiles").update({ [profileCol]: value }).eq("user_id", user.id);
 
+      queryClient.invalidateQueries({ queryKey: QK.profile });
       toast.success("Saved as default");
     } catch {
       toast.error("Failed to save default");
