@@ -3,7 +3,7 @@
  * CON-11: HTML contract preview rendered as paginated letter-size pages.
  * Uses ContractClause[] so order and custom titles are embedded in the data.
  */
-import { format } from "date-fns";
+import { formatDateOnly } from "@/shared/utils/formatters";
 import type { ContractClause } from "../types/contract.types";
 
 export interface ContractPreviewProps {
@@ -63,8 +63,8 @@ export function ContractPreview({
   serviceCoverage = "",
   sections = [],
 }: ContractPreviewProps) {
-  const formattedStart = startDate ? format(new Date(startDate), "MMMM dd, yyyy") : "";
-  const formattedEnd   = endDate   ? format(new Date(endDate),   "MMMM dd, yyyy") : "";
+  const formattedStart = startDate ? formatDateOnly(startDate, "MMMM dd, yyyy") : "";
+  const formattedEnd   = endDate   ? formatDateOnly(endDate,   "MMMM dd, yyyy") : "";
 
   // Filter out empty/disabled clauses and group into pages (3 per page)
   const activeClauses = sections.filter((c) => c.body?.trim());
