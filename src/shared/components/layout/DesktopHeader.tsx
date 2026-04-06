@@ -22,6 +22,7 @@ function NotificationIcon({ type }: { type: string }) {
   switch (type) {
     case "invoice_paid":
     case "estimate_accepted":
+    case "contract_accepted":
       return <CheckCheck className="w-4 h-4" style={{ color: "hsl(var(--green-vibrant))" }} />;
     case "invoice_canceled":
     case "estimate_canceled":
