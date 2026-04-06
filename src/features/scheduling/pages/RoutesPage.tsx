@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Plus, Calendar, Map, MapPin, Check, Trash2, ChevronDown } from "lucide-react";
-import { format } from "date-fns";
+import { Plus, Calendar as CalendarIcon, Map, MapPin, Check, Trash2, ChevronDown } from "lucide-react";
+import { format, startOfWeek, endOfWeek, getMonth } from "date-fns";
 import { Button } from "@/shared/components/ui/button";
 import { Switch } from "@/shared/components/ui/switch";
 import {
@@ -8,6 +8,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/shared/components/ui/popover";
+import { Calendar } from "@/shared/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,20 @@ const VIEW_TYPE_LABELS: Record<CalendarViewType, string> = {
   month: "Month",
   year:  "Year",
 };
+
+/** Formats the date chip label to match the active calendar view. */
+function formatDateChip(date: Date, viewType: CalendarViewType, mode: MapViewMode): string {
+  if (mode === "map") return format(date, "MMMM d, yyyy");
+  if (viewType === "day")   return format(date, "MMMM d, yyyy");
+  if (viewType === "month") return format(date, "MMMM yyyy");
+  if (viewType === "year")  return format(date, "yyyy");
+  // week
+  const ws = startOfWeek(date, { weekStartsOn: 0 });
+  const we = endOfWeek(date,   { weekStartsOn: 0 });
+  return getMonth(ws) === getMonth(we)
+    ? `${format(ws, "MMM d")} – ${format(we, "d, yyyy")}`
+    : `${format(ws, "MMM d")} – ${format(we, "MMM d, yyyy")}`;
+}
 
 // ─── Route selector ───────────────────────────────────────────────────────────
 
@@ -133,9 +148,10 @@ function RouteSuccessModal({ open, onClose }: { open: boolean; onClose: () => vo
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function RoutesPage() {
-  const [mapViewMode,    setMapViewMode]    = useState<MapViewMode>("calendar");
-  const [calViewType,    setCalViewType]    = useState<CalendarViewType>("month");
-  const [selectedDate,   setSelectedDate]   = useState<Date>(new Date());
+  const [mapViewMode,     setMapViewMode]     = useState<MapViewMode>("calendar");
+  const [calViewType,     setCalViewType]     = useState<CalendarViewType>("month");
+  const [selectedDate,    setSelectedDate]    = useState<Date>(new Date());
+  const [datePickerOpen,  setDatePickerOpen]  = useState(false);
   const [routeFilter,    setRouteFilter]    = useState<string>("all");
   const [deleteTarget,   setDeleteTarget]   = useState<Route | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -204,7 +220,7 @@ export function RoutesPage() {
             <div className="flex items-center gap-3">
               {/* Toggle */}
               <div className="flex items-center gap-2">
-                <Calendar className={`h-4 w-4 ${mapViewMode === "calendar" ? "text-primary" : "text-muted-foreground"}`} />
+                <CalendarIcon className={`h-4 w-4 ${mapViewMode === "calendar" ? "text-primary" : "text-muted-foreground"}`} />
                 <span className={`text-sm font-medium ${mapViewMode === "calendar" ? "text-foreground" : "text-muted-foreground"}`}>
                   Calendar
                 </span>
@@ -220,32 +236,48 @@ export function RoutesPage() {
 
               <Separator orientation="vertical" className="h-6" />
 
-              {/* Date chip */}
-              <div className="flex items-center gap-1.5 border border-border rounded-md px-3 py-1.5 text-sm text-foreground bg-white">
-                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                {format(new Date(), "MMMM do, yyyy")}
-              </div>
+              {/* Date chip — reflects selectedDate and opens a date picker */}
+              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <button className="flex items-center gap-1.5 border border-border rounded-md px-3 py-1.5 text-sm text-foreground bg-background hover:bg-muted transition-colors cursor-pointer">
+                    <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span>{formatDateChip(selectedDate, calViewType, mapViewMode)}</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(d) => {
+                      if (d) { setSelectedDate(d); setDatePickerOpen(false); }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
 
-              {/* View type dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1.5 min-w-[90px] justify-between bg-white">
-                    {VIEW_TYPE_LABELS[calViewType]}
-                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-28">
-                  {(["day", "week", "month", "year"] as CalendarViewType[]).map((vt) => (
-                    <DropdownMenuItem
-                      key={vt}
-                      onClick={() => setCalViewType(vt)}
-                      className={calViewType === vt ? "bg-accent" : ""}
-                    >
-                      {VIEW_TYPE_LABELS[vt]}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* View type dropdown — hidden in map mode */}
+              {mapViewMode === "calendar" && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5 min-w-[90px] justify-between bg-background">
+                      {VIEW_TYPE_LABELS[calViewType]}
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-28">
+                    {(["day", "week", "month", "year"] as CalendarViewType[]).map((vt) => (
+                      <DropdownMenuItem
+                        key={vt}
+                        onClick={() => setCalViewType(vt)}
+                        className={calViewType === vt ? "bg-accent" : ""}
+                      >
+                        {VIEW_TYPE_LABELS[vt]}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
 
             {/* Right: route selector + add service button */}
@@ -283,9 +315,10 @@ export function RoutesPage() {
           ) : mapViewMode === "map" ? (
             <RouteMapView
               appointments={
-                effectiveRouteId !== "all"
+                (effectiveRouteId !== "all"
                   ? appointments.filter((a) => a.route_id === effectiveRouteId)
                   : appointments
+                ).filter((a) => a.scheduled_date === format(selectedDate, "yyyy-MM-dd"))
               }
               className="h-[calc(100vh-260px)] min-h-[400px] w-full"
             />

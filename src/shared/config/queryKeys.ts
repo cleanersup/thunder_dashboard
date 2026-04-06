@@ -52,6 +52,7 @@ export const QK = {
   walkthroughForm:           (id: string) => ["walkthrough-form", id]            as const,
   walkthroughFormCommercial: (id: string) => ["walkthrough-form-commercial", id] as const,
   employeesForAppointment:   ["employees-for-appointment"]     as const,
+  appointmentEmployees:      (ids: string[]) => ["appointment-employees", ids] as const,
   employeesForWalkthrough:   ["employees-for-walkthrough"]     as const,
   clientsForInvoice:         ["clients-for-invoice"]           as const,
   clientsForEstimate:        ["clients-for-estimate"]          as const,

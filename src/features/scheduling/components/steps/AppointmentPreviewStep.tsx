@@ -7,16 +7,13 @@ import {
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import type { AppointmentFormData, Route } from "../../types/scheduling.types";
 import type { ClientEntity } from "@/shared/types/entities";
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const FREQ_LABELS: Record<string, string> = {
-  multiple:  "Multiple times per week",
-  weekly:    "Once per week",
-  biweekly:  "Every 2 weeks",
-  triweekly: "Every 3 weeks",
-  monthly:   "Once per month",
-};
+import {
+  formatTime,
+  calculateTotalHours,
+  calculateLaborCost,
+  buildClientAddress,
+  RECURRING_FREQ_LABELS,
+} from "../../utils/appointmentHelpers";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,24 +34,6 @@ interface Props {
   existingContractUrl?: string | null;
   uploadedPhotos: File[];
   existingPhotoUrls?: string[];
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatTime(t: string | null | undefined): string {
-  if (!t) return "—";
-  const [h, m] = t.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const h12 = h % 12 || 12;
-  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
-}
-
-function calcTotalHours(start: string, end: string | null | undefined): number | null {
-  if (!start || !end) return null;
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  const diff = (eh * 60 + em) - (sh * 60 + sm);
-  return diff > 0 ? diff / 60 : null;
 }
 
 // ─── Section header ──────────────────────────────────────────────────────────
@@ -86,32 +65,15 @@ export function AppointmentPreviewStep({
     (form.assigned_employees ?? []).includes(e.id),
   );
 
-  const totalHours = calcTotalHours(form.scheduled_time, form.end_time);
-
-  const laborCost = totalHours !== null && assignedEmployees.length > 0
-    ? assignedEmployees.reduce((sum, emp) => {
-        if (!emp.hourly_rate) return sum;
-        return sum + totalHours * emp.hourly_rate;
-      }, 0)
-    : null;
-
-  const clientAddress = selectedClient
-    ? [
-        selectedClient.service_street,
-        selectedClient.service_apt,
-        selectedClient.service_city,
-        selectedClient.service_state,
-        selectedClient.service_zip,
-      ]
-        .filter(Boolean)
-        .join(", ")
-    : null;
+  const totalHours    = calculateTotalHours(form.scheduled_time, form.end_time);
+  const laborCost     = calculateLaborCost(assignedEmployees, totalHours);
+  const clientAddress = buildClientAddress(selectedClient);
 
   const recurringLabel =
     form.service_type === "Recurring" &&
     form.recurring_frequency &&
     form.recurring_frequency !== "none"
-      ? `${FREQ_LABELS[form.recurring_frequency] ?? form.recurring_frequency}${
+      ? `${RECURRING_FREQ_LABELS[form.recurring_frequency] ?? form.recurring_frequency}${
           form.recurring_duration
             ? ` · ${form.recurring_duration} ${form.recurring_duration_unit ?? "months"}`
             : ""

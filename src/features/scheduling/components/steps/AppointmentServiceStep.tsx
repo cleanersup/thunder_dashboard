@@ -25,6 +25,7 @@ import {
 } from "@/shared/components/ui/dialog";
 import type { AppointmentFormData } from "../../types/scheduling.types";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
+import { RECURRING_FREQ_OPTIONS } from "../../utils/appointmentHelpers";
 
 // ─── Constants (exact strings from swift-slate source of truth) ───────────────
 
@@ -36,13 +37,6 @@ const ONE_TIME_CLEANING_TYPES = [
 
 const RECURRING_CLEANING_TYPES = ["Residential", "Commercial"] as const;
 
-const FREQ_OPTIONS = [
-  { value: "multiple",  label: "Multiple times per week" },
-  { value: "weekly",    label: "Once per week"           },
-  { value: "biweekly",  label: "Every 2 weeks"           },
-  { value: "triweekly", label: "Every 3 weeks"           },
-  { value: "monthly",   label: "Once per month"          },
-] as const;
 
 const DAYS = [
   { value: "sunday",    label: "Sunday"    },
@@ -90,7 +84,7 @@ export function AppointmentServiceStep({
   const [newTypeName, setNewTypeName]     = useState("");
 
   const isRecurring = serviceType === "Recurring";
-  const freqLabel   = FREQ_OPTIONS.find((f) => f.value === recurringFrequency)?.label;
+  const freqLabel   = RECURRING_FREQ_OPTIONS.find((f) => f.value === recurringFrequency)?.label;
 
   // Contract duration section is visible when:
   // frequency is set AND (not "multiple" OR at least one day is selected)
@@ -246,7 +240,7 @@ export function AppointmentServiceStep({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="min-w-[240px]">
-                  {FREQ_OPTIONS.map(({ value, label }) => (
+                  {RECURRING_FREQ_OPTIONS.map(({ value, label }) => (
                     <DropdownMenuItem
                       key={value}
                       onClick={() => {

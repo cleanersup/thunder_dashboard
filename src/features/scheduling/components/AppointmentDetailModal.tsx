@@ -42,8 +42,10 @@ import { toast } from "sonner";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { supabase }    from "@/integrations/supabase/client";
 import { useGoogleMaps } from "@/shared/hooks/useGoogleMaps";
+import { QK } from "@/shared/config/queryKeys";
 import { useDeleteAppointment } from "../hooks/useAppointments";
 import { resolveStorageUrl, downloadAppointmentFile } from "../services/appointmentsService";
+import { formatTime, calculateTotalHours, calculateLaborCost, buildClientAddress } from "../utils/appointmentHelpers";
 import type { AppointmentWithClient, DeleteAppointmentMode } from "../types/scheduling.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -72,26 +74,6 @@ interface AppointmentDetailModalProps {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatTime(time: string | null): string {
-  if (!time) return "";
-  try {
-    const [h, m] = time.split(":");
-    const hour = parseInt(h, 10);
-    const ampm = hour >= 12 ? "pm" : "am";
-    const h12  = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${h12}:${m} ${ampm}`;
-  } catch {
-    return time;
-  }
-}
-
-function calculateTotalHours(startTime: string | null, endTime: string | null): number {
-  if (!startTime || !endTime) return 0;
-  const [sh, sm] = startTime.split(":").map(Number);
-  const [eh, em] = endTime.split(":").map(Number);
-  return (eh * 60 + em - (sh * 60 + sm)) / 60;
-}
 
 function getInitials(firstName: string, lastName: string): string {
   return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
@@ -126,7 +108,7 @@ export function AppointmentDetailModal({
 
   const empIds = appointment?.assigned_employees ?? [];
   const { data: employees = [], isLoading: empLoading } = useQuery<Employee[]>({
-    queryKey: ["employees-detail", empIds],
+    queryKey: QK.appointmentEmployees(empIds),
     queryFn: async () => {
       if (empIds.length === 0) return [];
       const { data, error } = await supabase
@@ -224,29 +206,12 @@ export function AppointmentDetailModal({
 
   const client = appointment.clients;
 
-  const clientAddress = client
-    ? [
-        client.service_street,
-        client.service_apt,
-        `${client.service_city}, ${client.service_state} ${client.service_zip}`,
-      ]
-        .filter(Boolean)
-        .join(", ")
-    : "";
-
-  const mapsLink = clientAddress
+  const clientAddress  = buildClientAddress(client);
+  const mapsLink       = clientAddress
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clientAddress)}`
     : null;
-
-  const totalHours = calculateTotalHours(
-    appointment.scheduled_time,
-    appointment.end_time,
-  );
-
-  const totalLaborCost = employees.reduce((sum, emp) => {
-    if (!emp.hourly_rate || totalHours <= 0) return sum;
-    return sum + emp.hourly_rate * totalHours;
-  }, 0);
+  const totalHours     = calculateTotalHours(appointment.scheduled_time, appointment.end_time);
+  const totalLaborCost = calculateLaborCost(employees, totalHours) ?? 0;
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -682,7 +647,7 @@ export function AppointmentDetailModal({
                             <div className="space-y-2">
                               {employees.map((emp) => {
                                 const pay =
-                                  emp.hourly_rate && totalHours > 0
+                                  emp.hourly_rate && totalHours !== null && totalHours > 0
                                     ? (emp.hourly_rate * totalHours).toFixed(2)
                                     : null;
                                 return (

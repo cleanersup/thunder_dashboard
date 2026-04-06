@@ -1,6 +1,6 @@
-import { format } from "date-fns";
 import { Clock, User } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
+import { formatTime } from "../utils/appointmentHelpers";
 import type { AppointmentWithClient } from "../types/scheduling.types";
 
 interface AppointmentCardProps {
@@ -15,17 +15,6 @@ const statusStyles: Record<string, string> = {
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
 };
 
-function formatTime(time: string | null): string {
-  if (!time) return "";
-  try {
-    const [h, m] = time.split(":");
-    const date = new Date();
-    date.setHours(parseInt(h, 10), parseInt(m, 10));
-    return format(date, "h:mm a");
-  } catch {
-    return time;
-  }
-}
 
 export function AppointmentCard({ appointment, onClick, compact = false }: AppointmentCardProps) {
   const startTime = formatTime(appointment.scheduled_time);

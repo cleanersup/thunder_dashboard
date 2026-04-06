@@ -6,6 +6,7 @@ import { EntityPickerField } from "@/shared/components/common/EntityPickerField"
 import type { EntityOption } from "@/shared/components/common/EntityPickerField";
 import { EmployeeForm } from "@/features/employees/components/EmployeeForm";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
+import { calculateTotalHours, calculateLaborCost } from "../../utils/appointmentHelpers";
 
 interface Employee {
   id: string;
@@ -23,16 +24,6 @@ interface Props {
   onToggle: (id: string) => void;
   isLoading: boolean;
   error?: string;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function calculateTotalHours(startTime: string, endTime: string): number | null {
-  if (!startTime || !endTime) return null;
-  const [startH, startM] = startTime.split(":").map(Number);
-  const [endH,   endM]   = endTime.split(":").map(Number);
-  const diff = (endH * 60 + endM) - (startH * 60 + startM);
-  return diff > 0 ? diff / 60 : null;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -67,14 +58,8 @@ export function AppointmentStaffStep({
 
   // ─── Labor cost ────────────────────────────────────────────────────────────
 
-  const totalHours = calculateTotalHours(scheduledTime, endTime ?? "");
-
-  const laborCost = totalHours !== null && assignedEmployees.length > 0
-    ? assignedEmployees.reduce((sum, emp) => {
-        if (!emp.hourly_rate) return sum;
-        return sum + totalHours * emp.hourly_rate;
-      }, 0)
-    : null;
+  const totalHours = calculateTotalHours(scheduledTime, endTime);
+  const laborCost  = calculateLaborCost(assignedEmployees, totalHours);
 
   // ─── Render ────────────────────────────────────────────────────────────────
 

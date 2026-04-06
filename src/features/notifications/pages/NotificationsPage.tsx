@@ -1,4 +1,4 @@
-import { Bell, CheckCheck, Trash2, XCircle, DollarSign, Clock, FileCheck } from "lucide-react";
+import { Bell, CheckCheck, Trash2, XCircle, DollarSign, Clock } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Card } from "@/shared/components/ui/card";
 import { PageHeader } from "@/shared/components/common/PageHeader";
@@ -20,8 +20,6 @@ function NotificationIcon({ type }: { type: string }) {
       return <Bell className="w-4 h-4" style={{ color: "hsl(var(--blue-vibrant))" }} />;
     case "payment":
       return <DollarSign className="w-4 h-4" style={{ color: "hsl(var(--green-vibrant))" }} />;
-    case "contract_accepted":
-      return <FileCheck className="w-4 h-4" style={{ color: "hsl(var(--green-vibrant))" }} />;
     default:
       return <Clock className="w-4 h-4 text-muted-foreground" />;
   }

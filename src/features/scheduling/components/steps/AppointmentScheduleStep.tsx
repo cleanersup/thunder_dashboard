@@ -12,16 +12,7 @@ import {
 } from "@/shared/components/ui/popover";
 import { cn } from "@/shared/utils/cn";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function calculateTotalHours(startTime: string, endTime: string): number | null {
-  if (!startTime || !endTime) return null;
-  const [startH, startM] = startTime.split(":").map(Number);
-  const [endH,   endM]   = endTime.split(":").map(Number);
-  const diff = (endH * 60 + endM) - (startH * 60 + startM);
-  return diff > 0 ? diff / 60 : null;
-}
+import { calculateTotalHours } from "../../utils/appointmentHelpers";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 

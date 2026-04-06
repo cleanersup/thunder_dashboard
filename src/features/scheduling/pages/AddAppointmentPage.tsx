@@ -8,7 +8,6 @@
  */
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { format } from "date-fns";
@@ -18,6 +17,7 @@ import { useCreateAppointment, useUpdateAppointment, useAppointment, useEmployee
 import { useSendAppointmentSMS }   from "../hooks/useSendAppointmentSMS";
 import { useSendAppointmentEmail } from "../hooks/useSendAppointmentEmail";
 import { resolveStorageUrl, downloadAppointmentFile } from "../services/appointmentsService";
+import { uploadContractFile, uploadAppointmentPhotos } from "../services/appointmentFilesService";
 import { useClients } from "@/features/crm/clients/hooks/useClients";
 import { APPOINTMENT_STEPS } from "../config/appointmentSteps.config";
 import { AppointmentFormLayout }    from "../components/AppointmentFormLayout";
@@ -303,44 +303,19 @@ export function AddAppointmentPage({ open, onClose, onUpdated, defaultRouteId, d
     let uploadedFilePath: string | null = null;
     let uploadedPhotoPaths: string[] = [];
 
-    // Upload contract if new file selected
-    if (contractFile) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("You must be logged in to upload files");
-        return;
+    try {
+      if (contractFile) {
+        uploadedFilePath = await uploadContractFile(contractFile);
+      } else if (isEdit && existing?.uploaded_file && !removedExistingContract) {
+        uploadedFilePath = existing.uploaded_file;
       }
-      const ext = contractFile.name.split(".").pop() ?? "pdf";
-      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage
-        .from("route-files")
-        .upload(path, contractFile);
-      if (error) {
-        toast.error("Failed to upload contract");
-        return;
-      }
-      uploadedFilePath = path;
-    } else if (isEdit && existing?.uploaded_file && !removedExistingContract) {
-      uploadedFilePath = existing.uploaded_file;
-    }
 
-    // Upload new photos
-    if (uploadedPhotos.length > 0) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("You must be logged in to upload files");
-        return;
+      if (uploadedPhotos.length > 0) {
+        uploadedPhotoPaths = await uploadAppointmentPhotos(uploadedPhotos);
       }
-      const uploadPromises = uploadedPhotos.map(async (file) => {
-        const ext = file.name.split(".").pop() ?? "jpg";
-        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error } = await supabase.storage
-          .from("route-files")
-          .upload(path, file);
-        return error ? null : path;
-      });
-      const results = await Promise.all(uploadPromises);
-      uploadedPhotoPaths = results.filter((p): p is string => p !== null);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to upload files");
+      return;
     }
 
     // Merge with existing photos for update (exclude user-removed ones)
