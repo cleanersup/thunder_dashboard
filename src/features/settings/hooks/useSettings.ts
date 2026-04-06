@@ -6,6 +6,8 @@ import {
   updatePassword,
   uploadLogo,
   fetchPublicProfile,
+  LOGO_FILE_TOO_LARGE_MESSAGE,
+  LOGO_PAYLOAD_TOO_LARGE_MESSAGE,
 } from "../services/settingsService";
 import type { EditProfileFormData, EditCompanyFormData } from "../schemas/settingsSchemas";
 import { supabase } from "@/integrations/supabase/client";
@@ -81,9 +83,13 @@ export function useUploadLogo() {
       toast({ title: "Logo updated" });
     },
     onError: (err) => {
+      const message = err instanceof Error ? err.message : undefined;
+      const isTooLarge =
+        message === LOGO_FILE_TOO_LARGE_MESSAGE ||
+        message === LOGO_PAYLOAD_TOO_LARGE_MESSAGE;
       toast({
-        title: "Failed to upload logo",
-        description: err instanceof Error ? err.message : undefined,
+        title: "Error",
+        description: isTooLarge ? message! : "Could not save logo",
         variant: "destructive",
       });
     },

@@ -78,6 +78,29 @@ export async function updatePassword(
 // Same as swift-slate Profile: store data URL on profiles.company_logo (no Storage bucket).
 
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+/** Encoded data URLs are ~4/3 of file size; cap PATCH body for typical API/proxy limits. */
+const MAX_LOGO_DATA_URL_LENGTH = 5 * 1024 * 1024;
+
+export const LOGO_FILE_TOO_LARGE_MESSAGE = "Image must be smaller than 2MB";
+export const LOGO_PAYLOAD_TOO_LARGE_MESSAGE =
+  "Image is too large to upload. Try a smaller or more compressed image.";
+
+function isOversizedPayloadError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const o = err as Record<string, unknown>;
+  const msg = String(o.message ?? "").toLowerCase();
+  const details = String(o.details ?? "").toLowerCase();
+  const hint = String(o.hint ?? "").toLowerCase();
+  const combined = `${msg} ${details} ${hint}`;
+  const status = typeof o.status === "number" ? o.status : undefined;
+  return (
+    status === 413 ||
+    combined.includes("413") ||
+    combined.includes("request entity too large") ||
+    combined.includes("payload too large") ||
+    combined.includes("content too large")
+  );
+}
 
 function readFileAsDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -96,17 +119,26 @@ function readFileAsDataURL(file: File): Promise<string> {
 
 export async function uploadLogo(userId: string, file: File): Promise<string> {
   if (file.size > MAX_LOGO_BYTES) {
-    throw new Error("Image must be smaller than 5MB");
+    throw new Error(LOGO_FILE_TOO_LARGE_MESSAGE);
   }
 
   const logoDataUrl = await readFileAsDataURL(file);
+
+  if (logoDataUrl.length > MAX_LOGO_DATA_URL_LENGTH) {
+    throw new Error(LOGO_PAYLOAD_TOO_LARGE_MESSAGE);
+  }
 
   const { error: updateError } = await supabase
     .from("profiles")
     .update({ company_logo: logoDataUrl })
     .eq("user_id", userId);
 
-  if (updateError) throw updateError;
+  if (updateError) {
+    if (isOversizedPayloadError(updateError)) {
+      throw new Error(LOGO_PAYLOAD_TOO_LARGE_MESSAGE);
+    }
+    throw updateError;
+  }
 
   return logoDataUrl;
 }
