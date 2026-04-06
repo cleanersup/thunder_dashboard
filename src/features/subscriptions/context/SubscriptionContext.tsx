@@ -88,11 +88,14 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  /** User id we last loaded subscription for; cleared on sign-out. Used to avoid isLoading flicker on refetch / token refresh. */
+  const subscribedForUserIdRef = useRef<string | null>(null);
 
   // ── Auth listener ──
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      if (!session?.user) subscribedForUserIdRef.current = null;
       setCurrentUser(session?.user ?? null);
     });
     return () => subscription.unsubscribe();
@@ -100,12 +103,17 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   // ── Load subscription ──
   const loadSubscription = useCallback(async (silent = false) => {
-    if (!silent) setIsLoading(true);
+    const uid = currentUser?.id ?? null;
+    // Only show global loading when user changed or first fetch — not on every callback identity refresh (same user).
+    if (!silent && subscribedForUserIdRef.current !== uid) {
+      setIsLoading(true);
+    }
     setError(null);
 
     // Dev mode: mock active Professional subscription
     if (env.features.disableSubscriptions) {
       setInfo(DEV_SUBSCRIPTION);
+      subscribedForUserIdRef.current = uid ?? "__dev_mock__";
       setIsLoading(false);
       return;
     }
@@ -113,8 +121,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     // Auth not yet resolved — keep loading so ProtectedRoute doesn't
     // redirect prematurely with hasActiveSubscription=false.
     if (!currentUser) {
-      setInfo(EMPTY_SUBSCRIPTION);
-      setIsLoading(true);
+      if (subscribedForUserIdRef.current === null) {
+        setInfo(EMPTY_SUBSCRIPTION);
+        setIsLoading(true);
+      } else {
+        // Transient null during token refresh: keep last subscription snapshot, don't block UI.
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -128,10 +141,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         .single();
 
       if (profileError) {
+        subscribedForUserIdRef.current = null;
         setError(profileError.message);
         setInfo(EMPTY_SUBSCRIPTION);
         return;
       }
+
+      subscribedForUserIdRef.current = currentUser.id;
 
       const now = new Date();
       const createdAt = profile?.created_at ? new Date(profile.created_at) : null;

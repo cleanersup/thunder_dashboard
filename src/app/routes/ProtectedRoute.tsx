@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthGuard } from "@/shared/components/common/AuthGuard";
 import { MainLayout } from "@/shared/components/layout/MainLayout";
 import { useSubscription } from "@/features/subscriptions/context/SubscriptionContext";
+import { useAuth } from "@/shared/hooks/useAuth";
 import { hasFeatureAccess, type FeatureKey } from "@/shared/config/planFeatures";
 
 /**
@@ -26,7 +27,24 @@ export function ProtectedRoute({
   requireFeature?: FeatureKey;
 }) {
   const { hasActiveSubscription, planTier, isLoading } = useSubscription();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [subscriptionBootstrapComplete, setSubscriptionBootstrapComplete] = useState(false);
+  const lastAuthUserIdRef = useRef<string | undefined>(undefined);
+
+  // Reset bootstrap when the signed-in user changes (login / logout / account switch).
+  useEffect(() => {
+    const id = user?.id;
+    if (id !== lastAuthUserIdRef.current) {
+      lastAuthUserIdRef.current = id;
+      setSubscriptionBootstrapComplete(false);
+    }
+  }, [user?.id]);
+
+  // After subscription finishes loading once for this user, don't full-screen block on later refetches (e.g. tab focus).
+  useEffect(() => {
+    if (!isLoading) setSubscriptionBootstrapComplete(true);
+  }, [isLoading]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -43,7 +61,8 @@ export function ProtectedRoute({
     }
   }, [hasActiveSubscription, planTier, isLoading, requireSubscription, requireFeature, navigate]);
 
-  const showSubscriptionSpinner = (requireSubscription || !!requireFeature) && isLoading;
+  const showSubscriptionSpinner =
+    (requireSubscription || !!requireFeature) && isLoading && !subscriptionBootstrapComplete;
 
   return (
     <AuthGuard>
