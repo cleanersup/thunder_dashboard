@@ -24,6 +24,8 @@ import { Calendar } from "@/shared/components/ui/calendar";
 import { cn }       from "@/shared/utils/cn";
 import { leadSchema, type LeadFormData } from "../schemas/leadSchema";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
+import { PhoneInput } from "@/shared/components/ui/phone-input";
+import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
 import { toDecimalString } from "@/shared/utils/numericInput";
 import { useCreateLead, useUpdateLead } from "../hooks/useLeads";
 import type { Lead } from "../../types/crm.types";
@@ -79,7 +81,7 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
       reset({
         full_name:          lead.full_name,
         company_name:       lead.company_name ?? undefined,
-        phone:              lead.phone,
+        phone:              formatPhoneDisplay(lead.phone),
         email:              lead.email,
         address:            lead.address,
         apt_suite:          lead.apt_suite ?? undefined,
@@ -148,7 +150,11 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
             </div>
             <div className="space-y-1">
               <Label>Phone Number *</Label>
-              <Input {...register("phone")} placeholder="(555) 000-0000" />
+              <PhoneInput
+                value={watch("phone") ?? ""}
+                onChange={(v) => setValue("phone", v, { shouldValidate: true })}
+                placeholder="(555) 000-0000"
+              />
               {errors.phone && (
                 <p className="text-xs text-destructive">{errors.phone.message}</p>
               )}

@@ -17,6 +17,8 @@ import {
 import { Textarea } from "@/shared/components/ui/textarea";
 import { clientSchema, type ClientFormData } from "../schemas/clientSchema";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
+import { PhoneInput } from "@/shared/components/ui/phone-input";
+import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
 import { useCreateClient, useUpdateClient } from "../hooks/useClients";
 import type { Client } from "../../types/crm.types";
 import type { ClientEntity } from "@/shared/types/entities";
@@ -61,7 +63,7 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
       reset({
         full_name:          client.full_name,
         company:            client.company ?? undefined,
-        phone:              client.phone,
+        phone:              formatPhoneDisplay(client.phone),
         email:              client.email,
         service_street:     client.service_street,
         service_apt:        client.service_apt ?? undefined,
@@ -170,7 +172,11 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
             </div>
             <div className="space-y-1">
               <Label>Phone Number *</Label>
-              <Input {...register("phone")} placeholder="(555) 000-0000" />
+              <PhoneInput
+                value={watch("phone") ?? ""}
+                onChange={(v) => setValue("phone", v, { shouldValidate: true })}
+                placeholder="(555) 000-0000"
+              />
               {errors.phone && (
                 <p className="text-xs text-destructive">{errors.phone.message}</p>
               )}

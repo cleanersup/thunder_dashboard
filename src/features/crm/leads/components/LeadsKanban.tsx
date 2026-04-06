@@ -10,8 +10,8 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { useLeads } from "../hooks/useLeads";
-import { useUpdateLead } from "../hooks/useLeads";
+import { useLeads, useUpdateLead } from "../hooks/useLeads";
+import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
 import { LeadForm } from "./LeadForm";
 import { LeadDetailModal } from "./LeadDetailModal";
 import { LEAD_CARD_BG, PRIORITY_BADGE } from "@/shared/constants/styleTokens";
@@ -65,7 +65,7 @@ function LeadCard({ lead, onClick, isDragging = false }: LeadCardProps) {
       {lead.company_name && (
         <p className="text-xs text-muted-foreground truncate mb-1">{lead.company_name}</p>
       )}
-      <p className="text-xs text-muted-foreground mb-2">{lead.phone}</p>
+      <p className="text-xs text-muted-foreground mb-2">{formatPhoneDisplay(lead.phone)}</p>
 
       <div className="flex justify-end">
         <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full capitalize ${PRIORITY_BADGE[lead.priority_level] ?? "bg-secondary text-secondary-foreground"}`}>
@@ -197,7 +197,7 @@ export function LeadsKanban({ showForm, onCloseForm }: LeadsKanbanProps) {
               {draggingLead.company_name && (
                 <p className="text-xs text-muted-foreground truncate">{draggingLead.company_name}</p>
               )}
-              <p className="text-xs text-muted-foreground">{draggingLead.phone}</p>
+              <p className="text-xs text-muted-foreground">{formatPhoneDisplay(draggingLead.phone)}</p>
             </div>
           )}
         </DragOverlay>

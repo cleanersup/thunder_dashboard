@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { ClientForm } from "./ClientForm";
 import { useClient, useDeleteClient, useUpdateClient } from "../hooks/useClients";
 import { CLIENT_STATUS_BADGE } from "@/shared/constants/styleTokens";
+import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
 import { toast } from "sonner";
 import type { Client } from "../../types/crm.types";
 
@@ -117,7 +118,7 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Phone</p>
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium truncate">{c.phone}</p>
+                      <p className="text-sm font-medium truncate">{formatPhoneDisplay(c.phone)}</p>
                       <div className="flex gap-1.5 flex-shrink-0">
                         <a
                           href={`sms:${c.phone}`}

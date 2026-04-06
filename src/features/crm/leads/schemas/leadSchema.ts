@@ -3,7 +3,7 @@ import { z } from "zod";
 export const leadSchema = z.object({
   full_name: z.string().min(1, "Full name is required"),
   company_name: z.string().optional(),
-  phone: z.string().min(1, "Phone is required"),
+  phone: z.string().min(1, "Phone is required").regex(/^\(\d{3}\)\d{3}-\d{4}$/, "Enter a valid phone: (xxx)xxx-xxxx"),
   email: z.string().email("Invalid email address"),
   address: z.string().min(1, "Address is required"),
   apt_suite: z.string().optional(),
