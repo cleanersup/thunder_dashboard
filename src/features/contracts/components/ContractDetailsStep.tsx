@@ -88,6 +88,8 @@ export function ContractDetailsStep({
   const [endDate, setEndDate] = useState<Date | undefined>(
     formData.end_date ? parseLocalDate(formData.end_date) : undefined,
   );
+  const [startOpen, setStartOpen] = useState(false);
+  const [endOpen,   setEndOpen]   = useState(false);
 
   // Sync dates when parent loads contract data async (edit mode / draft reopen)
   useEffect(() => {
@@ -247,7 +249,7 @@ export function ContractDetailsStep({
               <Label className="text-xs text-muted-foreground">
                 Start Date <span className="text-destructive">*</span>
               </Label>
-              <Popover>
+              <Popover open={startOpen} onOpenChange={setStartOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -269,6 +271,11 @@ export function ContractDetailsStep({
                       setStartDate(d);
                       onChange({ start_date: d ? format(d, "yyyy-MM-dd") : "" });
                       clearError("start_date");
+                      if (d && endDate && endDate <= d) {
+                        setEndDate(undefined);
+                        onChange({ end_date: "" });
+                      }
+                      setStartOpen(false);
                     }}
                     initialFocus
                     className="p-3 pointer-events-auto"
@@ -282,7 +289,7 @@ export function ContractDetailsStep({
               <Label className="text-xs text-muted-foreground">
                 End Date <span className="text-destructive">*</span>
               </Label>
-              <Popover>
+              <Popover open={endOpen} onOpenChange={setEndOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -304,6 +311,7 @@ export function ContractDetailsStep({
                       setEndDate(d);
                       onChange({ end_date: d ? format(d, "yyyy-MM-dd") : "" });
                       clearError("end_date");
+                      setEndOpen(false);
                     }}
                     disabled={(d) => (startDate ? d <= startDate : false)}
                     initialFocus
