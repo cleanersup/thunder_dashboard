@@ -323,88 +323,97 @@ function WeekView({
   const weekDays  = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
-      {/* Day headers */}
-      <div className="grid border-b border-border bg-muted/30" style={{ gridTemplateColumns: "64px repeat(7, 1fr)" }}>
-        <div /> {/* time gutter */}
-        {weekDays.map((day, i) => {
-          const isToday = isSameDay(day, today);
-          return (
-            <div key={i} className="text-center py-2 border-l border-border first:border-l-0">
-              <div className="text-[10px] font-medium text-muted-foreground uppercase">
-                {WEEK_DAYS[i]}
-              </div>
-              <button
-                onClick={() => onDayHeaderClick(day)}
-                className={cn(
-                  "mx-auto mt-0.5 w-7 h-7 flex items-center justify-center rounded-full text-sm font-semibold hover:bg-muted transition-colors",
-                  isToday && "bg-primary text-primary-foreground hover:bg-primary/90",
-                )}
-              >
-                {format(day, "d")}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Scrollable hour grid */}
-      <div className="overflow-y-auto max-h-[600px]">
-        {Array.from({ length: 24 }, (_, hour) => (
-          <div key={hour} className="grid border-b border-border last:border-b-0" style={{ gridTemplateColumns: "64px repeat(7, 1fr)", minHeight: SLOT_H }}>
-            {/* Time label */}
-            <div className="text-right pr-2 pt-1 text-[10px] text-muted-foreground border-r border-border">
-              {formatHour(hour)}
-            </div>
-
-            {/* Day slots */}
-            {weekDays.map((day, di) => {
-              const slotAppts = apptsForHour(appointments, day, hour);
+    // overflow-x-auto enables horizontal scrolling on mobile.
+    // min-w-[540px] keeps columns from collapsing below a readable size.
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="min-w-[540px] overflow-hidden">
+        {/* Single vertical scroll container — header is sticky so header and grid
+            share the same width, fixing the Windows scrollbar misalignment bug. */}
+        <div className="overflow-y-auto max-h-[600px]">
+          {/* Sticky day headers */}
+          <div
+            className="sticky top-0 z-20 grid border-b border-border bg-muted/30"
+            style={{ gridTemplateColumns: "64px repeat(7, 1fr)" }}
+          >
+            <div className="border-r border-border" /> {/* time gutter */}
+            {weekDays.map((day, i) => {
+              const isToday = isSameDay(day, today);
               return (
-                <div
-                  key={di}
-                  className="relative border-l border-border hover:bg-muted/20 cursor-pointer transition-colors"
-                  style={{ minHeight: SLOT_H }}
-                  onClick={() => {
-                    const d = new Date(day);
-                    d.setHours(hour, 0, 0, 0);
-                    onSlotClick?.(d);
-                  }}
-                >
-                  {slotAppts.map((appt) => {
-                    const [, startMin] = parseTime(appt.scheduled_time);
-                    const durH         = durationMins(appt) / 60;
-                    const topPx        = (startMin / 60) * SLOT_H;
-                    const heightPx     = Math.max(durH * SLOT_H, 20);
-                    const group        = overlapping(appointments, appt, day);
-                    const idx          = group.findIndex((b) => b.id === appt.id);
-                    const widthPct     = 100 / group.length;
-                    const leftPct      = idx * widthPct;
-
-                    return (
-                      <div
-                        key={appt.id}
-                        onClick={(e) => { e.stopPropagation(); onAppointmentClick(appt); }}
-                        className={cn(
-                          "absolute rounded px-1 py-0.5 text-white text-[10px] font-medium cursor-pointer hover:opacity-90 z-10 overflow-hidden",
-                          apptColor(appt.id),
-                        )}
-                        style={{
-                          top:    topPx,
-                          height: heightPx,
-                          left:   `${leftPct}%`,
-                          width:  `${widthPct}%`,
-                        }}
-                      >
-                        <span className="truncate block">{appt.clients?.full_name}</span>
-                      </div>
-                    );
-                  })}
+                <div key={i} className="text-center py-2 border-l border-border first:border-l-0">
+                  <div className="text-[10px] font-medium text-muted-foreground uppercase">
+                    {WEEK_DAYS[i]}
+                  </div>
+                  <button
+                    onClick={() => onDayHeaderClick(day)}
+                    className={cn(
+                      "mx-auto mt-0.5 w-7 h-7 flex items-center justify-center rounded-full text-sm font-semibold hover:bg-muted transition-colors",
+                      isToday && "bg-primary text-primary-foreground hover:bg-primary/90",
+                    )}
+                  >
+                    {format(day, "d")}
+                  </button>
                 </div>
               );
             })}
           </div>
-        ))}
+
+          {/* Hour grid */}
+          {Array.from({ length: 24 }, (_, hour) => (
+            <div key={hour} className="grid border-b border-border last:border-b-0" style={{ gridTemplateColumns: "64px repeat(7, 1fr)", minHeight: SLOT_H }}>
+              {/* Time label */}
+              <div className="text-right pr-2 pt-1 text-[10px] text-muted-foreground border-r border-border">
+                {formatHour(hour)}
+              </div>
+
+              {/* Day slots */}
+              {weekDays.map((day, di) => {
+                const slotAppts = apptsForHour(appointments, day, hour);
+                return (
+                  <div
+                    key={di}
+                    className="relative border-l border-border hover:bg-muted/20 cursor-pointer transition-colors"
+                    style={{ minHeight: SLOT_H }}
+                    onClick={() => {
+                      const d = new Date(day);
+                      d.setHours(hour, 0, 0, 0);
+                      onSlotClick?.(d);
+                    }}
+                  >
+                    {slotAppts.map((appt) => {
+                      const [, startMin] = parseTime(appt.scheduled_time);
+                      const durH         = durationMins(appt) / 60;
+                      const topPx        = (startMin / 60) * SLOT_H;
+                      const heightPx     = Math.max(durH * SLOT_H, 20);
+                      const group        = overlapping(appointments, appt, day);
+                      const idx          = group.findIndex((b) => b.id === appt.id);
+                      const widthPct     = 100 / group.length;
+                      const leftPct      = idx * widthPct;
+
+                      return (
+                        <div
+                          key={appt.id}
+                          onClick={(e) => { e.stopPropagation(); onAppointmentClick(appt); }}
+                          className={cn(
+                            "absolute rounded px-1 py-0.5 text-white text-[10px] font-medium cursor-pointer hover:opacity-90 z-10 overflow-hidden",
+                            apptColor(appt.id),
+                          )}
+                          style={{
+                            top:    topPx,
+                            height: heightPx,
+                            left:   `${leftPct}%`,
+                            width:  `${widthPct}%`,
+                          }}
+                        >
+                          <span className="truncate block">{appt.clients?.full_name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -438,11 +447,12 @@ function MonthView({
 
   return (
     <div className="border border-border rounded-lg overflow-hidden">
-      {/* Day-of-week header */}
+      {/* Day-of-week header — abbreviated to 1 char on mobile */}
       <div className="grid grid-cols-7 border-b border-border bg-muted/30">
         {WEEK_DAYS.map((d) => (
           <div key={d} className="py-2 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            {d}
+            <span className="hidden sm:inline">{d}</span>
+            <span className="sm:hidden">{d[0]}</span>
           </div>
         ))}
       </div>
@@ -463,7 +473,7 @@ function MonthView({
               key={k}
               onClick={() => onDayClick(day)}
               className={cn(
-                "min-h-[110px] p-1.5 flex flex-col gap-1 cursor-pointer",
+                "min-h-[70px] sm:min-h-[110px] p-0.5 sm:p-1.5 flex flex-col gap-0.5 sm:gap-1 cursor-pointer",
                 colIdx < 6 && "border-r border-border",
                 !isLastRow  && "border-b border-border",
                 isToday     && "bg-blue-50 dark:bg-blue-950/30",
@@ -471,7 +481,7 @@ function MonthView({
               )}
             >
               <span className={cn(
-                "text-sm font-medium leading-none mb-0.5 self-start",
+                "text-xs sm:text-sm font-medium leading-none mb-0.5 self-start",
                 isToday   && "text-blue-600 dark:text-blue-400 font-bold",
                 !inMonth  && "text-muted-foreground/50",
                 inMonth && !isToday && "text-foreground",
@@ -484,7 +494,7 @@ function MonthView({
                   key={a.id}
                   onClick={(e) => { e.stopPropagation(); onAppointmentClick(a); }}
                   className={cn(
-                    "w-full text-left px-2 py-0.5 rounded text-xs text-white font-medium truncate hover:opacity-90",
+                    "w-full text-left px-1 sm:px-2 py-0.5 rounded text-[9px] sm:text-xs text-white font-medium truncate hover:opacity-90",
                     apptColor(a.id),
                   )}
                 >
@@ -493,7 +503,7 @@ function MonthView({
               ))}
 
               {overflow > 0 && (
-                <span className="text-[10px] text-muted-foreground px-1">+{overflow} more</span>
+                <span className="text-[8px] sm:text-[10px] text-muted-foreground px-0.5 sm:px-1">+{overflow}</span>
               )}
             </div>
           );

@@ -215,33 +215,37 @@ export function RoutesPage() {
       {/* ── Toolbar Card: Toggle + Controls ────────────────────────── */}
       <Card className="border border-border/50 shadow-none">
         <CardContent className="p-3">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            {/* Left: Calendar/Map toggle + date chip + view type dropdown */}
-            <div className="flex items-center gap-3">
-              {/* Toggle */}
-              <div className="flex items-center gap-2">
-                <CalendarIcon className={`h-4 w-4 ${mapViewMode === "calendar" ? "text-primary" : "text-muted-foreground"}`} />
-                <span className={`text-sm font-medium ${mapViewMode === "calendar" ? "text-foreground" : "text-muted-foreground"}`}>
+          {/* Mobile/Tablet (< lg): 2 rows. Desktop (≥ lg): single row */}
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+
+            {/* Row 1 / Left side on desktop */}
+            <div className="flex items-center justify-between gap-2 lg:gap-3">
+              {/* Calendar / Map toggle — text labels only on desktop */}
+              <div className="flex items-center gap-1.5 lg:gap-2">
+                <CalendarIcon className={`h-4 w-4 shrink-0 ${mapViewMode === "calendar" ? "text-primary" : "text-muted-foreground"}`} />
+                <span className={`hidden lg:inline text-sm font-medium ${mapViewMode === "calendar" ? "text-foreground" : "text-muted-foreground"}`}>
                   Calendar
                 </span>
                 <Switch
                   checked={mapViewMode === "map"}
                   onCheckedChange={(v) => setMapViewMode(v ? "map" : "calendar")}
                 />
-                <span className={`text-sm font-medium ${mapViewMode === "map" ? "text-foreground" : "text-muted-foreground"}`}>
+                <span className={`hidden lg:inline text-sm font-medium ${mapViewMode === "map" ? "text-foreground" : "text-muted-foreground"}`}>
                   Map
                 </span>
-                <Map className={`h-4 w-4 ${mapViewMode === "map" ? "text-primary" : "text-muted-foreground"}`} />
+                <Map className={`h-4 w-4 shrink-0 ${mapViewMode === "map" ? "text-primary" : "text-muted-foreground"}`} />
               </div>
 
-              <Separator orientation="vertical" className="h-6" />
+              <Separator orientation="vertical" className="h-6 hidden lg:block" />
 
-              {/* Date chip — reflects selectedDate and opens a date picker */}
+              {/* Date chip */}
               <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
                 <PopoverTrigger asChild>
-                  <button className="flex items-center gap-1.5 border border-border rounded-md px-3 py-1.5 text-sm text-foreground bg-background hover:bg-muted transition-colors cursor-pointer">
+                  <button className="flex items-center gap-1.5 border border-border rounded-md px-2.5 py-1.5 text-sm text-foreground bg-background hover:bg-muted transition-colors cursor-pointer">
                     <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span>{formatDateChip(selectedDate, calViewType, mapViewMode)}</span>
+                    <span className="truncate max-w-[140px] lg:max-w-none">
+                      {formatDateChip(selectedDate, calViewType, mapViewMode)}
+                    </span>
                   </button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto p-0">
@@ -260,7 +264,7 @@ export function RoutesPage() {
               {mapViewMode === "calendar" && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-1.5 min-w-[90px] justify-between bg-background">
+                    <Button variant="outline" size="sm" className="gap-1 min-w-[80px] justify-between bg-background">
                       {VIEW_TYPE_LABELS[calViewType]}
                       <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                     </Button>
@@ -280,7 +284,7 @@ export function RoutesPage() {
               )}
             </div>
 
-            {/* Right: route selector + add service button */}
+            {/* Row 2 / Right side on desktop */}
             <div className="flex items-center gap-2">
               <RouteSelector
                 routes={routes}
@@ -297,10 +301,10 @@ export function RoutesPage() {
                   setAddApptDate("");
                   setAddApptOpen(true);
                 }}
-                className="h-9"
+                className="h-9 ml-auto lg:ml-0"
               >
-                <Plus className="h-4 w-4 mr-1.5" />
-                Add Service
+                <Plus className="h-4 w-4 lg:mr-1.5" />
+                <span className="hidden lg:inline">Add Service</span>
               </Button>
             </div>
           </div>
@@ -309,7 +313,7 @@ export function RoutesPage() {
 
       {/* ── Main content Card ───────────────────────────────────────── */}
       <Card className="border border-border/50 shadow-none">
-        <CardContent className="p-4">
+        <CardContent className="p-2 sm:p-4">
           {isLoading ? (
             <div className="flex justify-center py-16"><LoadingSpinner /></div>
           ) : mapViewMode === "map" ? (
