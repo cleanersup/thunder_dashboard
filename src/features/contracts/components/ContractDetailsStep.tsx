@@ -6,8 +6,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import {
-  CalendarIcon, DollarSign, Building2, Check,
-  ClipboardList, Globe, Sparkles, Loader2, Save, RotateCcw, X,
+  CalendarIcon, DollarSign, Building2, Check, ClipboardList, Globe, Sparkles,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button }   from "@/shared/components/ui/button";
@@ -29,6 +28,7 @@ import { toast }    from "sonner";
 import { toDecimalString } from "@/shared/utils/numericInput";
 import { ClientPicker }    from "@/shared/components/common/ClientPicker";
 import { useContractDescription } from "../hooks/useContractDescription";
+import { FieldActions, initialSource, type FieldSource } from "./FieldActions";
 import type { ClientEntity } from "@/shared/types/entities";
 import type { ContractFormData, ContractPaymentFrequency } from "../types/contract.types";
 
@@ -101,6 +101,37 @@ export function ContractDetailsStep({
   // ── Auto-generate ─────────────────────────────────────────────────────────
   const { generateField, generatingField, saveDescription, savingField } = useContractDescription();
 
+  // ── Field source tracking (drives the FieldActions state machine) ─────────
+  type DescKey = "who_we_are" | "why_choose_us" | "our_services" | "service_coverage";
+  const DESC_KEYS: DescKey[] = ["who_we_are", "why_choose_us", "our_services", "service_coverage"];
+
+  const [fieldSources, setFieldSources] = useState<Record<DescKey, FieldSource>>(() => {
+    const result = {} as Record<DescKey, FieldSource>;
+    for (const key of DESC_KEYS) {
+      result[key] = initialSource(formData[key] ?? "", "");
+    }
+    return result;
+  });
+
+  // Sync sources when savedDefaults loads (profile data arrives async)
+  useEffect(() => {
+    if (!savedDefaults) return;
+    setFieldSources((prev) => {
+      const next = { ...prev };
+      for (const key of DESC_KEYS) {
+        // Only update if still in an indeterminate state — preserve ai/user edits
+        if (prev[key] === "empty" || prev[key] === "user") {
+          next[key] = initialSource(formData[key] ?? "", savedDefaults[key] ?? "");
+        }
+      }
+      return next;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedDefaults]);
+
+  const setFieldSource = (key: DescKey, src: FieldSource) =>
+    setFieldSources((prev) => ({ ...prev, [key]: src }));
+
   // Dialogs for fields that accept a user-provided list before generating
   const [showServicesDialog, setShowServicesDialog] = useState(false);
   const [showCitiesDialog,   setShowCitiesDialog]   = useState(false);
@@ -111,14 +142,14 @@ export function ContractDetailsStep({
     setShowServicesDialog(false);
     const items = servicesInput.split("\n").map((s) => s.trim()).filter(Boolean);
     const result = await generateField("our_services", { services: items });
-    if (result) { onChange({ our_services: result }); setServicesInput(""); }
+    if (result) { onChange({ our_services: result }); setFieldSource("our_services", "user"); clearError("our_services"); setServicesInput(""); }
   };
 
   const handleGenerateCities = async () => {
     setShowCitiesDialog(false);
     const items = citiesInput.split("\n").map((s) => s.trim()).filter(Boolean);
     const result = await generateField("service_coverage", { cities: items });
-    if (result) { onChange({ service_coverage: result }); setCitiesInput(""); }
+    if (result) { onChange({ service_coverage: result }); setFieldSource("service_coverage", "user"); clearError("service_coverage"); setCitiesInput(""); }
   };
 
   // ── Validation errors ─────────────────────────────────────────────────────
@@ -163,6 +194,10 @@ export function ContractDetailsStep({
     if (!endDate)                                            errs.add("end_date");
     if (startDate && endDate && endDate <= startDate)        errs.add("end_date");
     if (!formData.total || parseFloat(formData.total) <= 0) errs.add("total");
+    if (!formData.who_we_are?.trim())       errs.add("who_we_are");
+    if (!formData.why_choose_us?.trim())    errs.add("why_choose_us");
+    if (!formData.our_services?.trim())     errs.add("our_services");
+    if (!formData.service_coverage?.trim()) errs.add("service_coverage");
     setErrors(errs);
     if (errs.size > 0) { toast.error("Please fill in all required fields"); return false; }
     return true;
@@ -351,7 +386,7 @@ export function ContractDetailsStep({
       </Card>
 
       {/* Who We Are */}
-      <Card className="rounded-lg border px-6 py-4">
+      <Card className={cn("rounded-lg border px-6 py-4", errors.has("who_we_are") && "ring-1 ring-inset ring-destructive")}>
         <CardHeader className="p-0">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Building2 className="w-4 h-4" />
@@ -361,59 +396,43 @@ export function ContractDetailsStep({
         <CardContent className="p-0 pt-3 space-y-2">
           <Textarea
             value={formData.who_we_are}
-            onChange={(e) => onChange({ who_we_are: e.target.value })}
+            onChange={(e) => {
+              onChange({ who_we_are: e.target.value });
+              setFieldSource("who_we_are", e.target.value ? "user" : "empty");
+              if (e.target.value) clearError("who_we_are");
+            }}
             placeholder="Briefly describe your company: name, what you do, and the services you provide."
             className="min-h-[100px] resize-y"
           />
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline" size="sm" className="h-7 text-xs gap-1"
-                disabled={generatingField !== null}
-                onClick={async () => {
-                  const result = await generateField("who_we_are");
-                  if (result) onChange({ who_we_are: result });
-                }}
-              >
-                {generatingField === "who_we_are"
-                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                  : <><Sparkles className="w-3 h-3" /> Auto Generate</>}
-              </Button>
-              {savedDefaults?.who_we_are && (
-                <Button
-                  variant="outline" size="sm" className="h-7 text-xs gap-1"
-                  onClick={() => onChange({ who_we_are: savedDefaults.who_we_are })}
-                >
-                  <RotateCcw className="w-3 h-3" /> Use Default
-                </Button>
-              )}
-            </div>
-            {formData.who_we_are.trim() && (
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="outline" size="sm"
-                  className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
-                  disabled={savingField !== null}
-                  onClick={() => saveDescription("who_we_are", formData.who_we_are)}
-                >
-                  {savingField === "who_we_are"
-                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
-                    : <><Save className="w-3 h-3" /> Save as Default</>}
-                </Button>
-                <Button
-                  variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground"
-                  onClick={() => onChange({ who_we_are: "" })}
-                >
-                  <X className="w-3 h-3" /> Clear
-                </Button>
-              </div>
-            )}
-          </div>
+          <FieldActions
+            value={formData.who_we_are}
+            defaultValue={savedDefaults?.who_we_are ?? ""}
+            source={fieldSources.who_we_are}
+            isGenerating={generatingField === "who_we_are"}
+            isSaving={savingField === "who_we_are"}
+            onGenerate={async () => {
+              const result = await generateField("who_we_are");
+              if (result) { onChange({ who_we_are: result }); setFieldSource("who_we_are", "user"); clearError("who_we_are"); }
+            }}
+            onUseSaved={() => {
+              onChange({ who_we_are: savedDefaults!.who_we_are });
+              setFieldSource("who_we_are", "default");
+              clearError("who_we_are");
+            }}
+            onSaveDefault={async () => {
+              await saveDescription("who_we_are", formData.who_we_are);
+              setFieldSource("who_we_are", "default");
+            }}
+            onClear={() => {
+              onChange({ who_we_are: "" });
+              setFieldSource("who_we_are", "empty");
+            }}
+          />
         </CardContent>
       </Card>
 
       {/* Why Choose Us */}
-      <Card className="rounded-lg border px-6 py-4">
+      <Card className={cn("rounded-lg border px-6 py-4", errors.has("why_choose_us") && "ring-1 ring-inset ring-destructive")}>
         <CardHeader className="p-0">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Check className="w-4 h-4" />
@@ -423,59 +442,43 @@ export function ContractDetailsStep({
         <CardContent className="p-0 pt-3 space-y-2">
           <Textarea
             value={formData.why_choose_us}
-            onChange={(e) => onChange({ why_choose_us: e.target.value })}
+            onChange={(e) => {
+              onChange({ why_choose_us: e.target.value });
+              setFieldSource("why_choose_us", e.target.value ? "user" : "empty");
+              if (e.target.value) clearError("why_choose_us");
+            }}
             placeholder="Explain why clients should choose your company: experience, quality, reliability, and what sets you apart."
             className="min-h-[100px] resize-y"
           />
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline" size="sm" className="h-7 text-xs gap-1"
-                disabled={generatingField !== null}
-                onClick={async () => {
-                  const result = await generateField("why_choose_us");
-                  if (result) onChange({ why_choose_us: result });
-                }}
-              >
-                {generatingField === "why_choose_us"
-                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                  : <><Sparkles className="w-3 h-3" /> Auto Generate</>}
-              </Button>
-              {savedDefaults?.why_choose_us && (
-                <Button
-                  variant="outline" size="sm" className="h-7 text-xs gap-1"
-                  onClick={() => onChange({ why_choose_us: savedDefaults.why_choose_us })}
-                >
-                  <RotateCcw className="w-3 h-3" /> Use Default
-                </Button>
-              )}
-            </div>
-            {formData.why_choose_us.trim() && (
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="outline" size="sm"
-                  className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
-                  disabled={savingField !== null}
-                  onClick={() => saveDescription("why_choose_us", formData.why_choose_us)}
-                >
-                  {savingField === "why_choose_us"
-                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
-                    : <><Save className="w-3 h-3" /> Save as Default</>}
-                </Button>
-                <Button
-                  variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground"
-                  onClick={() => onChange({ why_choose_us: "" })}
-                >
-                  <X className="w-3 h-3" /> Clear
-                </Button>
-              </div>
-            )}
-          </div>
+          <FieldActions
+            value={formData.why_choose_us}
+            defaultValue={savedDefaults?.why_choose_us ?? ""}
+            source={fieldSources.why_choose_us}
+            isGenerating={generatingField === "why_choose_us"}
+            isSaving={savingField === "why_choose_us"}
+            onGenerate={async () => {
+              const result = await generateField("why_choose_us");
+              if (result) { onChange({ why_choose_us: result }); setFieldSource("why_choose_us", "user"); clearError("why_choose_us"); }
+            }}
+            onUseSaved={() => {
+              onChange({ why_choose_us: savedDefaults!.why_choose_us });
+              setFieldSource("why_choose_us", "default");
+              clearError("why_choose_us");
+            }}
+            onSaveDefault={async () => {
+              await saveDescription("why_choose_us", formData.why_choose_us);
+              setFieldSource("why_choose_us", "default");
+            }}
+            onClear={() => {
+              onChange({ why_choose_us: "" });
+              setFieldSource("why_choose_us", "empty");
+            }}
+          />
         </CardContent>
       </Card>
 
       {/* Our Services */}
-      <Card className="rounded-lg border px-6 py-4">
+      <Card className={cn("rounded-lg border px-6 py-4", errors.has("our_services") && "ring-1 ring-inset ring-destructive")}>
         <CardHeader className="p-0">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <ClipboardList className="w-4 h-4" />
@@ -485,56 +488,40 @@ export function ContractDetailsStep({
         <CardContent className="p-0 pt-3 space-y-2">
           <Textarea
             value={formData.our_services}
-            onChange={(e) => onChange({ our_services: e.target.value })}
+            onChange={(e) => {
+              onChange({ our_services: e.target.value });
+              setFieldSource("our_services", e.target.value ? "user" : "empty");
+              if (e.target.value) clearError("our_services");
+            }}
             placeholder="Describe the services included in this contract."
             className="min-h-[100px] resize-y"
           />
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline" size="sm" className="h-7 text-xs gap-1"
-                disabled={generatingField !== null}
-                onClick={() => setShowServicesDialog(true)}
-              >
-                {generatingField === "our_services"
-                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                  : <><Sparkles className="w-3 h-3" /> Auto Generate</>}
-              </Button>
-              {savedDefaults?.our_services && (
-                <Button
-                  variant="outline" size="sm" className="h-7 text-xs gap-1"
-                  onClick={() => onChange({ our_services: savedDefaults.our_services })}
-                >
-                  <RotateCcw className="w-3 h-3" /> Use Default
-                </Button>
-              )}
-            </div>
-            {formData.our_services.trim() && (
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="outline" size="sm"
-                  className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
-                  disabled={savingField !== null}
-                  onClick={() => saveDescription("our_services", formData.our_services)}
-                >
-                  {savingField === "our_services"
-                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
-                    : <><Save className="w-3 h-3" /> Save as Default</>}
-                </Button>
-                <Button
-                  variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground"
-                  onClick={() => onChange({ our_services: "" })}
-                >
-                  <X className="w-3 h-3" /> Clear
-                </Button>
-              </div>
-            )}
-          </div>
+          <FieldActions
+            value={formData.our_services}
+            defaultValue={savedDefaults?.our_services ?? ""}
+            source={fieldSources.our_services}
+            isGenerating={generatingField === "our_services"}
+            isSaving={savingField === "our_services"}
+            onGenerate={() => setShowServicesDialog(true)}
+            onUseSaved={() => {
+              onChange({ our_services: savedDefaults!.our_services });
+              setFieldSource("our_services", "default");
+              clearError("our_services");
+            }}
+            onSaveDefault={async () => {
+              await saveDescription("our_services", formData.our_services);
+              setFieldSource("our_services", "default");
+            }}
+            onClear={() => {
+              onChange({ our_services: "" });
+              setFieldSource("our_services", "empty");
+            }}
+          />
         </CardContent>
       </Card>
 
       {/* Service Coverage */}
-      <Card className="rounded-lg border px-6 py-4">
+      <Card className={cn("rounded-lg border px-6 py-4", errors.has("service_coverage") && "ring-1 ring-inset ring-destructive")}>
         <CardHeader className="p-0">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Globe className="w-4 h-4" />
@@ -544,51 +531,35 @@ export function ContractDetailsStep({
         <CardContent className="p-0 pt-3 space-y-2">
           <Textarea
             value={formData.service_coverage}
-            onChange={(e) => onChange({ service_coverage: e.target.value })}
+            onChange={(e) => {
+              onChange({ service_coverage: e.target.value });
+              setFieldSource("service_coverage", e.target.value ? "user" : "empty");
+              if (e.target.value) clearError("service_coverage");
+            }}
             placeholder="Describe the geographic area or locations covered by this contract."
             className="min-h-[80px] resize-y"
           />
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline" size="sm" className="h-7 text-xs gap-1"
-                disabled={generatingField !== null}
-                onClick={() => setShowCitiesDialog(true)}
-              >
-                {generatingField === "service_coverage"
-                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                  : <><Sparkles className="w-3 h-3" /> Auto Generate</>}
-              </Button>
-              {savedDefaults?.service_coverage && (
-                <Button
-                  variant="outline" size="sm" className="h-7 text-xs gap-1"
-                  onClick={() => onChange({ service_coverage: savedDefaults.service_coverage })}
-                >
-                  <RotateCcw className="w-3 h-3" /> Use Default
-                </Button>
-              )}
-            </div>
-            {formData.service_coverage.trim() && (
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="outline" size="sm"
-                  className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
-                  disabled={savingField !== null}
-                  onClick={() => saveDescription("service_coverage", formData.service_coverage)}
-                >
-                  {savingField === "service_coverage"
-                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
-                    : <><Save className="w-3 h-3" /> Save as Default</>}
-                </Button>
-                <Button
-                  variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground"
-                  onClick={() => onChange({ service_coverage: "" })}
-                >
-                  <X className="w-3 h-3" /> Clear
-                </Button>
-              </div>
-            )}
-          </div>
+          <FieldActions
+            value={formData.service_coverage}
+            defaultValue={savedDefaults?.service_coverage ?? ""}
+            source={fieldSources.service_coverage}
+            isGenerating={generatingField === "service_coverage"}
+            isSaving={savingField === "service_coverage"}
+            onGenerate={() => setShowCitiesDialog(true)}
+            onUseSaved={() => {
+              onChange({ service_coverage: savedDefaults!.service_coverage });
+              setFieldSource("service_coverage", "default");
+              clearError("service_coverage");
+            }}
+            onSaveDefault={async () => {
+              await saveDescription("service_coverage", formData.service_coverage);
+              setFieldSource("service_coverage", "default");
+            }}
+            onClear={() => {
+              onChange({ service_coverage: "" });
+              setFieldSource("service_coverage", "empty");
+            }}
+          />
         </CardContent>
       </Card>
 

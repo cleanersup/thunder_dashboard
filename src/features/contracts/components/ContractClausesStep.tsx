@@ -5,8 +5,8 @@
 import { useState, useEffect, useRef } from "react";
 import {
   X, Plus, ClipboardList, FileSignature, DollarSign, Check,
-  MapPin, Building2, Globe, Sparkles, Loader2, Save,
-  GripVertical, FileText, Trash2, RotateCcw,
+  MapPin, Building2, Globe,
+  GripVertical, FileText, Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button }   from "@/shared/components/ui/button";
@@ -25,6 +25,7 @@ import { cn }    from "@/shared/utils/cn";
 import { toast } from "sonner";
 import { DEFAULT_SECTIONS, CLAUSE_PROFILE_MAP, MANUAL_ONLY_KEYS } from "../config/contracts.config";
 import { useContractClauses } from "../hooks/useContractClauses";
+import { FieldActions, initialSource, type FieldSource } from "./FieldActions";
 import type { ContractFormData, ContractClause } from "../types/contract.types";
 
 // ─── Section icon map ─────────────────────────────────────────────────────────
@@ -66,25 +67,33 @@ export function ContractClausesStep({
   // ── Clause initialization (runs once when sections are empty) ─────────────
   const initialized = useRef(false);
   const [savedClauseKeys, setSavedClauseKeys] = useState<Record<string, string>>({});
+  const [clauseSources,   setClauseSources]   = useState<Record<string, FieldSource>>({});
+
+  const setClauseSource = (key: string, src: FieldSource) =>
+    setClauseSources((prev) => ({ ...prev, [key]: src }));
 
   useEffect(() => {
     if (initialized.current || !profile || formData.sections.length > 0) return;
     initialized.current = true;
     const saved: Record<string, string> = {};
+    const sources: Record<string, FieldSource> = {};
     const clauses: ContractClause[] = DEFAULT_SECTIONS.map((s, i) => {
       const profileCol = CLAUSE_PROFILE_MAP[s.key];
       const val = profileCol ? ((profile[profileCol] as string) ?? "") : "";
       if (val) saved[s.key] = val;
+      sources[s.key] = initialSource(val, val);
       return { key: s.key, title: s.title, body: val, enabled: true, order: i };
     });
     const rawCustom = profile.custom_clauses as Array<{ key: string; title: string; content: string }> | null;
     if (Array.isArray(rawCustom)) {
       for (const c of rawCustom) {
         saved[c.key] = c.content;
+        sources[c.key] = initialSource(c.content, c.content);
         clauses.push({ key: c.key, title: c.title, body: c.content, enabled: true, order: clauses.length });
       }
     }
     setSavedClauseKeys(saved);
+    setClauseSources(sources);
     onChange({ sections: clauses });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
@@ -95,10 +104,13 @@ export function ContractClausesStep({
     if (editSeedDone.current || formData.sections.length === 0) return;
     editSeedDone.current = true;
     const saved: Record<string, string> = {};
+    const sources: Record<string, FieldSource> = {};
     for (const s of formData.sections) {
       if (s.body?.trim()) saved[s.key] = s.body;
+      sources[s.key] = initialSource(s.body ?? "", s.body ?? "");
     }
     setSavedClauseKeys(saved);
+    setClauseSources(sources);
   }, [formData.sections]);
 
   // ── Clause editing state ──────────────────────────────────────────────────
@@ -126,21 +138,17 @@ export function ContractClausesStep({
 
   // ── Clause helpers ────────────────────────────────────────────────────────
 
-  const updateClause = (key: string, body: string) => {
+  const updateClause = (key: string, body: string, src?: FieldSource) => {
     onChange({ sections: formData.sections.map((c) => c.key === key ? { ...c, body } : c) });
     setClauseErrors((prev) => { const n = new Set(prev); n.delete(key); return n; });
-  };
-
-  const clauseHasUnsavedChanges = (key: string) => {
-    const current = formData.sections.find((c) => c.key === key)?.body?.trim() ?? "";
-    const saved   = savedClauseKeys[key]?.trim() ?? "";
-    return !!current && current !== saved;
+    if (src !== undefined) setClauseSource(key, src);
+    else setClauseSource(key, body ? "user" : "empty");
   };
 
   const handleGenerate = async (key: string, title: string) => {
     const companyName = (profile?.company_name as string) ?? "";
     const generated = await generateClause(key, title, companyName);
-    if (generated) updateClause(key, generated);
+    if (generated) updateClause(key, generated, "user");
   };
 
   const handleSaveClause = async (key: string, title: string) => {
@@ -151,10 +159,12 @@ export function ContractClausesStep({
       const newSaved = { ...savedClauseKeys };
       for (const c of formData.sections.filter((s) => s.key.startsWith("custom_"))) {
         newSaved[c.key] = c.body;
+        setClauseSource(c.key, "default");
       }
       setSavedClauseKeys(newSaved);
     } else {
       setSavedClauseKeys((prev) => ({ ...prev, [key]: clause.body }));
+      setClauseSource(key, "default");
     }
   };
 
@@ -192,7 +202,6 @@ export function ContractClausesStep({
         const isManual = MANUAL_ONLY_KEYS.has(clause.key);
         const Icon     = SECTION_ICON[clause.key] ?? (isCustom ? FileText : ClipboardList);
         const hasError = clauseErrors.has(clause.key);
-        const unsaved  = clauseHasUnsavedChanges(clause.key);
         const sec      = DEFAULT_SECTIONS.find((s) => s.key === clause.key);
         const placeholder = sec?.placeholder ?? `Describe ${clause.title}...`;
 
@@ -240,54 +249,18 @@ export function ContractClausesStep({
                 placeholder={placeholder}
                 className="min-h-[100px] resize-y"
               />
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  {!isManual && (
-                    <Button
-                      variant="outline" size="sm"
-                      className="h-7 text-xs gap-1"
-                      disabled={generatingKey !== null}
-                      onClick={() => handleGenerate(clause.key, clause.title)}
-                    >
-                      {generatingKey === clause.key
-                        ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
-                        : <><Sparkles className="w-3 h-3" /> Auto Generate</>}
-                    </Button>
-                  )}
-                  {savedClauseKeys[clause.key] && (
-                    <Button
-                      variant="outline" size="sm"
-                      className="h-7 text-xs gap-1"
-                      onClick={() => updateClause(clause.key, savedClauseKeys[clause.key])}
-                    >
-                      <RotateCcw className="w-3 h-3" /> Use Default
-                    </Button>
-                  )}
-                </div>
-                {clause.body?.trim() && (
-                  <div className="flex items-center gap-1.5">
-                    {unsaved && (
-                      <Button
-                        variant="outline" size="sm"
-                        className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
-                        disabled={savingKey !== null}
-                        onClick={() => handleSaveClause(clause.key, clause.title)}
-                      >
-                        {savingKey === clause.key
-                          ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
-                          : <><Save className="w-3 h-3" /> Save as Default</>}
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost" size="sm"
-                      className="h-7 text-xs gap-1 text-muted-foreground"
-                      onClick={() => updateClause(clause.key, "")}
-                    >
-                      <X className="w-3 h-3" /> Clear
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <FieldActions
+                value={clause.body}
+                defaultValue={savedClauseKeys[clause.key] ?? ""}
+                source={clauseSources[clause.key] ?? "empty"}
+                isGenerating={generatingKey === clause.key}
+                isSaving={savingKey === clause.key}
+                disableGenerate={isManual}
+                onGenerate={() => handleGenerate(clause.key, clause.title)}
+                onUseSaved={() => updateClause(clause.key, savedClauseKeys[clause.key], "default")}
+                onSaveDefault={() => handleSaveClause(clause.key, clause.title)}
+                onClear={() => updateClause(clause.key, "", "empty")}
+              />
             </CardContent>
           </Card>
         );
