@@ -59,7 +59,15 @@ export function InvoicePreviewPage() {
 
   // ── Calculations ───────────────────────────────────────────────────────────
 
-  const lineItems: LineItem[] = invoice.line_items ?? [];
+  // Coerce numeric fields — line_items is a JSON column and price/total can arrive
+  // as strings if the row was created by an older client or the iOS app.
+  // The edge functions already guard with parseFloat(); we mirror that here.
+  const lineItems: LineItem[] = (invoice.line_items ?? []).map((item) => ({
+    ...item,
+    price: Number(item.price) || 0,
+    qty:   Number(item.qty)   || 1,
+    total: Number(item.total) || 0,
+  }));
   const subtotal  = lineItems.reduce((s, i) => s + i.total, 0);
   const taxRate   = invoice.tax_rate ?? 0;
   const discAmt   = invoice.discount_type === "percentage"

@@ -168,6 +168,10 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
       (invoiceData.line_items ?? []).map((i) => ({
         ...i,
         _id:    crypto.randomUUID(),
+        // Coerce to numbers — price/qty/total can arrive as strings from the DB JSON column
+        price:  Number(i.price) || 0,
+        qty:    Number(i.qty)   || 1,
+        total:  Number(i.total) || 0,
         _price: String(i.price ?? ""),
         _qty:   String(i.qty   ?? 1),
       }))
