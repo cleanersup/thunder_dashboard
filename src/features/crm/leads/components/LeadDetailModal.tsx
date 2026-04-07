@@ -7,7 +7,7 @@ import { LeadForm } from "./LeadForm";
 import { useDeleteLead, useLead, useUpdateLead } from "../hooks/useLeads";
 import { convertLeadToClient } from "../services/leadsService";
 import { LEAD_STATUS_BADGE, PRIORITY_BADGE } from "@/shared/constants/styleTokens";
-import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
+import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import { toast } from "sonner";
 import type { Lead } from "../../types/crm.types";
 
@@ -80,7 +80,7 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
               <div className="space-y-4">
                 <InfoRow icon={User}      label="Full Name" value={l.full_name} />
                 <InfoRow icon={Building2} label="Company"   value={l.company_name} />
-                <InfoRow icon={Phone}     label="Phone"     value={formatPhoneDisplay(l.phone)} />
+                <InfoRow icon={Phone}     label="Phone"     value={<span className={isPhoneValid(l.phone) ? undefined : "text-destructive"}>{formatPhoneDisplay(l.phone)}</span>} />
                 <InfoRow icon={Mail}      label="Email"     value={l.email} />
               </div>
             </section>

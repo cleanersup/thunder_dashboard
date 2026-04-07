@@ -18,6 +18,7 @@ import { useAllEmployees, useUpdateEmployeeStatus, useDeleteEmployee } from "../
 import { EmployeeForm } from "../components/EmployeeForm";
 import { EmployeeDetailsModal } from "../components/EmployeeDetailsModal";
 import { generateEmployeeSheetPDF } from "../services/generateEmployeeSheetPDF";
+import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import { useProfile } from "@/shared/hooks/useProfile";
 import type { Employee } from "../services/employeesService";
 
@@ -265,8 +266,10 @@ export function EmployeesPage() {
                   </TableCell>
 
                   {/* Phone */}
-                  <TableCell className="py-2 px-4 text-sm text-muted-foreground">
-                    {employee.phone || "—"}
+                  <TableCell className="py-2 px-4 text-sm">
+                    <span className={isPhoneValid(employee.phone) ? "text-muted-foreground" : "text-destructive"}>
+                      {formatPhoneDisplay(employee.phone) || "—"}
+                    </span>
                   </TableCell>
 
                   {/* Status badge */}

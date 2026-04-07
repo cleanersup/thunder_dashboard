@@ -16,7 +16,7 @@ import { useClients, useDeleteClient, useUpdateClient } from "../hooks/useClient
 import { ClientForm } from "./ClientForm";
 import { ClientDetailModal } from "./ClientDetailModal";
 import { CLIENT_STATUS_TABLE } from "@/shared/constants/styleTokens";
-import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
+import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import { toast } from "sonner";
 import type { Client } from "../../types/crm.types";
 
@@ -146,7 +146,11 @@ export function ClientsTable({ searchQuery, showForm, onCloseForm }: ClientsTabl
     {
       key: "phone",
       header: "Phone",
-      cell: (c) => formatPhoneDisplay(c.phone),
+      cell: (c) => (
+        <span className={isPhoneValid(c.phone) ? undefined : "text-destructive"}>
+          {formatPhoneDisplay(c.phone)}
+        </span>
+      ),
       hideOnMobile: true,
     },
     {
