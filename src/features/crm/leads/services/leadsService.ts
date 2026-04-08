@@ -72,7 +72,24 @@ export async function deleteLead(id: string) {
 }
 
 /**
- * Converts a won lead to a client record.
+ * Checks whether a client with the given email already exists for this user.
+ * @param email - Email to look up
+ * @param userId - Owner user ID
+ * @returns The existing client record, or null if no duplicate found
+ */
+export async function checkClientDuplicate(email: string, userId: string) {
+  const { data } = await supabase
+    .from("clients")
+    .select("id, full_name")
+    .eq("user_id", userId)
+    .eq("email", email)
+    .maybeSingle();
+  return data ?? null;
+}
+
+/**
+ * Converts a lead to a client record.
+ * Caller is responsible for validating required fields and checking duplicates first.
  * @param lead - The lead to convert
  * @returns The created client record
  */
@@ -95,7 +112,7 @@ export async function convertLeadToClient(lead: { user_id: string; full_name: st
       billing_city: lead.city,
       billing_state: lead.state,
       billing_zip: lead.zip_code,
-      client_type: "individual",
+      client_type: "residential",
       contact_preference: "phone",
       status: "active",
     })

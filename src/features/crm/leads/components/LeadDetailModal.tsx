@@ -3,13 +3,33 @@ import { User, Building2, Phone, Mail, MapPin, TrendingUp, Briefcase, Tag, Calen
 import { DetailModal, InfoRow } from "@/shared/components/common/DetailModal";
 import { Button } from "@/shared/components/ui/button";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/shared/components/ui/alert-dialog";
 import { LeadForm } from "./LeadForm";
+import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
 import { useDeleteLead, useLead, useUpdateLead } from "../hooks/useLeads";
-import { convertLeadToClient } from "../services/leadsService";
+import { convertLeadToClient, checkClientDuplicate } from "../services/leadsService";
 import { LEAD_STATUS_BADGE, PRIORITY_BADGE } from "@/shared/constants/styleTokens";
 import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import { toast } from "sonner";
 import type { Lead } from "../../types/crm.types";
+
+// ─── Validation ───────────────────────────────────────────────────────────────
+
+/** Returns a list of human-readable field names that are required but missing on the lead. */
+function getMissingFields(l: Lead): string[] {
+  const missing: string[] = [];
+  if (!l.phone?.trim())    missing.push("Phone");
+  if (!l.email?.trim())    missing.push("Email");
+  if (!l.address?.trim())  missing.push("Address");
+  if (!l.city?.trim())     missing.push("City");
+  if (!l.state?.trim())    missing.push("State");
+  if (!l.zip_code?.trim()) missing.push("Zip Code");
+  return missing;
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 interface LeadDetailModalProps {
@@ -25,11 +45,20 @@ interface LeadDetailModalProps {
  * Inline edit and delete without navigating away from the kanban.
  */
 export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
+  const queryClient = useQueryClient();
   const { mutate: deleteLead } = useDeleteLead();
   const { mutate: updateLead } = useUpdateLead();
   const [showEdit, setShowEdit]     = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [converting, setConverting] = useState(false);
+
+  // Missing-fields alert
+  const [showMissingAlert, setShowMissingAlert] = useState(false);
+  const [missingFields, setMissingFields]       = useState<string[]>([]);
+
+  // Duplicate-client alert
+  const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
+  const [duplicateName, setDuplicateName]           = useState("");
 
   // Always read from the query cache so edits reflect immediately
   const { data: liveLead } = useLead(lead?.id);
@@ -42,10 +71,28 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   };
 
   const handleConvert = async () => {
+    // 1 — Validate required fields
+    const missing = getMissingFields(l);
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      setShowMissingAlert(true);
+      return;
+    }
+
     setConverting(true);
     try {
-      await convertLeadToClient(l!);
-      updateLead({ id: l.id, payload: { decision_result: "won" } });
+      // 2 — Check for duplicate client by email
+      const duplicate = await checkClientDuplicate(l.email, l.user_id);
+      if (duplicate) {
+        setDuplicateName(duplicate.full_name);
+        setShowDuplicateAlert(true);
+        return;
+      }
+
+      // 3 — Convert and move lead to Decision column
+      await convertLeadToClient(l);
+      updateLead({ id: l.id, payload: { status: "decision", decision_result: "won" } });
+      queryClient.invalidateQueries({ queryKey: QK.clients });
       toast.success(`${l.full_name} converted to client`);
       onClose();
     } catch {
@@ -149,7 +196,7 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                 <Button size="sm" variant="outline" onClick={() => setShowEdit(true)}>
                   <Edit className="h-3.5 w-3.5 mr-1" /> Edit
                 </Button>
-                {l.status === "decision" && l.decision_result !== "won" && (
+                {l.decision_result !== "won" && (
                   <Button size="sm" onClick={handleConvert} disabled={converting}>
                     <UserCheck className="h-3.5 w-3.5 mr-1" />
                     {converting ? "Converting..." : "Convert to Client"}
@@ -165,6 +212,7 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
       </DetailModal>
 
       <LeadForm open={showEdit} onClose={() => setShowEdit(false)} lead={l} />
+
       <ConfirmDialog
         open={showDelete}
         onOpenChange={setShowDelete}
@@ -174,6 +222,51 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
         confirmLabel="Delete"
         variant="destructive"
       />
+
+      {/* Missing fields alert */}
+      <AlertDialog open={showMissingAlert} onOpenChange={setShowMissingAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Incomplete Lead Information</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p className="mb-3">
+                  The following required fields must be filled in before converting this lead to a client:
+                </p>
+                <ul className="list-disc list-inside space-y-1">
+                  {missingFields.map((f) => (
+                    <li key={f} className="text-sm font-medium text-foreground">{f}</li>
+                  ))}
+                </ul>
+                <p className="mt-3">Please edit the lead and complete the missing information first.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => { setShowMissingAlert(false); setShowEdit(true); }}>
+              Edit Lead
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Duplicate client alert */}
+      <AlertDialog open={showDuplicateAlert} onOpenChange={setShowDuplicateAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Client Already Exists</AlertDialogTitle>
+            <AlertDialogDescription>
+              A client with this email address already exists
+              {duplicateName ? ` (${duplicateName})` : ""}. Converting this lead would create a duplicate.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowDuplicateAlert(false)}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
