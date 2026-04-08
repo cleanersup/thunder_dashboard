@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import {
   Plus, Search, CheckCircle, Clock, FileText, DollarSign,
   MoreHorizontal, Edit, Mail, Share, Download, X, ChevronLeft, ChevronRight,
-  BookOpen, FileSignature, Play, RefreshCw, Trash2,
+  BookOpen, FileSignature, Play, RefreshCw, Trash2, Calendar as CalendarIcon,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -287,11 +287,11 @@ export function EstimatesPage() {
       {/* ── Toolbar ────────────────────────────────────────────────────────── */}
       <Card className="border border-border/50 shadow-none">
         <CardContent className="p-3">
-          <div className="flex items-center justify-between gap-4">
-            {/* Right: filters + New */}
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            {/* Left: filters */}
+            <div className="flex items-center gap-2 flex-wrap">
               <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as typeof statusFilter); setCurrentPage(1); }}>
-                <SelectTrigger className="w-[130px] h-9 bg-white">
+                <SelectTrigger className="w-[140px] h-9 text-sm bg-white">
                   <SelectValue placeholder="Status: All" />
                 </SelectTrigger>
                 <SelectContent>
@@ -312,38 +312,34 @@ export function EstimatesPage() {
 
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("h-9", !selectedDate && "text-muted-foreground")}>
+                  <Button variant="outline" size="sm" className={cn("h-9 whitespace-nowrap", !selectedDate && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
                     {selectedDate ? format(selectedDate, "MMM d") : "Date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar mode="single" selected={selectedDate} onSelect={(d) => { setSelectedDate(d); setCurrentPage(1); }}
                     initialFocus className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
-
-              {selectedDate && (
-                <Button variant="ghost" size="sm" onClick={() => setSelectedDate(undefined)} className="h-9 px-2">
-                  <X className="w-4 h-4" />
-                </Button>
-              )}
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button className="h-9">
-                    <Plus className="w-4 h-4 mr-1" /> New
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem onClick={() => setShowResModal(true)}>
-                    <BookOpen className="w-4 h-4 mr-2" /> Residential
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowCommModal(true)}>
-                    <FileSignature className="w-4 h-4 mr-2" /> Commercial
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
+
+            {/* Right: New */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="h-9">
+                  <Plus className="w-4 h-4 mr-1" /> New
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={() => setShowResModal(true)}>
+                  <BookOpen className="w-4 h-4 mr-2" /> Residential
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowCommModal(true)}>
+                  <FileSignature className="w-4 h-4 mr-2" /> Commercial
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardContent>
       </Card>

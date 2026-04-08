@@ -81,7 +81,7 @@ const KPI_CONFIG = [
     title:       "Pending",
     subtitle:    "Awaiting completion",
     icon:        Clock,
-    color:       "#f97316",   // orange
+    color:       "hsl(var(--orange-vibrant))",
     statuses:    ["Scheduled", "Pending"],
   },
   {
@@ -89,7 +89,7 @@ const KPI_CONFIG = [
     title:       "Completed",
     subtitle:    "Ready to estimate",
     icon:        CheckCircle,
-    color:       "#22c55e",   // green
+    color:       "hsl(var(--green-vibrant))",
     statuses:    ["Completed"],
   },
   {
@@ -97,7 +97,7 @@ const KPI_CONFIG = [
     title:       "Estimate Sent",
     subtitle:    "Estimates delivered",
     icon:        CheckCircle2,
-    color:       "#a855f7",   // purple
+    color:       "hsl(var(--purple-vibrant))",
     statuses:    ["estimate_sent"],
   },
   {
@@ -105,7 +105,7 @@ const KPI_CONFIG = [
     title:       "Cancelled",
     subtitle:    "Not proceeding",
     icon:        XCircle,
-    color:       "#ef4444",   // red
+    color:       "hsl(var(--destructive))",
     statuses:    ["Cancelled"],
   },
 ];
@@ -281,75 +281,64 @@ export function WalkthroughsPage() {
       {/* ── Toolbar ────────────────────────────────────────────────────────── */}
       <Card className="border border-border/50 shadow-none">
         <CardContent className="p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex-1" />
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            {/* Left: filters */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px] h-9 text-sm bg-white">
+                  <SelectValue placeholder="Status: All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">Status: All</SelectItem>
+                  <SelectItem value="Scheduled">Scheduled</SelectItem>
+                  <SelectItem value="Completed">Completed</SelectItem>
+                  <SelectItem value="estimate_sent">Estimate Sent</SelectItem>
+                  <SelectItem value="Cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
 
-            {/* Status filter */}
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[160px] h-9">
-                <SelectValue placeholder="Status: All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">Status: All</SelectItem>
-                <SelectItem value="Scheduled">Scheduled</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
-                <SelectItem value="estimate_sent">Estimate Sent</SelectItem>
-                <SelectItem value="Cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
+              <div className="relative w-52">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search client..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-9 bg-white"
+                />
+              </div>
 
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search client..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 h-9 w-44"
-              />
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn("h-9 whitespace-nowrap", !selectedDate && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "MMM d") : "Date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(d) => { setSelectedDate(d); setCalendarOpen(false); }}
+                    initialFocus
+                  />
+                  {selectedDate && (
+                    <div className="p-2 border-t">
+                      <Button variant="ghost" size="sm" className="w-full" onClick={() => setSelectedDate(undefined)}>
+                        Clear date filter
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
 
-            {/* Date filter */}
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn("h-9 gap-2", selectedDate && "border-primary text-primary")}
-                >
-                  <CalendarIcon className="h-4 w-4" />
-                  {selectedDate ? format(selectedDate, "MM/dd/yyyy") : "Date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(d) => { setSelectedDate(d); setCalendarOpen(false); }}
-                  initialFocus
-                />
-                {selectedDate && (
-                  <div className="p-2 border-t">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setSelectedDate(undefined)}
-                    >
-                      Clear date filter
-                    </Button>
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
-
-            {/* New walkthrough */}
-            <Button
-              size="sm"
-              className="h-9 gap-2"
-              onClick={() => setCreateOpen(true)}
-            >
-              <Plus className="h-4 w-4" />
+            {/* Right: New */}
+            <Button className="h-9" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" />
               New
             </Button>
           </div>
@@ -366,7 +355,7 @@ export function WalkthroughsPage() {
               <TableHead className="font-bold">Date</TableHead>
               <TableHead className="font-bold">Time</TableHead>
               <TableHead className="font-bold">Status</TableHead>
-              <TableHead className="w-[60px] font-bold">Actions</TableHead>
+              <TableHead className="font-bold text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -388,19 +377,19 @@ export function WalkthroughsPage() {
               filtered.map((w) => (
                 <TableRow
                   key={w.id}
-                  className="cursor-pointer hover:bg-secondary/50"
+                  className="cursor-pointer hover:bg-muted/50 border-b border-border/50"
                   onClick={() => openDetail(w)}
                 >
-                  <TableCell className="font-medium">{w.contact_name}</TableCell>
-                  <TableCell className="capitalize">{w.service_type}</TableCell>
-                  <TableCell>{formatDate(w.scheduled_date)}</TableCell>
-                  <TableCell>{formatTime(w.scheduled_time)}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={cn("rounded-full", statusBadgeClass(w.status))}>
+                  <TableCell className="py-2 px-4 font-medium">{w.contact_name}</TableCell>
+                  <TableCell className="py-2 px-4 capitalize">{w.service_type}</TableCell>
+                  <TableCell className="py-2 px-4">{formatDate(w.scheduled_date)}</TableCell>
+                  <TableCell className="py-2 px-4">{formatTime(w.scheduled_time)}</TableCell>
+                  <TableCell className="py-2 px-4">
+                    <Badge variant="outline" className={cn("font-medium text-[13px]", statusBadgeClass(w.status))}>
                       {formatStatusLabel(w.status)}
                     </Badge>
                   </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="py-2 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
