@@ -25,7 +25,8 @@ import { cn }    from "@/shared/utils/cn";
 import { toast } from "sonner";
 import { DEFAULT_SECTIONS, CLAUSE_PROFILE_MAP, MANUAL_ONLY_KEYS } from "../config/contracts.config";
 import { useContractClauses } from "../hooks/useContractClauses";
-import { FieldActions, initialSource, type FieldSource } from "./FieldActions";
+import { FieldActions, type FieldSource } from "./FieldActions";
+import { initialSource } from "./fieldActions.utils";
 import type { ContractFormData, ContractClause } from "../types/contract.types";
 
 // ─── Section icon map ─────────────────────────────────────────────────────────

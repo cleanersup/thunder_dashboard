@@ -40,7 +40,10 @@ interface DetailModalProps {
 export function DetailModal({ open, onClose, title, badge, children }: DetailModalProps) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-2xl p-0 gap-0 overflow-hidden max-h-[90vh]">
+      <DialogContent
+        className="sm:max-w-2xl p-0 gap-0 overflow-hidden max-h-[90vh]"
+        closeClassName="text-white/70 hover:bg-white/10 hover:text-white"
+      >
         {/* ── Dark header ──────────────────────────────────────────────── */}
         <div className="bg-sidebar px-6 py-5">
           <div className="flex items-center gap-3 flex-wrap min-w-0 pr-8">

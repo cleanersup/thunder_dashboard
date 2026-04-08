@@ -28,7 +28,8 @@ import { toast }    from "sonner";
 import { toDecimalString } from "@/shared/utils/numericInput";
 import { ClientPicker }    from "@/shared/components/common/ClientPicker";
 import { useContractDescription } from "../hooks/useContractDescription";
-import { FieldActions, initialSource, type FieldSource } from "./FieldActions";
+import { FieldActions, type FieldSource } from "./FieldActions";
+import { initialSource } from "./fieldActions.utils";
 import type { ClientEntity } from "@/shared/types/entities";
 import type { ContractFormData, ContractPaymentFrequency } from "../types/contract.types";
 
