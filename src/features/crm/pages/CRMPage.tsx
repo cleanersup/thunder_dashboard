@@ -63,75 +63,66 @@ export default function CRMPage() {
         </CardContent>
       </Card>
 
-      {/* ── Tab section ────────────────────────────────────────────────── */}
-      <div>
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-2.5">
-          {/* Tab bar row */}
-          <div className="bg-card rounded-lg shadow-sm overflow-hidden p-2.5">
-            <div className="flex items-center justify-between">
-              <TabsList className="h-auto bg-transparent p-0 gap-0 border-b border-border">
-                <TabsTrigger
-                  value="leads"
-                  className="flex items-center gap-1.5 pb-3 rounded-none text-sm font-medium text-muted-foreground border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
-                >
+      {/* ── Toolbar ────────────────────────────────────────────────────── */}
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-2.5">
+        <Card className="border border-border/50 shadow-none">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between gap-4">
+              {/* Left: section tabs */}
+              <TabsList>
+                <TabsTrigger value="leads" className="flex items-center gap-1.5">
                   <Users className="h-3.5 w-3.5" /> Leads
                 </TabsTrigger>
-                <TabsTrigger
-                  value="clients"
-                  className="flex items-center gap-1.5 pb-3 rounded-none text-sm font-medium text-muted-foreground border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
-                >
+                <TabsTrigger value="clients" className="flex items-center gap-1.5">
                   <Users className="h-3.5 w-3.5" /> Clients
                 </TabsTrigger>
-                <TabsTrigger
-                  value="tasks"
-                  className="flex items-center gap-1.5 pb-3 rounded-none text-sm font-medium text-muted-foreground border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
-                >
+                <TabsTrigger value="tasks" className="flex items-center gap-1.5">
                   <CheckSquare className="h-3.5 w-3.5" /> Tasks
                 </TabsTrigger>
               </TabsList>
 
-              {/* Search + Add */}
-              <div className="flex items-center gap-2 pb-2">
+              {/* Right: search + Add */}
+              <div className="flex items-center gap-2">
                 {activeTab !== "leads" && (
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <div className="relative w-44">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <Input
-                      className="pl-8 h-8 w-44 text-sm"
+                      className="pl-9 h-9 bg-white"
                       placeholder={searchPlaceholder}
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                     />
                   </div>
                 )}
-                <Button size="sm" className="h-8" onClick={() => setShowAddForm(true)}>
+                <Button className="h-9" onClick={() => setShowAddForm(true)}>
                   <Plus className="h-4 w-4 mr-1" /> {addLabel}
                 </Button>
               </div>
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* Tab content */}
-          <div className="bg-card rounded-lg shadow-sm overflow-hidden">
-            <TabsContent value="leads" className="p-4 mt-0">
-              <LeadsKanban showForm={showAddForm} onCloseForm={() => setShowAddForm(false)} />
-            </TabsContent>
-            <TabsContent value="clients" className="mt-0">
-              <ClientsTable
-                searchQuery={search}
-                showForm={showAddForm}
-                onCloseForm={() => setShowAddForm(false)}
-              />
-            </TabsContent>
-            <TabsContent value="tasks" className="mt-0">
-              <TasksTable
-                searchQuery={search}
-                showForm={showAddForm}
-                onCloseForm={() => setShowAddForm(false)}
-              />
-            </TabsContent>
-          </div>
-        </Tabs>
-      </div>
+        {/* ── Tab content ──────────────────────────────────────────────── */}
+        <div className="bg-card rounded-lg shadow-sm overflow-hidden">
+          <TabsContent value="leads" className="p-4 mt-0">
+            <LeadsKanban showForm={showAddForm} onCloseForm={() => setShowAddForm(false)} />
+          </TabsContent>
+          <TabsContent value="clients" className="mt-0">
+            <ClientsTable
+              searchQuery={search}
+              showForm={showAddForm}
+              onCloseForm={() => setShowAddForm(false)}
+            />
+          </TabsContent>
+          <TabsContent value="tasks" className="mt-0">
+            <TasksTable
+              searchQuery={search}
+              showForm={showAddForm}
+              onCloseForm={() => setShowAddForm(false)}
+            />
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 }
