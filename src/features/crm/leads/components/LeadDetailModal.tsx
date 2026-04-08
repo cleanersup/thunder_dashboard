@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { User, Building2, Phone, Mail, MapPin, TrendingUp, Briefcase, Tag, Calendar, FileText, Edit, Trash2, UserCheck } from "lucide-react";
+import {
+  User, Building2, Phone, Mail, MapPin, TrendingUp, Briefcase, Tag, Calendar, FileText, Edit, Trash2, UserCheck,
+  Paperclip, ExternalLink,
+} from "lucide-react";
 import { DetailModal, InfoRow } from "@/shared/components/common/DetailModal";
 import { Button } from "@/shared/components/ui/button";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
@@ -16,8 +19,25 @@ import { LEAD_STATUS_BADGE, PRIORITY_BADGE } from "@/shared/constants/styleToken
 import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import { toast } from "sonner";
 import type { Lead } from "../../types/crm.types";
+import type { LeadFileMeta } from "../services/leadFilesService";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
+
+function normalizeLeadFiles(raw: unknown): LeadFileMeta[] {
+  if (!raw || !Array.isArray(raw)) return [];
+  return raw.filter(
+    (item): item is LeadFileMeta =>
+      !!item &&
+      typeof item === "object" &&
+      typeof (item as LeadFileMeta).name === "string" &&
+      typeof (item as LeadFileMeta).url === "string",
+  );
+}
+
+function isImageFile(f: LeadFileMeta): boolean {
+  if ((f.type ?? "").startsWith("image/")) return true;
+  return /\.(jpe?g|png|gif|webp|bmp|svg)(\?|$)/i.test(f.url);
+}
 
 /** Returns a list of human-readable field names that are required but missing on the lead. */
 function getMissingFields(l: Lead): string[] {
@@ -107,6 +127,8 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
     `${l.city}, ${l.state} ${l.zip_code}`,
   ].join("\n");
 
+  const leadFiles = normalizeLeadFiles(l.files);
+
   return (
     <>
       <DetailModal
@@ -141,6 +163,55 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                 <p className="text-sm font-medium whitespace-pre-line">{addressLine}</p>
               </div>
             </section>
+
+            {leadFiles.length > 0 && (
+              <>
+                <hr className="border-border" />
+                <section>
+                  <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                    <Paperclip className="h-4 w-4 text-primary" />
+                    Attachments
+                  </h3>
+                  <div className="space-y-3">
+                    {leadFiles.map((f, idx) =>
+                      isImageFile(f) ? (
+                        <a
+                          key={`${f.url}-${idx}`}
+                          href={f.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block rounded-md border border-border overflow-hidden bg-muted/30"
+                        >
+                          <img
+                            src={f.url}
+                            alt={f.name}
+                            className="max-h-48 w-full object-contain bg-background"
+                          />
+                          <p className="text-xs text-muted-foreground px-2 py-1.5 truncate">{f.name}</p>
+                        </a>
+                      ) : (
+                        <a
+                          key={`${f.url}-${idx}`}
+                          href={f.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-3 rounded-md bg-secondary/30 border border-border hover:bg-secondary/50 transition-colors"
+                        >
+                          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="text-sm font-medium flex-1 truncate">{f.name}</span>
+                          {f.size > 0 && (
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              {(f.size / 1024).toFixed(1)} KB
+                            </span>
+                          )}
+                          <ExternalLink className="h-4 w-4 text-primary shrink-0" />
+                        </a>
+                      ),
+                    )}
+                  </div>
+                </section>
+              </>
+            )}
           </div>
 
           {/* Right: Lead Details + Follow-up + Quick Actions */}

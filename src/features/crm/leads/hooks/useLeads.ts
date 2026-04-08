@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { fetchLeads, fetchLead, createLead, updateLead, deleteLead } from "../services/leadsService";
+import {
+  fetchLeads, fetchLead, createLeadWithOptionalAttachments, updateLead, deleteLead,
+} from "../services/leadsService";
 import type { LeadInsert, LeadUpdate } from "../../types/crm.types";
 import { QK } from "@/shared/config/queryKeys";
 
@@ -20,9 +22,11 @@ export function useLead(id: string | undefined) {
 export function useCreateLead() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Omit<LeadInsert, "user_id">) => createLead(payload),
-    onSuccess: () => {
+    mutationFn: (input: { payload: Omit<LeadInsert, "user_id">; files?: File[] }) =>
+      createLeadWithOptionalAttachments(input.payload, input.files),
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: QK.leads });
+      if (data?.id) qc.invalidateQueries({ queryKey: QK.lead(data.id) });
       toast.success("Lead created successfully");
     },
     onError: () => toast.error("Failed to create lead"),

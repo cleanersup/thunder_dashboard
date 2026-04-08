@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { LeadInsert, LeadUpdate } from "../../types/crm.types";
+import { uploadLeadAttachments } from "./leadFilesService";
 
 /**
  * Fetches all leads for the authenticated user, ordered by creation date descending.
@@ -44,6 +45,19 @@ export async function createLead(payload: Omit<LeadInsert, "user_id">) {
     .single();
   if (error) throw error;
   return data;
+}
+
+/**
+ * Creates a lead then uploads optional attachments and saves file metadata on the row.
+ */
+export async function createLeadWithOptionalAttachments(
+  payload: Omit<LeadInsert, "user_id">,
+  files?: File[],
+) {
+  const lead = await createLead(payload);
+  if (!files?.length) return lead;
+  const meta = await uploadLeadAttachments(lead.id, files);
+  return updateLead(lead.id, { files: meta as LeadInsert["files"] });
 }
 
 /**

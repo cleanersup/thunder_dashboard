@@ -31,6 +31,38 @@ import { useCreateLead, useUpdateLead } from "../hooks/useLeads";
 import type { Lead } from "../../types/crm.types";
 import type { LeadEntity } from "@/shared/types/entities";
 
+/** Full defaults for a new lead — used by useForm and reset after successful create. */
+const CREATE_LEAD_DEFAULTS: LeadFormData = {
+  full_name:          "",
+  company_name:       undefined,
+  phone:              "",
+  email:              "",
+  address:            "",
+  apt_suite:          undefined,
+  city:               "",
+  state:              "",
+  zip_code:           "",
+  lead_source:        "website",
+  referral_name:      undefined,
+  referral_company:   undefined,
+  service_interested: "residential",
+  estimate_budget:    null,
+  priority_level:     "medium",
+  status:             "new",
+  next_followup_date: null,
+  internal_notes:     undefined,
+  walkthrough_date:   null,
+  walkthrough_time:   null,
+  decision_result:    null,
+};
+
+/** Normalize budget input for RHF — never store NaN. */
+function parseEstimateBudgetFieldValue(v: unknown): number | null {
+  if (v === "" || v == null) return null;
+  const n = parseFloat(String(v).trim());
+  return Number.isFinite(n) ? n : null;
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface LeadFormProps {
@@ -59,10 +91,7 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
     formState: { errors },
   } = useForm<LeadFormData>({
     resolver: zodResolver(leadSchema),
-    defaultValues: {
-      status: "new", priority_level: "medium",
-      lead_source: "website", service_interested: "residential",
-    },
+    defaultValues: CREATE_LEAD_DEFAULTS,
   });
 
   // Controlled values for Select components (react-hook-form reset won't update
@@ -72,40 +101,41 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
   const serviceInterested = watch("service_interested") ?? "residential";
   const priorityLevel     = watch("priority_level")     ?? "medium";
   const statusVal         = watch("status")             ?? "new";
+  const estimateBudgetRaw = watch("estimate_budget");
+  const estimateBudgetDisplay =
+    estimateBudgetRaw == null ||
+    (typeof estimateBudgetRaw === "number" && !Number.isFinite(estimateBudgetRaw))
+      ? ""
+      : String(estimateBudgetRaw);
 
-  // ── Populate form when editing ─────────────────────────────────────────────
+  // ── Populate form when editing (create mode: do not reset here — preserves draft if user closed without saving)
   useEffect(() => {
-    if (lead) {
-      setFollowupDate(lead.next_followup_date ? new Date(lead.next_followup_date) : undefined);
-      setAttachments([]);
-      reset({
-        full_name:          lead.full_name,
-        company_name:       lead.company_name ?? undefined,
-        phone:              formatPhoneDisplay(lead.phone),
-        email:              lead.email,
-        address:            lead.address,
-        apt_suite:          lead.apt_suite ?? undefined,
-        city:               lead.city,
-        state:              lead.state,
-        zip_code:           lead.zip_code,
-        lead_source:        lead.lead_source        as LeadFormData["lead_source"],
-        referral_name:      lead.referral_name      ?? undefined,
-        referral_company:   lead.referral_company   ?? undefined,
-        service_interested: lead.service_interested as LeadFormData["service_interested"],
-        estimate_budget:    lead.estimate_budget    ?? undefined,
-        priority_level:     lead.priority_level     as LeadFormData["priority_level"],
-        status:             lead.status             as LeadFormData["status"],
-        next_followup_date: lead.next_followup_date ?? undefined,
-        internal_notes:     lead.internal_notes     ?? undefined,
-      });
-    } else {
-      setFollowupDate(undefined);
-      setAttachments([]);
-      reset({
-        status: "new", priority_level: "medium",
-        lead_source: "website", service_interested: "residential",
-      });
-    }
+    if (!lead) return;
+    setFollowupDate(lead.next_followup_date ? new Date(lead.next_followup_date) : undefined);
+    setAttachments([]);
+    reset({
+      full_name:          lead.full_name,
+      company_name:       lead.company_name ?? undefined,
+      phone:              formatPhoneDisplay(lead.phone),
+      email:              lead.email,
+      address:            lead.address,
+      apt_suite:          lead.apt_suite ?? undefined,
+      city:               lead.city,
+      state:              lead.state,
+      zip_code:           lead.zip_code,
+      lead_source:        lead.lead_source        as LeadFormData["lead_source"],
+      referral_name:      lead.referral_name      ?? undefined,
+      referral_company:   lead.referral_company   ?? undefined,
+      service_interested: lead.service_interested as LeadFormData["service_interested"],
+      estimate_budget:    lead.estimate_budget    ?? undefined,
+      priority_level:     lead.priority_level     as LeadFormData["priority_level"],
+      status:             lead.status             as LeadFormData["status"],
+      next_followup_date: lead.next_followup_date ?? undefined,
+      internal_notes:     lead.internal_notes     ?? undefined,
+      walkthrough_date:   lead.walkthrough_date   ?? null,
+      walkthrough_time:   lead.walkthrough_time   ?? null,
+      decision_result:    (lead.decision_result as LeadFormData["decision_result"]) ?? null,
+    });
   }, [lead, reset]);
 
   // ── Submit ─────────────────────────────────────────────────────────────────
@@ -113,19 +143,32 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
     if (isEdit && lead) {
       update({ id: lead.id, payload: data }, { onSuccess: onClose });
     } else {
-      create(data, {
-        onSuccess: (createdLead) => {
-          onSuccess?.(createdLead as unknown as LeadEntity);
-          onClose();
+      create(
+        { payload: data, files: attachments.length > 0 ? attachments : undefined },
+        {
+          onSuccess: (createdLead) => {
+            reset(CREATE_LEAD_DEFAULTS);
+            setAttachments([]);
+            setFollowupDate(undefined);
+            setFollowupOpen(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            onSuccess?.(createdLead as unknown as LeadEntity);
+            onClose();
+          },
         },
-      });
+      );
     }
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => {
+          if ((e.target as HTMLElement).closest?.(".pac-container")) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Lead" : "Add Lead"}</DialogTitle>
         </DialogHeader>
@@ -302,13 +345,14 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
               <Label>Estimate Budget</Label>
               {(() => {
                 const field = register("estimate_budget", {
-                  setValueAs: (v) => (v === "" ? null : parseFloat(v)),
+                  setValueAs: parseEstimateBudgetFieldValue,
                 });
                 return (
                   <Input
                     type="text"
                     inputMode="decimal"
                     {...field}
+                    value={estimateBudgetDisplay}
                     onChange={(e) => {
                       e.target.value = toDecimalString(e.target.value);
                       field.onChange(e);
