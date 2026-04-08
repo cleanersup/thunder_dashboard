@@ -57,7 +57,7 @@ export async function createLeadWithOptionalAttachments(
   const lead = await createLead(payload);
   if (!files?.length) return lead;
   const meta = await uploadLeadAttachments(lead.id, files);
-  return updateLead(lead.id, { files: meta as LeadInsert["files"] });
+  return updateLead(lead.id, { files: meta as unknown as LeadInsert["files"] });
 }
 
 /**
