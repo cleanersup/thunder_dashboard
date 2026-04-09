@@ -26,13 +26,12 @@ import {
 import { useContractNumber }    from "../hooks/useContractNumber";
 import { useSendContractEmail } from "../hooks/useSendContractEmail";
 import { useSendContractSMS }   from "../hooks/useSendContractSMS";
-import { fetchClient }          from "@/features/crm/clients/services/clientsService";
+import { useClient }            from "@/features/crm/clients/hooks/useClients";
 import { ContractFormLayout }   from "../components/ContractFormLayout";
 import { ContractDetailsStep }  from "../components/ContractDetailsStep";
 import { ContractClausesStep }  from "../components/ContractClausesStep";
 import { ContractSendStep }     from "../components/ContractSendStep";
 import type { ContractFormData } from "../types/contract.types";
-import type { ClientEntity } from "@/shared/types/entities";
 import type { ContractDescriptionDefaults } from "../components/ContractDetailsStep";
 
 // ─── Default form data ────────────────────────────────────────────────────────
@@ -89,13 +88,15 @@ export function CreateContractStep1Page({
   const patch = (partial: Partial<ContractFormData>) =>
     setFormData((prev) => ({ ...prev, ...partial }));
 
-  // ── Edit-mode: pre-load client entity for ContractDetailsStep ───────────────
-  const [initialClient, setInitialClient] = useState<ClientEntity | null>(null);
-
   // ── Data hooks ──────────────────────────────────────────────────────────────
   const { data: profile }          = useProfile();
   const { data: contractNumber }   = useContractNumber();
   const { data: existingContract } = useContract(editId);
+
+  // ── Edit-mode: pre-load client entity for ContractDetailsStep ───────────────
+  // Derived reactively from the existing contract so no manual fetch is needed.
+  const { data: initialClientData } = useClient(existingContract?.recipient_id ?? undefined);
+  const initialClient = initialClientData ?? null;
 
   // ── Mutations ────────────────────────────────────────────────────────────────
   const createM   = useCreateContract();
@@ -138,10 +139,7 @@ export function CreateContractStep1Page({
       delivery_method:   c.delivery_method,
     });
 
-    // Pre-select the client in the picker if recipient_id is stored
-    if (c.recipient_id) {
-      fetchClient(c.recipient_id).then(setInitialClient).catch(() => null);
-    }
+    // initialClient is derived reactively via useClient(existingContract.recipient_id)
   }, [existingContract, isEditing]);
 
   // ── Send handler (used by ContractSendStep) ──────────────────────────────────

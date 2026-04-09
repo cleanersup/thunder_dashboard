@@ -3,8 +3,8 @@ import { toast } from "sonner";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { formatDateOnly } from "@/shared/utils/formatters";
 import { generateInvoicePDF } from "../services/generateInvoicePDF";
-import { calculateInvoiceTotals } from "../utils/invoiceCalculations";
-import type { Invoice, LineItem } from "../types/invoice.types";
+import { calculateInvoiceTotals, safeParseLineItems } from "../utils/invoiceCalculations";
+import type { Invoice } from "../types/invoice.types";
 
 /**
  * Returns a stable `downloadPDF(invoice)` callback that builds the PDF
@@ -23,7 +23,11 @@ export function useInvoicePDFDownload() {
     }
 
     try {
-      const lineItems: LineItem[] = invoice.line_items ?? [];
+      const { items: lineItems, error: lineItemsError } = safeParseLineItems(invoice.line_items);
+      if (lineItemsError) {
+        toast.error(`Could not generate PDF: ${lineItemsError}`);
+        return;
+      }
       const taxRate = invoice.tax_rate ?? 0;
       const { subtotal, discountAmount, taxAmount } = calculateInvoiceTotals({
         lineItems,

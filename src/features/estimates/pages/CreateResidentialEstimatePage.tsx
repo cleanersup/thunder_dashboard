@@ -20,16 +20,16 @@ import { ResSendStep, type DeliveryMethod } from "../components/residential/ResS
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useCreateEstimate, useUpdateEstimate } from "../hooks/useEstimates";
 import { useSendEstimateEmail } from "../hooks/useSendEstimateEmail";
 import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { useDraftEstimate } from "../hooks/useDraftEstimate";
 import { fetchEstimate } from "../services/estimatesService";
-import { fetchClient } from "@/features/crm/clients/services/clientsService";
-import { fetchLead } from "@/features/crm/leads/services/leadsService";
+import { fetchClient, findClientByEmail } from "@/features/crm/clients/services/clientsService";
+import { fetchLead, findLeadByEmail } from "@/features/crm/leads/services/leadsService";
 import { useResidentialPricing } from "../hooks/useResidentialPricing";
 import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
+import { useAuth } from "@/shared/hooks/useAuth";
 import type { DraftData } from "../types/estimate.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -55,6 +55,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const { sendEstimateEmail, isSending } = useSendEstimateEmail();
   const { sendEstimateSMS }              = useSendEstimateSMS();
   const { data: profile }                = useProfile();
+  const { user }                         = useAuth();
   const companyAddress                   = getCompanyAddress(profile);
 
   // ── Step ──────────────────────────────────────────────────────────────────
@@ -131,13 +132,9 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const [userState, setUserState] = useState("");
 
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from("profiles").select("company_state").eq("user_id", user.id).maybeSingle();
-      if (data?.company_state) setUserState(data.company_state);
-    })();
-  }, []);
+    const p = profile as any;
+    if (p?.company_state) setUserState(p.company_state);
+  }, [profile]);
 
   // ── Prefill when editing ──────────────────────────────────────────────────
   useEffect(() => {
@@ -192,16 +189,15 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
             return;
           } catch { /* fall through */ }
         }
-        const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const { data: clientByEmail } = await supabase.from("clients").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
+        const clientByEmail = await findClientByEmail(user.id, d.email);
         if (clientByEmail) {
           setEstimateType("client");
           setSelectedClient(clientByEmail as ClientEntity);
           setSelectedLead(null);
           return;
         }
-        const { data: leadByEmail } = await supabase.from("leads").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
+        const leadByEmail = await findLeadByEmail(user.id, d.email);
         if (leadByEmail) {
           setEstimateType("lead");
           setSelectedLead(leadByEmail as LeadEntity);
@@ -227,7 +223,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         setIsPrefilling(false);
       }
     })();
-  }, [isEditing, estimateId, estimateData]);
+  }, [isEditing, estimateId, estimateData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Prefill from walkthrough ──────────────────────────────────────────────
   useEffect(() => {
@@ -235,12 +231,16 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     (async () => {
       if (prefill.client_id) {
         setEstimateType("client");
-        const { data: c } = await supabase.from("clients").select("*").eq("id", prefill.client_id).maybeSingle();
-        if (c) setSelectedClient(c as ClientEntity);
+        try {
+          const c = await fetchClient(prefill.client_id);
+          if (c) setSelectedClient(c as ClientEntity);
+        } catch { /* ignore — picker stays empty */ }
       } else if (prefill.lead_id) {
         setEstimateType("lead");
-        const { data: l } = await supabase.from("leads").select("*").eq("id", prefill.lead_id).maybeSingle();
-        if (l) setSelectedLead(l as LeadEntity);
+        try {
+          const l = await fetchLead(prefill.lead_id);
+          if (l) setSelectedLead(l as LeadEntity);
+        } catch { /* ignore — picker stays empty */ }
       }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -397,8 +397,6 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         savedId = saved.id;
       }
       if (deliveryMethod === "email" || deliveryMethod === "both") {
-        const { data: { user } } = await supabase.auth.getUser();
-        const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", user!.id).maybeSingle();
         await sendEstimateEmail({
           estimateData: { ...payload, id: savedId, company_logo: profile?.company_logo, company_name: profile?.company_name, company_email: profile?.company_email, company_phone: profile?.company_phone },
           recipientEmail: client.email, estimateType: "residential",

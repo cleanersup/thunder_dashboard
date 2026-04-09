@@ -86,6 +86,23 @@ export async function deleteLead(id: string) {
 }
 
 /**
+ * Finds a lead by email address scoped to the given user.
+ * @param userId - Owner user ID
+ * @param email  - Email to search
+ * @returns The lead record, or null if not found
+ */
+export async function findLeadByEmail(userId: string, email: string) {
+  const { data } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("email", email)
+    .limit(1)
+    .maybeSingle();
+  return data ?? null;
+}
+
+/**
  * Checks whether a client with the given email already exists for this user.
  * @param email - Email to look up
  * @param userId - Owner user ID

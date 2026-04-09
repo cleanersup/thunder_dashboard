@@ -20,7 +20,8 @@ import { useInvoice, useUpdateInvoice } from "../hooks/useInvoices";
 import { useSendInvoiceEmail }          from "../hooks/useSendInvoiceEmail";
 import { useSendInvoiceSMS }            from "../hooks/useSendInvoiceSMS";
 import { useStripeConnect }             from "../hooks/useStripeConnect";
-import type { LineItem, InvoiceStatus } from "../types/invoice.types";
+import { safeParseLineItems } from "../utils/invoiceCalculations";
+import type { InvoiceStatus } from "../types/invoice.types";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -59,15 +60,7 @@ export function InvoicePreviewPage() {
 
   // ── Calculations ───────────────────────────────────────────────────────────
 
-  // Coerce numeric fields — line_items is a JSON column and price/total can arrive
-  // as strings if the row was created by an older client or the iOS app.
-  // The edge functions already guard with parseFloat(); we mirror that here.
-  const lineItems: LineItem[] = (invoice.line_items ?? []).map((item) => ({
-    ...item,
-    price: Number(item.price) || 0,
-    qty:   Number(item.qty)   || 1,
-    total: Number(item.total) || 0,
-  }));
+  const { items: lineItems, error: lineItemsError } = safeParseLineItems(invoice.line_items);
   const subtotal  = lineItems.reduce((s, i) => s + i.total, 0);
   const taxRate   = invoice.tax_rate ?? 0;
   const discAmt   = invoice.discount_type === "percentage"
@@ -264,22 +257,29 @@ export function InvoicePreviewPage() {
                   <span className="col-span-1 text-right">Qty</span>
                   <span className="col-span-3 text-right">Total</span>
                 </div>
-                <div className="divide-y divide-border/50">
-                  {lineItems.map((item, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-1 py-2.5 text-sm">
-                      <span className="col-span-6">{item.description}</span>
-                      <span className="col-span-2 text-right text-muted-foreground">
-                        ${item.price.toFixed(2)}
-                      </span>
-                      <span className="col-span-1 text-right text-muted-foreground">
-                        {item.qty}
-                      </span>
-                      <span className="col-span-3 text-right font-medium">
-                        ${item.total.toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                {lineItemsError ? (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 col-span-12">
+                    <p className="text-sm font-medium text-destructive">Unable to load line items</p>
+                    <p className="text-xs text-muted-foreground mt-1">{lineItemsError}</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border/50">
+                    {lineItems.map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-1 py-2.5 text-sm">
+                        <span className="col-span-6">{item.description}</span>
+                        <span className="col-span-2 text-right text-muted-foreground">
+                          ${item.price.toFixed(2)}
+                        </span>
+                        <span className="col-span-1 text-right text-muted-foreground">
+                          {item.qty}
+                        </span>
+                        <span className="col-span-3 text-right font-medium">
+                          ${item.total.toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Totals */}

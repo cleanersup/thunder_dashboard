@@ -79,3 +79,20 @@ export async function deleteClient(id: string) {
   const { error } = await supabase.from("clients").delete().eq("id", id);
   if (error) throw error;
 }
+
+/**
+ * Finds a client by email address scoped to the given user.
+ * @param userId - Owner user ID
+ * @param email  - Email to search
+ * @returns The client record, or null if not found
+ */
+export async function findClientByEmail(userId: string, email: string) {
+  const { data } = await supabase
+    .from("clients")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("email", email)
+    .limit(1)
+    .maybeSingle();
+  return data ?? null;
+}

@@ -38,9 +38,9 @@ import { cn }       from "@/shared/utils/cn";
 import { toast }    from "sonner";
 import { useAuth }   from "@/shared/hooks/useAuth";
 import { useProfile } from "@/shared/hooks/useProfile";
-import { useInvoice } from "../hooks/useInvoices";
+import { useInvoice, useCreateInvoice, useUpdateInvoice } from "../hooks/useInvoices";
+import { useInvoiceNumber } from "../hooks/useInvoiceNumber";
 import { useLineItems } from "../hooks/useLineItems";
-import { generateInvoiceNumber, updateInvoice, createInvoice } from "../services/invoicesService";
 import type { InvoiceFormData } from "../types/invoice.types";
 import type { ClientEntity } from "@/shared/types/entities";
 import { calculateInvoiceTotals } from "../utils/invoiceCalculations";
@@ -82,6 +82,8 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
   const [dueDate,       setDueDate]       = useState<Date | undefined>();
   const [invoiceTitle,  setInvoiceTitle]  = useState("");
   const [selectedClient, setSelectedClient] = useState<ClientEntity | null>(null);
+  const createMutation = useCreateInvoice();
+  const updateMutation = useUpdateInvoice();
   const { lineItems, updateLineItem, addLineItem, removeLineItem, resetLineItems } = useLineItems();
   const [discountType,  setDiscountType]  = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
@@ -198,11 +200,10 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
   }, [invoiceData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-generate invoice number (new only) ────────────────────────────────
+  const { data: generatedNumber } = useInvoiceNumber(!isEditing);
   useEffect(() => {
-    if (!isEditing) {
-      generateInvoiceNumber().then(setInvoiceNumber).catch(() => {});
-    }
-  }, [isEditing]);
+    if (!isEditing && generatedNumber) setInvoiceNumber(generatedNumber);
+  }, [generatedNumber, isEditing]);
 
   // ── Totals ─────────────────────────────────────────────────────────────────
   const { subtotal, discountAmount, taxAmount, total } = calculateInvoiceTotals({
@@ -253,72 +254,77 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
     handleSubmit("Draft", false);
   };
 
-  const handleSubmit = async (status: "Draft" | "Pending", toPreview: boolean) => {
+  const handleSubmit = (status: "Draft" | "Pending", toPreview: boolean) => {
     if (!user || !selectedClient || !issueDate || !dueDate) return;
     setIsLoading(true);
 
-    try {
-      const formData: InvoiceFormData = {
-        serviceType:   invoiceType,
-        invoiceDate:   format(issueDate, "yyyy-MM-dd"),
-        dueDate:       format(dueDate, "yyyy-MM-dd"),
-        invoiceName:   invoiceTitle,
-        clientId:      selectedClient.id,
-        clientName:    selectedClient.full_name,
-        companyName:   selectedClient.company ?? "",
-        email:         selectedClient.email,
-        phone:         selectedClient.phone,
-        address:       selectedClient.service_street,
-        apt:           selectedClient.service_apt ?? "",
-        city:          selectedClient.service_city,
-        state:         selectedClient.service_state,
-        zip:           selectedClient.service_zip,
-        lineItems:     lineItems.map(({ description, price, qty, total }) => ({
-          description, price, qty, total,
-        })),
-        discountType,
-        discountValue,
-        taxRate,
-        notes,
-        attachments: [],
-      };
+    const formData: InvoiceFormData = {
+      serviceType:   invoiceType,
+      invoiceDate:   format(issueDate, "yyyy-MM-dd"),
+      dueDate:       format(dueDate, "yyyy-MM-dd"),
+      invoiceName:   invoiceTitle,
+      clientId:      selectedClient.id,
+      clientName:    selectedClient.full_name,
+      companyName:   selectedClient.company ?? "",
+      email:         selectedClient.email,
+      phone:         selectedClient.phone,
+      address:       selectedClient.service_street,
+      apt:           selectedClient.service_apt ?? "",
+      city:          selectedClient.service_city,
+      state:         selectedClient.service_state,
+      zip:           selectedClient.service_zip,
+      lineItems:     lineItems.map(({ description, price, qty, total }) => ({
+        description, price, qty, total,
+      })),
+      discountType,
+      discountValue,
+      taxRate,
+      notes,
+      attachments: [],
+    };
 
-      if (isEditing && id) {
-        const discV = parseFloat(discountValue) || 0;
-        const taxR  = parseFloat(taxRate) || 0;
+    if (isEditing && id) {
+      const discV = parseFloat(discountValue) || 0;
+      const taxR  = parseFloat(taxRate) || 0;
 
-        await updateInvoice(id, {
-          invoice_name:   invoiceTitle || null,
-          invoice_date:   format(issueDate, "yyyy-MM-dd"),
-          due_date:       format(dueDate, "yyyy-MM-dd"),
-          service_type:   invoiceType,
-          status,
-          line_items:     formData.lineItems as any,
-          discount_type:  discV > 0 ? discountType : null,
-          discount_value: discV > 0 ? discV : null,
-          tax_rate:       taxR > 0 ? taxR : null,
-          total,
-          notes:          notes || null,
-        });
-        if (toPreview) {
-          navigate(`/invoices/${id}/preview`);
-        } else {
-          toast.success("Invoice updated");
-          goBack();
+      updateMutation.mutate(
+        {
+          id,
+          updates: {
+            invoice_name:   invoiceTitle || null,
+            invoice_date:   format(issueDate, "yyyy-MM-dd"),
+            due_date:       format(dueDate, "yyyy-MM-dd"),
+            service_type:   invoiceType,
+            status,
+            line_items:     formData.lineItems as any,
+            discount_type:  discV > 0 ? discountType : null,
+            discount_value: discV > 0 ? discV : null,
+            tax_rate:       taxR > 0 ? taxR : null,
+            total,
+            notes:          notes || null,
+          },
+        },
+        {
+          onSuccess: () => {
+            setIsLoading(false);
+            if (toPreview) navigate(`/invoices/${id}/preview`);
+            else { toast.success("Invoice updated"); goBack(); }
+          },
+          onError: () => setIsLoading(false),
         }
-      } else {
-        const inv = await createInvoice(user.id, invoiceNumber, formData, status);
-        if (toPreview) {
-          navigate(`/invoices/${inv.id}/preview`);
-        } else {
-          toast.success("Draft saved");
-          goBack();
+      );
+    } else {
+      createMutation.mutate(
+        { userId: user.id, invoiceNumber, formData, status },
+        {
+          onSuccess: (inv) => {
+            setIsLoading(false);
+            if (toPreview) navigate(`/invoices/${inv.id}/preview`);
+            else { toast.success("Draft saved"); goBack(); }
+          },
+          onError: () => setIsLoading(false),
         }
-      }
-    } catch (err: any) {
-      toast.error(err.message ?? "Failed to save invoice");
-    } finally {
-      setIsLoading(false);
+      );
     }
   };
 

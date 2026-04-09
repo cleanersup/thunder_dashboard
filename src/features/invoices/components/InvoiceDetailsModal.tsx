@@ -30,7 +30,8 @@ import { useSendInvoiceEmail }        from "../hooks/useSendInvoiceEmail";
 import { useInvoiceDetailRealtime }   from "../hooks/useInvoiceRealtime";
 import { useInvoicePDFDownload }      from "../hooks/useInvoicePDFDownload";
 import { INVOICE_STATUS_COLOR, INVOICE_STATUS_BG } from "../utils/invoiceStatusHelpers";
-import type { InvoiceStatus, LineItem } from "../types/invoice.types";
+import { safeParseLineItems } from "../utils/invoiceCalculations";
+import type { InvoiceStatus } from "../types/invoice.types";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -112,7 +113,7 @@ export function InvoiceDetailsModal({
   const statusColor = INVOICE_STATUS_COLOR[(invoice?.status as InvoiceStatus) ?? "Draft"];
   const statusBg    = INVOICE_STATUS_BG[(invoice?.status as InvoiceStatus) ?? "Draft"];
 
-  const lineItems: LineItem[] = (invoice?.line_items ?? []);
+  const { items: lineItems, error: lineItemsError } = safeParseLineItems(invoice?.line_items);
   const subtotal = lineItems.reduce((s, i) => s + i.total, 0);
 
   return (
@@ -466,7 +467,12 @@ export function InvoiceDetailsModal({
                       <CardContent className="p-5">
                         <h4 className="text-sm font-semibold mb-4">Line Items</h4>
                         <div className="space-y-3">
-                          {lineItems.length > 0 ? (
+                          {lineItemsError ? (
+                            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3">
+                              <p className="text-sm font-medium text-destructive">Unable to load line items</p>
+                              <p className="text-xs text-muted-foreground mt-1">{lineItemsError}</p>
+                            </div>
+                          ) : lineItems.length > 0 ? (
                             lineItems.map((item, idx) => (
                               <div
                                 key={idx}
