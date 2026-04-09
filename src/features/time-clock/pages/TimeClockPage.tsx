@@ -23,7 +23,7 @@ import {
 } from "@/shared/components/ui/table";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/shared/utils/cn";
+import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { QK } from "@/shared/config/queryKeys";
 import { useTimeEntriesToday, useTimeEntriesScheduled, useTimeEntriesAll } from "../hooks/useTimeClock";
 import { useShiftTimeEdit } from "../hooks/useShiftTimeEdit";
@@ -203,22 +203,13 @@ export function TimeClockPage() {
             {/* ── Toolbar ──────────────────────────────────────────────────── */}
             <div className="flex items-center justify-between gap-4 px-4 pt-1 pb-0">
               {/* Tab links */}
-              <div className="flex items-center">
-                {TABS.map(({ key, label }) => (
-                  <button
-                    key={key}
-                    onClick={() => setActiveTab(key)}
-                    className={cn(
-                      "px-1 mr-6 py-3 text-sm font-medium border-b-2 transition-colors",
-                      activeTab === key
-                        ? "border-primary text-primary"
-                        : "border-transparent text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
+                <TabsList>
+                  {TABS.map(({ key, label }) => (
+                    <TabsTrigger key={key} value={key}>{label}</TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
 
               {/* Right controls */}
               <div className="flex items-center gap-2 pb-2 pt-2">
