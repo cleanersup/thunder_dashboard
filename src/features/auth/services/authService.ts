@@ -4,6 +4,7 @@
  * All calls use the shared Supabase client (localStorage persistence, no Capacitor).
  */
 
+import { SIGNUP_WELCOME_EDGE_FUNCTION } from "@/config/signupWelcome.config";
 import { supabase } from "@/integrations/supabase/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -92,6 +93,13 @@ export async function signUp(data: SignUpData): Promise<SignUpResult> {
   });
 
   if (profileError) throw profileError;
+
+  const { error: welcomeError } = await supabase.functions.invoke(SIGNUP_WELCOME_EDGE_FUNCTION, {
+    body: { userId: authData.user.id },
+  });
+  if (welcomeError) {
+    console.error("[authService] Failed to send signup welcome (SMS/email):", welcomeError);
+  }
 
   return { userId: authData.user.id, verificationCode };
 }
