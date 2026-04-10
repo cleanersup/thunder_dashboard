@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
-import { BookingDetailModal } from "../components/BookingDetailModal";
+import { BookingDetailPanel } from "../components/BookingDetailPanel";
 import { useBookings } from "../hooks/useBookings";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
@@ -394,7 +394,7 @@ export function BookingPage() {
         )}
       </Card>
 
-      <BookingDetailModal
+      <BookingDetailPanel
         booking={selectedBooking}
         open={modalOpen}
         onClose={() => { setModalOpen(false); setSelectedBooking(null); }}
