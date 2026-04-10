@@ -16,7 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { useAllEmployees, useUpdateEmployeeStatus, useDeleteEmployee } from "../hooks/useEmployees";
 import { EmployeeForm } from "../components/EmployeeForm";
-import { EmployeeDetailsModal } from "../components/EmployeeDetailsModal";
+import { EmployeeDetailsPanel } from "../components/EmployeeDetailsPanel";
 import { generateEmployeeSheetPDF } from "../services/generateEmployeeSheetPDF";
 import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import { useProfile } from "@/shared/hooks/useProfile";
@@ -336,11 +336,11 @@ export function EmployeesPage() {
         onCreated={() => refetch()}
       />
 
-      {/* ── Employee Detail modal ──────────────────────────────────────────── */}
-      <EmployeeDetailsModal
+      {/* ── Employee Detail panel ──────────────────────────────────────────── */}
+      <EmployeeDetailsPanel
         employee={selectedEmployee}
         open={detailOpen}
-        onOpenChange={setDetailOpen}
+        onClose={() => setDetailOpen(false)}
         onEmployeeUpdated={() => refetch()}
       />
 

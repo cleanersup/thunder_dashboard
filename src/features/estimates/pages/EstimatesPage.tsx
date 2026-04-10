@@ -25,7 +25,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useEstimates, useUpdateEstimateStatus } from "../hooks/useEstimates";
 import { useEstimateShare } from "../hooks/useEstimateShare";
 import { useSendEstimateEmail } from "../hooks/useSendEstimateEmail";
-import { EstimateDetailsModal } from "../components/EstimateDetailsModal";
+import { EstimateDetailPanel } from "../components/EstimateDetailPanel";
 import { CreateResidentialEstimatePage } from "./CreateResidentialEstimatePage";
 import { CreateCommercialEstimatePage } from "./CreateCommercialEstimatePage";
 import { useProfile } from "@/shared/hooks/useProfile";
@@ -84,7 +84,7 @@ export function EstimatesPage() {
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null);
-  const [isDetailModalOpen,  setIsDetailModalOpen]  = useState(false);
+  const [isDetailPanelOpen,  setIsDetailPanelOpen]  = useState(false);
   const [isAcceptDialogOpen,      setIsAcceptDialogOpen]      = useState(false);
   const [isCancelDialogOpen,      setIsCancelDialogOpen]      = useState(false);
   const [isDeleteDraftDialogOpen, setIsDeleteDraftDialogOpen] = useState(false);
@@ -149,7 +149,7 @@ export function EstimatesPage() {
   // ── Row actions ───────────────────────────────────────────────────────────
   function openDetail(id: string) {
     setSelectedEstimateId(id);
-    setIsDetailModalOpen(true);
+    setIsDetailPanelOpen(true);
   }
 
   async function handleAcceptEstimate() {
@@ -476,9 +476,9 @@ export function EstimatesPage() {
       </Card>
 
       {/* ── Dialogs ────────────────────────────────────────────────────────── */}
-      <EstimateDetailsModal
-        open={isDetailModalOpen}
-        onOpenChange={setIsDetailModalOpen}
+      <EstimateDetailPanel
+        open={isDetailPanelOpen}
+        onClose={() => setIsDetailPanelOpen(false)}
         estimateId={selectedEstimateId}
         onEdit={(estimate) =>
           openEstimateForm(estimate.service_type, {

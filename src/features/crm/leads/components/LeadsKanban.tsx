@@ -13,7 +13,7 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { useLeads, useUpdateLead } from "../hooks/useLeads";
 import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import { LeadForm } from "./LeadForm";
-import { LeadDetailModal } from "./LeadDetailModal";
+import { LeadDetailPanel } from "./LeadDetailPanel";
 import { LEAD_CARD_BG, PRIORITY_BADGE } from "@/shared/constants/styleTokens";
 import type { Lead, LeadStatus } from "../../types/crm.types";
 
@@ -203,8 +203,8 @@ export function LeadsKanban({ showForm, onCloseForm }: LeadsKanbanProps) {
         </DragOverlay>
       </DndContext>
 
-      {/* Lead detail modal */}
-      <LeadDetailModal
+      {/* Lead detail panel */}
+      <LeadDetailPanel
         lead={selectedLead}
         open={modalOpen}
         onClose={() => { setModalOpen(false); setSelectedLead(null); }}

@@ -14,7 +14,7 @@ import { InitialsAvatar } from "@/shared/components/common/Avatar";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { useClients, useDeleteClient, useUpdateClient } from "../hooks/useClients";
 import { ClientForm } from "./ClientForm";
-import { ClientDetailModal } from "./ClientDetailModal";
+import { ClientDetailPanel } from "./ClientDetailPanel";
 import { CLIENT_STATUS_TABLE } from "@/shared/constants/styleTokens";
 import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import { toast } from "sonner";
@@ -205,8 +205,8 @@ export function ClientsTable({ searchQuery, showForm, onCloseForm }: ClientsTabl
         emptyDescription="Add your first client to get started."
       />
 
-      {/* Detail modal */}
-      <ClientDetailModal
+      {/* Detail panel */}
+      <ClientDetailPanel
         client={selectedClient}
         open={modalOpen}
         onClose={closeModal}
