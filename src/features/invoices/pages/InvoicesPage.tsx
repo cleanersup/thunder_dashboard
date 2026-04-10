@@ -40,7 +40,7 @@ import { useInvoices, useMarkInvoiceAsPaid, useCancelInvoice } from "../hooks/us
 import { useSendInvoiceEmail }      from "../hooks/useSendInvoiceEmail";
 import { useInvoicesListRealtime }  from "../hooks/useInvoiceRealtime";
 import { useInvoicePDFDownload }    from "../hooks/useInvoicePDFDownload";
-import { InvoiceDetailsModal }      from "../components/InvoiceDetailsModal";
+import { InvoiceDetailPanel }       from "../components/InvoiceDetailPanel";
 import { CreateInvoicePage }        from "./CreateInvoicePage";
 import { INVOICE_STATUS_BADGE, INVOICE_STATUS_BORDER } from "../utils/invoiceStatusHelpers";
 import type { Invoice, InvoiceStatus } from "../types/invoice.types";
@@ -456,10 +456,10 @@ export function InvoicesPage() {
         )}
       </Card>
 
-      {/* ── Invoice Detail Modal ───────────────────────────────────────────── */}
-      <InvoiceDetailsModal
+      {/* ── Invoice Detail Panel ───────────────────────────────────────────── */}
+      <InvoiceDetailPanel
         open={isDetailOpen}
-        onOpenChange={setIsDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
         invoiceId={detailId}
         onEdit={(id) => {
           setIsDetailOpen(false);

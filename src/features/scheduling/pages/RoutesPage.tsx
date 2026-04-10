@@ -27,7 +27,7 @@ import { useRoutes, useCreateRoute, useDeleteRoute } from "../hooks/useRoutes";
 import { useAppointments } from "../hooks/useAppointments";
 import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
 import { SchedulingCalendar, type CalendarViewType } from "../components/SchedulingCalendar";
-import { AppointmentDetailModal } from "../components/AppointmentDetailModal";
+import { AppointmentDetailPanel } from "../components/AppointmentDetailPanel";
 import { RouteMapView } from "../components/RouteMapView";
 import { AddAppointmentPage } from "./AddAppointmentPage";
 import type { AppointmentWithClient, Route } from "../types/scheduling.types";
@@ -361,7 +361,7 @@ export function RoutesPage() {
         onConfirm={() => deleteTarget && handleDeleteRoute(deleteTarget)}
       />
 
-      <AppointmentDetailModal
+      <AppointmentDetailPanel
         open={!!selectedAppointment}
         onClose={() => setSelectedAppointment(null)}
         appointment={selectedAppointment}

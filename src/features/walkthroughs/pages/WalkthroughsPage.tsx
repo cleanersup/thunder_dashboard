@@ -65,7 +65,7 @@ import {
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { QRCodeSVG } from "qrcode.react";
 import { useWalkthroughs, useUpdateWalkthroughStatus, useDeleteWalkthrough, useSendWalkthroughStart } from "../hooks/useWalkthroughs";
-import { WalkthroughDetailsModal } from "../components/WalkthroughDetailsModal";
+import { WalkthroughDetailsPanel } from "../components/WalkthroughDetailsPanel";
 import { AddWalkthroughPage } from "./AddWalkthroughPage";
 import type { WalkthroughWithContact } from "../services/walkthroughsService";
 import { cn } from "@/shared/utils/cn";
@@ -489,10 +489,10 @@ export function WalkthroughsPage() {
 
       {/* ── Modals ─────────────────────────────────────────────────────────── */}
 
-      <WalkthroughDetailsModal
+      <WalkthroughDetailsPanel
         walkthrough={detailWalkthrough}
         open={detailOpen}
-        onOpenChange={setDetailOpen}
+        onClose={() => setDetailOpen(false)}
         onUpdated={() => refetch()}
       />
 

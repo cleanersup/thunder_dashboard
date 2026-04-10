@@ -50,7 +50,7 @@ import { useSendContractEmail }     from "../hooks/useSendContractEmail";
 import { useSendContractSMS }       from "../hooks/useSendContractSMS";
 import { useContractAccess }        from "../hooks/useContractAccess";
 import { downloadContractPdf }      from "../services/generateContractPDF";
-import { ContractDetailModal }      from "../components/ContractDetailModal";
+import { ContractDetailPanel }      from "../components/ContractDetailPanel";
 import { RenewContractModal }       from "../components/RenewContractModal";
 import { ContractTrialModal } from "../components/ContractTrialModal";
 import { wasContractTrialModalShown } from "../utils/contractTrialStorage";
@@ -760,8 +760,8 @@ export function ContractsPage() {
         )}
       </Card>
 
-      {/* ── Detail modal (CON-6) ───────────────────────────────────────────── */}
-      <ContractDetailModal
+      {/* ── Detail panel (F23f) ───────────────────────────────────────────── */}
+      <ContractDetailPanel
         contract={viewContract}
         open={!!viewContract}
         onClose={() => setViewContract(null)}
