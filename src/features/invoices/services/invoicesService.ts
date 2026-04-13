@@ -93,11 +93,11 @@ export async function fetchInvoiceById(id: string): Promise<Invoice> {
  * @param id - Invoice UUID
  * @returns Promise<Invoice>
  */
-export async function fetchInvoiceByIdForPublic(id: string): Promise<Invoice> {
+export async function fetchInvoiceByPaymentToken(token: string): Promise<Invoice> {
   const { data: invoice, error } = await supabase
     .from("invoices")
     .select("*")
-    .eq("id", id)
+    .eq("payment_token", token)
     .single();
 
   if (error) throw error;

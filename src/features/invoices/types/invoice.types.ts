@@ -51,6 +51,7 @@ export interface Invoice {
   paid_date: string | null;
   viewed_at: string | null;
   reminder_sent: boolean;
+  payment_token: string | null;
   created_at: string;
   updated_at: string;
 }

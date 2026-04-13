@@ -132,7 +132,7 @@ export function AppRouter() {
           <Route path="/invoices/:id/edit"     element={<ProtectedRoute requireFeature="invoices"><CreateInvoicePage /></ProtectedRoute>} />
           <Route path="/invoices/:id/preview"  element={<ProtectedRoute requireFeature="invoices"><InvoicePreviewPage /></ProtectedRoute>} />
           {/* Public — no auth required */}
-          <Route path="/invoice/payment/:id" element={<PublicInvoicePaymentPage />} />
+          <Route path="/invoice/payment/:token" element={<PublicInvoicePaymentPage />} />
           <Route path="/stripe/return" element={<ProtectedRoute requireSubscription={false}><StripeReturnPage /></ProtectedRoute>} />
 
           {/* Phase 9 ✅ */}

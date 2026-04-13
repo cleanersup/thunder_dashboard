@@ -89,10 +89,10 @@ export function InvoicePreviewPage() {
 
     if ((deliveryMethod === "sms" || deliveryMethod === "both") && invoice.phone) {
       await sendInvoiceSMS({
-        phoneNumber:  invoice.phone,
-        clientName:   invoice.client_name,
-        invoiceId:    invoice.id,
-        invoiceTotal: total,
+        phoneNumber:   invoice.phone,
+        clientName:    invoice.client_name,
+        paymentToken:  invoice.payment_token ?? invoice.id,
+        invoiceTotal:  total,
       });
     }
 

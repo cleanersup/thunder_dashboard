@@ -4,8 +4,9 @@
  * Unauthenticated public page for client invoice payment via Stripe.
  * Adapted from swift-slate/src/pages/InvoicePayment.tsx — Capacitor removed.
  */
-import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { env } from "@/config/env";
 import {
   CheckCircle, CreditCard, Loader2, Calendar, FileText, DollarSign,
 } from "lucide-react";
@@ -15,18 +16,64 @@ import { toast }             from "sonner";
 import { supabase }          from "@/integrations/supabase/client";
 import { useQuery }          from "@tanstack/react-query";
 import { formatCurrency, formatDateOnly } from "@/shared/utils/formatters";
-import { fetchInvoiceByIdForPublic } from "../services/invoicesService";
+import { fetchInvoiceByPaymentToken } from "../services/invoicesService";
 import { QK } from "@/shared/config/queryKeys";
 
+/** Detects raw UUIDs — used to redirect legacy payment links to token-based URLs */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export function PublicInvoicePaymentPage() {
-  const { id } = useParams<{ id: string }>();
+  const { token } = useParams<{ token: string }>();
+  const navigate   = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentComplete] = useState(false);
 
+  const isLegacyUUID = UUID_REGEX.test(token ?? "");
+
+  // ── Legacy redirect query (only runs when param is a raw UUID) ────────────
+  const { data: legacyPaymentToken } = useQuery({
+    queryKey: ["invoice-legacy-redirect", token],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("invoices")
+        .select("payment_token")
+        .eq("id", token!)
+        .single();
+      return (data as any)?.payment_token as string | null ?? null;
+    },
+    enabled: isLegacyUUID,
+    staleTime: Infinity,
+  });
+
+  // Redirect to canonical token URL once we have it
+  useEffect(() => {
+    if (isLegacyUUID && legacyPaymentToken) {
+      navigate(`/invoice/payment/${legacyPaymentToken}`, { replace: true });
+    }
+  }, [isLegacyUUID, legacyPaymentToken, navigate]);
+
+  // ── reCAPTCHA v3 script (only needed for the normal payment flow) ─────────
+  useEffect(() => {
+    if (isLegacyUUID) return;
+    const siteKey = env.recaptcha.siteKey;
+    if (!siteKey) return;
+
+    const script = document.createElement("script");
+    script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`;
+    script.async = true;
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+      document.querySelector(".grecaptcha-badge")?.parentElement?.remove();
+    };
+  }, [isLegacyUUID]);
+
+  // ── Invoice + profile queries (only for token-based flow) ─────────────────
   const { data: invoice, isLoading } = useQuery({
-    queryKey: QK.publicInvoice(id!),
-    queryFn: () => fetchInvoiceByIdForPublic(id!),
-    enabled: !!id,
+    queryKey: QK.publicInvoice(token!),
+    queryFn: () => fetchInvoiceByPaymentToken(token!),
+    enabled: !!token && !isLegacyUUID,
   });
 
   const { data: profile } = useQuery({
@@ -52,6 +99,16 @@ export function PublicInvoicePaymentPage() {
     staleTime: 5 * 60_000,
   });
 
+  // ── Legacy redirect — show spinner while resolving ────────────────────────
+  if (isLegacyUUID) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const handlePayment = async () => {
     if (!invoice || !profile) return;
     setIsProcessing(true);
@@ -61,6 +118,20 @@ export function PublicInvoicePaymentPage() {
         throw new Error(
           "Payment processing is not available for this merchant. Please contact them directly."
         );
+      }
+
+      // Obtain reCAPTCHA v3 token before hitting the backend
+      let recaptchaToken: string | undefined;
+      const siteKey = env.recaptcha.siteKey;
+      if (siteKey) {
+        recaptchaToken = await new Promise<string>((resolve, reject) => {
+          (window as any).grecaptcha.ready(() => {
+            (window as any).grecaptcha
+              .execute(siteKey, { action: "invoice_payment" })
+              .then(resolve)
+              .catch(reject);
+          });
+        });
       }
 
       const hasDiscount = (invoice.discount_value ?? 0) !== 0;
@@ -94,13 +165,21 @@ export function PublicInvoicePaymentPage() {
             merchant_user_id: invoice.user_id,
           },
           connectedAccountId: profile.stripe_account_id,
+          recaptchaToken,
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // 409 = invoice already paid (backend guard)
+        if (error.message?.includes("already been paid")) {
+          toast.error("This invoice has already been paid.");
+          return;
+        }
+        throw error;
+      }
       if (!data?.url) throw new Error("No payment URL returned");
 
-      // Redirect to Stripe Checkout
+      // Redirect to Stripe Checkout (existing or new session)
       window.location.href = data.url;
     } catch (err: any) {
       toast.error(err.message ?? "There was an error processing your payment.");

@@ -4,11 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface SendInvoiceSMSParams {
-  phoneNumber:  string;
-  clientName:   string;
-  invoiceId:    string;
-  invoiceTotal: number;
-  isUpdate?:    boolean;
+  phoneNumber:    string;
+  clientName:     string;
+  paymentToken:   string;   // opaque token — never expose raw invoice UUID in public URLs
+  invoiceTotal:   number;
+  isUpdate?:      boolean;
 }
 
 /**
@@ -21,7 +21,7 @@ export function useSendInvoiceSMS() {
   const sendInvoiceSMS = async ({
     phoneNumber,
     clientName,
-    invoiceId,
+    paymentToken,
     invoiceTotal,
     isUpdate,
   }: SendInvoiceSMSParams): Promise<{ success: boolean; error?: string }> => {
@@ -29,7 +29,7 @@ export function useSendInvoiceSMS() {
 
     setIsSendingSMS(true);
     try {
-      const invoiceUrl = `${window.location.origin}/invoice/payment/${invoiceId}`;
+      const invoiceUrl = `${window.location.origin}/invoice/payment/${paymentToken}`;
 
       const { error } = await supabase.functions.invoke("send-invoice-sms", {
         body: { phoneNumber, clientName, invoiceUrl, invoiceTotal, isUpdate },

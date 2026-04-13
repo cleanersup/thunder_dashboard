@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import {
   Plus, FileEdit, XCircle, ChevronLeft, ChevronRight, Search,
   Calendar as CalendarIcon, CheckCircle, Clock, MoreHorizontal,
-  Eye, Mail, Download, Edit, Share,
+  Eye, Mail, Download, Edit, Share, RefreshCw,
 } from "lucide-react";
 import { Card, CardContent }         from "@/shared/components/ui/card";
 import { Button }                     from "@/shared/components/ui/button";
@@ -35,6 +35,7 @@ import {
 import { Calendar }  from "@/shared/components/ui/calendar";
 import { cn }        from "@/shared/utils/cn";
 import { toast }     from "sonner";
+import { supabase }  from "@/integrations/supabase/client";
 import { formatCurrency, formatDateOnly, parseDateOnly } from "@/shared/utils/formatters";
 import { useInvoices, useMarkInvoiceAsPaid, useCancelInvoice } from "../hooks/useInvoices";
 import { useSendInvoiceEmail }      from "../hooks/useSendInvoiceEmail";
@@ -69,6 +70,31 @@ export function InvoicesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editInvoiceId,  setEditInvoiceId]  = useState<string | undefined>(undefined);
   const [showEditModal,  setShowEditModal]  = useState(false);
+
+  // ── Re-send pending links state ───────────────────────────────────────────────
+  const [showResendDialog, setShowResendDialog] = useState(false);
+  const [isResending,      setIsResending]      = useState(false);
+  const [resendProgress,   setResendProgress]   = useState<{ sent: number; total: number } | null>(null);
+
+  const handleResendAllPending = async () => {
+    const pendingWithEmail = pending.filter((i) => i.email);
+    if (!pendingWithEmail.length) return;
+
+    setIsResending(true);
+    setShowResendDialog(false);
+    setResendProgress({ sent: 0, total: pendingWithEmail.length });
+
+    let sent = 0;
+    for (const inv of pendingWithEmail) {
+      await supabase.functions.invoke("send-invoice-email", { body: { invoiceId: inv.id } });
+      sent++;
+      setResendProgress({ sent, total: pendingWithEmail.length });
+    }
+
+    setIsResending(false);
+    setResendProgress(null);
+    toast.success(`Payment links re-sent to ${sent} client${sent !== 1 ? "s" : ""}`);
+  };
 
   // ── Quick action state (from row dropdown, not modal) ────────────────────────
   const [actionInvoice,         setActionInvoice]         = useState<Invoice | null>(null);
@@ -239,11 +265,35 @@ export function InvoicesPage() {
               </Popover>
             </div>
 
-            {/* New button */}
-            <Button onClick={() => setShowCreateModal(true)} className="h-9">
-              <Plus className="w-4 h-4 mr-1" />
-              New
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Re-send pending payment links */}
+              {pending.length > 0 && (
+                <Button
+                  variant="outline"
+                  className="h-9"
+                  onClick={() => setShowResendDialog(true)}
+                  disabled={isResending}
+                >
+                  {isResending && resendProgress ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                      {resendProgress.sent}/{resendProgress.total}
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-1" />
+                      Re-send links ({pending.length})
+                    </>
+                  )}
+                </Button>
+              )}
+
+              {/* New button */}
+              <Button onClick={() => setShowCreateModal(true)} className="h-9">
+                <Plus className="w-4 h-4 mr-1" />
+                New
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -539,6 +589,26 @@ export function InvoicesPage() {
               disabled={cancelInv.isPending}
             >
               {cancelInv.isPending ? "Cancelling..." : "Yes, cancel invoice"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Re-send pending links dialog ──────────────────────────────────── */}
+      <AlertDialog open={showResendDialog} onOpenChange={setShowResendDialog}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Re-send payment links</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will re-send the payment link to{" "}
+              <strong>{pending.filter((i) => i.email).length} client{pending.filter((i) => i.email).length !== 1 ? "s" : ""}</strong>{" "}
+              with pending invoices. Each client will receive a new email with the updated link.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResendAllPending}>
+              Re-send all
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
