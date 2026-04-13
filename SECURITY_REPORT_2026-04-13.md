@@ -302,7 +302,10 @@ No quedan vulnerabilidades críticas o altas sin resolver. Las siguientes son me
 | `src/features/invoices/services/invoicesService.ts` | Frontend | COR-06 |
 | `src/features/invoices/hooks/useSendInvoiceSMS.ts` | Frontend | COR-06 |
 | `src/features/invoices/types/invoice.types.ts` | Frontend | COR-06 |
-| `src/app/routes/index.tsx` | Frontend | COR-06 |
+| `src/app/routes/index.tsx` | Frontend (web) | COR-06 |
+| `src/App.tsx` *(swift-slate)* | Frontend (mobile) | COR-06 |
+| `src/pages/InvoicePayment.tsx` *(swift-slate)* | Frontend (mobile) | COR-03, COR-06 |
+| `src/pages/InvoicePreview.tsx` *(swift-slate)* | Frontend (mobile) | COR-06 |
 | Stripe Dashboard (Radar) | Configuración | COR-05 |
 
 ---
