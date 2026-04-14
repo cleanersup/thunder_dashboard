@@ -41,8 +41,9 @@ import { useProfile } from "@/shared/hooks/useProfile";
 import { useInvoice, useCreateInvoice, useUpdateInvoice } from "../hooks/useInvoices";
 import { useInvoiceNumber } from "../hooks/useInvoiceNumber";
 import { useLineItems } from "../hooks/useLineItems";
-import type { InvoiceFormData } from "../types/invoice.types";
+import type { InvoiceFormData, InvoiceAttachment } from "../types/invoice.types";
 import type { ClientEntity } from "@/shared/types/entities";
+import { uploadInvoiceAttachments } from "../services/invoiceFilesService";
 import { calculateInvoiceTotals } from "../utils/invoiceCalculations";
 import { toDecimalString, toIntegerString } from "@/shared/utils/numericInput";
 import { parseDateOnly } from "@/shared/utils/formatters";
@@ -89,7 +90,8 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
   const [discountValue, setDiscountValue] = useState("");
   const [taxRate,       setTaxRate]       = useState("");
   const [notes,         setNotes]         = useState("");
-  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [attachmentFiles,    setAttachmentFiles]    = useState<File[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<InvoiceAttachment[]>([]);
   const [currentStatus, setCurrentStatus] = useState<"Draft" | "Pending" | "Paid" | "Cancelled">("Draft");
   const [isLoading,     setIsLoading]     = useState(false);
   const [showExitDialog,    setShowExitDialog]    = useState(false);
@@ -183,6 +185,9 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
     setDiscountValue(invoiceData.discount_value?.toString() ?? "");
     setTaxRate(invoiceData.tax_rate?.toString() ?? "");
     setNotes(invoiceData.notes ?? "");
+    if (invoiceData.attachments && Array.isArray(invoiceData.attachments)) {
+      setExistingAttachments(invoiceData.attachments);
+    }
     const fakeClient: ClientEntity = {
       id: "",
       full_name:      invoiceData.client_name,
@@ -254,77 +259,98 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
     handleSubmit("Draft", false);
   };
 
-  const handleSubmit = (status: "Draft" | "Pending", toPreview: boolean) => {
+  const handleSubmit = async (status: "Draft" | "Pending", toPreview: boolean) => {
     if (!user || !selectedClient || !issueDate || !dueDate) return;
     setIsLoading(true);
 
-    const formData: InvoiceFormData = {
-      serviceType:   invoiceType,
-      invoiceDate:   format(issueDate, "yyyy-MM-dd"),
-      dueDate:       format(dueDate, "yyyy-MM-dd"),
-      invoiceName:   invoiceTitle,
-      clientId:      selectedClient.id,
-      clientName:    selectedClient.full_name,
-      companyName:   selectedClient.company ?? "",
-      email:         selectedClient.email,
-      phone:         selectedClient.phone,
-      address:       selectedClient.service_street,
-      apt:           selectedClient.service_apt ?? "",
-      city:          selectedClient.service_city,
-      state:         selectedClient.service_state,
-      zip:           selectedClient.service_zip,
-      lineItems:     lineItems.map(({ description, price, qty, total }) => ({
-        description, price, qty, total,
-      })),
-      discountType,
-      discountValue,
-      taxRate,
-      notes,
-      attachments: [],
-    };
-
-    if (isEditing && id) {
+    try {
       const discV = parseFloat(discountValue) || 0;
       const taxR  = parseFloat(taxRate) || 0;
 
-      updateMutation.mutate(
-        {
-          id,
-          updates: {
-            invoice_name:   invoiceTitle || null,
-            invoice_date:   format(issueDate, "yyyy-MM-dd"),
-            due_date:       format(dueDate, "yyyy-MM-dd"),
-            service_type:   invoiceType,
-            status,
-            line_items:     formData.lineItems as any,
-            discount_type:  discV > 0 ? discountType : null,
-            discount_value: discV > 0 ? discV : null,
-            tax_rate:       taxR > 0 ? taxR : null,
-            total,
-            notes:          notes || null,
+      if (isEditing && id) {
+        // Upload any new files, then combine with existing
+        const uploaded = await uploadInvoiceAttachments(id, attachmentFiles);
+        const allAttachments = [...existingAttachments, ...uploaded];
+
+        updateMutation.mutate(
+          {
+            id,
+            updates: {
+              invoice_name:   invoiceTitle || null,
+              invoice_date:   format(issueDate, "yyyy-MM-dd"),
+              due_date:       format(dueDate, "yyyy-MM-dd"),
+              service_type:   invoiceType,
+              status,
+              line_items:     lineItems.map(({ description, price, qty, total }) => ({ description, price, qty, total })) as any,
+              discount_type:  discV > 0 ? discountType : null,
+              discount_value: discV > 0 ? discV : null,
+              tax_rate:       taxR > 0 ? taxR : null,
+              total,
+              notes:          notes || null,
+              attachments:    allAttachments.length > 0 ? (allAttachments as any) : null,
+            },
           },
-        },
-        {
-          onSuccess: () => {
-            setIsLoading(false);
-            if (toPreview) navigate(`/invoices/${id}/preview`);
-            else { toast.success("Invoice updated"); goBack(); }
-          },
-          onError: () => setIsLoading(false),
-        }
-      );
-    } else {
-      createMutation.mutate(
-        { userId: user.id, invoiceNumber, formData, status },
-        {
-          onSuccess: (inv) => {
-            setIsLoading(false);
-            if (toPreview) navigate(`/invoices/${inv.id}/preview`);
-            else { toast.success("Draft saved"); goBack(); }
-          },
-          onError: () => setIsLoading(false),
-        }
-      );
+          {
+            onSuccess: () => {
+              setIsLoading(false);
+              if (toPreview) navigate(`/invoices/${id}/preview`);
+              else { toast.success("Invoice updated"); goBack(); }
+            },
+            onError: () => setIsLoading(false),
+          }
+        );
+      } else {
+        // For create: attachments are uploaded after the row is created in the mutation's onSuccess
+        const formData: InvoiceFormData = {
+          serviceType:   invoiceType,
+          invoiceDate:   format(issueDate, "yyyy-MM-dd"),
+          dueDate:       format(dueDate, "yyyy-MM-dd"),
+          invoiceName:   invoiceTitle,
+          clientId:      selectedClient.id,
+          clientName:    selectedClient.full_name,
+          companyName:   selectedClient.company ?? "",
+          email:         selectedClient.email,
+          phone:         selectedClient.phone,
+          address:       selectedClient.service_street,
+          apt:           selectedClient.service_apt ?? "",
+          city:          selectedClient.service_city,
+          state:         selectedClient.service_state,
+          zip:           selectedClient.service_zip,
+          lineItems:     lineItems.map(({ description, price, qty, total }) => ({ description, price, qty, total })),
+          discountType,
+          discountValue,
+          taxRate,
+          notes,
+          attachments: [],
+        };
+
+        createMutation.mutate(
+          { userId: user.id, invoiceNumber, formData, status },
+          {
+            onSuccess: async (inv) => {
+              // Upload attachments now that the invoice row exists
+              if (attachmentFiles.length > 0) {
+                try {
+                  const uploaded = await uploadInvoiceAttachments(inv.id, attachmentFiles);
+                  if (uploaded.length > 0) {
+                    // Fire-and-forget update to persist attachments
+                    updateMutation.mutate({ id: inv.id, updates: { attachments: uploaded as any } });
+                  }
+                } catch {
+                  toast.error("Invoice saved but attachments failed to upload");
+                }
+              }
+              setIsLoading(false);
+              if (toPreview) navigate(`/invoices/${inv.id}/preview`);
+              else { toast.success("Draft saved"); goBack(); }
+            },
+            onError: () => setIsLoading(false),
+          }
+        );
+      }
+    } catch {
+      toast.error("Failed to upload attachments");
+      setIsLoading(false);
     }
   };
 
@@ -657,10 +683,24 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
             }}
           />
 
-          {attachmentFiles.length > 0 && (
+          {(existingAttachments.length > 0 || attachmentFiles.length > 0) && (
             <ul className="space-y-2">
+              {existingAttachments.map((file, idx) => (
+                <li key={`existing-${idx}`} className="flex items-center justify-between gap-2 text-sm bg-muted/30 rounded-md px-3 py-2">
+                  <a href={file.url} target="_blank" rel="noopener noreferrer" className="truncate text-primary hover:underline">
+                    {file.name}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setExistingAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                    className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
               {attachmentFiles.map((file, idx) => (
-                <li key={idx} className="flex items-center justify-between gap-2 text-sm bg-muted/30 rounded-md px-3 py-2">
+                <li key={`new-${idx}`} className="flex items-center justify-between gap-2 text-sm bg-muted/30 rounded-md px-3 py-2">
                   <span className="truncate text-muted-foreground">{file.name}</span>
                   <button
                     type="button"
