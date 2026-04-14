@@ -26,9 +26,9 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
 import {
-  CheckCircle, Mail, Phone, MapPin, Building2, Calendar,
+  CheckCircle, Mail, MessageSquare, Phone, MapPin, Building2, Calendar,
   FileText, Edit, Share, Download, Eye, EyeOff,
-  Users, Box, TrendingUp, DollarSign, X, Play, RefreshCw, Trash2, Clock, MoreHorizontal,
+  Users, Box, TrendingUp, DollarSign, X, Play, RefreshCw, Trash2, Clock, MoreHorizontal, Map,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
@@ -43,6 +43,7 @@ import type { DraftData } from "../types/estimate.types";
 import { useUpdateEstimateStatus } from "../hooks/useEstimates";
 import { useEstimateShare } from "../hooks/useEstimateShare";
 import { useSendEstimateEmail } from "../hooks/useSendEstimateEmail";
+import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { PDFService } from "@/shared/services/pdf.service";
 import { SidePanel } from "@/shared/components/common/SidePanel";
 
@@ -55,7 +56,8 @@ function formatPhone(phone: string) {
 
 function getStatusColor(status: string) {
   switch (status) {
-    case "Pending":  return "hsl(var(--orange-vibrant))";
+    case "Pending":
+    case "Viewed":   return "hsl(var(--orange-vibrant))";
     case "Accepted": return "hsl(var(--green-vibrant))";
     case "Draft":    return "hsl(var(--muted-foreground))";
     case "Canceled": return "hsl(var(--destructive))";
@@ -65,7 +67,8 @@ function getStatusColor(status: string) {
 
 function getStatusBg(status: string) {
   switch (status) {
-    case "Pending":  return "hsl(var(--orange-vibrant) / 0.1)";
+    case "Pending":
+    case "Viewed":   return "hsl(var(--orange-vibrant) / 0.1)";
     case "Accepted": return "hsl(var(--green-vibrant) / 0.1)";
     case "Draft":    return "hsl(var(--muted))";
     case "Canceled": return "hsl(var(--destructive) / 0.1)";
@@ -90,14 +93,19 @@ interface EstimateDetailPanelProps {
 interface FooterProps {
   status:           string;
   isSending:        boolean;
+  isSendingSMS:     boolean;
   isGeneratingLink: boolean;
   isDownloadingPDF: boolean;
+  isAlreadyInRoute: boolean;
+  hasPhone:         boolean;
   onAccept:         () => void;
   onSendEmail:      () => void;
+  onSendSMS:        () => void;
   onEdit:           () => void;
   onShare:          () => void;
   onDownloadPDF:    () => void;
   onConvert:        () => void;
+  onAddToRoute:     () => void;
   onCancel:         () => void;
   onDeleteDraft:    () => void;
   onContinueDraft:  () => void;
@@ -105,8 +113,8 @@ interface FooterProps {
 }
 
 function PanelFooter({
-  status, isSending, isGeneratingLink, isDownloadingPDF,
-  onAccept, onSendEmail, onEdit, onShare, onDownloadPDF, onConvert, onCancel,
+  status, isSending, isSendingSMS, isGeneratingLink, isDownloadingPDF, isAlreadyInRoute, hasPhone,
+  onAccept, onSendEmail, onSendSMS, onEdit, onShare, onDownloadPDF, onConvert, onAddToRoute, onCancel,
   onDeleteDraft, onContinueDraft, onStartFresh,
 }: FooterProps) {
   // Draft: Continue · Start Fresh · More (Delete)
@@ -135,8 +143,8 @@ function PanelFooter({
     );
   }
 
-  // Pending: Mark as Accepted · Send Reminder · More (Edit, Share, Download PDF, Cancel)
-  if (status === "Pending") {
+  // Pending / Viewed: Mark as Accepted · More (Edit, Send Email, Send SMS, Share, Download, Cancel)
+  if (status === "Pending" || status === "Viewed") {
     return (
       <div className="flex items-center gap-2">
         <Button
@@ -147,19 +155,24 @@ function PanelFooter({
         >
           <CheckCircle className="w-4 h-4 mr-1.5" /> Mark as Accepted
         </Button>
-        <Button size="sm" variant="outline" onClick={onSendEmail} disabled={isSending}>
-          <Mail className="w-4 h-4 mr-1.5" /> {isSending ? "Sending…" : "Send Reminder"}
-        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="sm" variant="outline" className="px-2.5">
               <MoreHorizontal className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem onClick={onEdit}>
               <Edit className="w-4 h-4 mr-2" /> Edit
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={onSendEmail} disabled={isSending}>
+              <Mail className="w-4 h-4 mr-2" /> {isSending ? "Sending…" : "Send reminder by email"}
+            </DropdownMenuItem>
+            {hasPhone && (
+              <DropdownMenuItem onClick={onSendSMS} disabled={isSendingSMS}>
+                <MessageSquare className="w-4 h-4 mr-2" /> {isSendingSMS ? "Sending…" : "Send reminder by SMS"}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={onShare} disabled={isGeneratingLink}>
               <Share className="w-4 h-4 mr-2" /> {isGeneratingLink ? "Generating…" : "Share"}
             </DropdownMenuItem>
@@ -176,13 +189,21 @@ function PanelFooter({
     );
   }
 
-  // Accepted: Convert to Invoice · More (Share, Download PDF)
+  // Accepted:
+  //   Not in route → Add to Route (primary) · More (Share, Download, Convert to Invoice, Cancel)
+  //   In route     → Convert to Invoice (primary) · More (Share, Download, Cancel)
   if (status === "Accepted") {
     return (
       <div className="flex items-center gap-2">
-        <Button size="sm" className="flex-1" onClick={onConvert}>
-          <FileText className="w-4 h-4 mr-1.5" /> Convert to Invoice
-        </Button>
+        {!isAlreadyInRoute ? (
+          <Button size="sm" className="flex-1" onClick={onAddToRoute}>
+            <Map className="w-4 h-4 mr-1.5" /> Add to Route
+          </Button>
+        ) : (
+          <Button size="sm" className="flex-1" onClick={onConvert}>
+            <FileText className="w-4 h-4 mr-1.5" /> Convert to Invoice
+          </Button>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="sm" variant="outline" className="px-2.5">
@@ -195,6 +216,15 @@ function PanelFooter({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onDownloadPDF} disabled={isDownloadingPDF}>
               <Download className="w-4 h-4 mr-2" /> {isDownloadingPDF ? "Downloading…" : "Download PDF"}
+            </DropdownMenuItem>
+            {!isAlreadyInRoute && (
+              <DropdownMenuItem onClick={onConvert}>
+                <FileText className="w-4 h-4 mr-2" /> Convert to Invoice
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onCancel}>
+              <X className="w-4 h-4 mr-2" /> Cancel Estimate
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -225,6 +255,7 @@ export function EstimateDetailPanel({
   const { data: profile }                         = useProfile();
   const { generateShareLink, isGeneratingLink }   = useEstimateShare();
   const { sendEstimateEmail, isSending }          = useSendEstimateEmail();
+  const { sendEstimateSMS, isSendingSMS }         = useSendEstimateSMS();
   const updateStatus                              = useUpdateEstimateStatus();
 
   const [estimate,              setEstimate]              = useState<any>(null);
@@ -235,6 +266,7 @@ export function EstimateDetailPanel({
   const [isEmailSuccessOpen,    setIsEmailSuccessOpen]    = useState(false);
   const [isDeleteDraftOpen,     setIsDeleteDraftOpen]     = useState(false);
   const [isDeletingDraft,       setIsDeletingDraft]       = useState(false);
+  const [isAlreadyInRoute,      setIsAlreadyInRoute]      = useState(false);
   const [draftClientInfo, setDraftClientInfo] = useState<{
     name: string; email: string; phone: string;
     address: string; city: string; state: string; zip: string;
@@ -245,7 +277,9 @@ export function EstimateDetailPanel({
   useEffect(() => {
     if (open && estimateId) {
       setDraftClientInfo(null);
+      setIsAlreadyInRoute(false);
       loadEstimate();
+      checkIfInRoute();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, estimateId]);
@@ -309,6 +343,16 @@ export function EstimateDetailPanel({
         city: l.city, state: l.state, zip: l.zip_code,
       });
     }
+  }
+
+  async function checkIfInRoute() {
+    if (!estimateId) return;
+    const { data } = await supabase
+      .from("route_appointments")
+      .select("id")
+      .eq("estimate_id", estimateId)
+      .maybeSingle();
+    setIsAlreadyInRoute(!!data);
   }
 
   // ── Action handlers ───────────────────────────────────────────────────────────
@@ -395,6 +439,17 @@ export function EstimateDetailPanel({
     else toast.error(result.error ?? "Failed to send email");
   }
 
+  async function handleSendSMS() {
+    if (!estimate?.phone) return;
+    await sendEstimateSMS({
+      phoneNumber:   estimate.phone,
+      clientName:    estimate.client_name,
+      estimateId:    estimate.id,
+      estimateTotal: estimate.total,
+      isUpdate:      true,
+    });
+  }
+
   function handleEdit() {
     if (!estimate) return;
     onClose();
@@ -404,6 +459,11 @@ export function EstimateDetailPanel({
       const route = estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential";
       navigate(route, { state: { isEditing: true, estimateId: estimate.id, estimateData: estimate } });
     }
+  }
+
+  function handleAddToRoute() {
+    onClose();
+    navigate("/create-route");
   }
 
   function handleConvertToInvoice() {
@@ -566,14 +626,19 @@ export function EstimateDetailPanel({
     <PanelFooter
       status={f.status}
       isSending={isSending}
+      isSendingSMS={isSendingSMS}
       isGeneratingLink={isGeneratingLink}
       isDownloadingPDF={isDownloadingPDF}
+      isAlreadyInRoute={isAlreadyInRoute}
+      hasPhone={!!estimate?.phone}
       onAccept={() => setIsAcceptDialogOpen(true)}
       onSendEmail={handleSendEmail}
+      onSendSMS={handleSendSMS}
       onEdit={handleEdit}
       onShare={handleShare}
       onDownloadPDF={handleDownloadPDF}
       onConvert={handleConvertToInvoice}
+      onAddToRoute={handleAddToRoute}
       onCancel={() => setIsCancelDialogOpen(true)}
       onDeleteDraft={() => setIsDeleteDraftOpen(true)}
       onContinueDraft={handleContinueDraft}

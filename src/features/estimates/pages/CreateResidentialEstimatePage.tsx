@@ -189,20 +189,21 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
             return;
           } catch { /* fall through */ }
         }
-        if (!user) return;
-        const clientByEmail = await findClientByEmail(user.id, d.email);
-        if (clientByEmail) {
-          setEstimateType("client");
-          setSelectedClient(clientByEmail as ClientEntity);
-          setSelectedLead(null);
-          return;
-        }
-        const leadByEmail = await findLeadByEmail(user.id, d.email);
-        if (leadByEmail) {
-          setEstimateType("lead");
-          setSelectedLead(leadByEmail as LeadEntity);
-          setSelectedClient(null);
-          return;
+        if (user) {
+          const clientByEmail = await findClientByEmail(user.id, d.email);
+          if (clientByEmail) {
+            setEstimateType("client");
+            setSelectedClient(clientByEmail as ClientEntity);
+            setSelectedLead(null);
+            return;
+          }
+          const leadByEmail = await findLeadByEmail(user.id, d.email);
+          if (leadByEmail) {
+            setEstimateType("lead");
+            setSelectedLead(leadByEmail as LeadEntity);
+            setSelectedClient(null);
+            return;
+          }
         }
         const syntheticClient: ClientEntity = {
           id: `estimate-edit-${d.id}`,
@@ -223,7 +224,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         setIsPrefilling(false);
       }
     })();
-  }, [isEditing, estimateId, estimateData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isEditing, estimateId, estimateData, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Prefill from walkthrough ──────────────────────────────────────────────
   useEffect(() => {
@@ -572,10 +573,9 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     <>
       <ExitConfirmationDialog
         open={showExitDialog}
+        isEditing={isEditing}
         onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); goBack(); }}
         onDiscard={() => {
-          // In edit mode never delete the original estimate — just close.
-          // deleteDraft() is only safe for NEW auto-saved drafts.
           if (!isEditing) deleteDraft();
           setShowExitDialog(false);
           goBack();

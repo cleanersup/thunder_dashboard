@@ -413,7 +413,22 @@ export function InvoicesPage() {
                           </DropdownMenuItem>
                         )}
 
-                        <DropdownMenuSeparator />
+                        {(invoice.status === "Draft" || invoice.status === "Pending") && (
+                          <DropdownMenuSeparator />
+                        )}
+
+                        {invoice.status === "Draft" && (
+                          <DropdownMenuItem
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              await sendInvoiceEmail(invoice.id);
+                            }}
+                            disabled={isSending}
+                          >
+                            <Share className="w-4 h-4 mr-2" />
+                            Send Invoice
+                          </DropdownMenuItem>
+                        )}
 
                         {invoice.status === "Pending" && (
                           <DropdownMenuItem
@@ -425,19 +440,6 @@ export function InvoicesPage() {
                           >
                             <Mail className="w-4 h-4 mr-2" />
                             Send Reminder
-                          </DropdownMenuItem>
-                        )}
-
-                        {(invoice.status === "Pending" || invoice.status === "Draft") && (
-                          <DropdownMenuItem
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              await sendInvoiceEmail(invoice.id);
-                            }}
-                            disabled={isSending}
-                          >
-                            <Share className="w-4 h-4 mr-2" />
-                            Send Invoice
                           </DropdownMenuItem>
                         )}
 

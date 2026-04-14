@@ -14,10 +14,11 @@ import {
 import { Button } from "@/shared/components/ui/button";
 
 interface ExitConfirmationDialogProps {
-  open:      boolean;
-  onSave:    () => void;
-  onDiscard: () => void;
-  onCancel:  () => void;
+  open:       boolean;
+  onSave:     () => void;
+  onDiscard:  () => void;
+  onCancel:   () => void;
+  isEditing?: boolean;
 }
 
 export function ExitConfirmationDialog({
@@ -25,26 +26,33 @@ export function ExitConfirmationDialog({
   onSave,
   onDiscard,
   onCancel,
+  isEditing = false,
 }: ExitConfirmationDialogProps) {
   return (
     <AlertDialog open={open}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Save estimate?</AlertDialogTitle>
+          <AlertDialogTitle>
+            {isEditing ? "Discard changes?" : "Save estimate?"}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            Would you like to save your progress as a draft, or discard all changes?
+            {isEditing
+              ? "Your unsaved changes will be lost."
+              : "Would you like to save your progress as a draft, or discard all changes?"}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" className="flex-1" onClick={onCancel}>
-            Cancel
+            {isEditing ? "Keep Editing" : "Cancel"}
           </Button>
           <Button variant="destructive" className="flex-1" onClick={onDiscard}>
             Discard
           </Button>
-          <Button className="flex-1" onClick={onSave}>
-            Save Draft
-          </Button>
+          {!isEditing && (
+            <Button className="flex-1" onClick={onSave}>
+              Save Draft
+            </Button>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

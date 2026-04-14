@@ -452,12 +452,12 @@ export function InvoiceDetailPanel({
             )}
 
             {/* Attachments */}
-            {invoice.attachments && invoice.attachments.length > 0 && (
+            {invoice.attachments && Array.isArray(invoice.attachments) && invoice.attachments.length > 0 && (
               <Card className="border border-border/50">
                 <CardContent className="p-4">
                   <h4 className="text-sm font-semibold mb-3">Attachments</h4>
                   <div className="space-y-2">
-                    {invoice.attachments.map((file: { name: string; size?: number }, idx: number) => (
+                    {invoice.attachments.map((file, idx: number) => (
                       <div key={idx} className="flex items-center gap-2 p-2 bg-secondary/30 rounded-md">
                         <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
                         <span className="text-sm flex-1">{file.name}</span>

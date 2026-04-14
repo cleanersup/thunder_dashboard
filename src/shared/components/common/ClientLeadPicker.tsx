@@ -79,7 +79,16 @@ export function ClientLeadPicker({
   const clients = clientsRaw as unknown as ClientEntity[];
   const leads   = leadsRaw   as unknown as LeadEntity[];
 
-  const currentList = entityType === "client" ? clients : leads;
+  // If the selected entity is not in the fetched list (e.g. synthetic client from an estimate
+  // edit where the contact was not saved to CRM), inject it so the Select can resolve its value.
+  const clientsWithSelected = (selectedClient && !clients.find((c) => c.id === selectedClient.id))
+    ? [...clients, selectedClient]
+    : clients;
+  const leadsWithSelected = (selectedLead && !leads.find((l) => l.id === selectedLead.id))
+    ? [...leads, selectedLead]
+    : leads;
+
+  const currentList = entityType === "client" ? clientsWithSelected : leadsWithSelected;
 
   // ── Selected entity info ──────────────────────────────────────────────────
 

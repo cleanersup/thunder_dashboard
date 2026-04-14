@@ -181,21 +181,22 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
             return;
           } catch { /* fall through */ }
         }
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const { data: clientByEmail } = await supabase.from("clients").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
-        if (clientByEmail) {
-          setEstimateType("client");
-          setSelectedClient(clientByEmail as ClientEntity);
-          setSelectedLead(null);
-          return;
-        }
-        const { data: leadByEmail } = await supabase.from("leads").select("*").eq("user_id", user.id).eq("email", d.email).limit(1).maybeSingle();
-        if (leadByEmail) {
-          setEstimateType("lead");
-          setSelectedLead(leadByEmail as LeadEntity);
-          setSelectedClient(null);
-          return;
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          const { data: clientByEmail } = await supabase.from("clients").select("*").eq("user_id", authUser.id).eq("email", d.email).limit(1).maybeSingle();
+          if (clientByEmail) {
+            setEstimateType("client");
+            setSelectedClient(clientByEmail as ClientEntity);
+            setSelectedLead(null);
+            return;
+          }
+          const { data: leadByEmail } = await supabase.from("leads").select("*").eq("user_id", authUser.id).eq("email", d.email).limit(1).maybeSingle();
+          if (leadByEmail) {
+            setEstimateType("lead");
+            setSelectedLead(leadByEmail as LeadEntity);
+            setSelectedClient(null);
+            return;
+          }
         }
         const syntheticClient: ClientEntity = {
           id: `estimate-edit-${d.id}`,
@@ -633,6 +634,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
     <>
       <ExitConfirmationDialog
         open={showExitDialog}
+        isEditing={isEditing}
         onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); goBack(); }}
         onDiscard={() => {
           if (!isEditing) deleteDraft();

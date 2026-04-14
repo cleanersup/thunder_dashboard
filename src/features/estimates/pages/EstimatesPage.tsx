@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import {
   Plus, Search, CheckCircle, Clock, FileText, DollarSign,
   MoreHorizontal, Edit, Mail, Share, Download, X, ChevronLeft, ChevronRight,
-  BookOpen, FileSignature, Play, RefreshCw, Trash2, Calendar as CalendarIcon,
+  BookOpen, FileSignature, Play, RefreshCw, Trash2, Calendar as CalendarIcon, MessageSquare,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -25,6 +25,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useEstimates, useUpdateEstimateStatus } from "../hooks/useEstimates";
 import { useEstimateShare } from "../hooks/useEstimateShare";
 import { useSendEstimateEmail } from "../hooks/useSendEstimateEmail";
+import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { EstimateDetailPanel } from "../components/EstimateDetailPanel";
 import { CreateResidentialEstimatePage } from "./CreateResidentialEstimatePage";
 import { CreateCommercialEstimatePage } from "./CreateCommercialEstimatePage";
@@ -37,7 +38,8 @@ import { deleteDraftEstimate } from "../services/estimatesService";
 
 function getStatusBadge(status: string) {
   switch (status) {
-    case "Pending":  return "bg-warning-subtle text-warning-subtle-foreground border-warning-subtle-border";
+    case "Pending":
+    case "Viewed":   return "bg-warning-subtle text-warning-subtle-foreground border-warning-subtle-border";
     case "Accepted": return "bg-success-subtle text-success-subtle-foreground border-success-subtle-border";
     case "Draft":    return "bg-info-subtle text-info-subtle-foreground border-info-subtle-border";
     case "Invoiced": return "bg-info-subtle text-info-subtle-foreground border-info-subtle-border";
@@ -73,6 +75,7 @@ export function EstimatesPage() {
   }, [queryClient]);
   const { generateShareLink, isGeneratingLink } = useEstimateShare();
   const { sendEstimateEmail, isSending }        = useSendEstimateEmail();
+  const { sendEstimateSMS, isSendingSMS }       = useSendEstimateSMS();
   const updateStatus = useUpdateEstimateStatus();
 
   // ── Filters + pagination ──────────────────────────────────────────────────
@@ -91,9 +94,10 @@ export function EstimatesPage() {
   const [actionEstimate,          setActionEstimate]          = useState<any>(null);
 
   // ── Estimate form modals ──────────────────────────────────────────────────
-  const [showResModal,   setShowResModal]   = useState(false);
-  const [showCommModal,  setShowCommModal]  = useState(false);
-  const [editModalState, setEditModalState] = useState<{ isEditing: boolean; estimateId: string; estimateData: any } | null>(null);
+  const [formModal, setFormModal] = useState<{
+    type: "residential" | "commercial" | null;
+    editState?: { isEditing: boolean; estimateId: string; estimateData: any };
+  }>({ type: null });
 
   // ── Format rows ───────────────────────────────────────────────────────────
   const formattedEstimates = rawEstimates.map((e) => ({
@@ -105,6 +109,7 @@ export function EstimatesPage() {
     serviceSubType: e.service_sub_type ?? "",
     total:          e.total,
     status:         e.status,
+    phone:          (e as any).phone as string | null,
   }));
 
   // ── KPI stats ─────────────────────────────────────────────────────────────
@@ -141,9 +146,10 @@ export function EstimatesPage() {
     serviceType: string,
     editState?: { isEditing: boolean; estimateId: string; estimateData: any },
   ) {
-    if (editState) setEditModalState(editState);
-    if (serviceType === "Commercial") setShowCommModal(true);
-    else setShowResModal(true);
+    setFormModal({
+      type: serviceType === "Commercial" ? "commercial" : "residential",
+      editState,
+    });
   }
 
   // ── Row actions ───────────────────────────────────────────────────────────
@@ -166,6 +172,17 @@ export function EstimatesPage() {
     setIsCancelDialogOpen(false);
     setActionEstimate(null);
     toast.success("Estimate canceled");
+  }
+
+  async function handleSendSMSFromTable(estimate: any) {
+    if (!estimate.phone) return;
+    await sendEstimateSMS({
+      phoneNumber:   estimate.phone,
+      clientName:    estimate.clientName,
+      estimateId:    estimate.id,
+      estimateTotal: estimate.total,
+      isUpdate:      true,
+    });
   }
 
   async function handleSendEmail(estimate: any) {
@@ -332,10 +349,10 @@ export function EstimatesPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onClick={() => setShowResModal(true)}>
+                <DropdownMenuItem onClick={() => openEstimateForm("Residential")}>
                   <BookOpen className="w-4 h-4 mr-2" /> Residential
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowCommModal(true)}>
+                <DropdownMenuItem onClick={() => openEstimateForm("Commercial")}>
                   <FileSignature className="w-4 h-4 mr-2" /> Commercial
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -412,7 +429,7 @@ export function EstimatesPage() {
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(estimate.id); }}>
                               <FileText className="w-4 h-4 mr-2" /> View Details
                             </DropdownMenuItem>
-                            {estimate.status === "Pending" && (
+                            {(estimate.status === "Pending" || estimate.status === "Viewed") && (
                               <>
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditEstimate(estimate); }}>
                                   <Edit className="w-4 h-4 mr-2" /> Edit
@@ -421,14 +438,24 @@ export function EstimatesPage() {
                                   <CheckCircle className="w-4 h-4 mr-2 text-success" /> Mark as Accepted
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleSendEmail(estimate); }} disabled={isSending}>
-                                  <Mail className="w-4 h-4 mr-2" /> {isSending ? "Sending..." : "Send Reminder"}
+                                  <Mail className="w-4 h-4 mr-2" /> {isSending ? "Sending..." : "Send reminder by email"}
                                 </DropdownMenuItem>
+                                {estimate.phone && (
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleSendSMSFromTable(estimate); }} disabled={isSendingSMS}>
+                                    <MessageSquare className="w-4 h-4 mr-2" /> {isSendingSMS ? "Sending..." : "Send reminder by SMS"}
+                                  </DropdownMenuItem>
+                                )}
                               </>
                             )}
                             {estimate.status === "Accepted" && (
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleConvertToInvoice(estimate); }}>
-                                <FileText className="w-4 h-4 mr-2" /> Convert to Invoice
-                              </DropdownMenuItem>
+                              <>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate("/create-route"); }}>
+                                  <CalendarIcon className="w-4 h-4 mr-2" /> Add to Route
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleConvertToInvoice(estimate); }}>
+                                  <FileText className="w-4 h-4 mr-2" /> Convert to Invoice
+                                </DropdownMenuItem>
+                              </>
                             )}
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); generateShareLink(estimate.id); }} disabled={isGeneratingLink}>
                               <Share className="w-4 h-4 mr-2" /> Share
@@ -436,7 +463,7 @@ export function EstimatesPage() {
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadPDF(estimate); }}>
                               <Download className="w-4 h-4 mr-2" /> Download PDF
                             </DropdownMenuItem>
-                            {estimate.status === "Pending" && (
+                            {(estimate.status === "Pending" || estimate.status === "Viewed" || estimate.status === "Accepted") && (
                               <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem className="text-destructive focus:text-destructive"
@@ -534,18 +561,18 @@ export function EstimatesPage() {
       </AlertDialog>
 
       {/* ── Estimate form modals ──────────────────────────────────────────── */}
-      {showResModal && (
+      {formModal.type === "residential" && (
         <CreateResidentialEstimatePage
-          open={showResModal}
-          onClose={() => { setShowResModal(false); setEditModalState(null); }}
-          initialState={editModalState ?? undefined}
+          open
+          onClose={() => setFormModal({ type: null })}
+          initialState={formModal.editState}
         />
       )}
-      {showCommModal && (
+      {formModal.type === "commercial" && (
         <CreateCommercialEstimatePage
-          open={showCommModal}
-          onClose={() => { setShowCommModal(false); setEditModalState(null); }}
-          initialState={editModalState ?? undefined}
+          open
+          onClose={() => setFormModal({ type: null })}
+          initialState={formModal.editState}
         />
       )}
     </div>

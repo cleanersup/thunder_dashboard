@@ -730,19 +730,21 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
       <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
         <AlertDialogContent className="max-w-sm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Save Invoice?</AlertDialogTitle>
+            <AlertDialogTitle>{isEditing ? "Discard changes?" : "Save Invoice?"}</AlertDialogTitle>
             <AlertDialogDescription>
-              All unsaved changes will be lost.
+              {isEditing ? "Your unsaved changes will be lost." : "All unsaved changes will be lost."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-background text-foreground border border-input hover:bg-accent"
-              onClick={() => { setShowExitDialog(false); handleSaveDraft(); }}
-            >
-              Save Draft
-            </AlertDialogAction>
+            <AlertDialogCancel className="mt-0">{isEditing ? "Keep Editing" : "Cancel"}</AlertDialogCancel>
+            {!isEditing && (
+              <AlertDialogAction
+                className="bg-background text-foreground border border-input hover:bg-accent"
+                onClick={() => { setShowExitDialog(false); handleSaveDraft(); }}
+              >
+                Save Draft
+              </AlertDialogAction>
+            )}
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
               onClick={goBack}
