@@ -55,6 +55,8 @@ export const QK = {
   appointmentEmployees:      (ids: string[]) => ["appointment-employees", ids] as const,
   employeesForWalkthrough:   ["employees-for-walkthrough"]     as const,
   clientsForInvoice:         ["clients-for-invoice"]           as const,
+  /** Saved Stripe card on CRM client matched by invoice payer email */
+  clientSavedCard:           (email: string) => ["client-saved-card", email] as const,
   clientsForEstimate:        ["clients-for-estimate"]          as const,
   leadsForEstimate:          ["leads-for-estimate"]            as const,
   clientsCount:              ["clients-count"]                 as const,

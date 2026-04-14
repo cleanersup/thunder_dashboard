@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import {
   CheckCircle, Clock, Mail, Phone, MapPin, Building2, Calendar,
   FileText, Download, DollarSign, XCircle, Loader2, Pencil, MoreHorizontal,
+  CreditCard,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -31,13 +32,20 @@ import {
 } from "@/shared/components/ui/dropdown-menu";
 import { toast }          from "sonner";
 import { formatCurrency, formatDateOnly } from "@/shared/utils/formatters";
-import { useInvoice, useMarkInvoiceAsPaid, useCancelInvoice } from "../hooks/useInvoices";
+import {
+  useInvoice,
+  useMarkInvoiceAsPaid,
+  useCancelInvoice,
+  useClientSavedCard,
+  useChargeSavedInvoice,
+} from "../hooks/useInvoices";
 import { useSendInvoiceEmail }      from "../hooks/useSendInvoiceEmail";
 import { useInvoiceDetailRealtime } from "../hooks/useInvoiceRealtime";
 import { useInvoicePDFDownload }    from "../hooks/useInvoicePDFDownload";
 import { INVOICE_STATUS_COLOR, INVOICE_STATUS_BG } from "../utils/invoiceStatusHelpers";
 import { safeParseLineItems } from "../utils/invoiceCalculations";
 import { SidePanel }       from "@/shared/components/common/SidePanel";
+import { useProfile }      from "@/shared/hooks/useProfile";
 import type { InvoiceStatus } from "../types/invoice.types";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -60,8 +68,20 @@ export function InvoiceDetailPanel({
   const { sendInvoiceEmail, isSending }    = useSendInvoiceEmail();
   const markPaid                           = useMarkInvoiceAsPaid();
   const cancelInv                          = useCancelInvoice();
+  const chargeSaved                        = useChargeSavedInvoice();
+  const { data: profile }                = useProfile();
 
   const { data: invoice, isLoading } = useInvoice(open && invoiceId ? invoiceId : undefined);
+  const { data: savedCard } = useClientSavedCard(
+    invoice?.email,
+    open && invoice?.status === "Pending",
+  );
+
+  const canChargeSavedCard =
+    invoice?.status === "Pending" &&
+    !!profile?.stripe_account_id &&
+    !!profile?.stripe_onboarding_completed &&
+    !!savedCard?.stripe_default_payment_method_id;
   useInvoiceDetailRealtime(invoiceId, open);
 
   // ── Local dialog state ────────────────────────────────────────────────────────
@@ -167,40 +187,58 @@ export function InvoiceDetailPanel({
 
     if (invoice.status === "Pending") {
       return (
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            className="flex-1"
-            style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }}
-            onClick={() => setIsPaymentDialogOpen(true)}
-          >
-            <DollarSign className="w-4 h-4 mr-1.5" /> Mark as Paid
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleSendEmail} disabled={isSending}>
-            <Mail className="w-4 h-4 mr-1.5" /> {isSending ? "Sending…" : "Send Reminder"}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="px-2.5">
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handleEdit}>
-                <Pencil className="w-4 h-4 mr-2" /> Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => invoice && downloadPDF(invoice)}>
-                <Download className="w-4 h-4 mr-2" /> Download PDF
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => setIsCancelDialogOpen(true)}
-              >
-                <XCircle className="w-4 h-4 mr-2" /> Cancel Invoice
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="flex w-full flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="flex-1"
+              style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }}
+              onClick={() => setIsPaymentDialogOpen(true)}
+            >
+              <DollarSign className="w-4 h-4 mr-1.5" /> Mark as Paid
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleSendEmail} disabled={isSending}>
+              <Mail className="w-4 h-4 mr-1.5" /> {isSending ? "Sending…" : "Send Reminder"}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="px-2.5">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleEdit}>
+                  <Pencil className="w-4 h-4 mr-2" /> Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => invoice && downloadPDF(invoice)}>
+                  <Download className="w-4 h-4 mr-2" /> Download PDF
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setIsCancelDialogOpen(true)}
+                >
+                  <XCircle className="w-4 h-4 mr-2" /> Cancel Invoice
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          {canChargeSavedCard && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="w-full"
+              disabled={chargeSaved.isPending}
+              onClick={() => chargeSaved.mutate(invoice.id)}
+            >
+              <CreditCard className="w-4 h-4 mr-1.5" />
+              {chargeSaved.isPending
+                ? "Processing…"
+                : `Charge card on file${
+                    savedCard?.card_last4 ? ` (····${savedCard.card_last4})` : ""
+                  }`}
+            </Button>
+          )}
         </div>
       );
     }

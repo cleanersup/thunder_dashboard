@@ -253,3 +253,60 @@ export async function deleteInvoice(id: string): Promise<void> {
 
   if (error) throw error;
 }
+
+// ─── Saved Stripe card (CRM client matched by invoice email) ─────────────────
+
+export interface ClientSavedCard {
+  stripe_default_payment_method_id: string;
+  card_brand: string | null;
+  card_last4: string | null;
+}
+
+/**
+ * Returns saved card fields for the current merchant's client row matching payer email.
+ */
+export async function fetchClientSavedCardByEmail(
+  email: string
+): Promise<ClientSavedCard | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from("clients")
+    .select("stripe_default_payment_method_id, card_brand, card_last4")
+    .eq("user_id", user.id)
+    .eq("email", email.trim())
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data?.stripe_default_payment_method_id) return null;
+
+  return {
+    stripe_default_payment_method_id: data.stripe_default_payment_method_id,
+    card_brand: data.card_brand,
+    card_last4: data.card_last4,
+  };
+}
+
+/**
+ * Charge a pending invoice using the client's saved PaymentMethod (edge function).
+ */
+export async function chargeSavedCardInvoice(invoiceId: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke("stripe-charge-saved-invoice", {
+    body: { invoiceId },
+  });
+
+  if (error) {
+    throw new Error(error.message || "Charge failed");
+  }
+
+  const body = data as { error?: string; success?: boolean } | null;
+  if (body?.error) {
+    throw new Error(body.error);
+  }
+  if (!body?.success) {
+    throw new Error("Charge failed");
+  }
+}

@@ -5,6 +5,8 @@
  * Adapted from swift-slate/src/pages/InvoicePayment.tsx — Capacitor removed.
  */
 import { useState } from "react";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import { Label } from "@/shared/components/ui/label";
 import { useParams } from "react-router-dom";
 import {
   CheckCircle, CreditCard, Loader2, Calendar, FileText, DollarSign,
@@ -22,6 +24,7 @@ export function PublicInvoicePaymentPage() {
   const { id } = useParams<{ id: string }>();
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentComplete] = useState(false);
+  const [saveCardForFuture, setSaveCardForFuture] = useState(false);
 
   const { data: invoice, isLoading } = useQuery({
     queryKey: QK.publicInvoice(id!),
@@ -87,6 +90,7 @@ export function PublicInvoicePaymentPage() {
         body: {
           lineItems,
           customerEmail: invoice.email,
+          savePaymentMethod: saveCardForFuture,
           metadata: {
             invoice_id:       invoice.id,
             invoice_number:   invoice.invoice_number,
@@ -246,6 +250,20 @@ export function PublicInvoicePaymentPage() {
           {/* Notes */}
           {invoice.notes && (
             <p className="text-sm text-muted-foreground text-center">{invoice.notes}</p>
+          )}
+
+          {profile?.stripe_account_id && profile?.stripe_onboarding_completed && (
+            <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/20 p-3">
+              <Checkbox
+                id="save-card-future"
+                checked={saveCardForFuture}
+                onCheckedChange={(v) => setSaveCardForFuture(v === true)}
+                className="mt-0.5"
+              />
+              <Label htmlFor="save-card-future" className="text-sm font-normal leading-snug cursor-pointer">
+                Save this card for future payments
+              </Label>
+            </div>
           )}
 
           {/* Pay button */}

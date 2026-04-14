@@ -197,6 +197,10 @@ export type Database = {
           billing_state: string
           billing_street: string
           billing_zip: string
+          card_brand: string | null
+          card_exp_month: number | null
+          card_exp_year: number | null
+          card_last4: string | null
           client_type: string
           company: string | null
           contact_preference: string
@@ -212,6 +216,8 @@ export type Database = {
           service_street: string
           service_zip: string
           status: string
+          stripe_customer_id: string | null
+          stripe_default_payment_method_id: string | null
           updated_at: string
           user_id: string
         }
@@ -221,6 +227,10 @@ export type Database = {
           billing_state: string
           billing_street: string
           billing_zip: string
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
           client_type: string
           company?: string | null
           contact_preference: string
@@ -236,6 +246,8 @@ export type Database = {
           service_street: string
           service_zip: string
           status?: string
+          stripe_customer_id?: string | null
+          stripe_default_payment_method_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -245,6 +257,10 @@ export type Database = {
           billing_state?: string
           billing_street?: string
           billing_zip?: string
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
           client_type?: string
           company?: string | null
           contact_preference?: string
@@ -260,6 +276,8 @@ export type Database = {
           service_street?: string
           service_zip?: string
           status?: string
+          stripe_customer_id?: string | null
+          stripe_default_payment_method_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -879,6 +897,10 @@ export type Database = {
           revenue_cat_customer_id: string | null
           service_coverage: string | null
           state: string | null
+          stripe_account_id: string | null
+          stripe_charges_enabled: boolean | null
+          stripe_onboarding_completed: boolean | null
+          stripe_payouts_enabled: boolean | null
           subscription_expiry_date: string | null
           subscription_status: string | null
           timezone: string | null
@@ -920,6 +942,10 @@ export type Database = {
           revenue_cat_customer_id?: string | null
           service_coverage?: string | null
           state?: string | null
+          stripe_account_id?: string | null
+          stripe_charges_enabled?: boolean | null
+          stripe_onboarding_completed?: boolean | null
+          stripe_payouts_enabled?: boolean | null
           subscription_expiry_date?: string | null
           subscription_status?: string | null
           timezone?: string | null
@@ -961,6 +987,10 @@ export type Database = {
           revenue_cat_customer_id?: string | null
           service_coverage?: string | null
           state?: string | null
+          stripe_account_id?: string | null
+          stripe_charges_enabled?: boolean | null
+          stripe_onboarding_completed?: boolean | null
+          stripe_payouts_enabled?: boolean | null
           subscription_expiry_date?: string | null
           subscription_status?: string | null
           timezone?: string | null

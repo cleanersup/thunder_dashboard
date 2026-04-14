@@ -13,6 +13,8 @@ import {
   cancelInvoice,
   markReminderSent,
   deleteInvoice,
+  fetchClientSavedCardByEmail,
+  chargeSavedCardInvoice,
 } from "../services/invoicesService";
 import type { InvoiceFilters, InvoiceFormData, Invoice } from "../types/invoice.types";
 import { QK } from "@/shared/config/queryKeys";
@@ -44,6 +46,38 @@ export function useInvoice(id: string | undefined) {
     queryFn: () => fetchInvoiceById(id!),
     enabled: !!id,
     staleTime: 30_000,
+  });
+}
+
+/**
+ * Saved card on file for a payer email (current merchant's `clients` row).
+ */
+export function useClientSavedCard(email: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: QK.clientSavedCard(email ?? ""),
+    queryFn: () => fetchClientSavedCardByEmail(email!),
+    enabled: !!email?.trim() && enabled,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Charge a pending invoice with the saved Stripe PaymentMethod.
+ */
+export function useChargeSavedInvoice() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (invoiceId: string) => chargeSavedCardInvoice(invoiceId),
+    onSuccess: (_void, invoiceId) => {
+      qc.invalidateQueries({ queryKey: QK.invoices });
+      qc.invalidateQueries({ queryKey: QK.invoice(invoiceId) });
+      qc.invalidateQueries({ queryKey: ["client-saved-card"] });
+      toast.success("Payment processed successfully");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
   });
 }
 
