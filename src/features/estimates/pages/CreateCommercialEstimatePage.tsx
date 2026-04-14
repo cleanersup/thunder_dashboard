@@ -18,7 +18,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescript
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { toast } from "sonner";
 import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
-import { supabase } from "@/integrations/supabase/client";
 import { fetchClient } from "@/features/crm/clients/services/clientsService";
 import { fetchLead } from "@/features/crm/leads/services/leadsService";
 import { useCreateEstimate, useUpdateEstimate } from "../hooks/useEstimates";
@@ -170,7 +169,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
             setSelectedClient(client as ClientEntity);
             setSelectedLead(null);
             return;
-          } catch { /* fall through */ }
+          } catch { /* fall through to synthetic */ }
         }
         if (d.lead_id) {
           try {
@@ -179,25 +178,12 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
             setSelectedLead(lead as LeadEntity);
             setSelectedClient(null);
             return;
-          } catch { /* fall through */ }
+          } catch { /* fall through to synthetic */ }
         }
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
-          const { data: clientByEmail } = await supabase.from("clients").select("*").eq("user_id", authUser.id).eq("email", d.email).limit(1).maybeSingle();
-          if (clientByEmail) {
-            setEstimateType("client");
-            setSelectedClient(clientByEmail as ClientEntity);
-            setSelectedLead(null);
-            return;
-          }
-          const { data: leadByEmail } = await supabase.from("leads").select("*").eq("user_id", authUser.id).eq("email", d.email).limit(1).maybeSingle();
-          if (leadByEmail) {
-            setEstimateType("lead");
-            setSelectedLead(leadByEmail as LeadEntity);
-            setSelectedClient(null);
-            return;
-          }
-        }
+        // Estimates store client data denormalized — client_id/lead_id are only
+        // set on drafts. For finalized estimates use the stored fields directly.
+        // Never fall back to email lookup: multiple contacts can share the same
+        // email address, which would load the wrong entity.
         const syntheticClient: ClientEntity = {
           id: `estimate-edit-${d.id}`,
           full_name: d.client_name,
