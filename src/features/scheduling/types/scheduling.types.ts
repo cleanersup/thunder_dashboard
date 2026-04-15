@@ -75,6 +75,8 @@ export type AppointmentFormData = {
   uploaded_file?: string | null;
   /** Storage paths for photos (set after upload) */
   photos?: string[] | null;
+  /** Linked estimate ID (set when appointment originates from an estimate) */
+  estimate_id?: string | null;
 };
 
 export type DeleteAppointmentMode = "single" | "following";

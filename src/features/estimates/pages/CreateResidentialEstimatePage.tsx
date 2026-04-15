@@ -29,7 +29,6 @@ import { fetchClient } from "@/features/crm/clients/services/clientsService";
 import { fetchLead } from "@/features/crm/leads/services/leadsService";
 import { useResidentialPricing } from "../hooks/useResidentialPricing";
 import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
-import { useAuth } from "@/shared/hooks/useAuth";
 import type { DraftData } from "../types/estimate.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -55,7 +54,6 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const { sendEstimateEmail, isSending } = useSendEstimateEmail();
   const { sendEstimateSMS }              = useSendEstimateSMS();
   const { data: profile }                = useProfile();
-  const { user }                         = useAuth();
   const companyAddress                   = getCompanyAddress(profile);
 
   // ── Step ──────────────────────────────────────────────────────────────────
@@ -212,7 +210,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         setIsPrefilling(false);
       }
     })();
-  }, [isEditing, estimateId, estimateData, user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isEditing, estimateId, estimateData]);
 
   // ── Prefill from walkthrough ──────────────────────────────────────────────
   useEffect(() => {

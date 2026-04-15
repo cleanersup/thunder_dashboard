@@ -2,49 +2,33 @@ import { useState } from "react";
 import {
   FileText, Flag, Calendar, Clock,
   User, Building2, Phone, Mail, MessageSquare,
-  Edit, Trash2, Play, CheckCircle,
+  Edit, Trash2, Play, CheckCircle, MoreHorizontal,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import { DetailModal, InfoRow } from "@/shared/components/common/DetailModal";
+import { Button } from "@/shared/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/shared/components/ui/dropdown-menu";
+import { SidePanel } from "@/shared/components/common/SidePanel";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { TaskForm } from "./TaskForm";
 import { useDeleteTask, useUpdateTask } from "../hooks/useTasks";
-import { PRIORITY_BADGE, TASK_STATUS_BADGE, TASK_STATUS_HEADER_BADGE } from "@/shared/constants/styleTokens";
+import { PRIORITY_SOFT_BORDER, TASK_STATUS_SOFT } from "@/shared/constants/styleTokens";
 import { getAssignedNames, formatDueDate } from "../utils/taskFormatters";
 import { toast } from "sonner";
 import type { TaskWithClient } from "../types/task.types";
 
-// ─── Action button (matches swift-slate style) ────────────────────────────────
-function ActionButton({
-  icon: Icon,
-  iconBg,
-  iconColor = "text-primary",
-  label,
-  description,
-  labelColor = "text-foreground",
-  onClick,
-}: {
-  icon: React.ElementType;
-  iconBg: string;
-  iconColor?: string;
-  label: string;
-  description: string;
-  labelColor?: string;
-  onClick: () => void;
-}) {
+// ─── Row helper ───────────────────────────────────────────────────────────────
+function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
   return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left"
-    >
-      <div className={`p-2 rounded-md flex-shrink-0 ${iconBg}`}>
-        <Icon className={`h-4 w-4 ${iconColor}`} />
+    <div className="flex items-start gap-3">
+      <Icon className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-sm font-medium">{value ?? "—"}</p>
       </div>
-      <div>
-        <p className={`text-sm font-semibold ${labelColor}`}>{label}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </div>
-    </button>
+    </div>
   );
 }
 
@@ -55,236 +39,212 @@ interface TaskDetailModalProps {
   onClose: () => void;
 }
 
-/**
- * Full-detail modal for a task record.
- * Shows task info, assigned employees, linked client, and status-conditional quick actions.
- */
 export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
   const { mutate: deleteTask } = useDeleteTask();
   const { mutate: updateTask } = useUpdateTask();
-  const [showEdit, setShowEdit]     = useState(false);
+  const [showEdit,   setShowEdit]   = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
-  if (!task) return null;
+  const t = task;
 
-  const handleDelete = () => deleteTask(task.id, { onSuccess: onClose });
+  if (!t) return null;
+
+  const statusLabel =
+    t.status === "to do" ? "To Do" :
+    t.status === "in progress" ? "In Progress" : "Completed";
+
+  const statusColor =
+    t.status === "to do"       ? "hsl(var(--task-status-todo))"      :
+    t.status === "in progress" ? "hsl(var(--task-status-progress))"  :
+                                 "hsl(var(--task-status-completed))";
+  const statusBg =
+    t.status === "to do"       ? "hsl(var(--task-status-todo) / 0.15)"     :
+    t.status === "in progress" ? "hsl(var(--task-status-progress) / 0.15)" :
+                                 "hsl(var(--task-status-completed) / 0.15)";
+
+  const badge = { label: statusLabel, color: statusColor, bg: statusBg };
+
+  const assignedNames = getAssignedNames(t.assigned_employees);
+  const client = t.clients;
 
   const handleStart = () => {
     updateTask(
-      { id: task.id, payload: { status: "in progress" } },
+      { id: t.id, payload: { status: "in progress" } },
       { onSuccess: () => toast.success("Task started! Keep up the great work!") },
     );
   };
 
   const handleComplete = () => {
     updateTask(
-      { id: task.id, payload: { status: "completed" } },
-      { onSuccess: () => toast.success("Task completed! Excellent work!") },
+      { id: t.id, payload: { status: "completed" } },
+      { onSuccess: () => toast.success("Task marked as completed") },
     );
   };
 
-  const assignedNames = getAssignedNames(task.assigned_employees);
-  const client = task.clients;
-
-  const statusLabel =
-    task.status === "to do" ? "To Do" :
-    task.status === "in progress" ? "In Progress" : "Completed";
+  const footer = (
+    <div className="flex items-center gap-2">
+      {t.status === "to do" && (
+        <Button size="sm" className="flex-1 bg-success hover:bg-success/90 text-white" onClick={handleStart}>
+          <Play className="h-3.5 w-3.5 mr-1.5" /> Start Task
+        </Button>
+      )}
+      {t.status === "in progress" && (
+        <Button size="sm" className="flex-1 bg-success hover:bg-success/90 text-white" onClick={handleComplete}>
+          <CheckCircle className="h-3.5 w-3.5 mr-1.5" /> Complete Task
+        </Button>
+      )}
+      {t.status === "completed" && (
+        <Button size="sm" variant="outline" className="flex-1" onClick={() => setShowEdit(true)}>
+          <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit
+        </Button>
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="outline" className="px-2.5">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem onClick={() => setShowEdit(true)}>
+            <Edit className="h-3.5 w-3.5 mr-2" /> Edit
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() => setShowDelete(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 
   return (
     <>
-      <DetailModal
+      <SidePanel
         open={open}
         onClose={onClose}
-        title={task.title}
-        badge={{
-          label: statusLabel,
-          className: TASK_STATUS_HEADER_BADGE[task.status] ?? "bg-secondary text-secondary-foreground",
-        }}
+        title={t.title}
+        badge={badge}
+        footer={footer}
       >
-        <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
+        <div className="p-4 space-y-6">
 
-          {/* ── Left: Task Info + Timeline ────────────────────────────── */}
-          <div className="p-6 space-y-6">
-            <section>
-              <h3 className="text-sm font-bold text-foreground mb-4">Task Information</h3>
-              <div className="space-y-4">
-                {task.description && (
-                  <InfoRow icon={FileText} label="Description" value={task.description} />
+          {/* Task Information */}
+          <section className="space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Task Information</h3>
+
+            {t.description && (
+              <InfoRow icon={FileText} label="Description" value={t.description} />
+            )}
+
+            <div className="flex items-start gap-3">
+              <Flag className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground">Priority</p>
+                <span className={`inline-block mt-0.5 text-xs font-medium px-2.5 py-0.5 rounded-full border capitalize ${PRIORITY_SOFT_BORDER[t.priority] ?? ""}`}>
+                  {t.priority}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <CheckCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground">Status</p>
+                <span className={`inline-block mt-0.5 text-xs font-medium px-2.5 py-0.5 rounded-full border capitalize ${TASK_STATUS_SOFT[t.status] ?? ""}`}>
+                  {statusLabel}
+                </span>
+              </div>
+            </div>
+
+            {t.due_date && (
+              <InfoRow icon={Calendar} label="Due Date" value={formatDueDate(t.due_date)} />
+            )}
+          </section>
+
+          {/* Assigned To */}
+          {assignedNames.length > 0 && (
+            <>
+              <hr className="border-border" />
+              <section className="space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Assigned To</h3>
+                {assignedNames.map((name) => (
+                  <div key={name} className="flex items-center gap-3">
+                    <User className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-sm font-medium">{name}</span>
+                  </div>
+                ))}
+              </section>
+            </>
+          )}
+
+          {/* Linked Client */}
+          {client && (
+            <>
+              <hr className="border-border" />
+              <section className="space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Client</h3>
+                <InfoRow icon={User} label="Name" value={client.full_name} />
+                {client.company && (
+                  <InfoRow icon={Building2} label="Company" value={client.company} />
                 )}
 
-                {/* Priority + Status badges side by side */}
+                {/* Phone with shortcuts */}
                 <div className="flex items-start gap-3">
-                  <Flag className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                  <div className="flex flex-wrap gap-2">
-                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${PRIORITY_BADGE[task.priority] ?? "bg-secondary text-secondary-foreground"}`}>
-                      {task.priority}
-                    </span>
-                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${TASK_STATUS_BADGE[task.status] ?? ""}`}>
-                      {statusLabel}
-                    </span>
+                  <Phone className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Phone</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium truncate">{client.phone}</p>
+                      <div className="flex gap-1.5 shrink-0">
+                        <a href={`sms:${client.phone}`} className="p-1.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors" aria-label="SMS">
+                          <MessageSquare className="h-3.5 w-3.5 text-primary" />
+                        </a>
+                        <a href={`tel:${client.phone}`} className="p-1.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors" aria-label="Call">
+                          <Phone className="h-3.5 w-3.5 text-primary" />
+                        </a>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {task.due_date && (
-                  <InfoRow icon={Calendar} label="Due Date" value={formatDueDate(task.due_date)} />
-                )}
-              </div>
-            </section>
-
-            <hr className="border-border" />
-
-            <section>
-              <h3 className="text-sm font-bold text-foreground mb-4">Timeline</h3>
-              <div className="space-y-4">
-                <InfoRow
-                  icon={Clock}
-                  label="Created"
-                  value={format(parseISO(task.created_at), "MMM d, yyyy · h:mm a")}
-                />
-                <InfoRow
-                  icon={Clock}
-                  label="Last Updated"
-                  value={format(parseISO(task.updated_at), "MMM d, yyyy · h:mm a")}
-                />
-              </div>
-            </section>
-          </div>
-
-          {/* ── Right: Assigned + Client + Quick Actions ──────────────── */}
-          <div className="p-6 space-y-6">
-
-            {/* Assigned employees */}
-            {assignedNames.length > 0 && (
-              <>
-                <section>
-                  <h3 className="text-sm font-bold text-foreground mb-4">Assigned To</h3>
-                  <div className="space-y-2">
-                    {assignedNames.map((name) => (
-                      <div key={name} className="flex items-center gap-3">
-                        <User className="h-4 w-4 text-primary shrink-0" />
-                        <span className="text-sm font-medium">{name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-                <hr className="border-border" />
-              </>
-            )}
-
-            {/* Linked client */}
-            {client && (
-              <>
-                <section>
-                  <h3 className="text-sm font-bold text-foreground mb-4">Client</h3>
-                  <div className="space-y-4">
-                    <InfoRow icon={User}      label="Name"    value={client.full_name} />
-                    {client.company && (
-                      <InfoRow icon={Building2} label="Company" value={client.company} />
-                    )}
-
-                    {/* Phone with call + SMS */}
-                    <div className="flex items-start gap-3">
-                      <Phone className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground">Phone</p>
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium truncate">{client.phone}</p>
-                          <div className="flex gap-1.5 flex-shrink-0">
-                            <a
-                              href={`sms:${client.phone}`}
-                              className="p-1.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors"
-                              aria-label="Send SMS"
-                            >
-                              <MessageSquare className="h-3.5 w-3.5 text-primary" />
-                            </a>
-                            <a
-                              href={`tel:${client.phone}`}
-                              className="p-1.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors"
-                              aria-label="Call"
-                            >
-                              <Phone className="h-3.5 w-3.5 text-primary" />
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Email with mailto */}
-                    <div className="flex items-start gap-3">
-                      <Mail className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground">Email</p>
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium truncate">{client.email}</p>
-                          <a
-                            href={`mailto:${client.email}`}
-                            className="p-1.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors flex-shrink-0"
-                            aria-label="Send email"
-                          >
-                            <Mail className="h-3.5 w-3.5 text-primary" />
-                          </a>
-                        </div>
-                      </div>
+                {/* Email with shortcut */}
+                <div className="flex items-start gap-3">
+                  <Mail className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium truncate">{client.email}</p>
+                      <a href={`mailto:${client.email}`} className="p-1.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors shrink-0" aria-label="Email">
+                        <Mail className="h-3.5 w-3.5 text-primary" />
+                      </a>
                     </div>
                   </div>
-                </section>
-                <hr className="border-border" />
-              </>
-            )}
+                </div>
+              </section>
+            </>
+          )}
 
-            {/* Quick Actions — conditional by status (mirrors swift-slate logic) */}
-            <section>
-              <h3 className="text-sm font-bold text-foreground mb-3">Quick Actions</h3>
-              <div className="space-y-2">
-                {task.status === "to do" && (
-                  <ActionButton
-                    icon={Play}
-                    iconBg="bg-success/10"
-                    iconColor="text-success"
-                    label="Start Task"
-                    description="Begin working on this task"
-                    onClick={handleStart}
-                  />
-                )}
-                {task.status === "in progress" && (
-                  <ActionButton
-                    icon={CheckCircle}
-                    iconBg="bg-success/10"
-                    iconColor="text-success"
-                    label="Complete Task"
-                    description="Mark this task as completed"
-                    onClick={handleComplete}
-                  />
-                )}
-                <ActionButton
-                  icon={Edit}
-                  iconBg="bg-primary/10"
-                  label="Edit"
-                  description="Modify task details"
-                  onClick={() => setShowEdit(true)}
-                />
-                <ActionButton
-                  icon={Trash2}
-                  iconBg="bg-destructive/10"
-                  iconColor="text-destructive"
-                  label="Delete"
-                  description="Remove this task permanently"
-                  labelColor="text-destructive"
-                  onClick={() => setShowDelete(true)}
-                />
-              </div>
-            </section>
-          </div>
+          {/* Timeline */}
+          <hr className="border-border" />
+          <section className="space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timeline</h3>
+            <InfoRow icon={Clock} label="Created"      value={format(parseISO(t.created_at), "MMM d, yyyy · h:mm a")} />
+            <InfoRow icon={Clock} label="Last Updated" value={format(parseISO(t.updated_at), "MMM d, yyyy · h:mm a")} />
+          </section>
+
         </div>
-      </DetailModal>
+      </SidePanel>
 
-      <TaskForm open={showEdit} onClose={() => setShowEdit(false)} task={task} />
+      <TaskForm open={showEdit} onClose={() => setShowEdit(false)} task={t} />
       <ConfirmDialog
         open={showDelete}
         onOpenChange={setShowDelete}
         title="Delete Task"
         description="Are you sure? This task will be permanently deleted."
-        onConfirm={handleDelete}
+        onConfirm={() => deleteTask(t.id, { onSuccess: onClose })}
         confirmLabel="Delete"
         variant="destructive"
       />

@@ -164,6 +164,7 @@ export async function createAppointment(
       : null,
     uploaded_file: data.uploaded_file ?? null,
     photos: data.photos?.length ? (data.photos as unknown as import("@/integrations/supabase/types").Database["public"]["Tables"]["route_appointments"]["Insert"]["photos"]) : null,
+    estimate_id: data.estimate_id ?? null,
   }));
 
   const { data: created, error } = await supabase

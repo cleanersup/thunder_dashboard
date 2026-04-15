@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Plus, Calendar as CalendarIcon, Map, MapPin, Check, Trash2, ChevronDown } from "lucide-react";
 import { format, startOfWeek, endOfWeek, getMonth } from "date-fns";
 import { Button } from "@/shared/components/ui/button";
@@ -29,7 +30,7 @@ import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
 import { SchedulingCalendar, type CalendarViewType } from "../components/SchedulingCalendar";
 import { AppointmentDetailPanel } from "../components/AppointmentDetailPanel";
 import { RouteMapView } from "../components/RouteMapView";
-import { AddAppointmentPage } from "./AddAppointmentPage";
+import { AddAppointmentPage, type FromEstimateData } from "./AddAppointmentPage";
 import type { AppointmentWithClient, Route } from "../types/scheduling.types";
 
 type MapViewMode = "calendar" | "map";
@@ -148,6 +149,7 @@ function RouteSuccessModal({ open, onClose }: { open: boolean; onClose: () => vo
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function RoutesPage() {
+  const location = useLocation();
   const [mapViewMode,     setMapViewMode]     = useState<MapViewMode>("calendar");
   const [calViewType,     setCalViewType]     = useState<CalendarViewType>("month");
   const [selectedDate,    setSelectedDate]    = useState<Date>(new Date());
@@ -159,9 +161,21 @@ export function RoutesPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithClient | null>(null);
 
   // ── Add appointment modal ─────────────────────────────────────────────────
-  const [addApptOpen,    setAddApptOpen]    = useState(false);
-  const [addApptRouteId, setAddApptRouteId] = useState("");
-  const [addApptDate,    setAddApptDate]    = useState("");
+  const [addApptOpen,        setAddApptOpen]        = useState(false);
+  const [addApptRouteId,     setAddApptRouteId]     = useState("");
+  const [addApptDate,        setAddApptDate]        = useState("");
+  const [addApptFromEstimate, setAddApptFromEstimate] = useState<FromEstimateData | undefined>();
+
+  // Auto-open appointment wizard when navigated from an accepted estimate
+  useEffect(() => {
+    const state = location.state as { fromEstimate?: FromEstimateData } | null;
+    if (state?.fromEstimate) {
+      setAddApptFromEstimate(state.fromEstimate);
+      setAddApptOpen(true);
+      // Clear state so re-renders don't re-open
+      window.history.replaceState({}, "", location.pathname + location.search);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Edit appointment modal ────────────────────────────────────────────────
   const [editApptOpen, setEditApptOpen] = useState(false);
@@ -376,9 +390,10 @@ export function RoutesPage() {
 
       <AddAppointmentPage
         open={addApptOpen}
-        onClose={() => setAddApptOpen(false)}
+        onClose={() => { setAddApptOpen(false); setAddApptFromEstimate(undefined); }}
         defaultRouteId={addApptRouteId}
         defaultDate={addApptDate}
+        fromEstimate={addApptFromEstimate}
       />
 
       <AddAppointmentPage

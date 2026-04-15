@@ -54,7 +54,16 @@ function emptyForm(routeId: string, date: string): AppointmentFormData {
     recurring_duration_unit: "months",
     selected_week_days:      [],
     delivery_method:         null,
+    estimate_id:             null,
   };
+}
+
+export interface FromEstimateData {
+  clientId:     string;
+  clientObject: ClientEntity;
+  serviceType:  string;
+  cleaningType: string | null;
+  estimateId:   string;
 }
 
 const LAST_STEP = APPOINTMENT_STEPS.length - 1;
@@ -75,9 +84,11 @@ interface AddAppointmentPageProps {
   defaultDate?: string;
   /** Appointment ID to edit — used when the wizard is opened as a modal for editing */
   editId?: string;
+  /** Pre-filled data when creating an appointment from an accepted estimate */
+  fromEstimate?: FromEstimateData;
 }
 
-export function AddAppointmentPage({ open, onClose, onUpdated, defaultRouteId, defaultDate, editId }: AddAppointmentPageProps = {}) {
+export function AddAppointmentPage({ open, onClose, onUpdated, defaultRouteId, defaultDate, editId, fromEstimate }: AddAppointmentPageProps = {}) {
   const navigate = useNavigate();
   const { id: urlId } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
@@ -104,6 +115,23 @@ export function AddAppointmentPage({ open, onClose, onUpdated, defaultRouteId, d
   // User removed existing files (edit mode)
   const [removedExistingContract,   setRemovedExistingContract]   = useState(false);
   const [removedExistingPhotoPaths, setRemovedExistingPhotoPaths] = useState<Set<string>>(new Set());
+
+  // ─── Prefill from estimate ─────────────────────────────────────────────────
+  // Runs whenever fromEstimate arrives (AddAppointmentPage is kept mounted in
+  // RoutesPage with open=false, so the prop can change from undefined → data
+  // after the initial render).
+
+  useEffect(() => {
+    if (!fromEstimate || isEdit) return;
+    setForm((prev) => ({
+      ...prev,
+      client_id:     fromEstimate.clientId,
+      service_type:  fromEstimate.serviceType,
+      cleaning_type: fromEstimate.cleaningType,
+      estimate_id:   fromEstimate.estimateId,
+    }));
+    setSelectedClientObject(fromEstimate.clientObject);
+  }, [fromEstimate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Data ──────────────────────────────────────────────────────────────────
 

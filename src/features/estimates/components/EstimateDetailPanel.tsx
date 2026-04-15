@@ -97,6 +97,7 @@ interface FooterProps {
   isGeneratingLink: boolean;
   isDownloadingPDF: boolean;
   isAlreadyInRoute: boolean;
+  isAddingToRoute:  boolean;
   hasPhone:         boolean;
   onAccept:         () => void;
   onSendEmail:      () => void;
@@ -113,7 +114,7 @@ interface FooterProps {
 }
 
 function PanelFooter({
-  status, isSending, isSendingSMS, isGeneratingLink, isDownloadingPDF, isAlreadyInRoute, hasPhone,
+  status, isSending, isSendingSMS, isGeneratingLink, isDownloadingPDF, isAlreadyInRoute, isAddingToRoute, hasPhone,
   onAccept, onSendEmail, onSendSMS, onEdit, onShare, onDownloadPDF, onConvert, onAddToRoute, onCancel,
   onDeleteDraft, onContinueDraft, onStartFresh,
 }: FooterProps) {
@@ -196,8 +197,8 @@ function PanelFooter({
     return (
       <div className="flex items-center gap-2">
         {!isAlreadyInRoute ? (
-          <Button size="sm" className="flex-1" onClick={onAddToRoute}>
-            <Map className="w-4 h-4 mr-1.5" /> Add to Route
+          <Button size="sm" className="flex-1" onClick={onAddToRoute} disabled={isAddingToRoute}>
+            <Map className="w-4 h-4 mr-1.5" /> {isAddingToRoute ? "Adding…" : "Add to Route"}
           </Button>
         ) : (
           <Button size="sm" className="flex-1" onClick={onConvert}>
@@ -267,6 +268,7 @@ export function EstimateDetailPanel({
   const [isDeleteDraftOpen,     setIsDeleteDraftOpen]     = useState(false);
   const [isDeletingDraft,       setIsDeletingDraft]       = useState(false);
   const [isAlreadyInRoute,      setIsAlreadyInRoute]      = useState(false);
+  const [isAddingToRoute,       setIsAddingToRoute]       = useState(false);
   const [draftClientInfo, setDraftClientInfo] = useState<{
     name: string; email: string; phone: string;
     address: string; city: string; state: string; zip: string;
@@ -461,9 +463,90 @@ export function EstimateDetailPanel({
     }
   }
 
-  function handleAddToRoute() {
-    onClose();
-    navigate("/create-route");
+  async function handleAddToRoute() {
+    if (!estimate) return;
+    setIsAddingToRoute(true);
+    try {
+      // 1. Try to reuse the FK client from the estimate (only set on drafts)
+      let clientId: string | null = estimate.client_id ?? null;
+      let clientRow: any = null;
+
+      if (clientId) {
+        const { data } = await supabase.from("clients").select("*").eq("id", clientId).maybeSingle();
+        clientRow = data ?? null;
+        if (!clientRow) clientId = null; // FK dangling — fall through
+      }
+
+      // 2. Search by email (same account)
+      if (!clientId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data } = await supabase.from("clients").select("*")
+            .eq("user_id", user.id).eq("email", estimate.email).maybeSingle();
+          if (data) { clientId = data.id; clientRow = data; }
+        }
+      }
+
+      // 3. Create a new client from the denormalized estimate fields
+      if (!clientId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { toast.error("Not authenticated"); return; }
+        const { data: newClient, error } = await supabase.from("clients").insert({
+          user_id: user.id,
+          full_name: estimate.client_name,
+          company: estimate.company_name ?? null,
+          email: estimate.email,
+          phone: estimate.phone,
+          service_street: estimate.address,
+          service_apt: estimate.apt ?? null,
+          service_city: estimate.city,
+          service_state: estimate.state,
+          service_zip: estimate.zip,
+          billing_street: estimate.address,
+          billing_apt: estimate.apt ?? null,
+          billing_city: estimate.city,
+          billing_state: estimate.state,
+          billing_zip: estimate.zip,
+          client_type: estimate.service_type ?? "Residential",
+          contact_preference: "Email",
+          status: "active",
+        }).select().maybeSingle();
+        if (error || !newClient) { toast.error("Failed to set up client for route"); return; }
+        clientId = newClient.id;
+        clientRow = newClient;
+        // Ensure the new client appears in the appointment wizard's client list
+        await qc.invalidateQueries({ queryKey: QK.clients });
+      }
+
+      onClose();
+      navigate("/create-route", {
+        state: {
+          fromEstimate: {
+            clientId,
+            clientObject: {
+              id: clientRow.id,
+              full_name: clientRow.full_name,
+              company: clientRow.company ?? null,
+              phone: clientRow.phone,
+              email: clientRow.email,
+              service_street: clientRow.service_street,
+              service_apt: clientRow.service_apt ?? null,
+              service_city: clientRow.service_city,
+              service_state: clientRow.service_state,
+              service_zip: clientRow.service_zip,
+            },
+            // Route appointments use "One time" / "Recurring" for service_type.
+            // Estimates are always single jobs, so we default to "One time".
+            // The cleaning_type maps from the estimate's service_sub_type.
+            serviceType: "One time",
+            cleaningType: estimate.service_sub_type ?? null,
+            estimateId: estimate.id,
+          },
+        },
+      });
+    } finally {
+      setIsAddingToRoute(false);
+    }
   }
 
   function handleConvertToInvoice() {
@@ -630,6 +713,7 @@ export function EstimateDetailPanel({
       isGeneratingLink={isGeneratingLink}
       isDownloadingPDF={isDownloadingPDF}
       isAlreadyInRoute={isAlreadyInRoute}
+      isAddingToRoute={isAddingToRoute}
       hasPhone={!!estimate?.phone}
       onAccept={() => setIsAcceptDialogOpen(true)}
       onSendEmail={handleSendEmail}

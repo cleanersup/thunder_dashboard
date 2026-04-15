@@ -41,7 +41,7 @@ function ActionsCell({ task, onOpenDetails, onEdit, onDelete }: ActionsCellProps
     e.stopPropagation();
     updateTask(
       { id: task.id, payload: { status: "completed" } },
-      { onSuccess: () => toast.success("Task completed! Excellent work!") },
+      { onSuccess: () => toast.success("Task marked as completed") },
     );
   };
 
@@ -65,20 +65,16 @@ function ActionsCell({ task, onOpenDetails, onEdit, onDelete }: ActionsCellProps
           <Edit className="h-3.5 w-3.5 mr-2" /> Edit
         </DropdownMenuItem>
 
-        {/* Status-conditional actions */}
-        {task.status === "to do" && (
+        {task.status !== "completed" && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleStart}>
-              <Play className="h-3.5 w-3.5 mr-2 text-success" /> Start Task
-            </DropdownMenuItem>
-          </>
-        )}
-        {task.status === "in progress" && (
-          <>
-            <DropdownMenuSeparator />
+            {task.status === "to do" && (
+              <DropdownMenuItem onClick={handleStart}>
+                <Play className="h-3.5 w-3.5 mr-2 text-success" /> Start Task
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={handleComplete}>
-              <CheckCircle className="h-3.5 w-3.5 mr-2 text-success" /> Complete Task
+              <CheckCircle className="h-3.5 w-3.5 mr-2 text-success" /> Mark as Completed
             </DropdownMenuItem>
           </>
         )}
