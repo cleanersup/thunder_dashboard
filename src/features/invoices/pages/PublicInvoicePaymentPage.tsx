@@ -5,8 +5,6 @@
  * Uses `public-invoice-payment-profile` so anon clients can see Stripe flags (RLS hides profiles from anon).
  */
 import { useState } from "react";
-import { Checkbox } from "@/shared/components/ui/checkbox";
-import { Label } from "@/shared/components/ui/label";
 import { useParams } from "react-router-dom";
 import {
   CheckCircle, CreditCard, Loader2, Calendar, FileText, DollarSign,
@@ -27,8 +25,6 @@ export function PublicInvoicePaymentPage() {
   const { id } = useParams<{ id: string }>();
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentComplete] = useState(false);
-  const [saveCardForFuture, setSaveCardForFuture] = useState(false);
-
   const { data: invoice, isLoading: invoiceLoading } = useQuery({
     queryKey: QK.publicInvoice(id!),
     queryFn: () => fetchInvoiceByIdForPublic(id!),
@@ -91,7 +87,6 @@ export function PublicInvoicePaymentPage() {
         body: {
           lineItems,
           customerEmail: invoice.email,
-          savePaymentMethod: saveCardForFuture,
           metadata: {
             invoice_id:       invoice.id,
             invoice_number:   invoice.invoice_number,
@@ -208,9 +203,6 @@ export function PublicInvoicePaymentPage() {
     );
   }
 
-  const canSaveCard =
-    !!paymentProfile?.stripe_account_id && !!paymentProfile?.stripe_onboarding_completed;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -267,20 +259,6 @@ export function PublicInvoicePaymentPage() {
 
           {invoice.notes && (
             <p className="text-sm text-muted-foreground text-center">{invoice.notes}</p>
-          )}
-
-          {canSaveCard && (
-            <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/20 p-3">
-              <Checkbox
-                id="save-card-future"
-                checked={saveCardForFuture}
-                onCheckedChange={(v) => setSaveCardForFuture(v === true)}
-                className="mt-0.5"
-              />
-              <Label htmlFor="save-card-future" className="text-sm font-normal leading-snug cursor-pointer">
-                Save this card for future payments
-              </Label>
-            </div>
           )}
 
           <Button

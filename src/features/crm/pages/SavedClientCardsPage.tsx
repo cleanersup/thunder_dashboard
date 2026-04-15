@@ -117,9 +117,10 @@ export default function SavedClientCardsPage() {
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
                 {rows.length === 0 ? (
                   <>
-                    When a client pays an invoice and selects{" "}
-                    <span className="font-medium text-foreground">Save this card for future payments</span>
-                    , their CRM client record (same email) will show here.
+                    Requires: the payer agreed to save the card on Stripe’s checkout screen, the
+                    payment synced back to Thunder successfully, and a CRM client exists with the
+                    same email as the invoice (case-insensitive). Open any client in CRM to see
+                    &quot;Card on file&quot; when present.
                   </>
                 ) : (
                   "Try a different search."
