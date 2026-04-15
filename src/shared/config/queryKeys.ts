@@ -15,6 +15,8 @@ export const QK = {
   activities:    ["activities"]     as const,
   notifications: ["notifications"]  as const,
   clients:       ["clients"]        as const,
+  /** CRM clients with a Stripe payment method on file (invoice save-card flow). */
+  clientsWithSavedCards: ["clients-with-saved-cards"] as const,
   leads:         ["leads"]          as const,
   employees:     ["employees"]      as const,
   employeesAll:  ["employees-all"]  as const,
@@ -40,6 +42,10 @@ export const QK = {
   publicProfile: (userId: string) => ["public-profile", userId]       as const,
   publicBooking: (userId: string) => ["public-booking-forms", userId] as const,
   publicInvoice: (id: string)     => ["public-invoice", id]           as const,
+  /** Merchant Stripe + branding for public invoice pay (edge function; anon-safe). */
+  publicInvoicePaymentProfile: (id: string) => ["public-invoice-payment-profile", id] as const,
+  /** Public client wallet (saved cards) by opaque token from URL */
+  publicClientWallet: (token: string) => ["public-client-wallet", token] as const,
 
   // ── Misc ────────────────────────────────────────────────────────────────────
   todayRoutes:               (date: string) => ["today-routes", date] as const,

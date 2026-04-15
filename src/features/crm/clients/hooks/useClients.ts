@@ -1,11 +1,26 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { fetchClients, fetchClient, createClient, updateClient, deleteClient } from "../services/clientsService";
+import {
+  fetchClients,
+  fetchClient,
+  fetchClientsWithSavedCards,
+  createClient,
+  updateClient,
+  deleteClient,
+} from "../services/clientsService";
 import type { ClientInsert, ClientUpdate } from "../../types/crm.types";
 import { QK } from "@/shared/config/queryKeys";
 
 export function useClients() {
   return useQuery({ queryKey: QK.clients, queryFn: fetchClients });
+}
+
+export function useClientsWithSavedCards() {
+  return useQuery({
+    queryKey: QK.clientsWithSavedCards,
+    queryFn: fetchClientsWithSavedCards,
+    staleTime: 60 * 1000,
+  });
 }
 
 export function useClient(id: string | undefined) {
@@ -23,6 +38,7 @@ export function useCreateClient() {
     mutationFn: (payload: Omit<ClientInsert, "user_id">) => createClient(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.clients });
+      qc.invalidateQueries({ queryKey: QK.clientsWithSavedCards });
       toast.success("Client created successfully");
     },
     onError: () => toast.error("Failed to create client"),
@@ -35,6 +51,7 @@ export function useUpdateClient() {
     mutationFn: ({ id, payload }: { id: string; payload: ClientUpdate }) => updateClient(id, payload),
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: QK.clients });
+      qc.invalidateQueries({ queryKey: QK.clientsWithSavedCards });
       qc.invalidateQueries({ queryKey: QK.client(id) });
       toast.success("Client updated successfully");
     },
@@ -48,6 +65,7 @@ export function useDeleteClient() {
     mutationFn: (id: string) => deleteClient(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.clients });
+      qc.invalidateQueries({ queryKey: QK.clientsWithSavedCards });
       toast.success("Client deleted");
     },
     onError: () => toast.error("Failed to delete client"),

@@ -2,7 +2,7 @@
 /**
  * @module PublicInvoicePaymentPage
  * Unauthenticated public page for client invoice payment via Stripe.
- * Adapted from swift-slate/src/pages/InvoicePayment.tsx — Capacitor removed.
+ * Uses `public-invoice-payment-profile` so anon clients can see Stripe flags (RLS hides profiles from anon).
  */
 import { useState } from "react";
 import { Checkbox } from "@/shared/components/ui/checkbox";
@@ -17,7 +17,10 @@ import { toast }             from "sonner";
 import { supabase }          from "@/integrations/supabase/client";
 import { useQuery }          from "@tanstack/react-query";
 import { formatCurrency, formatDateOnly } from "@/shared/utils/formatters";
-import { fetchInvoiceByIdForPublic } from "../services/invoicesService";
+import {
+  fetchInvoiceByIdForPublic,
+  fetchPublicInvoicePaymentProfile,
+} from "../services/invoicesService";
 import { QK } from "@/shared/config/queryKeys";
 
 export function PublicInvoicePaymentPage() {
@@ -26,43 +29,41 @@ export function PublicInvoicePaymentPage() {
   const [paymentComplete] = useState(false);
   const [saveCardForFuture, setSaveCardForFuture] = useState(false);
 
-  const { data: invoice, isLoading } = useQuery({
+  const { data: invoice, isLoading: invoiceLoading } = useQuery({
     queryKey: QK.publicInvoice(id!),
     queryFn: () => fetchInvoiceByIdForPublic(id!),
     enabled: !!id,
   });
 
-  const { data: profile } = useQuery({
-    queryKey: QK.publicProfile(invoice?.user_id ?? ""),
-    queryFn: async () => {
-      if (!invoice?.user_id) return null;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("company_name, company_logo, company_phone, stripe_account_id, stripe_onboarding_completed")
-        .eq("user_id", invoice.user_id)
-        .single();
-      if (error) throw error;
-      // Cast to any because stripe_* columns may not be in local type definitions yet
-      return data as any as {
-        company_name: string | null;
-        company_logo: string | null;
-        company_phone: string | null;
-        stripe_account_id: string | null;
-        stripe_onboarding_completed: boolean | null;
-      };
-    },
-    enabled: !!invoice?.user_id,
+  const needsPaymentProfile =
+    !!invoice?.id && invoice.status !== "Draft";
+
+  const {
+    data: paymentProfile,
+    isLoading: profileLoading,
+    isError: profileError,
+    error: profileErrObj,
+  } = useQuery({
+    queryKey: QK.publicInvoicePaymentProfile(id!),
+    queryFn: () => fetchPublicInvoicePaymentProfile(id!),
+    enabled: !!id && needsPaymentProfile,
     staleTime: 5 * 60_000,
   });
 
+  const displayCompanyName = paymentProfile?.company_name ?? invoice?.company_name ?? null;
+  const displayLogo = paymentProfile?.company_logo ?? null;
+
   const handlePayment = async () => {
-    if (!invoice || !profile) return;
+    if (!invoice || !paymentProfile) {
+      toast.error("Payment options are still loading. Please wait a moment and try again.");
+      return;
+    }
     setIsProcessing(true);
 
     try {
-      if (!profile.stripe_account_id || !profile.stripe_onboarding_completed) {
+      if (!paymentProfile.stripe_account_id || !paymentProfile.stripe_onboarding_completed) {
         throw new Error(
-          "Payment processing is not available for this merchant. Please contact them directly."
+          "Payment processing is not available for this merchant. Please contact them directly.",
         );
       }
 
@@ -97,14 +98,13 @@ export function PublicInvoicePaymentPage() {
             customer_name:    invoice.client_name,
             merchant_user_id: invoice.user_id,
           },
-          connectedAccountId: profile.stripe_account_id,
+          connectedAccountId: paymentProfile.stripe_account_id,
         },
       });
 
       if (error) throw error;
       if (!data?.url) throw new Error("No payment URL returned");
 
-      // Redirect to Stripe Checkout
       window.location.href = data.url;
     } catch (err: any) {
       toast.error(err.message ?? "There was an error processing your payment.");
@@ -112,8 +112,7 @@ export function PublicInvoicePaymentPage() {
     }
   };
 
-  // ── Loading ────────────────────────────────────────────────────────────────
-  if (isLoading) {
+  if (invoiceLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -121,7 +120,6 @@ export function PublicInvoicePaymentPage() {
     );
   }
 
-  // ── Not found ──────────────────────────────────────────────────────────────
   if (!invoice) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center p-4">
@@ -137,7 +135,6 @@ export function PublicInvoicePaymentPage() {
     );
   }
 
-  // ── Not available for payment ──────────────────────────────────────────────
   if (invoice.status === "Draft") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center p-4">
@@ -153,16 +150,38 @@ export function PublicInvoicePaymentPage() {
     );
   }
 
-  // ── Already paid ───────────────────────────────────────────────────────────
+  if (needsPaymentProfile && profileLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (needsPaymentProfile && (profileError || !paymentProfile)) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center space-y-2">
+            <h2 className="text-xl font-bold mb-2">Could not load payment page</h2>
+            <p className="text-muted-foreground text-sm">
+              {(profileErrObj as Error)?.message ?? "Please refresh the page or contact the business."}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (invoice.status === "Paid" || paymentComplete) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-8 text-center space-y-4">
-            {profile?.company_logo && (
+            {displayLogo && (
               <img
-                src={profile.company_logo}
-                alt={profile.company_name ?? "Company"}
+                src={displayLogo}
+                alt={displayCompanyName ?? "Company"}
                 className="h-16 w-16 object-contain mx-auto"
               />
             )}
@@ -180,7 +199,7 @@ export function PublicInvoicePaymentPage() {
             </div>
             <p className="text-sm text-muted-foreground">
               Thank you for your payment to{" "}
-              <strong>{profile?.company_name ?? "our company"}</strong>.
+              <strong>{displayCompanyName ?? "our company"}</strong>.
               A confirmation will be sent to {invoice.email}.
             </p>
           </CardContent>
@@ -189,26 +208,26 @@ export function PublicInvoicePaymentPage() {
     );
   }
 
-  // ── Pending payment ────────────────────────────────────────────────────────
+  const canSaveCard =
+    !!paymentProfile?.stripe_account_id && !!paymentProfile?.stripe_onboarding_completed;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardContent className="p-6 space-y-5">
-          {/* Company header */}
-          {profile?.company_logo && (
+          {displayLogo && (
             <div className="flex justify-center">
               <img
-                src={profile.company_logo}
-                alt={profile.company_name ?? "Company"}
+                src={displayLogo}
+                alt={displayCompanyName ?? "Company"}
                 className="h-16 w-16 object-contain"
               />
             </div>
           )}
-          {profile?.company_name && (
-            <h1 className="text-xl font-bold text-center">{profile.company_name}</h1>
+          {displayCompanyName && (
+            <h1 className="text-xl font-bold text-center">{displayCompanyName}</h1>
           )}
 
-          {/* Invoice details */}
           <div className="space-y-2 bg-muted/30 rounded-lg p-4">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-muted-foreground" />
@@ -231,7 +250,6 @@ export function PublicInvoicePaymentPage() {
             )}
           </div>
 
-          {/* Total amount */}
           <Card
             className="border-2"
             style={{ borderColor: "hsl(var(--primary))" }}
@@ -247,12 +265,11 @@ export function PublicInvoicePaymentPage() {
             </CardContent>
           </Card>
 
-          {/* Notes */}
           {invoice.notes && (
             <p className="text-sm text-muted-foreground text-center">{invoice.notes}</p>
           )}
 
-          {profile?.stripe_account_id && profile?.stripe_onboarding_completed && (
+          {canSaveCard && (
             <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/20 p-3">
               <Checkbox
                 id="save-card-future"
@@ -266,7 +283,6 @@ export function PublicInvoicePaymentPage() {
             </div>
           )}
 
-          {/* Pay button */}
           <Button
             className="w-full h-12 text-base"
             onClick={handlePayment}
@@ -286,7 +302,7 @@ export function PublicInvoicePaymentPage() {
           </Button>
 
           <p className="text-xs text-center text-muted-foreground">
-            By clicking "Pay", you agree to process this payment.
+            By clicking &quot;Pay&quot;, you agree to process this payment.
           </p>
         </CardContent>
       </Card>

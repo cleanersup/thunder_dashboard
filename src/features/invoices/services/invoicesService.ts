@@ -106,6 +106,34 @@ export async function fetchInvoiceByIdForPublic(id: string): Promise<Invoice> {
   return invoice as Invoice;
 }
 
+/** Merchant branding + Stripe flags for public pay page (service role via edge function). */
+export interface PublicInvoicePaymentProfile {
+  company_name: string | null;
+  company_logo: string | null;
+  company_phone: string | null;
+  stripe_account_id: string | null;
+  stripe_onboarding_completed: boolean;
+  stripe_charges_enabled: boolean;
+}
+
+/**
+ * Load merchant profile fields for the public invoice payment UI.
+ * Anonymous users cannot read `profiles` under RLS; this invokes a public edge function.
+ */
+export async function fetchPublicInvoicePaymentProfile(
+  invoiceId: string,
+): Promise<PublicInvoicePaymentProfile> {
+  const { data, error } = await supabase.functions.invoke("public-invoice-payment-profile", {
+    body: { invoiceId },
+  });
+  if (error) throw new Error(error.message);
+  const body = data as { error?: string } & Partial<PublicInvoicePaymentProfile> | null;
+  if (body && typeof body === "object" && body.error) {
+    throw new Error(body.error);
+  }
+  return data as PublicInvoicePaymentProfile;
+}
+
 // ─── Create ───────────────────────────────────────────────────────────────────
 
 /**

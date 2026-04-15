@@ -1,12 +1,13 @@
 import { useState } from "react";
 import {
   User, Building2, Phone, Mail, MapPin, MessageCircle, MessageSquare,
-  Briefcase, FileText, Edit, Trash2, UserX, UserCheck, Route, Receipt,
+  Briefcase, FileText, Edit, Trash2, UserX, UserCheck, Route, Receipt, CreditCard, Calendar,
 } from "lucide-react";
 import { DetailModal, InfoRow } from "@/shared/components/common/DetailModal";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { ClientForm } from "./ClientForm";
 import { useClient, useDeleteClient, useUpdateClient } from "../hooks/useClients";
+import { useIssueClientWalletLink } from "../hooks/useClientWallet";
 import { CLIENT_STATUS_BADGE } from "@/shared/constants/styleTokens";
 import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import { toast } from "sonner";
@@ -21,6 +22,7 @@ function ActionButton({
   description,
   labelColor = "text-foreground",
   onClick,
+  disabled,
 }: {
   icon: React.ElementType;
   iconBg: string;
@@ -29,11 +31,14 @@ function ActionButton({
   description: string;
   labelColor?: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
+      type="button"
+      disabled={disabled}
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left"
+      className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left disabled:opacity-50 disabled:pointer-events-none"
     >
       <div className={`p-2 rounded-md flex-shrink-0 ${iconBg}`}>
         <Icon className={`h-4 w-4 ${iconColor}`} />
@@ -61,6 +66,7 @@ interface ClientDetailModalProps {
 export function ClientDetailModal({ client, open, onClose }: ClientDetailModalProps) {
   const { mutate: deleteClient } = useDeleteClient();
   const { mutate: updateClient } = useUpdateClient();
+  const issueWalletLink = useIssueClientWalletLink();
   const [showEdit, setShowEdit]     = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
@@ -218,6 +224,26 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
               </div>
             </section>
 
+            {c.stripe_default_payment_method_id && (
+              <section>
+                <h3 className="text-sm font-bold text-foreground mb-4">Card on file</h3>
+                <div className="space-y-4">
+                  <InfoRow
+                    icon={CreditCard}
+                    label="Saved card"
+                    value={`${(c.card_brand ?? "Card").toString().toUpperCase()} ···· ${c.card_last4 ?? "••••"}`}
+                  />
+                  {c.card_exp_month != null && c.card_exp_year != null && (
+                    <InfoRow
+                      icon={Calendar}
+                      label="Expires"
+                      value={`${String(c.card_exp_month).padStart(2, "0")}/${String(c.card_exp_year).slice(-2)}`}
+                    />
+                  )}
+                </div>
+              </section>
+            )}
+
             <hr className="border-border" />
 
             <section>
@@ -230,6 +256,15 @@ export function ClientDetailModal({ client, open, onClose }: ClientDetailModalPr
                   label="Edit"
                   description="Modify client details"
                   onClick={() => setShowEdit(true)}
+                />
+
+                <ActionButton
+                  icon={CreditCard}
+                  iconBg="bg-primary/10"
+                  label="Client wallet link"
+                  description="Copy a link so this client can view or add a saved card"
+                  disabled={issueWalletLink.isPending}
+                  onClick={() => issueWalletLink.mutate(c.id)}
                 />
 
                 {/* Active-only actions */}

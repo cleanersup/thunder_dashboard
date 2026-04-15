@@ -26,6 +26,8 @@ const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPag
 
 // Phase 5 — CRM ✅
 const CRMPage = lazy(() => import("@/features/crm/pages/CRMPage"));
+const SavedClientCardsPage = lazy(() => import("@/features/crm/pages/SavedClientCardsPage"));
+const PublicClientWalletPage = lazy(() => import("@/features/crm/pages/PublicClientWalletPage"));
 const NotificationsPage = lazy(() => import("@/features/notifications/pages/NotificationsPage"));
 
 // Phase 6 — Booking ✅
@@ -111,6 +113,14 @@ export function AppRouter() {
 
           {/* Phase 5 ✅ */}
           <Route path="/crm" element={<ProtectedRoute requireFeature="crm"><CRMPage /></ProtectedRoute>} />
+          <Route
+            path="/saved-client-cards"
+            element={
+              <ProtectedRoute requireFeature="invoices">
+                <SavedClientCardsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/notifications" element={<ProtectedRoute requireSubscription={false}><NotificationsPage /></ProtectedRoute>} />
 
           {/* Phase 6 ✅ */}
@@ -133,6 +143,7 @@ export function AppRouter() {
           <Route path="/invoices/:id/preview"  element={<ProtectedRoute requireFeature="invoices"><InvoicePreviewPage /></ProtectedRoute>} />
           {/* Public — no auth required */}
           <Route path="/invoice/payment/:id" element={<PublicInvoicePaymentPage />} />
+          <Route path="/client/wallet/:token" element={<PublicClientWalletPage />} />
           <Route path="/stripe/return" element={<ProtectedRoute requireSubscription={false}><StripeReturnPage /></ProtectedRoute>} />
 
           {/* Phase 9 ✅ */}

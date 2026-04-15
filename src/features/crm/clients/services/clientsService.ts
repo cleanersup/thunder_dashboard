@@ -96,3 +96,23 @@ export async function findClientByEmail(userId: string, email: string) {
     .maybeSingle();
   return data ?? null;
 }
+
+/**
+ * Clients with a saved Stripe default payment method (vault populated after invoice Checkout).
+ */
+export async function fetchClientsWithSavedCards() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const { data, error } = await supabase
+    .from("clients")
+    .select(
+      "id, full_name, company, email, phone, card_brand, card_last4, card_exp_month, card_exp_year, updated_at"
+    )
+    .eq("user_id", user.id)
+    .not("stripe_default_payment_method_id", "is", null)
+    .order("full_name", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export type ClientWithSavedCardRow = Awaited<ReturnType<typeof fetchClientsWithSavedCards>>[number];

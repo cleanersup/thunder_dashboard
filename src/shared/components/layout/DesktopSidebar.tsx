@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Home, FileText, Receipt, Route, Users, Calendar,
-  UserPlus, Clock, MapPin, Settings, LogOut, FileSignature
+  UserPlus, Clock, MapPin, Settings, LogOut, FileSignature, CreditCard,
 } from "lucide-react";
 import thunderProLogo from "@/assets/logo_thunder_pro_w.png";
 import thunderLogo    from "@/assets/thunder-logo.png";
@@ -35,6 +35,7 @@ const MAIN_NAV: NavItem[] = [
   { path: "/invoices",     icon: FileText,        label: "Invoices",   feature: "invoices"   },
   { path: "/contracts",   icon: FileSignature,   label: "Contracts",  feature: "contracts"  },
   { path: "/crm",          icon: Users,   label: "CRM",        feature: "crm"        },
+  { path: "/saved-client-cards", icon: CreditCard, label: "Saved client cards", feature: "invoices" },
   { path: "/booking",      icon: Calendar,label: "Booking",    feature: "booking"    },
   { path: "/employees",    icon: UserPlus,label: "Employees",  feature: "employee"   },
   { path: "/time-clock",   icon: Clock,   label: "Time Clock", feature: "time_clock" },
