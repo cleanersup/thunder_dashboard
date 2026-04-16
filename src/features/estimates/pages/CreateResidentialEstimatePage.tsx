@@ -563,8 +563,8 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         open={showExitDialog}
         isEditing={isEditing}
         onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); goBack(); }}
-        onDiscard={() => {
-          if (!isEditing) deleteDraft();
+        onDiscard={async () => {
+          if (!isEditing) await deleteDraft();
           setShowExitDialog(false);
           goBack();
         }}

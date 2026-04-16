@@ -624,8 +624,8 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
         open={showExitDialog}
         isEditing={isEditing}
         onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); goBack(); }}
-        onDiscard={() => {
-          if (!isEditing) deleteDraft();
+        onDiscard={async () => {
+          if (!isEditing) await deleteDraft();
           setShowExitDialog(false);
           goBack();
         }}

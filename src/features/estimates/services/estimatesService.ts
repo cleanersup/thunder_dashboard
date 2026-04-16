@@ -16,6 +16,7 @@ export async function fetchEstimates() {
     .from("estimates")
     .select("*")
     .eq("user_id", user.id)
+    .neq("is_draft", true)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];

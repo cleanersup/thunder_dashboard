@@ -45,6 +45,8 @@ export function useDraftEstimate({ serviceType }: UseDraftEstimateOptions): UseD
   const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastJsonRef  = useRef<string>("");
   const draftIdRef   = useRef<string | null>(null);
+  // Set to true on discard so any in-flight saveDraftEstimate call won't persist
+  const discardedRef = useRef<boolean>(false);
 
   // Keep ref in sync so saveDraft closure always sees latest id
   useEffect(() => { draftIdRef.current = draftId; }, [draftId]);
@@ -76,9 +78,15 @@ export function useDraftEstimate({ serviceType }: UseDraftEstimateOptions): UseD
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
+      if (discardedRef.current) return; // discard happened while we were waiting
       setIsSaving(true);
       try {
         const result = await saveDraftEstimate(serviceType, data, draftIdRef.current ?? undefined);
+        if (discardedRef.current) {
+          // discard happened while the save was in-flight — delete the just-created draft
+          if (result?.id) await deleteDraftEstimate(result.id);
+          return;
+        }
         if (!draftIdRef.current && result?.id) {
           setDraftId(result.id);
           draftIdRef.current = result.id;
@@ -94,7 +102,9 @@ export function useDraftEstimate({ serviceType }: UseDraftEstimateOptions): UseD
 
   // ── deleteDraft ──────────────────────────────────────────────────────────
   const deleteDraft = useCallback(async () => {
+    discardedRef.current = true;        // block any in-flight or pending save
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    lastJsonRef.current = "";
     const id = draftIdRef.current;
     if (!id) return;
     try {
@@ -103,7 +113,6 @@ export function useDraftEstimate({ serviceType }: UseDraftEstimateOptions): UseD
       draftIdRef.current = null;
       setLoadedDraft(null);
       setLastSaved(null);
-      lastJsonRef.current = "";
     } catch {
       // Best-effort
     }
