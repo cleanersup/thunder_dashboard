@@ -226,16 +226,16 @@ export function InvoiceDetailPanel({
           {canChargeSavedCard && (
             <Button
               size="sm"
-              variant="secondary"
-              className="w-full"
+              variant="default"
+              className="w-full bg-blue-vibrant text-white hover:bg-blue-vibrant/90 focus-visible:ring-blue-vibrant/40"
               disabled={chargeSaved.isPending}
               onClick={() => chargeSaved.mutate(invoice.id)}
             >
-              <CreditCard className="w-4 h-4 mr-1.5" />
+              <CreditCard className="w-4 h-4 mr-1.5 shrink-0" />
               {chargeSaved.isPending
                 ? "Processing…"
-                : `Charge card on file${
-                    savedCard?.card_last4 ? ` (····${savedCard.card_last4})` : ""
+                : `Charge card${
+                    savedCard?.card_last4 ? ` ····${savedCard.card_last4}` : ""
                   }`}
             </Button>
           )}
