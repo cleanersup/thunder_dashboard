@@ -15,6 +15,7 @@ const EXTRA_SERVICE_OPTIONS = [
 ];
 
 export interface CommDetailsStepProps {
+  groupB:                 boolean;
   serviceSchedule:        string;
   greaseLevel:            string;
   restaurantCondition:    string;
@@ -30,6 +31,7 @@ export interface CommDetailsStepProps {
 }
 
 export function CommDetailsStep({
+  groupB,
   serviceSchedule, greaseLevel, restaurantCondition, clientProvidesSupplies, extraServices, errors,
   onServiceScheduleChange, onGreaseLevelChange, onRestaurantConditionChange,
   onClientProvidesSuppliesChange, onExtraServiceToggle, onClearError,
@@ -37,8 +39,8 @@ export function CommDetailsStep({
   return (
     <div className="space-y-5">
 
-      {/* Service schedule */}
-      <Card>
+      {/* Service schedule — restaurant/food-truck only */}
+      {groupB && <Card>
         <CardHeader className="pb-2">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Clock className="h-5 w-5 text-muted-foreground" />
@@ -62,10 +64,9 @@ export function CommDetailsStep({
           </div>
           {errors.serviceSchedule && <p className="text-xs text-destructive">Please select a schedule</p>}
         </CardContent>
-      </Card>
+      </Card>}
 
-      {/* Grease level */}
-      <Card>
+      {groupB && <Card>
         <CardHeader className="pb-2">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Flame className="h-5 w-5 text-muted-foreground" />
@@ -90,10 +91,9 @@ export function CommDetailsStep({
           </div>
           {errors.greaseLevel && <p className="text-xs text-destructive">Please select a grease level</p>}
         </CardContent>
-      </Card>
+      </Card>}
 
-      {/* Restaurant condition */}
-      <Card>
+      {groupB && <Card>
         <CardHeader className="pb-2">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Star className="h-5 w-5 text-muted-foreground" />
@@ -118,7 +118,7 @@ export function CommDetailsStep({
           </div>
           {errors.restaurantCondition && <p className="text-xs text-destructive">Please select property condition</p>}
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Client provides supplies */}
       <Card>

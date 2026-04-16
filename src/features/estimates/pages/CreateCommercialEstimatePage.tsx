@@ -323,18 +323,8 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   }, [collectDraftData, isEditing, saveDraft]);
 
   // ── Step navigation ───────────────────────────────────────────────────────
-  const getNextStep = (from: number): number => {
-    if (from === 1) return groupB ? 2 : serviceType === "recurrent" ? 3 : 4;
-    if (from === 2) return 3;
-    if (from === 3 || from === 4) return from + 1;
-    return from + 1;
-  };
-
-  const getPrevStep = (from: number): number => {
-    if (from === 3) return groupB ? 2 : 1;
-    if (from === 4) return groupB ? 3 : serviceType === "recurrent" ? 3 : 1;
-    return from - 1;
-  };
+  const getNextStep = (from: number): number => from + 1;
+  const getPrevStep = (from: number): number => from - 1;
 
   // ── Validation ────────────────────────────────────────────────────────────
   const validate = (step: number): boolean => {
@@ -354,8 +344,9 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       if (!serviceSchedule)     errs.serviceSchedule     = true;
       if (!greaseLevel)         errs.greaseLevel         = true;
       if (!restaurantCondition) errs.restaurantCondition = true;
+      // non-groupB: no required fields at this step (client provides supplies + extras are optional)
     }
-    if (step === 3 && serviceType === "recurrent") {
+    if (step === 3) {
       if (employeeCount <= 0)    errs.employeeCount    = true;
       if (!hourlyRate)           errs.hourlyRate       = true;
       if (cleaningDuration <= 0) errs.cleaningDuration = true;
@@ -509,6 +500,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       );
       case 2: return (
         <CommDetailsStep
+          groupB={groupB}
           serviceSchedule={serviceSchedule} greaseLevel={greaseLevel}
           restaurantCondition={restaurantCondition} clientProvidesSupplies={clientProvidesSupplies}
           extraServices={extraServices} errors={errors}
