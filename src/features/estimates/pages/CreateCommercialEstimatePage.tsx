@@ -395,6 +395,8 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       const { costs, subtotal, total } = pricing;
 
       const payload = {
+        client_id:      estimateType === "client" ? (selectedClient?.id ?? null) : null,
+        lead_id:        estimateType === "lead"   ? (selectedLead?.id   ?? null) : null,
         client_name:    entity.full_name,
         company_name:   estimateType === "client" ? (selectedClient?.company ?? null) : (selectedLead?.company_name ?? null),
         email:          entity.email,

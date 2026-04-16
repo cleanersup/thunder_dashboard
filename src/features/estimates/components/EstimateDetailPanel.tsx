@@ -477,13 +477,17 @@ export function EstimateDetailPanel({
         if (!clientRow) clientId = null; // FK dangling — fall through
       }
 
-      // 2. Search by email (same account)
+      // 2. Search by email (same account).
+      // Use .limit(1) instead of .maybeSingle() so that if duplicates already
+      // exist (PGRST116 would make maybeSingle return null and trigger step 3,
+      // creating yet another duplicate).
       if (!clientId) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data } = await supabase.from("clients").select("*")
-            .eq("user_id", user.id).eq("email", estimate.email).maybeSingle();
-          if (data) { clientId = data.id; clientRow = data; }
+          const { data: rows } = await supabase.from("clients").select("*")
+            .eq("user_id", user.id).ilike("email", estimate.email).limit(1);
+          const found = rows?.[0] ?? null;
+          if (found) { clientId = found.id; clientRow = found; }
         }
       }
 

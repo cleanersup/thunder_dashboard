@@ -354,6 +354,8 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     const { subtotal, total, laborCost, suppliesCost, overheadCost, totalOpCost } = pricing;
 
     const payload = {
+      client_id: estimateType === "client" ? (selectedClient?.id ?? null) : null,
+      lead_id:   estimateType === "lead"   ? (selectedLead?.id   ?? null) : null,
       client_name: client.name, company_name: client.company,
       email: client.email, phone: client.phone.replace(/\D/g, ""),
       address: client.address, apt: client.apt || null,
