@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import {
-  CheckCircle, CreditCard, Loader2, Calendar, FileText, DollarSign,
+  CheckCircle, CreditCard, Loader2, Calendar, FileText, DollarSign, Wallet,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button }            from "@/shared/components/ui/button";
@@ -87,6 +87,9 @@ export function PublicInvoicePaymentPage() {
         body: {
           lineItems,
           customerEmail: invoice.email,
+          ...(paymentProfile.invoice_payer_stripe_customer_id
+            ? { customerId: paymentProfile.invoice_payer_stripe_customer_id }
+            : {}),
           metadata: {
             invoice_id:       invoice.id,
             invoice_number:   invoice.invoice_number,
@@ -259,6 +262,29 @@ export function PublicInvoicePaymentPage() {
 
           {invoice.notes && (
             <p className="text-sm text-muted-foreground text-center">{invoice.notes}</p>
+          )}
+
+          {paymentProfile?.invoice_payer_card_last4 && (
+            <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 space-y-1">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Wallet className="h-4 w-4" /> Card on file
+              </h2>
+              <p className="text-sm font-medium text-foreground">
+                {(paymentProfile?.invoice_payer_card_brand ?? "Card").toString().toUpperCase()} ····{" "}
+                {paymentProfile?.invoice_payer_card_last4}
+              </p>
+              {paymentProfile?.invoice_payer_card_exp_month != null &&
+                paymentProfile?.invoice_payer_card_exp_year != null && (
+                <p className="text-xs text-muted-foreground">
+                  Exp{" "}
+                  {String(paymentProfile.invoice_payer_card_exp_month).padStart(2, "0")}
+                  /{String(paymentProfile.invoice_payer_card_exp_year).slice(-2)}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground pt-1">
+                Continue to Stripe Checkout to pay with this card or use a different one.
+              </p>
+            </div>
           )}
 
           <Button

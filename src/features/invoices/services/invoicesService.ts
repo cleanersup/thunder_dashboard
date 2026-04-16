@@ -114,6 +114,12 @@ export interface PublicInvoicePaymentProfile {
   stripe_account_id: string | null;
   stripe_onboarding_completed: boolean;
   stripe_charges_enabled: boolean;
+  /** Connected-account Stripe Customer for this payer (reuse in Checkout). */
+  invoice_payer_stripe_customer_id?: string | null;
+  invoice_payer_card_brand?: string | null;
+  invoice_payer_card_last4?: string | null;
+  invoice_payer_card_exp_month?: number | null;
+  invoice_payer_card_exp_year?: number | null;
 }
 
 /**
