@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { format } from "date-fns";
 import { toast } from "sonner";
+import { formatDbTimeDisplay } from "../utils/parseDbDateTime";
 import { supabase } from "@/integrations/supabase/client";
 import { updateTimeEntryTimes } from "../services/timeClockService";
 import type { ShiftTimeFields, EditChange } from "../types/timeClock.types";
@@ -29,10 +29,10 @@ export function useShiftTimeEdit(onSuccess?: () => void | Promise<void>) {
 
   function startEdit(shift: ShiftTimeFields) {
     setEditDraftValues({
-      clock_in:    shift.clock_in_time    ? format(new Date(shift.clock_in_time),    "HH:mm") : "",
-      break_start: shift.break_start_time ? format(new Date(shift.break_start_time), "HH:mm") : "",
-      break_end:   shift.break_end_time   ? format(new Date(shift.break_end_time),   "HH:mm") : "",
-      clock_out:   shift.clock_out_time   ? format(new Date(shift.clock_out_time),   "HH:mm") : "",
+      clock_in:    shift.clock_in_time    ? formatDbTimeDisplay(shift.clock_in_time,    "HH:mm", "") : "",
+      break_start: shift.break_start_time ? formatDbTimeDisplay(shift.break_start_time, "HH:mm", "") : "",
+      break_end:   shift.break_end_time   ? formatDbTimeDisplay(shift.break_end_time,   "HH:mm", "") : "",
+      clock_out:   shift.clock_out_time   ? formatDbTimeDisplay(shift.clock_out_time,   "HH:mm", "") : "",
     });
     setEditingShiftId(shift.id);
   }
@@ -46,7 +46,7 @@ export function useShiftTimeEdit(onSuccess?: () => void | Promise<void>) {
     const changes: EditChange[] = [];
     for (const field of ["clock_in", "break_start", "break_end", "clock_out"]) {
       const dbField = DB_FIELD_MAP[field];
-      const oldValue = shift[dbField] ? format(new Date(shift[dbField] as string), "HH:mm") : "";
+      const oldValue = shift[dbField] ? formatDbTimeDisplay(shift[dbField] as string, "HH:mm", "") : "";
       const newValue = editDraftValues[field] ?? "";
       if (newValue !== oldValue && newValue) {
         changes.push({ field, label: FIELD_LABELS[field], oldValue, newValue });

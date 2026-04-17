@@ -1,9 +1,9 @@
-import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avatar";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import type { TimeEntry } from "../types/timeClock.types";
+import { formatDbTimeDisplay, formatEntryDateDisplay } from "../utils/parseDbDateTime";
 
 interface Props {
   entries: TimeEntry[];
@@ -77,9 +77,9 @@ export function ScheduledTab({ entries, isLoading }: Props) {
                   </div>
                   <p className="text-xs text-muted-foreground">{emp?.position}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {format(new Date(first.date + "T00:00:00"), "EEE, MMM d")}
-                    {appt?.scheduled_time && ` · ${format(new Date(appt.scheduled_time), "h:mm a")}`}
-                    {appt?.end_time && ` – ${format(new Date(appt.end_time), "h:mm a")}`}
+                    {formatEntryDateDisplay(first.date, "EEE, MMM d")}
+                    {appt?.scheduled_time && ` · ${formatDbTimeDisplay(appt.scheduled_time, "h:mm a")}`}
+                    {appt?.end_time && ` – ${formatDbTimeDisplay(appt.end_time, "h:mm a")}`}
                   </p>
                   {appt?.clients?.full_name && (
                     <p className="text-xs text-muted-foreground mt-0.5">

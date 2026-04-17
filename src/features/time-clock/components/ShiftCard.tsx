@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { Pencil } from "lucide-react";
+import { formatDbTimeDisplay } from "../utils/parseDbDateTime";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import type { TimeEntry } from "../types/timeClock.types";
@@ -28,8 +29,7 @@ function getStatusInfo(entry: TimeEntry) {
 }
 
 function fmtTime(ts: string | null) {
-  if (!ts) return "—";
-  return format(new Date(ts), "h:mm a");
+  return formatDbTimeDisplay(ts, "h:mm a");
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -100,7 +100,7 @@ export function ShiftCard({
       {/* 2×2 grid of time fields */}
       <div className="grid grid-cols-2 gap-3">
         {FIELDS.map(({ key, dbKey, label }) => {
-          const dbValue = entry[dbKey] ? format(new Date(entry[dbKey]!), "HH:mm") : "";
+          const dbValue = entry[dbKey] ? formatDbTimeDisplay(entry[dbKey] as string, "HH:mm", "") : "";
           return (
             <div key={key} className="flex flex-col gap-1">
               <p className="text-xs text-muted-foreground">{label}</p>

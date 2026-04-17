@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import { eachDayOfInterval, format } from "date-fns";
 import thunderProLogo from "@/assets/thunder-pro-logo.png";
+import { parseDbTimeOrTimestamp } from "../utils/parseDbDateTime";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,7 +37,9 @@ export interface GeneralTimesheetData {
 
 function fmtTime(ts: string | null) {
   if (!ts) return "--";
-  return new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const d = parseDbTimeOrTimestamp(ts);
+  if (!d) return "--";
+  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
 function fmtHours(h: number | null) {

@@ -31,6 +31,7 @@ import { TimeClockKPICards } from "../components/TimeClockKPICards";
 import { ShiftTimeEditConfirmModal } from "../components/ShiftTimeEditConfirmModal";
 import { EmployeeDetailView } from "../components/EmployeeDetailView";
 import type { TimeEntry } from "../types/timeClock.types";
+import { formatDbTimeDisplay, formatEntryDateDisplay } from "../utils/parseDbDateTime";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,8 +40,7 @@ function getInitials(first: string, last: string) {
 }
 
 function fmtTime(ts: string | null) {
-  if (!ts) return "—";
-  return format(new Date(ts), "h:mm a");
+  return formatDbTimeDisplay(ts, "h:mm a");
 }
 
 function fmtHours(h: number | null) {
@@ -427,7 +427,7 @@ export function TimeClockPage() {
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">{emp?.position ?? "—"}</TableCell>
                           <TableCell className="text-sm">
-                            {format(new Date(entry.date + "T00:00:00"), "EEE, MMM d")}
+                            {formatEntryDateDisplay(entry.date, "EEE, MMM d")}
                           </TableCell>
                           <TableCell className="text-sm">
                             {appt?.scheduled_time ? fmtTime(appt.scheduled_time) : "—"}

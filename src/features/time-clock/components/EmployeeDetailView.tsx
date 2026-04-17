@@ -28,6 +28,7 @@ import { Calendar } from "@/shared/components/ui/calendar";
 import { toast } from "sonner";
 import { QK } from "@/shared/config/queryKeys";
 import { useEmployeeTimeEntries, usePaidPeriods, useMarkAsPaid } from "../hooks/useTimeClock";
+import { parseDbTimeOrTimestamp } from "../utils/parseDbDateTime";
 import { ShiftCard } from "./ShiftCard";
 import { EmployeeLocationMap } from "./EmployeeLocationMap";
 import {
@@ -319,8 +320,8 @@ export function EmployeeDetailView({
                 <div className="space-y-3">
                   {[...dayEntries]
                     .sort((a, b) => {
-                      const ta = a.clock_in_time ? new Date(a.clock_in_time).getTime() : 0;
-                      const tb = b.clock_in_time ? new Date(b.clock_in_time).getTime() : 0;
+                      const ta = parseDbTimeOrTimestamp(a.clock_in_time)?.getTime() ?? 0;
+                      const tb = parseDbTimeOrTimestamp(b.clock_in_time)?.getTime() ?? 0;
                       return ta - tb;
                     })
                     .map((shift, idx) => (
