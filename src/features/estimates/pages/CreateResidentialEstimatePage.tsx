@@ -646,6 +646,33 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   }
 
   // ── Page mode ────────────────────────────────────────────────────────────
+  // Walkthrough "Generate Estimate" navigates here with `prefill` — match the Estimates
+  // feature modal shell (FullScreenModal + isModal layout) so styling is identical.
+  if (prefill) {
+    return (
+      <>
+        {formDialogs}
+        <FullScreenModal open onClose={handleExit}>
+          <EstimateFormLayout
+            title="Residential Estimate"
+            steps={RESIDENTIAL_STEPS}
+            currentStep={step}
+            onBack={handleBack}
+            onNext={handleNext}
+            onExit={handleExit}
+            isLastStep={step === RESIDENTIAL_STEPS.length - 1}
+            isLoading={isLoading}
+            isEditing={isEditing}
+            isModal
+            draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
+          >
+            {stepContent}
+          </EstimateFormLayout>
+        </FullScreenModal>
+      </>
+    );
+  }
+
   return (
     <>
       {formDialogs}

@@ -699,6 +699,33 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   }
 
   // ── Page mode ────────────────────────────────────────────────────────────
+  // Walkthrough "Generate Estimate" navigates here with `prefill` — match the Estimates
+  // feature modal shell (FullScreenModal + isModal layout) so styling is identical.
+  if (prefill) {
+    return (
+      <>
+        {formDialogs}
+        <FullScreenModal open onClose={handleExit}>
+          <EstimateFormLayout
+            title={isEditing ? "Edit Commercial Estimate" : "New Commercial Estimate"}
+            steps={COMMERCIAL_STEPS}
+            currentStep={currentStep}
+            onBack={handleBack}
+            onNext={handleNext}
+            onExit={handleExit}
+            isLastStep={currentStep === COMMERCIAL_STEPS.length - 1}
+            isLoading={isLoading}
+            isEditing={isEditing}
+            isModal
+            draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
+          >
+            {stepContent}
+          </EstimateFormLayout>
+        </FullScreenModal>
+      </>
+    );
+  }
+
   return (
     <>
       {formDialogs}
