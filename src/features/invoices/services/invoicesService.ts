@@ -204,17 +204,32 @@ export async function updateInvoice(
  * @param chequeNumber - Required when paymentMethod is "Cheque"
  * @returns Promise<Invoice>
  */
+/**
+ * Notify client + merchant that an invoice was paid (edge function; non-blocking).
+ */
+function queueInvoicePaidConfirmationEmails(invoiceId: string): void {
+  void supabase.functions
+    .invoke("send-invoice-email", {
+      body: { invoiceId, isPaymentConfirmation: true },
+    })
+    .then(({ error }) => {
+      if (error) console.error("[invoicesService] send-invoice-email (paid):", error);
+    });
+}
+
 export async function markInvoiceAsPaid(
   id: string,
   paymentMethod: "Cash" | "Cheque",
   chequeNumber?: string
 ): Promise<Invoice> {
-  return updateInvoice(id, {
+  const updated = await updateInvoice(id, {
     status:         "Paid",
     payment_method: paymentMethod,
     cheque_number:  chequeNumber ?? null,
     paid_date:      new Date().toISOString().split("T")[0],
   });
+  queueInvoicePaidConfirmationEmails(id);
+  return updated;
 }
 
 /**
