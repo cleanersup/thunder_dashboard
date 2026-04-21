@@ -85,7 +85,7 @@ interface EstimateDetailPanelProps {
   /** Called when user clicks Edit — parent opens the create/edit wizard */
   onEdit?:      (estimate: any) => void;
   /** Called after Continue / Start Fresh — parent opens the estimate wizard */
-  onOpenEstimateWizard?: (serviceType: string) => void;
+  onOpenEstimateWizard?: (serviceType: string, continueDraft?: boolean) => void;
 }
 
 // ─── Footer component ─────────────────────────────────────────────────────────
@@ -577,7 +577,7 @@ export function EstimateDetailPanel({
   function handleContinueDraft() {
     if (!estimate) return;
     onClose();
-    if (onOpenEstimateWizard) onOpenEstimateWizard(estimate.service_type);
+    if (onOpenEstimateWizard) onOpenEstimateWizard(estimate.service_type, true);
     else navigate(estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential");
   }
 
@@ -587,7 +587,7 @@ export function EstimateDetailPanel({
       await deleteDraftEstimate(estimate.id);
       qc.invalidateQueries({ queryKey: QK.estimates });
       onClose();
-      if (onOpenEstimateWizard) onOpenEstimateWizard(estimate.service_type);
+      if (onOpenEstimateWizard) onOpenEstimateWizard(estimate.service_type, false);
       else navigate(estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential");
     } catch {
       toast.error("Failed to delete draft");

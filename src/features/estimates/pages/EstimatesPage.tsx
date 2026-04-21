@@ -97,6 +97,7 @@ export function EstimatesPage() {
   const [formModal, setFormModal] = useState<{
     type: "residential" | "commercial" | null;
     editState?: { isEditing: boolean; estimateId: string; estimateData: any };
+    continueDraft?: boolean;
   }>({ type: null });
 
   // ── Format rows ───────────────────────────────────────────────────────────
@@ -145,10 +146,12 @@ export function EstimatesPage() {
   function openEstimateForm(
     serviceType: string,
     editState?: { isEditing: boolean; estimateId: string; estimateData: any },
+    continueDraft?: boolean,
   ) {
     setFormModal({
       type: serviceType === "Commercial" ? "commercial" : "residential",
       editState,
+      continueDraft,
     });
   }
 
@@ -233,7 +236,7 @@ export function EstimatesPage() {
   }
 
   function handleContinueDraft(estimate: any) {
-    openEstimateForm(estimate.serviceType);
+    openEstimateForm(estimate.serviceType, undefined, true);
   }
 
   async function handleStartFreshDraft(estimate: any) {
@@ -514,7 +517,7 @@ export function EstimatesPage() {
             estimateData: estimate,
           })
         }
-        onOpenEstimateWizard={(serviceType) => openEstimateForm(serviceType)}
+        onOpenEstimateWizard={(serviceType, continueDraft) => openEstimateForm(serviceType, undefined, continueDraft)}
       />
 
       <AlertDialog open={isAcceptDialogOpen} onOpenChange={setIsAcceptDialogOpen}>
@@ -565,14 +568,14 @@ export function EstimatesPage() {
         <CreateResidentialEstimatePage
           open
           onClose={() => setFormModal({ type: null })}
-          initialState={formModal.editState}
+          initialState={{ ...formModal.editState, continueDraft: formModal.continueDraft }}
         />
       )}
       {formModal.type === "commercial" && (
         <CreateCommercialEstimatePage
           open
           onClose={() => setFormModal({ type: null })}
-          initialState={formModal.editState}
+          initialState={{ ...formModal.editState, continueDraft: formModal.continueDraft }}
         />
       )}
     </div>

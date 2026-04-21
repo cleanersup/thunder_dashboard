@@ -52,6 +52,8 @@ export interface CommPreviewStepProps {
   serviceSchedule:        string;
   greaseLevel:            string;
   restaurantCondition:    string;
+  dustLevel:              string;
+  propertyCondition:      string;
   clientProvidesSupplies: boolean;
   extraServices:          string[];
   employeeCount:          number;
@@ -69,7 +71,7 @@ export interface CommPreviewStepProps {
 export function CommPreviewStep({
   client, company,
   propertyType, propertySize, serviceType,
-  groupB, serviceSchedule, greaseLevel, restaurantCondition,
+  groupB, serviceSchedule, greaseLevel, restaurantCondition, dustLevel, propertyCondition,
   extraServices, cleaningDuration, startTime, scope, total,
 }: CommPreviewStepProps) {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -177,6 +179,12 @@ export function CommPreviewStep({
               )}
               {isRestaurant && restaurantCondition && (
                 <div><span className="font-semibold">Restaurant Condition:</span> {tr(restaurantCondition)}</div>
+              )}
+              {!isRestaurant && dustLevel && (
+                <div><span className="font-semibold">Dust Level:</span> {tr(dustLevel)}</div>
+              )}
+              {!isRestaurant && propertyCondition && (
+                <div><span className="font-semibold">Property Condition:</span> {tr(propertyCondition)}</div>
               )}
               {extraServices.length > 0 && (
                 <div className="col-span-2"><span className="font-semibold">Extra Services:</span> {extraServices.map(tr).join(", ")}</div>
