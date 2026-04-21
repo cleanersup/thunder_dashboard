@@ -1,7 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { WalkthroughFormData } from "../schemas/walkthroughSchema";
 import { fetchContactInfo } from "../utils/walkthroughUtils";
+import {
+  mapResidentialWalkthroughRowToPrefillFields,
+  mapCommercialWalkthroughRowToPrefillFields,
+  mergeWalkthroughEstimatePrefill,
+  type ResidentialWalkthroughRow,
+  type CommercialWalkthroughRow,
+  type WalkthroughEstimatePrefill,
+} from "../utils/walkthroughToEstimatePrefill";
 export type { ContactInfo } from "../utils/walkthroughUtils";
+export type { WalkthroughEstimatePrefill } from "../utils/walkthroughToEstimatePrefill";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -125,6 +134,35 @@ export async function fetchWalkthrough(id: string): Promise<WalkthroughWithConta
     contact_phone: contact?.phone      ?? null,
     contact_email: contact?.email      ?? null,
   };
+}
+
+/**
+ * Loads completed on-site walkthrough data (if any) and merges into estimate `prefill` for navigation.
+ */
+export async function buildEstimatePrefillFromWalkthrough(
+  w: WalkthroughWithContact,
+): Promise<WalkthroughEstimatePrefill> {
+  if (w.service_type === "residential") {
+    const { data } = await supabase
+      .from("residential_walkthrough_data")
+      .select("*")
+      .eq("walkthrough_id", w.id)
+      .maybeSingle();
+    const mapped = data
+      ? mapResidentialWalkthroughRowToPrefillFields(data as ResidentialWalkthroughRow)
+      : {};
+    return mergeWalkthroughEstimatePrefill(w, mapped);
+  }
+
+  const { data } = await supabase
+    .from("commercial_walkthrough_data")
+    .select("*")
+    .eq("walkthrough_id", w.id)
+    .maybeSingle();
+  const mapped = data
+    ? mapCommercialWalkthroughRowToPrefillFields(data as CommercialWalkthroughRow)
+    : {};
+  return mergeWalkthroughEstimatePrefill(w, mapped);
 }
 
 export async function createWalkthrough(formData: WalkthroughFormData): Promise<Walkthrough> {

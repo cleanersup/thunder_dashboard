@@ -34,7 +34,10 @@ import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { toast } from "sonner";
 import { useUpdateWalkthroughStatus, useDeleteWalkthrough, useWalkthroughEmployees, useCurrentUserId, useSendWalkthroughStart } from "../hooks/useWalkthroughs";
-import type { WalkthroughWithContact } from "../services/walkthroughsService";
+import {
+  buildEstimatePrefillFromWalkthrough,
+  type WalkthroughWithContact,
+} from "../services/walkthroughsService";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -127,21 +130,17 @@ export function WalkthroughDetailsModal({
     });
   }
 
-  function handleGenerateEstimate() {
-    const path = walkthrough!.service_type === "residential"
-      ? "/estimates/new/residential"
-      : "/estimates/new/commercial";
-    navigate(path, {
-      state: {
-        prefill: {
-          walkthrough_id: walkthrough!.id,
-          contact_name:   walkthrough!.contact_name,
-          client_id:      walkthrough!.client_id,
-          lead_id:        walkthrough!.lead_id,
-        },
-      },
-    });
-    onOpenChange(false);
+  async function handleGenerateEstimate() {
+    try {
+      const prefill = await buildEstimatePrefillFromWalkthrough(walkthrough!);
+      const path = walkthrough!.service_type === "residential"
+        ? "/estimates/new/residential"
+        : "/estimates/new/commercial";
+      navigate(path, { state: { prefill } });
+      onOpenChange(false);
+    } catch {
+      toast.error("Could not load walkthrough data for the estimate");
+    }
   }
 
   // ── Render ──────────────────────────────────────────────────────────────

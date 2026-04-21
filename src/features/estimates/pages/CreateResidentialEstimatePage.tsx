@@ -215,6 +215,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   // ── Prefill from walkthrough ──────────────────────────────────────────────
   useEffect(() => {
     if (!prefill) return;
+    const p = prefill as Record<string, unknown>;
     (async () => {
       if (prefill.client_id) {
         setEstimateType("client");
@@ -229,6 +230,27 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
           if (l) setSelectedLead(l as LeadEntity);
         } catch { /* ignore — picker stays empty */ }
       }
+
+      if (typeof p.selectedService === "string") setSelectedService(p.selectedService);
+      if (typeof p.squareFootage === "string") setSquareFootage(p.squareFootage);
+      if (typeof p.bedrooms === "number") setBedrooms(p.bedrooms);
+      if (typeof p.kitchens === "number") setKitchens(p.kitchens);
+      if (typeof p.livingRooms === "number") setLivingRooms(p.livingRooms);
+      if (typeof p.diningRooms === "number") setDiningRooms(p.diningRooms);
+      if (typeof p.offices === "number") setOffices(p.offices);
+      if (typeof p.fullBaths === "number") setFullBaths(p.fullBaths);
+      if (typeof p.halfBaths === "number") setHalfBaths(p.halfBaths);
+      if (typeof p.fans === "number") setFans(p.fans);
+      if (typeof p.oven === "number") setOven(p.oven);
+      if (typeof p.refrigerator === "number") setRefrigerator(p.refrigerator);
+      if (typeof p.blinds === "number") setBlinds(p.blinds);
+      if (typeof p.windowsInside === "number") setWindowsInside(p.windowsInside);
+      if (typeof p.windowsOutside === "number") setWindowsOutside(p.windowsOutside);
+      if (p.extras && typeof p.extras === "object") {
+        setExtras((prev) => ({ ...prev, ...(p.extras as ExtrasState) }));
+      }
+      if (p.pets === "yes" || p.pets === "no") setPets(p.pets);
+      if (typeof p.scope === "string") setScope(p.scope);
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

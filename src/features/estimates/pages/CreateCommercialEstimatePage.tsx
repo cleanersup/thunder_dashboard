@@ -213,6 +213,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   // ── Prefill from walkthrough ──────────────────────────────────────────────
   useEffect(() => {
     if (!prefill) return;
+    const p = prefill as Record<string, unknown>;
     (async () => {
       if (prefill.client_id) {
         setEstimateType("client");
@@ -227,6 +228,30 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
           if (l) setSelectedLead(l as LeadEntity);
         } catch { /* ignore */ }
       }
+
+      if (typeof p.propertyType === "string") setPropertyType(p.propertyType);
+      if (typeof p.isOtherProperty === "boolean") setIsOtherProperty(p.isOtherProperty);
+      if (typeof p.otherPropertyType === "string") setOtherPropertyType(p.otherPropertyType);
+      if (typeof p.propertySize === "string") setPropertySize(p.propertySize);
+      if (p.serviceType === "one-time" || p.serviceType === "recurrent") {
+        setServiceType(p.serviceType);
+      }
+      if (typeof p.recurringFrequency === "string") setRecurringFrequency(p.recurringFrequency);
+      if (Array.isArray(p.selectedWeekDays)) setSelectedWeekDays(p.selectedWeekDays as string[]);
+      if (typeof p.contractDuration === "string") setContractDuration(p.contractDuration);
+      if (typeof p.contractTimeUnit === "string") setContractTimeUnit(p.contractTimeUnit);
+      if (typeof p.clientProvidesSupplies === "boolean") setClientProvidesSupplies(p.clientProvidesSupplies);
+      if (typeof p.serviceSchedule === "string") setServiceSchedule(p.serviceSchedule);
+      if (typeof p.greaseLevel === "string") setGreaseLevel(p.greaseLevel);
+      if (typeof p.restaurantCondition === "string") setRestaurantCondition(p.restaurantCondition);
+      if (typeof p.dustLevel === "string") setDustLevel(p.dustLevel);
+      if (typeof p.propertyCondition === "string") setPropertyCondition(p.propertyCondition);
+      if (Array.isArray(p.extraServices)) setExtraServices(p.extraServices as string[]);
+      if (typeof p.employeeCount === "number") setEmployeeCount(p.employeeCount);
+      if (typeof p.hourlyRate === "string") setHourlyRate(p.hourlyRate);
+      if (typeof p.cleaningDuration === "number") setCleaningDuration(p.cleaningDuration);
+      if (typeof p.startTime === "string") setStartTime(p.startTime);
+      if (typeof p.scopeDetails === "string") setScopeDetails(p.scopeDetails);
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

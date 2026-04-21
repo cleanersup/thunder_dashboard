@@ -19,7 +19,10 @@ import {
   useUpdateWalkthroughStatus, useDeleteWalkthrough,
   useWalkthroughEmployees, useCurrentUserId, useSendWalkthroughStart,
 } from "../hooks/useWalkthroughs";
-import type { WalkthroughWithContact } from "../services/walkthroughsService";
+import {
+  buildEstimatePrefillFromWalkthrough,
+  type WalkthroughWithContact,
+} from "../services/walkthroughsService";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -108,22 +111,18 @@ export function WalkthroughDetailsPanel({
     navigate(`/walkthroughs/${walkthrough.id}/edit`);
   }
 
-  function handleGenerateEstimate() {
+  async function handleGenerateEstimate() {
     if (!walkthrough) return;
-    const path = walkthrough.service_type === "residential"
-      ? "/estimates/new/residential"
-      : "/estimates/new/commercial";
-    navigate(path, {
-      state: {
-        prefill: {
-          walkthrough_id: walkthrough.id,
-          contact_name:   walkthrough.contact_name,
-          client_id:      walkthrough.client_id,
-          lead_id:        walkthrough.lead_id,
-        },
-      },
-    });
-    onClose();
+    try {
+      const prefill = await buildEstimatePrefillFromWalkthrough(walkthrough);
+      const path = walkthrough.service_type === "residential"
+        ? "/estimates/new/residential"
+        : "/estimates/new/commercial";
+      navigate(path, { state: { prefill } });
+      onClose();
+    } catch {
+      toast.error("Could not load walkthrough data for the estimate");
+    }
   }
 
   function handleCancel() {

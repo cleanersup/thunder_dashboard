@@ -67,7 +67,10 @@ import { QRCodeSVG } from "qrcode.react";
 import { useWalkthroughs, useUpdateWalkthroughStatus, useDeleteWalkthrough, useSendWalkthroughStart } from "../hooks/useWalkthroughs";
 import { WalkthroughDetailsPanel } from "../components/WalkthroughDetailsPanel";
 import { AddWalkthroughPage } from "./AddWalkthroughPage";
-import type { WalkthroughWithContact } from "../services/walkthroughsService";
+import {
+  buildEstimatePrefillFromWalkthrough,
+  type WalkthroughWithContact,
+} from "../services/walkthroughsService";
 import { cn } from "@/shared/utils/cn";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -190,20 +193,16 @@ export function WalkthroughsPage() {
     navigate(path);
   }
 
-  function handleGenerateEstimate(w: WalkthroughWithContact) {
-    const path = w.service_type === "residential"
-      ? "/estimates/new/residential"
-      : "/estimates/new/commercial";
-    navigate(path, {
-      state: {
-        prefill: {
-          walkthrough_id: w.id,
-          contact_name:   w.contact_name,
-          client_id:      w.client_id,
-          lead_id:        w.lead_id,
-        },
-      },
-    });
+  async function handleGenerateEstimate(w: WalkthroughWithContact) {
+    try {
+      const prefill = await buildEstimatePrefillFromWalkthrough(w);
+      const path = w.service_type === "residential"
+        ? "/estimates/new/residential"
+        : "/estimates/new/commercial";
+      navigate(path, { state: { prefill } });
+    } catch {
+      toast.error("Could not load walkthrough data for the estimate");
+    }
   }
 
   function handleDownloadPDF() {
