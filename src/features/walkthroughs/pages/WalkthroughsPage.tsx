@@ -69,12 +69,16 @@ import { WalkthroughDetailsPanel } from "../components/WalkthroughDetailsPanel";
 import { AddWalkthroughPage } from "./AddWalkthroughPage";
 import {
   buildEstimatePrefillFromWalkthrough,
+  fetchWalkthroughPdfContext,
   type WalkthroughWithContact,
 } from "../services/walkthroughsService";
+import { buildWalkthroughPdfData } from "../utils/walkthroughPdfData";
+import { downloadWalkthroughPdf } from "../services/generateWalkthroughPDF";
 import { cn } from "@/shared/utils/cn";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/shared/hooks/useAuth";
+import { useProfile } from "@/shared/hooks/useProfile";
 
 // ─── KPI config ───────────────────────────────────────────────────────────────
 
@@ -122,6 +126,7 @@ export function WalkthroughsPage() {
   const { mutate: updateStatus } = useUpdateWalkthroughStatus();
   const { mutate: deleteMutate } = useDeleteWalkthrough();
   const { user } = useAuth();
+  const { data: profile } = useProfile();
   const { mutateAsync: sendWalkthroughStart, isPending: isStarting } = useSendWalkthroughStart();
 
   const [search, setSearch]             = useState("");
@@ -205,8 +210,27 @@ export function WalkthroughsPage() {
     }
   }
 
-  function handleDownloadPDF() {
-    toast.info("PDF download coming soon");
+  async function handleDownloadPDF(w: WalkthroughWithContact) {
+    if (!profile) {
+      toast.error("Loading profile… try again in a moment.");
+      return;
+    }
+    try {
+      const ctx = await fetchWalkthroughPdfContext(w.id);
+      const pdfData = buildWalkthroughPdfData(
+        profile,
+        ctx.walkthrough,
+        ctx.contact,
+        ctx.residential,
+        ctx.commercial,
+        ctx.employees,
+      );
+      downloadWalkthroughPdf(pdfData);
+      toast.success("PDF downloaded");
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not generate PDF");
+    }
   }
 
   function confirmCancel(w: WalkthroughWithContact) {
@@ -448,7 +472,7 @@ export function WalkthroughsPage() {
 
                         {/* Download PDF (all except estimate_sent) */}
                         {w.status !== "estimate_sent" && (
-                          <DropdownMenuItem onClick={() => handleDownloadPDF()}>
+                          <DropdownMenuItem onClick={() => void handleDownloadPDF(w)}>
                             <Download className="mr-2 h-4 w-4" />
                             Download PDF
                           </DropdownMenuItem>

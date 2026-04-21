@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import type { WalkthroughFormData } from "../schemas/walkthroughSchema";
 import { fetchContactInfo } from "../utils/walkthroughUtils";
 import {
@@ -330,6 +331,61 @@ export async function fetchAssignedEmployees(ids: string[]): Promise<AssignedEmp
     .in("id", ids);
   if (error) throw error;
   return (data ?? []) as AssignedEmployee[];
+}
+
+/** Employee row fields used by walkthrough PDF (includes job title). */
+export interface WalkthroughEmployeeForPdf {
+  first_name: string;
+  last_name: string;
+  position: string;
+}
+
+export async function fetchEmployeesForWalkthroughPdf(
+  ids: string[],
+): Promise<WalkthroughEmployeeForPdf[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from("employees")
+    .select("first_name, last_name, position")
+    .in("id", ids);
+  if (error) throw error;
+  return (data ?? []).map((e) => ({
+    first_name: e.first_name,
+    last_name: e.last_name,
+    position: e.position ?? "",
+  }));
+}
+
+type ResidentialWtRow = Database["public"]["Tables"]["residential_walkthrough_data"]["Row"];
+type CommercialWtRow = Database["public"]["Tables"]["commercial_walkthrough_data"]["Row"];
+
+/**
+ * Fetches walkthrough, resolved contact, on-site data rows, and assigned employees for PDF export.
+ */
+export async function fetchWalkthroughPdfContext(walkthroughId: string): Promise<{
+  walkthrough: WalkthroughWithContact;
+  contact: Awaited<ReturnType<typeof fetchContactInfo>>;
+  residential: ResidentialWtRow | null;
+  commercial: CommercialWtRow | null;
+  employees: WalkthroughEmployeeForPdf[];
+}> {
+  const walkthrough = await fetchWalkthrough(walkthroughId);
+  const assigned = Array.isArray(walkthrough.assigned_employees)
+    ? (walkthrough.assigned_employees as string[])
+    : [];
+  const [contact, resRes, comRes, employees] = await Promise.all([
+    fetchContactInfo(walkthrough.walkthrough_type, walkthrough.client_id, walkthrough.lead_id),
+    supabase.from("residential_walkthrough_data").select("*").eq("walkthrough_id", walkthroughId).maybeSingle(),
+    supabase.from("commercial_walkthrough_data").select("*").eq("walkthrough_id", walkthroughId).maybeSingle(),
+    fetchEmployeesForWalkthroughPdf(assigned),
+  ]);
+  return {
+    walkthrough,
+    contact,
+    residential: resRes.data,
+    commercial: comRes.data,
+    employees,
+  };
 }
 
 // ─── Current user ─────────────────────────────────────────────────────────────

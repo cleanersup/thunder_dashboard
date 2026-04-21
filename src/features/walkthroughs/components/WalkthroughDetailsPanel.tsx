@@ -21,8 +21,12 @@ import {
 } from "../hooks/useWalkthroughs";
 import {
   buildEstimatePrefillFromWalkthrough,
+  fetchWalkthroughPdfContext,
   type WalkthroughWithContact,
 } from "../services/walkthroughsService";
+import { buildWalkthroughPdfData } from "../utils/walkthroughPdfData";
+import { downloadWalkthroughPdf } from "../services/generateWalkthroughPDF";
+import { useProfile } from "@/shared/hooks/useProfile";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -80,6 +84,7 @@ export function WalkthroughDetailsPanel({
   const { data: userId }            = useCurrentUserId();
   const assignedIds                 = walkthrough?.assigned_employees ?? [];
   const { data: employeeList = [] } = useWalkthroughEmployees(assignedIds, open);
+  const { data: profile }           = useProfile();
 
   const contactCardUrl = `${import.meta.env.VITE_PUBLIC_APP_URL ?? window.location.origin}/contact-card/${userId ?? ""}`;
 
@@ -109,6 +114,30 @@ export function WalkthroughDetailsPanel({
     if (!walkthrough) return;
     onClose();
     navigate(`/walkthroughs/${walkthrough.id}/edit`);
+  }
+
+  async function handleDownloadPDF() {
+    if (!walkthrough || !profile) {
+      if (!profile) toast.error("Loading profile… try again in a moment.");
+      return;
+    }
+    try {
+      const ctx = await fetchWalkthroughPdfContext(walkthrough.id);
+      const pdfData = buildWalkthroughPdfData(
+        profile,
+        ctx.walkthrough,
+        ctx.contact,
+        ctx.residential,
+        ctx.commercial,
+        ctx.employees,
+      );
+      downloadWalkthroughPdf(pdfData);
+      toast.success("PDF downloaded");
+      onClose();
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not generate PDF");
+    }
   }
 
   async function handleGenerateEstimate() {
@@ -166,7 +195,7 @@ export function WalkthroughDetailsPanel({
           <Button size="sm" variant="outline" onClick={handleEdit} className="gap-1.5">
             <Edit className="h-3.5 w-3.5" /> Edit
           </Button>
-          <Button size="sm" variant="outline" onClick={() => toast.info("Coming soon")} className="px-2.5">
+          <Button size="sm" variant="outline" onClick={() => void handleDownloadPDF()} className="px-2.5">
             <Download className="h-3.5 w-3.5" />
           </Button>
           <Button
@@ -184,7 +213,7 @@ export function WalkthroughDetailsPanel({
           <Button size="sm" variant="outline" onClick={handleEdit} className="flex-1 gap-1.5">
             <Edit className="h-3.5 w-3.5" /> Edit
           </Button>
-          <Button size="sm" variant="outline" onClick={() => toast.info("Coming soon")} className="px-2.5">
+          <Button size="sm" variant="outline" onClick={() => void handleDownloadPDF()} className="px-2.5">
             <Download className="h-3.5 w-3.5" />
           </Button>
         </>
@@ -194,7 +223,7 @@ export function WalkthroughDetailsPanel({
           <Button size="sm" onClick={handleGenerateEstimate} className="flex-1 gap-1.5">
             <FileCheck className="h-3.5 w-3.5" /> Generate Estimate
           </Button>
-          <Button size="sm" variant="outline" onClick={() => toast.info("Coming soon")} className="px-2.5">
+          <Button size="sm" variant="outline" onClick={() => void handleDownloadPDF()} className="px-2.5">
             <Download className="h-3.5 w-3.5" />
           </Button>
         </>
@@ -204,7 +233,7 @@ export function WalkthroughDetailsPanel({
           <Button size="sm" variant="outline" onClick={handleEdit} className="flex-1 gap-1.5">
             <CalendarClock className="h-3.5 w-3.5" /> Reschedule
           </Button>
-          <Button size="sm" variant="outline" onClick={() => toast.info("Coming soon")} className="px-2.5">
+          <Button size="sm" variant="outline" onClick={() => void handleDownloadPDF()} className="px-2.5">
             <Download className="h-3.5 w-3.5" />
           </Button>
           <Button

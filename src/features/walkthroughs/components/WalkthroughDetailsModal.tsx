@@ -36,8 +36,12 @@ import { toast } from "sonner";
 import { useUpdateWalkthroughStatus, useDeleteWalkthrough, useWalkthroughEmployees, useCurrentUserId, useSendWalkthroughStart } from "../hooks/useWalkthroughs";
 import {
   buildEstimatePrefillFromWalkthrough,
+  fetchWalkthroughPdfContext,
   type WalkthroughWithContact,
 } from "../services/walkthroughsService";
+import { buildWalkthroughPdfData } from "../utils/walkthroughPdfData";
+import { downloadWalkthroughPdf } from "../services/generateWalkthroughPDF";
+import { useProfile } from "@/shared/hooks/useProfile";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +73,7 @@ export function WalkthroughDetailsModal({
   const { data: userId }      = useCurrentUserId();
   const assignedIds           = walkthrough?.assigned_employees ?? [];
   const { data: employeeList = [] } = useWalkthroughEmployees(assignedIds, open);
+  const { data: profile }     = useProfile();
 
   const contactCardUrl = `${import.meta.env.VITE_PUBLIC_APP_URL ?? window.location.origin}/contact-card/${userId ?? ""}`;
 
@@ -102,10 +107,6 @@ export function WalkthroughDetailsModal({
     navigate(path);
   }
 
-  function handleDownloadPDF() {
-    toast.info("PDF download coming soon");
-  }
-
   function handleCancel() {
     updateStatus(
       { id: walkthrough!.id, status: "Cancelled" },
@@ -128,6 +129,30 @@ export function WalkthroughDetailsModal({
         onOpenChange(false);
       },
     });
+  }
+
+  async function handleDownloadPDF() {
+    if (!profile) {
+      toast.error("Loading profile… try again in a moment.");
+      return;
+    }
+    try {
+      const ctx = await fetchWalkthroughPdfContext(walkthrough!.id);
+      const pdfData = buildWalkthroughPdfData(
+        profile,
+        ctx.walkthrough,
+        ctx.contact,
+        ctx.residential,
+        ctx.commercial,
+        ctx.employees,
+      );
+      downloadWalkthroughPdf(pdfData);
+      toast.success("PDF downloaded");
+      onOpenChange(false);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not generate PDF");
+    }
   }
 
   async function handleGenerateEstimate() {
