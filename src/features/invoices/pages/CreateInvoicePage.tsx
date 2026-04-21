@@ -830,7 +830,7 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
   if (isModal) {
     return (
       <>
-        <FullScreenModal open={open ?? false} onClose={goBack}>
+        <FullScreenModal open={open ?? false} onClose={() => setShowExitDialog(true)}>
           {/* Header — clean with bottom border only */}
           <div className="border-b flex-shrink-0 bg-white">
             <div className="max-w-2xl mx-auto">
@@ -846,7 +846,7 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 flex-shrink-0"
-                    onClick={goBack}
+                    onClick={() => setShowExitDialog(true)}
                   >
                     <X className="h-4 w-4" />
                   </Button>
