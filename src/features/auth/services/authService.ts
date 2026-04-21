@@ -81,18 +81,37 @@ export async function signUp(data: SignUpData): Promise<SignUpResult> {
   }
 
   // Create user profile
-  const { error: profileError } = await supabase.from("profiles").insert({
-    user_id: authData.user.id,
-    first_name: data.firstName,
-    last_name: data.lastName,
-    phone_number: data.phoneNumber,
-    company_name: data.companyName ?? null,
-    company_state: data.companyState,
-    referral_code: data.referralCode ?? null,
-    trial_start_date: new Date().toISOString(),
-  });
+  const { data: profileRow, error: profileError } = await supabase
+    .from("profiles")
+    .insert({
+      user_id: authData.user.id,
+      first_name: data.firstName,
+      last_name: data.lastName,
+      phone_number: data.phoneNumber,
+      company_name: data.companyName ?? null,
+      company_state: data.companyState,
+      referral_code: data.referralCode ?? null,
+      trial_start_date: new Date().toISOString(),
+    })
+    .select()
+    .single();
 
   if (profileError) throw profileError;
+
+  const { error: internalNotifyError } = await supabase.functions.invoke(
+    "notify-internal-registration",
+    {
+      body: {
+        type: "INSERT",
+        table: "profiles",
+        record: profileRow,
+        schema: "public",
+      },
+    },
+  );
+  if (internalNotifyError) {
+    console.error("[authService] Failed to notify internal team of signup:", internalNotifyError);
+  }
 
   const { error: welcomeError } = await supabase.functions.invoke(SIGNUP_WELCOME_EDGE_FUNCTION, {
     body: { userId: authData.user.id },
