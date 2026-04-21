@@ -67,7 +67,7 @@ interface EstimateDetailsModalProps {
   /** Called when the user clicks Edit — parent opens the create/edit modal */
   onEdit?:      (estimate: any) => void;
   /** Called after Continue / Start Fresh — parent opens the estimate wizard modal */
-  onOpenEstimateWizard?: (serviceType: string) => void;
+  onOpenEstimateWizard?: (serviceType: string, continueDraft?: boolean) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -294,7 +294,7 @@ export function EstimateDetailsModal({ open, onOpenChange, estimateId, onEdit, o
     if (!estimate) return;
     onOpenChange(false);
     if (onOpenEstimateWizard) {
-      onOpenEstimateWizard(estimate.service_type);
+      onOpenEstimateWizard(estimate.service_type, true);
     } else {
       const route = estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential";
       navigate(route);
@@ -308,7 +308,7 @@ export function EstimateDetailsModal({ open, onOpenChange, estimateId, onEdit, o
       qc.invalidateQueries({ queryKey: QK.estimates });
       onOpenChange(false);
       if (onOpenEstimateWizard) {
-        onOpenEstimateWizard(estimate.service_type);
+        onOpenEstimateWizard(estimate.service_type, false);
       } else {
         const route = estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential";
         navigate(route);

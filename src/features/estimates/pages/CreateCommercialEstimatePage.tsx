@@ -32,7 +32,7 @@ import type { DraftData } from "../types/estimate.types";
 interface Props {
   open?: boolean;
   onClose?: () => void;
-  initialState?: { isEditing?: boolean; estimateId?: string; estimateData?: any; prefill?: any; };
+  initialState?: { isEditing?: boolean; estimateId?: string; estimateData?: any; prefill?: any; continueDraft?: boolean; };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -41,7 +41,8 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   const location = useLocation();
   const locationState = (location.state as any) || {};
   const { isEditing, estimateId, estimateData, prefill } = initialState ?? locationState;
-  const isModal = onClose !== undefined;
+  const isModal      = onClose !== undefined;
+  const continueDraft = initialState?.continueDraft ?? false;
   const goBack = useCallback(() => {
     if (isModal) onClose!();
     else navigate(-1);
@@ -247,9 +248,9 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   const { saveDraft, deleteDraft, isSaving, lastSaved, loadedDraft, clearLoadedDraft } =
     useDraftEstimate({ serviceType: "Commercial" });
 
-  // Auto-restore draft on open (runs once when loadedDraft arrives from DB)
+  // Restore draft only when user explicitly chose "Continue" from the drafts list
   useEffect(() => {
-    if (!loadedDraft || isEditing) return;
+    if (!loadedDraft || isEditing || !continueDraft) return;
     const { draftData } = loadedDraft;
     const fd = draftData.formData as any;
 
@@ -326,9 +327,6 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
     scopeDetails, useCustomPrice, customPrice, applyDiscount, discountType, discountValue, deliveryMethod,
   ]);
 
-  useEffect(() => {
-    if (!isEditing) saveDraft(collectDraftData());
-  }, [collectDraftData, isEditing, saveDraft]);
 
   // ── Step navigation ───────────────────────────────────────────────────────
   const getNextStep = (from: number): number => from + 1;
@@ -632,7 +630,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       <ExitConfirmationDialog
         open={showExitDialog}
         isEditing={isEditing}
-        onSave={() => { saveDraft(collectDraftData()); setShowExitDialog(false); goBack(); }}
+        onSave={async () => { await saveDraft(collectDraftData()); setShowExitDialog(false); goBack(); }}
         onDiscard={async () => {
           if (!isEditing) await deleteDraft();
           setShowExitDialog(false);

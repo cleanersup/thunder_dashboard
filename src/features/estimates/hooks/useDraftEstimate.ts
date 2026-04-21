@@ -1,9 +1,9 @@
 /**
  * @module useDraftEstimate
- * Manages draft estimate persistence. Mirrors swift-slate's useDraftEstimate pattern.
+ * Manages draft estimate persistence.
  *
  * - On mount: checks DB for an existing is_draft=true row for the given service type.
- * - Exposes saveDraft() which debounces 3 s and skips identical payloads.
+ * - Exposes saveDraft() for explicit user-initiated saves (no auto-save).
  * - Exposes deleteDraft() to purge after successful submit or discard.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,35 +20,28 @@ interface UseDraftEstimateOptions {
 
 interface UseDraftEstimateReturn {
   /** ID of the persisted draft row (null while no draft exists yet) */
-  draftId:   string | null;
+  draftId:      string | null;
   /** Raw draft loaded on mount — consume once to restore form state */
-  loadedDraft: {
-    draftData: DraftData;
-    id: string;
-  } | null;
+  loadedDraft:  { draftData: DraftData; id: string } | null;
   /** Mark draft as consumed so DraftRecoveryDialog doesn't re-appear */
   clearLoadedDraft: () => void;
-  /** Schedule a save (debounced 3 s) */
-  saveDraft:  (data: DraftData) => void;
+  /** Immediately persist the draft — call only on explicit user action */
+  saveDraft:    (data: DraftData) => Promise<void>;
   /** Immediately delete the draft (after submit or discard) */
-  deleteDraft: () => Promise<void>;
-  isSaving:   boolean;
-  lastSaved:  Date | null;
+  deleteDraft:  () => Promise<void>;
+  isSaving:     boolean;
+  lastSaved:    Date | null;
 }
 
 export function useDraftEstimate({ serviceType }: UseDraftEstimateOptions): UseDraftEstimateReturn {
-  const [draftId,      setDraftId]      = useState<string | null>(null);
-  const [loadedDraft,  setLoadedDraft]  = useState<{ draftData: DraftData; id: string } | null>(null);
-  const [isSaving,     setIsSaving]     = useState(false);
-  const [lastSaved,    setLastSaved]    = useState<Date | null>(null);
+  const [draftId,     setDraftId]     = useState<string | null>(null);
+  const [loadedDraft, setLoadedDraft] = useState<{ draftData: DraftData; id: string } | null>(null);
+  const [isSaving,    setIsSaving]    = useState(false);
+  const [lastSaved,   setLastSaved]   = useState<Date | null>(null);
 
-  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastJsonRef  = useRef<string>("");
-  const draftIdRef   = useRef<string | null>(null);
-  // Set to true on discard so any in-flight saveDraftEstimate call won't persist
-  const discardedRef = useRef<boolean>(false);
+  const draftIdRef = useRef<string | null>(null);
 
-  // Keep ref in sync so saveDraft closure always sees latest id
+  // Keep ref in sync so saveDraft closure always sees the latest id
   useEffect(() => { draftIdRef.current = draftId; }, [draftId]);
 
   // ── Mount: load existing draft ───────────────────────────────────────────
@@ -70,41 +63,25 @@ export function useDraftEstimate({ serviceType }: UseDraftEstimateOptions): UseD
     return () => { cancelled = true; };
   }, [serviceType]);
 
-  // ── saveDraft (debounced, change-detected) ───────────────────────────────
-  const saveDraft = useCallback((data: DraftData) => {
-    const json = JSON.stringify(data);
-    if (json === lastJsonRef.current) return; // Nothing changed
-    lastJsonRef.current = json;
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      if (discardedRef.current) return; // discard happened while we were waiting
-      setIsSaving(true);
-      try {
-        const result = await saveDraftEstimate(serviceType, data, draftIdRef.current ?? undefined);
-        if (discardedRef.current) {
-          // discard happened while the save was in-flight — delete the just-created draft
-          if (result?.id) await deleteDraftEstimate(result.id);
-          return;
-        }
-        if (!draftIdRef.current && result?.id) {
-          setDraftId(result.id);
-          draftIdRef.current = result.id;
-        }
-        setLastSaved(new Date());
-      } catch {
-        // Silently ignore — draft saving is best-effort
-      } finally {
-        setIsSaving(false);
+  // ── saveDraft (immediate, explicit user action only) ─────────────────────
+  const saveDraft = useCallback(async (data: DraftData) => {
+    setIsSaving(true);
+    try {
+      const result = await saveDraftEstimate(serviceType, data, draftIdRef.current ?? undefined);
+      if (!draftIdRef.current && result?.id) {
+        setDraftId(result.id);
+        draftIdRef.current = result.id;
       }
-    }, 3000);
+      setLastSaved(new Date());
+    } catch {
+      // Best-effort — caller may choose to show a toast if needed
+    } finally {
+      setIsSaving(false);
+    }
   }, [serviceType]);
 
   // ── deleteDraft ──────────────────────────────────────────────────────────
   const deleteDraft = useCallback(async () => {
-    discardedRef.current = true;        // block any in-flight or pending save
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    lastJsonRef.current = "";
     const id = draftIdRef.current;
     if (!id) return;
     try {
@@ -119,9 +96,6 @@ export function useDraftEstimate({ serviceType }: UseDraftEstimateOptions): UseD
   }, []);
 
   const clearLoadedDraft = useCallback(() => setLoadedDraft(null), []);
-
-  // Cleanup debounce on unmount
-  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
   return { draftId, loadedDraft, clearLoadedDraft, saveDraft, deleteDraft, isSaving, lastSaved };
 }
