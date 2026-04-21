@@ -46,6 +46,7 @@ import { useSendEstimateEmail } from "../hooks/useSendEstimateEmail";
 import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { PDFService } from "@/shared/services/pdf.service";
 import { SidePanel } from "@/shared/components/common/SidePanel";
+import { buildInvoicePrefillFromEstimate } from "../utils/buildInvoicePrefill";
 
 // ─── Local helpers ────────────────────────────────────────────────────────────
 
@@ -86,6 +87,8 @@ interface EstimateDetailPanelProps {
   onEdit?:      (estimate: any) => void;
   /** Called after Continue / Start Fresh — parent opens the estimate wizard */
   onOpenEstimateWizard?: (serviceType: string, continueDraft?: boolean) => void;
+  /** Called when user clicks Convert to Invoice — parent opens invoice modal with prefill */
+  onConvertToInvoice?: (prefill: import("@/features/invoices/pages/CreateInvoicePage").InvoicePrefill) => void;
 }
 
 // ─── Footer component ─────────────────────────────────────────────────────────
@@ -249,7 +252,7 @@ function PanelFooter({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function EstimateDetailPanel({
-  open, onClose, estimateId, onEdit, onOpenEstimateWizard,
+  open, onClose, estimateId, onEdit, onOpenEstimateWizard, onConvertToInvoice,
 }: EstimateDetailPanelProps) {
   const navigate = useNavigate();
   const qc       = useQueryClient();
@@ -555,23 +558,13 @@ export function EstimateDetailPanel({
 
   function handleConvertToInvoice() {
     if (!estimate) return;
+    const prefill = buildInvoicePrefillFromEstimate(estimate);
     onClose();
-    const today = new Date(); const dueDate = new Date(); dueDate.setDate(today.getDate() + 7);
-    navigate("/invoices/new", {
-      state: {
-        selectedClient: {
-          full_name: estimate.client_name, company: estimate.company_name,
-          phone: estimate.phone, email: estimate.email,
-          service_street: estimate.address, service_apt: estimate.apt,
-          service_city: estimate.city, service_state: estimate.state, service_zip: estimate.zip,
-        },
-        invoiceType: "single", issueDate: today, dueDate,
-        invoiceTitle: `Service (${estimate.service_type})`,
-        lineItems: [{ id: Math.random().toString(36).slice(2, 9), description: estimate.service_type, price: estimate.total.toString(), qty: "1", total: estimate.total }],
-        discountType: estimate.discount_type ?? "", discountValue: estimate.discount_value?.toString() ?? "",
-        notes: estimate.service_scope ?? "",
-      },
-    });
+    if (onConvertToInvoice) {
+      onConvertToInvoice(prefill);
+    } else {
+      navigate("/invoices/new", { state: prefill });
+    }
   }
 
   function handleContinueDraft() {

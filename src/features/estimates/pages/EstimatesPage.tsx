@@ -29,10 +29,12 @@ import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { EstimateDetailPanel } from "../components/EstimateDetailPanel";
 import { CreateResidentialEstimatePage } from "./CreateResidentialEstimatePage";
 import { CreateCommercialEstimatePage } from "./CreateCommercialEstimatePage";
+import { CreateInvoicePage, type InvoicePrefill } from "@/features/invoices/pages/CreateInvoicePage";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { PDFService } from "@/shared/services/pdf.service";
 import { deleteDraftEstimate } from "../services/estimatesService";
+import { buildInvoicePrefillFromEstimate } from "../utils/buildInvoicePrefill";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -99,6 +101,8 @@ export function EstimatesPage() {
     editState?: { isEditing: boolean; estimateId: string; estimateData: any };
     continueDraft?: boolean;
   }>({ type: null });
+
+  const [invoiceModal, setInvoiceModal] = useState<{ open: boolean; prefill?: InvoicePrefill }>({ open: false });
 
   // ── Format rows ───────────────────────────────────────────────────────────
   const formattedEstimates = rawEstimates.map((e) => ({
@@ -266,17 +270,7 @@ export function EstimatesPage() {
   async function handleConvertToInvoice(estimate: any) {
     const { data } = await supabase.from("estimates").select("*").eq("id", estimate.id).single();
     if (!data) return;
-    const today = new Date(); const dueDate = new Date(); dueDate.setDate(today.getDate() + 7);
-    navigate("/invoices/new", {
-      state: {
-        selectedClient: { full_name: data.client_name, company: data.company_name, phone: data.phone, email: data.email, service_street: data.address, service_apt: data.apt, service_city: data.city, service_state: data.state, service_zip: data.zip },
-        invoiceType: "single", issueDate: today, dueDate,
-        invoiceTitle: `Service (${data.service_type})`,
-        lineItems: [{ id: Math.random().toString(36).slice(2, 9), description: data.service_type, price: data.total.toString(), qty: "1", total: data.total }],
-        discountType: data.discount_type ?? "", discountValue: data.discount_value?.toString() ?? "",
-        notes: data.service_scope ?? "",
-      },
-    });
+    setInvoiceModal({ open: true, prefill: buildInvoicePrefillFromEstimate(data) });
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -518,6 +512,7 @@ export function EstimatesPage() {
           })
         }
         onOpenEstimateWizard={(serviceType, continueDraft) => openEstimateForm(serviceType, undefined, continueDraft)}
+        onConvertToInvoice={(prefill) => setInvoiceModal({ open: true, prefill })}
       />
 
       <AlertDialog open={isAcceptDialogOpen} onOpenChange={setIsAcceptDialogOpen}>
@@ -564,6 +559,13 @@ export function EstimatesPage() {
       </AlertDialog>
 
       {/* ── Estimate form modals ──────────────────────────────────────────── */}
+      {/* ── Invoice modal (Convert to Invoice) ───────────────────────────── */}
+      <CreateInvoicePage
+        open={invoiceModal.open}
+        onClose={() => setInvoiceModal({ open: false })}
+        prefill={invoiceModal.prefill}
+      />
+
       {formModal.type === "residential" && (
         <CreateResidentialEstimatePage
           open

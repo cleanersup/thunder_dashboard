@@ -51,15 +51,29 @@ import { StripeCheckModal } from "../components/StripeCheckModal";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+export interface InvoicePrefill {
+  selectedClient?: { full_name: string; company?: string; phone: string; email: string; service_street: string; service_apt?: string; service_city: string; service_state: string; service_zip: string };
+  invoiceType?: string;
+  issueDate?: Date;
+  dueDate?: Date;
+  invoiceTitle?: string;
+  lineItems?: { id: string; description: string; price: string; qty: string; total: number }[];
+  discountType?: string;
+  discountValue?: string;
+  notes?: string;
+}
+
 interface CreateInvoicePageProps {
   /** When provided, renders as a full-screen Dialog. Omit for standalone page mode. */
   open?: boolean;
   onClose?: () => void;
   /** Pass an invoice ID to open in edit mode from a modal (no URL param needed). */
   editId?: string;
+  /** Prefill form data when opening from a modal (e.g. Convert to Invoice from estimate). */
+  prefill?: InvoicePrefill;
 }
 
-export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePageProps = {}) {
+export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp }: CreateInvoicePageProps = {}) {
   const navigate      = useNavigate();
   const location      = useLocation();
   const { id: urlId } = useParams<{ id?: string }>();
@@ -117,12 +131,7 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
   // ── Prefill from estimate conversion ──────────────────────────────────────
   useEffect(() => {
     if (isEditing) return;
-    const state = location.state as {
-      selectedClient?: { full_name: string; company?: string; phone: string; email: string; service_street: string; service_apt?: string; service_city: string; service_state: string; service_zip: string };
-      invoiceType?: string; issueDate?: Date; dueDate?: Date; invoiceTitle?: string;
-      lineItems?: { id: string; description: string; price: string; qty: string; total: number }[];
-      discountType?: string; discountValue?: string; notes?: string;
-    } | null;
+    const state = (prefillProp ?? location.state) as InvoicePrefill | null;
     if (!state?.selectedClient) return;
 
     const client: ClientEntity = {
