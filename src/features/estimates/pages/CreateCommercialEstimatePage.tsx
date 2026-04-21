@@ -77,11 +77,13 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   const [contractDuration,   setContractDuration]   = useState("");
   const [contractTimeUnit,   setContractTimeUnit]   = useState("months");
 
-  // ── Step 2: Details (Group B) ─────────────────────────────────────────────
+  // ── Step 2: Details ───────────────────────────────────────────────────────
   const [clientProvidesSupplies, setClientProvidesSupplies] = useState(false);
   const [serviceSchedule,        setServiceSchedule]        = useState("");
   const [greaseLevel,            setGreaseLevel]            = useState("");
   const [restaurantCondition,    setRestaurantCondition]    = useState("");
+  const [dustLevel,              setDustLevel]              = useState("");
+  const [propertyCondition,      setPropertyCondition]      = useState("");
   const [extraServices,          setExtraServices]          = useState<string[]>([]);
 
   // ── Step 3: Main ──────────────────────────────────────────────────────────
@@ -150,6 +152,8 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
         setServiceSchedule(ad.serviceSchedule ?? "");
         setGreaseLevel(ad.greaseLevel ?? "");
         setRestaurantCondition(ad.restaurantCondition ?? "");
+        setDustLevel(ad.dustLevel ?? "");
+        setPropertyCondition(ad.propertyCondition ?? "");
         setExtraServices(Array.isArray(ad.extraServices) ? ad.extraServices : []);
         setEmployeeCount(md.employees ?? 0);
         setHourlyRate(md.hourlyRate?.toString() ?? "");
@@ -265,6 +269,8 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
     if (fd.serviceSchedule        !== undefined) setServiceSchedule(fd.serviceSchedule);
     if (fd.greaseLevel            !== undefined) setGreaseLevel(fd.greaseLevel);
     if (fd.restaurantCondition    !== undefined) setRestaurantCondition(fd.restaurantCondition);
+    if (fd.dustLevel              !== undefined) setDustLevel(fd.dustLevel);
+    if (fd.propertyCondition      !== undefined) setPropertyCondition(fd.propertyCondition);
     if (fd.extraServices          !== undefined) setExtraServices(fd.extraServices);
     if (fd.employeeCount    !== undefined) setEmployeeCount(fd.employeeCount);
     if (fd.hourlyRate       !== undefined) setHourlyRate(fd.hourlyRate);
@@ -305,7 +311,8 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
     formData: {
       propertyType, isOtherProperty, otherPropertyType, propertySize,
       serviceType, recurringFrequency, selectedWeekDays, contractDuration, contractTimeUnit,
-      clientProvidesSupplies, serviceSchedule, greaseLevel, restaurantCondition, extraServices,
+      clientProvidesSupplies, serviceSchedule, greaseLevel, restaurantCondition,
+      dustLevel, propertyCondition, extraServices,
       employeeCount, hourlyRate, cleaningDuration, startTime,
       scopeDetails, useCustomPrice, customPrice, applyDiscount, discountType, discountValue, deliveryMethod,
     },
@@ -313,7 +320,8 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
     currentStep, estimateType, selectedClient, selectedLead,
     propertyType, isOtherProperty, otherPropertyType, propertySize,
     serviceType, recurringFrequency, selectedWeekDays, contractDuration, contractTimeUnit,
-    clientProvidesSupplies, serviceSchedule, greaseLevel, restaurantCondition, extraServices,
+    clientProvidesSupplies, serviceSchedule, greaseLevel, restaurantCondition,
+    dustLevel, propertyCondition, extraServices,
     employeeCount, hourlyRate, cleaningDuration, startTime,
     scopeDetails, useCustomPrice, customPrice, applyDiscount, discountType, discountValue, deliveryMethod,
   ]);
@@ -340,11 +348,15 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       if (!serviceType)   errs.serviceType   = true;
       if (serviceType === "recurrent" && !recurringFrequency) errs.recurringFrequency = true;
     }
-    if (step === 2 && groupB) {
-      if (!serviceSchedule)     errs.serviceSchedule     = true;
-      if (!greaseLevel)         errs.greaseLevel         = true;
-      if (!restaurantCondition) errs.restaurantCondition = true;
-      // non-groupB: no required fields at this step (client provides supplies + extras are optional)
+    if (step === 2) {
+      if (!serviceSchedule) errs.serviceSchedule = true;
+      if (groupB) {
+        if (!greaseLevel)         errs.greaseLevel         = true;
+        if (!restaurantCondition) errs.restaurantCondition = true;
+      } else {
+        if (!dustLevel)        errs.dustLevel        = true;
+        if (!propertyCondition) errs.propertyCondition = true;
+      }
     }
     if (step === 3) {
       if (employeeCount <= 0)    errs.employeeCount    = true;
@@ -408,7 +420,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
           clientProvidesSupplies, frequency: recurringFrequency,
           selectedWeekDays, contractDuration, contractTimeUnit,
         },
-        additional_data: { serviceSchedule, greaseLevel, restaurantCondition, extraServices },
+        additional_data: { serviceSchedule, greaseLevel, restaurantCondition, dustLevel, propertyCondition, extraServices },
         labor_cost:           costs.laborCost,
         supplies_cost:        costs.suppliesCost,
         overhead_cost:        costs.overheadCost,
@@ -502,11 +514,14 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
         <CommDetailsStep
           groupB={groupB}
           serviceSchedule={serviceSchedule} greaseLevel={greaseLevel}
-          restaurantCondition={restaurantCondition} clientProvidesSupplies={clientProvidesSupplies}
+          restaurantCondition={restaurantCondition} dustLevel={dustLevel}
+          propertyCondition={propertyCondition} clientProvidesSupplies={clientProvidesSupplies}
           extraServices={extraServices} errors={errors}
           onServiceScheduleChange={setServiceSchedule}
           onGreaseLevelChange={setGreaseLevel}
           onRestaurantConditionChange={setRestaurantCondition}
+          onDustLevelChange={setDustLevel}
+          onPropertyConditionChange={setPropertyCondition}
           onClientProvidesSuppliesChange={setClientProvidesSupplies}
           onExtraServiceToggle={(s) => setExtraServices((prev) =>
             prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
@@ -573,6 +588,8 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
             serviceSchedule={serviceSchedule}
             greaseLevel={greaseLevel}
             restaurantCondition={restaurantCondition}
+            dustLevel={dustLevel}
+            propertyCondition={propertyCondition}
             clientProvidesSupplies={clientProvidesSupplies}
             extraServices={extraServices}
             employeeCount={employeeCount}
