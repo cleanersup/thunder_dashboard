@@ -131,6 +131,8 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
   // ── Prefill from estimate conversion ──────────────────────────────────────
   useEffect(() => {
     if (isEditing) return;
+    // In modal mode, only apply when the modal is opening
+    if (isModal && !open) return;
     const state = (prefillProp ?? location.state) as InvoicePrefill | null;
     if (!state?.selectedClient) return;
 
@@ -165,7 +167,7 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
         total: typeof i.total === "number" ? i.total : parseFloat(String(i.total)) || 0,
       })));
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, prefillProp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load invoice on edit mode ──────────────────────────────────────────────
   const { data: invoiceData } = useInvoice(isEditing ? id : undefined);
