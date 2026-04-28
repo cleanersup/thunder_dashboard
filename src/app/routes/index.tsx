@@ -26,6 +26,7 @@ const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPag
 
 // Phase 5 — CRM ✅
 const CRMPage = lazy(() => import("@/features/crm/pages/CRMPage"));
+const ClientWalletPage = lazy(() => import("@/features/crm/clients/pages/ClientWalletPage").then((m) => ({ default: m.ClientWalletPage })));
 const NotificationsPage = lazy(() => import("@/features/notifications/pages/NotificationsPage"));
 
 // Phase 6 — Booking ✅
@@ -111,6 +112,7 @@ export function AppRouter() {
 
           {/* Phase 5 ✅ */}
           <Route path="/crm" element={<ProtectedRoute requireFeature="crm"><CRMPage /></ProtectedRoute>} />
+          <Route path="/client/wallet/:token" element={<ClientWalletPage />} />
           <Route path="/notifications" element={<ProtectedRoute requireSubscription={false}><NotificationsPage /></ProtectedRoute>} />
 
           {/* Phase 6 ✅ */}

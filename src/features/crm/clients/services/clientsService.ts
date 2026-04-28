@@ -1,5 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { ClientInsert, ClientUpdate } from "../../types/crm.types";
+import type { Client, ClientInsert, ClientUpdate } from "../../types/crm.types";
+
+export interface ClientWalletLink {
+  url: string;
+  token: string;
+  expiresAt: string;
+}
 
 /**
  * Fetches all clients for the authenticated user, ordered by creation date descending.
@@ -15,7 +21,7 @@ export async function fetchClients() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as Client[];
 }
 
 /**
@@ -31,7 +37,7 @@ export async function fetchClient(id: string) {
     .eq("id", id)
     .single();
   if (error) throw error;
-  return data;
+  return data as Client;
 }
 
 /**
@@ -62,12 +68,12 @@ export async function createClient(payload: Omit<ClientInsert, "user_id">) {
 export async function updateClient(id: string, payload: ClientUpdate) {
   const { data, error } = await supabase
     .from("clients")
-    .update({ ...payload, updated_at: new Date().toISOString() })
+    .update({ ...(payload as Record<string, unknown>), updated_at: new Date().toISOString() })
     .eq("id", id)
     .select()
     .single();
   if (error) throw error;
-  return data;
+  return data as Client;
 }
 
 /**
@@ -94,5 +100,33 @@ export async function findClientByEmail(userId: string, email: string) {
     .eq("email", email)
     .limit(1)
     .maybeSingle();
-  return data ?? null;
+  return (data as Client | null) ?? null;
+}
+
+/**
+ * Issues a secure public wallet setup link for a CRM client.
+ * Card details are collected by Stripe Checkout, never by the dashboard.
+ */
+export async function issueClientWalletLink(clientId: string): Promise<ClientWalletLink> {
+  const { data, error } = await supabase.functions.invoke("client-wallet-issue-token", {
+    body: { clientId },
+  });
+
+  if (error) throw error;
+  if (!data?.url) throw new Error("Could not create payment setup link");
+
+  return data as ClientWalletLink;
+}
+
+/**
+ * Clears the default saved card snapshot for a client.
+ */
+export async function clearClientSavedCard(clientId: string): Promise<Client> {
+  return updateClient(clientId, {
+    stripe_default_payment_method_id: null,
+    card_brand: null,
+    card_last4: null,
+    card_exp_month: null,
+    card_exp_year: null,
+  });
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   User, Building2, Phone, Mail, MapPin, MessageSquare,
   MessageCircle, Briefcase, FileText, Edit, Trash2, UserX, UserCheck, Route, Receipt,
+  CreditCard, Copy, ExternalLink, Loader2,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -10,7 +11,13 @@ import {
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { SidePanel } from "@/shared/components/common/SidePanel";
 import { ClientForm } from "./ClientForm";
-import { useClient, useDeleteClient, useUpdateClient } from "../hooks/useClients";
+import {
+  useClient,
+  useDeleteClient,
+  useUpdateClient,
+  useIssueClientWalletLink,
+  useClearClientSavedCard,
+} from "../hooks/useClients";
 import { CLIENT_STATUS_BADGE } from "@/shared/constants/styleTokens";
 import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import { toast } from "sonner";
@@ -41,8 +48,11 @@ interface ClientDetailPanelProps {
 export function ClientDetailPanel({ client, open, onClose }: ClientDetailPanelProps) {
   const { mutate: deleteClient } = useDeleteClient();
   const { mutate: updateClient } = useUpdateClient();
+  const issueWalletLink = useIssueClientWalletLink();
+  const clearSavedCard = useClearClientSavedCard();
   const [showEdit, setShowEdit]     = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showRemoveCard, setShowRemoveCard] = useState(false);
 
   const { data: liveClient } = useClient(client?.id);
   const c = liveClient ?? client;
@@ -56,6 +66,28 @@ export function ClientDetailPanel({ client, open, onClose }: ClientDetailPanelPr
     if (!c) return;
     const next = c.status === "active" ? "inactive" : "active";
     updateClient({ id: c.id, payload: { status: next } });
+  };
+
+  const handleCopyPaymentSetupLink = () => {
+    if (!c) return;
+    issueWalletLink.mutate(c.id, {
+      onSuccess: async ({ url }) => {
+        await navigator.clipboard.writeText(url);
+        toast.success("Payment setup link copied");
+      },
+    });
+  };
+
+  const handleOpenPaymentSetup = () => {
+    if (!c) return;
+    issueWalletLink.mutate(c.id, {
+      onSuccess: ({ url }) => window.open(url, "_blank", "noopener,noreferrer"),
+    });
+  };
+
+  const handleRemoveSavedCard = () => {
+    if (!c) return;
+    clearSavedCard.mutate(c.id, { onSuccess: () => setShowRemoveCard(false) });
   };
 
   const badge = c
@@ -124,6 +156,12 @@ export function ClientDetailPanel({ client, open, onClose }: ClientDetailPanelPr
     `${c.service_street}${c.service_apt ? `, ${c.service_apt}` : ""}`,
     `${c.service_city}, ${c.service_state} ${c.service_zip}`,
   ].join("\n");
+
+  const hasSavedCard = !!c.stripe_default_payment_method_id;
+  const cardBrand = c.card_brand ? c.card_brand.toUpperCase() : "CARD";
+  const cardExpiry = c.card_exp_month && c.card_exp_year
+    ? `${String(c.card_exp_month).padStart(2, "0")}/${String(c.card_exp_year).slice(-2)}`
+    : "—";
 
   return (
     <>
@@ -234,6 +272,82 @@ export function ClientDetailPanel({ client, open, onClose }: ClientDetailPanelPr
             )}
           </section>
 
+          <hr className="border-border" />
+
+          {/* Payment Methods */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Payment Methods</h3>
+              {issueWalletLink.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            </div>
+
+            {hasSavedCard ? (
+              <div className="rounded-lg border border-border p-3 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-md bg-primary/10">
+                    <CreditCard className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">
+                      {cardBrand} ending in {c.card_last4 ?? "••••"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Default card · Expires {cardExpiry}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyPaymentSetupLink}
+                    disabled={issueWalletLink.isPending}
+                  >
+                    <Copy className="h-3.5 w-3.5 mr-1.5" /> Setup Link
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setShowRemoveCard(true)}
+                    disabled={clearSavedCard.isPending}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Remove
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-border p-3 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-md bg-muted">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">No card on file</p>
+                    <p className="text-xs text-muted-foreground">
+                      Send the client a secure Stripe setup link to save a card for future invoices.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyPaymentSetupLink}
+                    disabled={issueWalletLink.isPending}
+                  >
+                    <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy Link
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleOpenPaymentSetup}
+                    disabled={issueWalletLink.isPending}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Open
+                  </Button>
+                </div>
+              </div>
+            )}
+          </section>
+
         </div>
       </SidePanel>
 
@@ -246,6 +360,16 @@ export function ClientDetailPanel({ client, open, onClose }: ClientDetailPanelPr
         onConfirm={handleDelete}
         confirmLabel="Delete"
         variant="destructive"
+      />
+      <ConfirmDialog
+        open={showRemoveCard}
+        onOpenChange={setShowRemoveCard}
+        title="Remove Saved Card"
+        description="This removes the saved card from the dashboard for future charges. It will not delete the client."
+        onConfirm={handleRemoveSavedCard}
+        confirmLabel="Remove Card"
+        variant="destructive"
+        isLoading={clearSavedCard.isPending}
       />
     </>
   );

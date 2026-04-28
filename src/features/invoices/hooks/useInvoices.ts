@@ -10,6 +10,7 @@ import {
   createInvoice,
   updateInvoice,
   markInvoiceAsPaid,
+  chargeInvoiceSavedCard,
   cancelInvoice,
   markReminderSent,
   deleteInvoice,
@@ -123,6 +124,24 @@ export function useMarkInvoiceAsPaid() {
     },
     onError: (err: Error) => {
       toast.error(err.message);
+    },
+  });
+}
+
+export function useChargeInvoiceSavedCard() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => chargeInvoiceSavedCard(id),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: QK.invoices });
+      qc.invalidateQueries({ queryKey: QK.invoice(id) });
+      qc.invalidateQueries({ queryKey: QK.clients });
+      qc.invalidateQueries({ queryKey: ["client-by-email"] });
+      toast.success("Invoice paid with card on file");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Could not charge card on file");
     },
   });
 }

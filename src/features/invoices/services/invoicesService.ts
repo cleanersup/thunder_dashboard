@@ -233,6 +233,35 @@ export async function markInvoiceAsPaid(
 }
 
 /**
+ * Charge a pending invoice using the client's saved default card.
+ * The edge function validates ownership, charges Stripe, and marks the invoice Paid.
+ */
+export async function chargeInvoiceSavedCard(id: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke("stripe-charge-saved-invoice", {
+    body: { invoiceId: id },
+  });
+
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    let edgeMessage: string | undefined;
+
+    if (context) {
+      try {
+        const payload = await context.clone().json();
+        edgeMessage = payload?.error;
+      } catch {
+        // Fall through to Supabase's original error when response parsing fails.
+      }
+    }
+
+    if (edgeMessage) throw new Error(edgeMessage);
+    throw error;
+  }
+
+  if (data?.error) throw new Error(data.error);
+}
+
+/**
  * Mark an invoice as Cancelled.
  *
  * @param id - Invoice UUID

@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import {
   CheckCircle, Clock, Mail, Phone, MapPin, Building2, Calendar,
   FileText, Download, DollarSign, XCircle, Loader2, Pencil, MoreHorizontal,
+  CreditCard,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -31,13 +32,19 @@ import {
 } from "@/shared/components/ui/dropdown-menu";
 import { toast }          from "sonner";
 import { formatCurrency, formatDateOnly } from "@/shared/utils/formatters";
-import { useInvoice, useMarkInvoiceAsPaid, useCancelInvoice } from "../hooks/useInvoices";
+import {
+  useInvoice,
+  useMarkInvoiceAsPaid,
+  useChargeInvoiceSavedCard,
+  useCancelInvoice,
+} from "../hooks/useInvoices";
 import { useSendInvoiceEmail }      from "../hooks/useSendInvoiceEmail";
 import { useInvoiceDetailRealtime } from "../hooks/useInvoiceRealtime";
 import { useInvoicePDFDownload }    from "../hooks/useInvoicePDFDownload";
 import { INVOICE_STATUS_COLOR, INVOICE_STATUS_BG } from "../utils/invoiceStatusHelpers";
 import { safeParseLineItems } from "../utils/invoiceCalculations";
 import { SidePanel }       from "@/shared/components/common/SidePanel";
+import { useClientByEmail } from "@/features/crm/clients/hooks/useClients";
 import type { InvoiceStatus } from "../types/invoice.types";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -59,15 +66,17 @@ export function InvoiceDetailPanel({
   const { downloadPDF }                    = useInvoicePDFDownload();
   const { sendInvoiceEmail, isSending }    = useSendInvoiceEmail();
   const markPaid                           = useMarkInvoiceAsPaid();
+  const chargeSavedCard                    = useChargeInvoiceSavedCard();
   const cancelInv                          = useCancelInvoice();
 
   const { data: invoice, isLoading } = useInvoice(open && invoiceId ? invoiceId : undefined);
+  const { data: paymentClient } = useClientByEmail(invoice?.user_id, invoice?.email);
   useInvoiceDetailRealtime(invoiceId, open);
 
   // ── Local dialog state ────────────────────────────────────────────────────────
   const [isPaymentDialogOpen,      setIsPaymentDialogOpen]      = useState(false);
   const [isCancelDialogOpen,       setIsCancelDialogOpen]       = useState(false);
-  const [selectedPayment,          setSelectedPayment]          = useState<"Cash" | "Cheque" | null>(null);
+  const [selectedPayment,          setSelectedPayment]          = useState<"Cash" | "Cheque" | "CardOnFile" | null>(null);
   const [showChequeInput,          setShowChequeInput]          = useState(false);
   const [chequeNumber,             setChequeNumber]             = useState("");
   const [showSuccessDialog,        setShowSuccessDialog]        = useState(false);
@@ -78,6 +87,24 @@ export function InvoiceDetailPanel({
 
   const handleMarkAsPaid = () => {
     if (!invoice || !selectedPayment) return;
+
+    if (selectedPayment === "CardOnFile") {
+      chargeSavedCard.mutate(invoice.id, {
+        onSuccess: () => {
+          setPaymentDetails({
+            method: "Card on file",
+            amount: invoice.total,
+          });
+          setIsPaymentDialogOpen(false);
+          setShowChequeInput(false);
+          setChequeNumber("");
+          setSelectedPayment(null);
+          setShowSuccessDialog(true);
+        },
+      });
+      return;
+    }
+
     if (selectedPayment === "Cheque" && !chequeNumber.trim()) {
       toast.error("Please enter a cheque number");
       return;
@@ -127,6 +154,11 @@ export function InvoiceDetailPanel({
 
   const { items: lineItems, error: lineItemsError } = safeParseLineItems(invoice?.line_items);
   const subtotal = lineItems.reduce((s, i) => s + i.total, 0);
+  const hasCardOnFile = !!paymentClient?.stripe_default_payment_method_id;
+  const cardLabel = hasCardOnFile
+    ? `${paymentClient?.card_brand?.toUpperCase() ?? "CARD"} ending in ${paymentClient?.card_last4 ?? "••••"}`
+    : "";
+  const isPaymentProcessing = markPaid.isPending || chargeSavedCard.isPending;
 
   // ── Footer ────────────────────────────────────────────────────────────────────
 
@@ -483,10 +515,20 @@ export function InvoiceDetailPanel({
           <AlertDialogHeader>
             <AlertDialogTitle>Mark as Paid</AlertDialogTitle>
             <AlertDialogDescription>
-              Select the payment method to mark this invoice as paid.
+              Select the payment method to process or record this invoice payment.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3 py-4">
+            {hasCardOnFile && (
+              <Button
+                variant={selectedPayment === "CardOnFile" ? "default" : "outline"}
+                className="w-full justify-start"
+                onClick={() => { setSelectedPayment("CardOnFile"); setShowChequeInput(false); }}
+              >
+                <CreditCard className="w-4 h-4 mr-2" /> Card on file
+                <span className="ml-auto text-xs opacity-80">{cardLabel}</span>
+              </Button>
+            )}
             <Button
               variant={selectedPayment === "Cash" ? "default" : "outline"}
               className="w-full justify-start"
@@ -515,10 +557,10 @@ export function InvoiceDetailPanel({
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleMarkAsPaid}
-              disabled={!selectedPayment || markPaid.isPending}
+              disabled={!selectedPayment || isPaymentProcessing}
               style={{ backgroundColor: "hsl(var(--green-vibrant))" }}
             >
-              {markPaid.isPending ? "Processing..." : "Confirm Payment"}
+              {isPaymentProcessing ? "Processing..." : "Confirm Payment"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

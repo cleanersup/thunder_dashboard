@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import {
   Plus, FileEdit, XCircle, ChevronLeft, ChevronRight, Search,
   Calendar as CalendarIcon, CheckCircle, Clock, MoreHorizontal,
-  Eye, Mail, Download, Edit, Share, RefreshCw, Trash2,
+  Eye, Mail, Download, Edit, Share, RefreshCw, Trash2, CreditCard,
 } from "lucide-react";
 import { Card, CardContent }         from "@/shared/components/ui/card";
 import { Button }                     from "@/shared/components/ui/button";
@@ -37,13 +37,20 @@ import { cn }        from "@/shared/utils/cn";
 import { toast }     from "sonner";
 import { supabase }  from "@/integrations/supabase/client";
 import { formatCurrency, formatDateOnly, parseDateOnly } from "@/shared/utils/formatters";
-import { useInvoices, useMarkInvoiceAsPaid, useCancelInvoice, useDeleteInvoice } from "../hooks/useInvoices";
+import {
+  useInvoices,
+  useMarkInvoiceAsPaid,
+  useChargeInvoiceSavedCard,
+  useCancelInvoice,
+  useDeleteInvoice,
+} from "../hooks/useInvoices";
 import { useSendInvoiceEmail }      from "../hooks/useSendInvoiceEmail";
 import { useInvoicesListRealtime }  from "../hooks/useInvoiceRealtime";
 import { useInvoicePDFDownload }    from "../hooks/useInvoicePDFDownload";
 import { InvoiceDetailPanel }       from "../components/InvoiceDetailPanel";
 import { CreateInvoicePage }        from "./CreateInvoicePage";
 import { INVOICE_STATUS_BADGE, INVOICE_STATUS_BORDER } from "../utils/invoiceStatusHelpers";
+import { useClientByEmail } from "@/features/crm/clients/hooks/useClients";
 import type { Invoice, InvoiceStatus } from "../types/invoice.types";
 
 const ITEMS_PER_PAGE = 10;
@@ -54,6 +61,7 @@ export function InvoicesPage() {
   const { sendInvoiceEmail, isSending } = useSendInvoiceEmail();
   const { downloadPDF } = useInvoicePDFDownload();
   const markPaid   = useMarkInvoiceAsPaid();
+  const chargeSavedCard = useChargeInvoiceSavedCard();
   const cancelInv  = useCancelInvoice();
   const deleteInv  = useDeleteInvoice();
 
@@ -102,12 +110,13 @@ export function InvoicesPage() {
   const [isPaymentDialogOpen,   setIsPaymentDialogOpen]   = useState(false);
   const [isCancelDialogOpen,    setIsCancelDialogOpen]    = useState(false);
   const [isDeleteDraftOpen,     setIsDeleteDraftOpen]     = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"Cash" | "Cheque" | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"Cash" | "Cheque" | "CardOnFile" | null>(null);
   const [showChequeInput,       setShowChequeInput]       = useState(false);
   const [chequeNumber,          setChequeNumber]          = useState("");
 
   // ── Data ─────────────────────────────────────────────────────────────────────
   const { data: allInvoices = [], isLoading } = useInvoices();
+  const { data: actionPaymentClient } = useClientByEmail(actionInvoice?.user_id, actionInvoice?.email);
 
   const paid      = allInvoices.filter((i) => i.status === "Paid");
   const pending   = allInvoices.filter((i) => i.status === "Pending");
@@ -149,6 +158,20 @@ export function InvoicesPage() {
   // ── Quick-action handlers (from dropdown, no modal) ──────────────────────────
   const handleQuickPay = () => {
     if (!actionInvoice || !selectedPaymentMethod) return;
+
+    if (selectedPaymentMethod === "CardOnFile") {
+      chargeSavedCard.mutate(actionInvoice.id, {
+        onSuccess: () => {
+          setIsPaymentDialogOpen(false);
+          setSelectedPaymentMethod(null);
+          setShowChequeInput(false);
+          setChequeNumber("");
+          setActionInvoice(null);
+        },
+      });
+      return;
+    }
+
     if (selectedPaymentMethod === "Cheque" && !chequeNumber.trim()) {
       toast.error("Please enter a cheque number");
       return;
@@ -177,6 +200,11 @@ export function InvoicesPage() {
     });
   };
 
+  const actionHasCardOnFile = !!actionPaymentClient?.stripe_default_payment_method_id;
+  const actionCardLabel = actionHasCardOnFile
+    ? `${actionPaymentClient?.card_brand?.toUpperCase() ?? "CARD"} ending in ${actionPaymentClient?.card_last4 ?? "••••"}`
+    : "";
+  const isQuickPaymentProcessing = markPaid.isPending || chargeSavedCard.isPending;
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
@@ -542,10 +570,21 @@ export function InvoicesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Mark as Paid</AlertDialogTitle>
             <AlertDialogDescription>
-              Select the payment method to mark this invoice as paid.
+              Select the payment method to process or record this invoice payment.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3 py-4">
+            {actionHasCardOnFile && (
+              <Button
+                variant={selectedPaymentMethod === "CardOnFile" ? "default" : "outline"}
+                className="w-full justify-start"
+                onClick={() => { setSelectedPaymentMethod("CardOnFile"); setShowChequeInput(false); }}
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                Card on file
+                <span className="ml-auto text-xs opacity-80">{actionCardLabel}</span>
+              </Button>
+            )}
             <Button
               variant={selectedPaymentMethod === "Cash" ? "default" : "outline"}
               className="w-full justify-start"
@@ -581,10 +620,10 @@ export function InvoicesPage() {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleQuickPay}
-              disabled={!selectedPaymentMethod || markPaid.isPending}
+              disabled={!selectedPaymentMethod || isQuickPaymentProcessing}
               style={{ backgroundColor: "hsl(var(--green-vibrant))" }}
             >
-              {markPaid.isPending ? "Processing..." : "Confirm Payment"}
+              {isQuickPaymentProcessing ? "Processing..." : "Confirm Payment"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
