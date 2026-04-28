@@ -8,6 +8,8 @@ import {
   deleteClient,
   findClientByEmail,
   issueClientWalletLink,
+  createClientCardSetupIntent,
+  finalizeClientCardSetup,
   clearClientSavedCard,
 } from "../services/clientsService";
 import type { ClientInsert, ClientUpdate } from "../../types/crm.types";
@@ -78,6 +80,28 @@ export function useIssueClientWalletLink() {
   return useMutation({
     mutationFn: issueClientWalletLink,
     onError: (err: Error) => toast.error(err.message || "Failed to create payment setup link"),
+  });
+}
+
+export function useCreateClientCardSetupIntent() {
+  return useMutation({
+    mutationFn: createClientCardSetupIntent,
+    onError: (err: Error) => toast.error(err.message || "Failed to start card setup"),
+  });
+}
+
+export function useFinalizeClientCardSetup() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: finalizeClientCardSetup,
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: QK.clients });
+      qc.invalidateQueries({ queryKey: QK.client(data.id) });
+      qc.invalidateQueries({ queryKey: ["client-by-email"] });
+      toast.success("Card saved successfully");
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to save card"),
   });
 }
 

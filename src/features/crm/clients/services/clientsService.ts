@@ -7,6 +7,12 @@ export interface ClientWalletLink {
   expiresAt: string;
 }
 
+export interface ClientCardSetupIntent {
+  clientSecret: string;
+  setupIntentId: string;
+  connectedAccountId: string;
+}
+
 /**
  * Fetches all clients for the authenticated user, ordered by creation date descending.
  * @returns Array of client records
@@ -116,6 +122,57 @@ export async function issueClientWalletLink(clientId: string): Promise<ClientWal
   if (!data?.url) throw new Error("Could not create payment setup link");
 
   return data as ClientWalletLink;
+}
+
+async function parseFunctionError(error: unknown): Promise<Error> {
+  const context = (error as { context?: Response }).context;
+  if (context) {
+    try {
+      const payload = await context.clone().json();
+      if (payload?.error) return new Error(payload.error);
+    } catch {
+      // Use the Supabase error below when the function response is not JSON.
+    }
+  }
+
+  return error instanceof Error ? error : new Error("Request failed");
+}
+
+/**
+ * Creates a Stripe SetupIntent on the merchant connected account.
+ */
+export async function createClientCardSetupIntent(clientId: string): Promise<ClientCardSetupIntent> {
+  const { data, error } = await supabase.functions.invoke("stripe-client-card-setup", {
+    body: { action: "create", clientId },
+  });
+
+  if (error) throw await parseFunctionError(error);
+  if (!data?.clientSecret || !data?.connectedAccountId) {
+    throw new Error("Could not start card setup");
+  }
+
+  return data as ClientCardSetupIntent;
+}
+
+/**
+ * Persists the confirmed Stripe card snapshot as the client's default card.
+ */
+export async function finalizeClientCardSetup({
+  clientId,
+  setupIntentId,
+}: {
+  clientId: string;
+  setupIntentId: string;
+}): Promise<Client> {
+  const { data, error } = await supabase.functions.invoke("stripe-client-card-setup", {
+    body: { action: "finalize", clientId, setupIntentId },
+  });
+
+  if (error) throw await parseFunctionError(error);
+  if (data?.error) throw new Error(data.error);
+  if (!data?.client) throw new Error("Card saved, but client details were not returned");
+
+  return data.client as Client;
 }
 
 /**
