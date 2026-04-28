@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import {
   Plus, FileEdit, XCircle, ChevronLeft, ChevronRight, Search,
   Calendar as CalendarIcon, CheckCircle, Clock, MoreHorizontal,
-  Eye, Mail, Download, Edit, Share, RefreshCw,
+  Eye, Mail, Download, Edit, Share, RefreshCw, Trash2,
 } from "lucide-react";
 import { Card, CardContent }         from "@/shared/components/ui/card";
 import { Button }                     from "@/shared/components/ui/button";
@@ -37,7 +37,7 @@ import { cn }        from "@/shared/utils/cn";
 import { toast }     from "sonner";
 import { supabase }  from "@/integrations/supabase/client";
 import { formatCurrency, formatDateOnly, parseDateOnly } from "@/shared/utils/formatters";
-import { useInvoices, useMarkInvoiceAsPaid, useCancelInvoice } from "../hooks/useInvoices";
+import { useInvoices, useMarkInvoiceAsPaid, useCancelInvoice, useDeleteInvoice } from "../hooks/useInvoices";
 import { useSendInvoiceEmail }      from "../hooks/useSendInvoiceEmail";
 import { useInvoicesListRealtime }  from "../hooks/useInvoiceRealtime";
 import { useInvoicePDFDownload }    from "../hooks/useInvoicePDFDownload";
@@ -53,8 +53,9 @@ const ITEMS_PER_PAGE = 10;
 export function InvoicesPage() {
   const { sendInvoiceEmail, isSending } = useSendInvoiceEmail();
   const { downloadPDF } = useInvoicePDFDownload();
-  const markPaid  = useMarkInvoiceAsPaid();
-  const cancelInv = useCancelInvoice();
+  const markPaid   = useMarkInvoiceAsPaid();
+  const cancelInv  = useCancelInvoice();
+  const deleteInv  = useDeleteInvoice();
 
   useInvoicesListRealtime();
 
@@ -100,6 +101,7 @@ export function InvoicesPage() {
   const [actionInvoice,         setActionInvoice]         = useState<Invoice | null>(null);
   const [isPaymentDialogOpen,   setIsPaymentDialogOpen]   = useState(false);
   const [isCancelDialogOpen,    setIsCancelDialogOpen]    = useState(false);
+  const [isDeleteDraftOpen,     setIsDeleteDraftOpen]     = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"Cash" | "Cheque" | null>(null);
   const [showChequeInput,       setShowChequeInput]       = useState(false);
   const [chequeNumber,          setChequeNumber]          = useState("");
@@ -469,6 +471,20 @@ export function InvoicesPage() {
                             </DropdownMenuItem>
                           </>
                         )}
+
+                        {invoice.status === "Draft" && (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActionInvoice(invoice);
+                              setIsDeleteDraftOpen(true);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Draft
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -591,6 +607,32 @@ export function InvoicesPage() {
               disabled={cancelInv.isPending}
             >
               {cancelInv.isPending ? "Cancelling..." : "Yes, cancel invoice"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Delete Draft Dialog ───────────────────────────────────────────── */}
+      <AlertDialog open={isDeleteDraftOpen} onOpenChange={setIsDeleteDraftOpen}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Draft?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This draft invoice will be permanently deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setActionInvoice(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={() => {
+                if (actionInvoice) deleteInv.mutate(actionInvoice.id);
+                setIsDeleteDraftOpen(false);
+                setActionInvoice(null);
+              }}
+              disabled={deleteInv.isPending}
+            >
+              {deleteInv.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
