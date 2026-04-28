@@ -1,4 +1,4 @@
-import { Bell, Globe, ChevronDown, CheckCheck, Clock, DollarSign, XCircle, Trash2 } from "lucide-react";
+import { Bell, Globe, ChevronDown, CheckCheck, Clock, DollarSign, XCircle, Trash2, QrCode } from "lucide-react";
 import { SidebarTrigger } from "@/shared/components/ui/sidebar";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/shared/hooks/useProfile";
+import { useAuth } from "@/shared/hooks/useAuth";
 import { Button } from "@/shared/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avatar";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
@@ -13,6 +14,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/shared/components/ui/dropdown-menu";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/shared/components/ui/dialog";
+import { QRCodeSVG } from "qrcode.react";
 import type { Database } from "@/integrations/supabase/types";
 
 type Notification = Database["public"]["Tables"]["notifications"]["Row"];
@@ -54,8 +59,12 @@ function getRelativeTime(isoDate: string): string {
 export function DesktopHeader() {
   const navigate = useNavigate();
   const { data: profile } = useProfile();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [qrOpen, setQrOpen] = useState(false);
+
+  const contactCardUrl = `${import.meta.env.VITE_PUBLIC_APP_URL ?? window.location.origin}/contact-card/${user?.id ?? ""}`;
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: QK.notifications,
@@ -121,6 +130,7 @@ export function DesktopHeader() {
   };
 
   return (
+    <>
     <header className="flex items-center justify-between gap-4 px-4 lg:px-6 py-3 border-b border-border bg-card">
       <div className="flex items-center gap-3">
         {/* Hamburger — only visible on mobile/tablet when sidebar is a Sheet */}
@@ -134,6 +144,11 @@ export function DesktopHeader() {
       </div>
 
       <div className="flex items-center gap-4">
+        {/* QR Code */}
+        <Button variant="ghost" size="icon" onClick={() => setQrOpen(true)}>
+          <QrCode className="h-5 w-5" />
+        </Button>
+
         {/* Notifications */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -234,5 +249,29 @@ export function DesktopHeader() {
         </DropdownMenu>
       </div>
     </header>
+
+      {/* QR modal */}
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 bg-foreground text-background">
+            <div className="flex items-center gap-2 justify-center">
+              <QrCode className="h-5 w-5" />
+              <DialogTitle className="text-background">Share Your Contact</DialogTitle>
+            </div>
+            <DialogDescription className="text-center text-background/70">
+              Let your client scan this code to save your info
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 px-6 py-6 bg-background">
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-border/40">
+              <QRCodeSVG value={contactCardUrl} size={200} level="H" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {profile?.company_name ?? "Your Company"} • Contact Card
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

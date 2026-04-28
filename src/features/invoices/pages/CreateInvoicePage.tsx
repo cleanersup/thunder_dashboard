@@ -38,7 +38,7 @@ import { cn }       from "@/shared/utils/cn";
 import { toast }    from "sonner";
 import { useAuth }   from "@/shared/hooks/useAuth";
 import { useProfile } from "@/shared/hooks/useProfile";
-import { useInvoice, useCreateInvoice, useUpdateInvoice } from "../hooks/useInvoices";
+import { useInvoice, useCreateInvoice, useUpdateInvoice, useDeleteInvoice } from "../hooks/useInvoices";
 import { useInvoiceNumber } from "../hooks/useInvoiceNumber";
 import { useLineItems } from "../hooks/useLineItems";
 import type { InvoiceFormData, InvoiceAttachment } from "../types/invoice.types";
@@ -99,6 +99,7 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
   const [selectedClient, setSelectedClient] = useState<ClientEntity | null>(null);
   const createMutation = useCreateInvoice();
   const updateMutation = useUpdateInvoice();
+  const deleteMutation = useDeleteInvoice();
   const { lineItems, updateLineItem, addLineItem, removeLineItem, resetLineItems } = useLineItems();
   const [discountType,  setDiscountType]  = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
@@ -794,6 +795,18 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
                 onClick={() => { setShowExitDialog(false); handleSaveDraft(); }}
               >
                 Save Draft
+              </AlertDialogAction>
+            )}
+            {isEditing && currentStatus === "Draft" && (
+              <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90"
+                onClick={() => {
+                  if (id) deleteMutation.mutate(id);
+                  setShowExitDialog(false);
+                  goBack();
+                }}
+              >
+                Delete Draft
               </AlertDialogAction>
             )}
             <AlertDialogAction
