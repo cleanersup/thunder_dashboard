@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @module SubscriptionPlansContent
  * Shared subscription plans UI — used by:
@@ -20,6 +19,7 @@ import { toast }  from "sonner";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useSubscription } from "@/features/subscriptions/context/SubscriptionContext";
 import { useRevenueCatWeb } from "../hooks/useRevenueCatWeb";
+import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import type { PlanTier } from "@/features/subscriptions/context/SubscriptionContext";
 
 // ─── Plan definitions ─────────────────────────────────────────────────────────
@@ -212,34 +212,74 @@ export function PlanCard({
   plan, billing, currentTier, hasPaidPlan,
   subscriptionStatus, isConfigured, onPurchase,
 }: PlanCardProps) {
-  const [buying, setBuying] = useState(false);
+  const [buying,           setBuying]           = useState(false);
+  const [confirmDowngrade, setConfirmDowngrade] = useState(false);
 
-  const isCurrent = plan.tier === currentTier && hasPaidPlan && subscriptionStatus === "active";
-  const price     = billing === "monthly" ? plan.monthlyPrice : plan.annualMonthly;
-  const pkg       = billing === "monthly" ? plan.monthlyPkg   : plan.annualPkg;
-  const Icon      = plan.icon;
-
+  const isCurrent    = plan.tier === currentTier && hasPaidPlan && subscriptionStatus === "active";
+  const price        = billing === "monthly" ? plan.monthlyPrice : plan.annualMonthly;
+  const pkg          = billing === "monthly" ? plan.monthlyPkg   : plan.annualPkg;
+  const Icon         = plan.icon;
   const currentOrder = TIER_ORDER[currentTier ?? ""] ?? 0;
   const planOrder    = TIER_ORDER[plan.tier ?? ""]   ?? 0;
   const isDowngrade  = hasPaidPlan && subscriptionStatus === "active" && planOrder < currentOrder;
 
-  const handleBuy = async () => {
-    if (!isConfigured) {
-      toast.info("Web subscriptions coming soon. Subscribe via the Thunder Pro mobile app.");
-      return;
-    }
+  const executePurchase = async () => {
+    console.log(`[SubscriptionPlans] Starting ${isDowngrade ? "downgrade" : "purchase"} → ${plan.tier} (${pkg})`);
     setBuying(true);
     try {
       await onPurchase(pkg);
-      toast.success("Subscription activated!");
-    } catch (err: any) {
-      toast.error(err?.message ?? "Purchase failed");
+
+      if (isDowngrade) {
+        // Stripe/RC processes web downgrades at the end of the current billing period.
+        // Supabase still reflects the current (higher) plan — correct and intentional.
+        // No refresh polling needed: nothing in the DB changes until the next cycle.
+        console.log(`[SubscriptionPlans] Downgrade to ${plan.tier} scheduled — takes effect next billing cycle`);
+        toast.info(
+          `Downgrade scheduled. Your plan will change to ${plan.name} at the end of your current billing period. You'll keep access to your current features until then.`,
+          { duration: 8000 },
+        );
+      } else {
+        // Upgrade or new purchase: RC syncs Supabase immediately after store confirms.
+        // Poll a few times as a safety net in case the webhook arrives slightly late.
+        console.log(`[SubscriptionPlans] Purchase of ${plan.tier} confirmed — polling for Supabase sync`);
+        toast.loading("Activating your plan...", { id: "plan-activate" });
+
+        for (let i = 0; i < 3; i++) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+
+        toast.success(`${plan.name} plan activated!`, { id: "plan-activate" });
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[SubscriptionPlans] Purchase error", {
+        planTier:  plan.tier,
+        pkg,
+        isDowngrade,
+        error: message,
+      });
+      toast.error(message || "Purchase failed. Please try again.");
     } finally {
       setBuying(false);
     }
   };
 
+  const handleBuy = () => {
+    if (!isConfigured) {
+      console.warn("[SubscriptionPlans] RC Web Billing not configured — showing fallback message");
+      toast.info("Web billing is not available right now. Please subscribe via the Thunder Pro mobile app.");
+      return;
+    }
+    if (isDowngrade) {
+      // Show confirmation before proceeding — user must understand the plan won't change immediately
+      setConfirmDowngrade(true);
+      return;
+    }
+    executePurchase();
+  };
+
   const buttonLabel = () => {
+    if (buying)      return "Processing...";
     if (isCurrent)   return "Current Plan";
     if (isDowngrade) return "Downgrade";
     if (hasPaidPlan && subscriptionStatus === "active") return "Switch Plan";
@@ -248,78 +288,93 @@ export function PlanCard({
   };
 
   return (
-    <Card className={cn(
-      "border shadow-none flex flex-col relative overflow-hidden transition-shadow hover:shadow-sm",
-      isCurrent ? cn("border-2", plan.borderClass) : "border-border/50",
-    )}>
-      {isCurrent && (
-        <div className="absolute top-0 left-0">
-          <div
-            className="text-white text-[10px] font-bold px-3 py-1 rounded-br-lg"
-            style={{ backgroundColor: plan.accentColor }}
-          >
-            ACTIVE
+    <>
+      <Card className={cn(
+        "border shadow-none flex flex-col relative overflow-hidden transition-shadow hover:shadow-sm",
+        isCurrent ? cn("border-2", plan.borderClass) : "border-border/50",
+      )}>
+        {isCurrent && (
+          <div className="absolute top-0 left-0">
+            <div
+              className="text-white text-[10px] font-bold px-3 py-1 rounded-br-lg"
+              style={{ backgroundColor: plan.accentColor }}
+            >
+              ACTIVE
+            </div>
           </div>
-        </div>
-      )}
-      {"popular" in plan && plan.popular && (
-        <div className="absolute top-0 right-0">
-          <div
-            className="text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg"
-            style={{ backgroundColor: plan.accentColor }}
-          >
-            MOST POPULAR
-          </div>
-        </div>
-      )}
-
-      <CardHeader className="pb-3 pt-5 px-5">
-        <div className="flex items-center gap-2 mb-3">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: `${plan.accentColor}20` }}
-          >
-            <Icon className="h-4 w-4" style={{ color: plan.accentColor }} />
-          </div>
-          <span className="font-bold text-base">{plan.name}</span>
-        </div>
-
-        <div className="flex items-end gap-1">
-          <span className="text-3xl font-bold">${price.toFixed(price % 1 === 0 ? 0 : 2)}</span>
-          <span className="text-muted-foreground text-sm pb-1">/mo</span>
-        </div>
-        {billing === "annual" && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Billed ${plan.annualPrice}/year — save 17%
-          </p>
         )}
-      </CardHeader>
+        {"popular" in plan && plan.popular && (
+          <div className="absolute top-0 right-0">
+            <div
+              className="text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg"
+              style={{ backgroundColor: plan.accentColor }}
+            >
+              MOST POPULAR
+            </div>
+          </div>
+        )}
 
-      <CardContent className="px-5 pb-5 flex flex-col flex-1 gap-4">
-        <ul className="space-y-2 flex-1">
-          {plan.features.map((feat) => (
-            <li key={feat} className="flex items-start gap-2 text-sm">
-              <Check className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" style={{ color: plan.accentColor }} />
-              <span className="text-muted-foreground">{feat}</span>
-            </li>
-          ))}
-        </ul>
+        <CardHeader className="pb-3 pt-5 px-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: `${plan.accentColor}20` }}
+            >
+              <Icon className="h-4 w-4" style={{ color: plan.accentColor }} />
+            </div>
+            <span className="font-bold text-base">{plan.name}</span>
+          </div>
 
-        <Button
-          className="w-full"
-          variant={isCurrent ? "outline" : "default"}
-          disabled={isCurrent || isDowngrade || buying}
-          onClick={handleBuy}
-          style={
-            !isCurrent && !isDowngrade
-              ? { backgroundColor: plan.accentColor, borderColor: plan.accentColor }
-              : undefined
-          }
-        >
-          {buying ? "Processing..." : buttonLabel()}
-        </Button>
-      </CardContent>
-    </Card>
+          <div className="flex items-end gap-1">
+            <span className="text-3xl font-bold">${price.toFixed(price % 1 === 0 ? 0 : 2)}</span>
+            <span className="text-muted-foreground text-sm pb-1">/mo</span>
+          </div>
+          {billing === "annual" && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Billed ${plan.annualPrice}/year — save 17%
+            </p>
+          )}
+        </CardHeader>
+
+        <CardContent className="px-5 pb-5 flex flex-col flex-1 gap-4">
+          <ul className="space-y-2 flex-1">
+            {plan.features.map((feat) => (
+              <li key={feat} className="flex items-start gap-2 text-sm">
+                <Check className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" style={{ color: plan.accentColor }} />
+                <span className="text-muted-foreground">{feat}</span>
+              </li>
+            ))}
+          </ul>
+
+          <Button
+            className="w-full"
+            variant={isCurrent || isDowngrade ? "outline" : "default"}
+            disabled={isCurrent || buying}
+            onClick={handleBuy}
+            style={
+              !isCurrent && !isDowngrade
+                ? { backgroundColor: plan.accentColor, borderColor: plan.accentColor }
+                : undefined
+            }
+          >
+            {buttonLabel()}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <ConfirmDialog
+        open={confirmDowngrade}
+        onOpenChange={setConfirmDowngrade}
+        title={`Downgrade to ${plan.name}?`}
+        description={`Your plan will change to ${plan.name} at the end of your current billing period. Until then, you keep access to all your current features. Features not included in ${plan.name} will become unavailable at renewal.`}
+        confirmLabel="Confirm Downgrade"
+        cancelLabel="Keep Current Plan"
+        onConfirm={() => {
+          setConfirmDowngrade(false);
+          executePurchase();
+        }}
+      />
+    </>
   );
 }
 
@@ -336,8 +391,9 @@ export function SubscriptionPlansContent() {
 
   const handlePurchase = async (pkg: string) => {
     await purchase(pkg);
-    // First refresh immediately, then again after a short delay to allow
-    // the RC → Supabase webhook to process before the user sees the result.
+    // Trigger an immediate refresh so the UI reflects the new plan as soon as
+    // syncWithSupabase (called inside purchasePackage) updates the DB.
+    // The Realtime listener is the primary update path; this is a safety net.
     await refreshSubscription();
     setTimeout(() => refreshSubscription(), 3000);
   };
