@@ -38,7 +38,7 @@ import { cn }       from "@/shared/utils/cn";
 import { toast }    from "sonner";
 import { useAuth }   from "@/shared/hooks/useAuth";
 import { useProfile } from "@/shared/hooks/useProfile";
-import { useInvoice, useCreateInvoice, useUpdateInvoice, useDeleteInvoice } from "../hooks/useInvoices";
+import { useInvoice, useCreateInvoice, useUpdateInvoice } from "../hooks/useInvoices";
 import { useInvoiceNumber } from "../hooks/useInvoiceNumber";
 import { useLineItems } from "../hooks/useLineItems";
 import type { InvoiceFormData, InvoiceAttachment } from "../types/invoice.types";
@@ -99,7 +99,6 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
   const [selectedClient, setSelectedClient] = useState<ClientEntity | null>(null);
   const createMutation = useCreateInvoice();
   const updateMutation = useUpdateInvoice();
-  const deleteMutation = useDeleteInvoice();
   const { lineItems, updateLineItem, addLineItem, removeLineItem, resetLineItems } = useLineItems();
   const [discountType,  setDiscountType]  = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
@@ -787,34 +786,22 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
               {isEditing ? "Your unsaved changes will be lost." : "All unsaved changes will be lost."}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel className="mt-0">{isEditing ? "Keep Editing" : "Cancel"}</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col gap-2">
             {!isEditing && (
               <AlertDialogAction
-                className="bg-background text-foreground border border-input hover:bg-accent"
+                className="w-full bg-background text-foreground border border-input hover:bg-accent"
                 onClick={() => { setShowExitDialog(false); handleSaveDraft(); }}
               >
                 Save Draft
               </AlertDialogAction>
             )}
-            {isEditing && currentStatus === "Draft" && (
-              <AlertDialogAction
-                className="bg-destructive hover:bg-destructive/90"
-                onClick={() => {
-                  if (id) deleteMutation.mutate(id);
-                  setShowExitDialog(false);
-                  goBack();
-                }}
-              >
-                Delete Draft
-              </AlertDialogAction>
-            )}
             <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
+              className="w-full bg-destructive hover:bg-destructive/90"
               onClick={goBack}
             >
               Discard Changes
             </AlertDialogAction>
+            <AlertDialogCancel className="mt-0 w-full">{isEditing ? "Keep Editing" : "Cancel"}</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
