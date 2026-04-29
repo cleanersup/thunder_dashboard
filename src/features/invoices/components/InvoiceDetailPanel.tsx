@@ -75,8 +75,9 @@ export function InvoiceDetailPanel({
 
   // ── Local dialog state ────────────────────────────────────────────────────────
   const [isPaymentDialogOpen,      setIsPaymentDialogOpen]      = useState(false);
+  const [isTakePaymentDialogOpen,  setIsTakePaymentDialogOpen]  = useState(false);
   const [isCancelDialogOpen,       setIsCancelDialogOpen]       = useState(false);
-  const [selectedPayment,          setSelectedPayment]          = useState<"Cash" | "Cheque" | "CardOnFile" | null>(null);
+  const [selectedPayment,          setSelectedPayment]          = useState<"Cash" | "Cheque" | null>(null);
   const [showChequeInput,          setShowChequeInput]          = useState(false);
   const [chequeNumber,             setChequeNumber]             = useState("");
   const [showSuccessDialog,        setShowSuccessDialog]        = useState(false);
@@ -87,23 +88,6 @@ export function InvoiceDetailPanel({
 
   const handleMarkAsPaid = () => {
     if (!invoice || !selectedPayment) return;
-
-    if (selectedPayment === "CardOnFile") {
-      chargeSavedCard.mutate(invoice.id, {
-        onSuccess: () => {
-          setPaymentDetails({
-            method: "Card on file",
-            amount: invoice.total,
-          });
-          setIsPaymentDialogOpen(false);
-          setShowChequeInput(false);
-          setChequeNumber("");
-          setSelectedPayment(null);
-          setShowSuccessDialog(true);
-        },
-      });
-      return;
-    }
 
     if (selectedPayment === "Cheque" && !chequeNumber.trim()) {
       toast.error("Please enter a cheque number");
@@ -125,6 +109,21 @@ export function InvoiceDetailPanel({
         },
       },
     );
+  };
+
+  const handleTakePayment = () => {
+    if (!invoice || !hasCardOnFile) return;
+
+    chargeSavedCard.mutate(invoice.id, {
+      onSuccess: () => {
+        setPaymentDetails({
+          method: cardLabel || "Card on file",
+          amount: invoice.total,
+        });
+        setIsTakePaymentDialogOpen(false);
+        setShowSuccessDialog(true);
+      },
+    });
   };
 
   const handleCancelInvoice = () => {
@@ -158,7 +157,7 @@ export function InvoiceDetailPanel({
   const cardLabel = hasCardOnFile
     ? `${paymentClient?.card_brand?.toUpperCase() ?? "CARD"} ending in ${paymentClient?.card_last4 ?? "••••"}`
     : "";
-  const isPaymentProcessing = markPaid.isPending || chargeSavedCard.isPending;
+  const isPaymentProcessing = markPaid.isPending;
 
   // ── Footer ────────────────────────────────────────────────────────────────────
 
@@ -199,40 +198,56 @@ export function InvoiceDetailPanel({
 
     if (invoice.status === "Pending") {
       return (
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            className="flex-1"
-            style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }}
-            onClick={() => setIsPaymentDialogOpen(true)}
-          >
-            <DollarSign className="w-4 h-4 mr-1.5" /> Mark as Paid
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleSendEmail} disabled={isSending}>
-            <Mail className="w-4 h-4 mr-1.5" /> {isSending ? "Sending…" : "Send Reminder"}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="px-2.5">
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handleEdit}>
-                <Pencil className="w-4 h-4 mr-2" /> Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => invoice && downloadPDF(invoice)}>
-                <Download className="w-4 h-4 mr-2" /> Download PDF
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => setIsCancelDialogOpen(true)}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="flex-1"
+              style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }}
+              onClick={() => setIsPaymentDialogOpen(true)}
+            >
+              <DollarSign className="w-4 h-4 mr-1.5" /> Mark as Paid
+            </Button>
+            {hasCardOnFile && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 border-green-700/40 text-green-700 hover:bg-green-50 hover:text-green-700"
+                onClick={() => setIsTakePaymentDialogOpen(true)}
+                disabled={chargeSavedCard.isPending}
               >
-                <XCircle className="w-4 h-4 mr-2" /> Cancel Invoice
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <CreditCard className="w-4 h-4 mr-1.5" />
+                {chargeSavedCard.isPending ? "Processing..." : "Take a Payment"}
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="flex-1" onClick={handleSendEmail} disabled={isSending}>
+              <Mail className="w-4 h-4 mr-1.5" /> {isSending ? "Sending…" : "Send Reminder"}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="px-2.5">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleEdit}>
+                  <Pencil className="w-4 h-4 mr-2" /> Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => invoice && downloadPDF(invoice)}>
+                  <Download className="w-4 h-4 mr-2" /> Download PDF
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setIsCancelDialogOpen(true)}
+                >
+                  <XCircle className="w-4 h-4 mr-2" /> Cancel Invoice
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       );
     }
@@ -519,16 +534,6 @@ export function InvoiceDetailPanel({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3 py-4">
-            {hasCardOnFile && (
-              <Button
-                variant={selectedPayment === "CardOnFile" ? "default" : "outline"}
-                className="w-full justify-start"
-                onClick={() => { setSelectedPayment("CardOnFile"); setShowChequeInput(false); }}
-              >
-                <CreditCard className="w-4 h-4 mr-2" /> Card on file
-                <span className="ml-auto text-xs opacity-80">{cardLabel}</span>
-              </Button>
-            )}
             <Button
               variant={selectedPayment === "Cash" ? "default" : "outline"}
               className="w-full justify-start"
@@ -561,6 +566,35 @@ export function InvoiceDetailPanel({
               style={{ backgroundColor: "hsl(var(--green-vibrant))" }}
             >
               {isPaymentProcessing ? "Processing..." : "Confirm Payment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Take Payment Confirmation ─────────────────────────────────────────── */}
+      <AlertDialog open={isTakePaymentDialogOpen} onOpenChange={setIsTakePaymentDialogOpen}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Take a Payment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Confirm charging {cardLabel || "the saved card"} for{" "}
+              <strong>${formatCurrency(invoice?.total ?? 0)}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="rounded-lg border border-green-700/20 bg-green-50 p-3 text-sm text-green-700">
+            <div className="flex items-center gap-2 font-medium">
+              <CreditCard className="h-4 w-4" />
+              {cardLabel || "Card on file"}
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleTakePayment}
+              disabled={!hasCardOnFile || chargeSavedCard.isPending}
+              className="bg-green-700 hover:bg-green-800"
+            >
+              {chargeSavedCard.isPending ? "Processing..." : "Confirm Charge"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

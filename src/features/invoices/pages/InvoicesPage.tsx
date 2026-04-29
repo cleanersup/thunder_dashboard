@@ -108,15 +108,19 @@ export function InvoicesPage() {
   // ── Quick action state (from row dropdown, not modal) ────────────────────────
   const [actionInvoice,         setActionInvoice]         = useState<Invoice | null>(null);
   const [isPaymentDialogOpen,   setIsPaymentDialogOpen]   = useState(false);
+  const [isTakePaymentDialogOpen, setIsTakePaymentDialogOpen] = useState(false);
   const [isCancelDialogOpen,    setIsCancelDialogOpen]    = useState(false);
   const [isDeleteDraftOpen,     setIsDeleteDraftOpen]     = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"Cash" | "Cheque" | "CardOnFile" | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"Cash" | "Cheque" | null>(null);
   const [showChequeInput,       setShowChequeInput]       = useState(false);
   const [chequeNumber,          setChequeNumber]          = useState("");
 
   // ── Data ─────────────────────────────────────────────────────────────────────
   const { data: allInvoices = [], isLoading } = useInvoices();
-  const { data: actionPaymentClient } = useClientByEmail(actionInvoice?.user_id, actionInvoice?.email);
+  const { data: actionPaymentClient, isLoading: isActionPaymentClientLoading } = useClientByEmail(
+    actionInvoice?.user_id,
+    actionInvoice?.email,
+  );
 
   const paid      = allInvoices.filter((i) => i.status === "Paid");
   const pending   = allInvoices.filter((i) => i.status === "Pending");
@@ -159,19 +163,6 @@ export function InvoicesPage() {
   const handleQuickPay = () => {
     if (!actionInvoice || !selectedPaymentMethod) return;
 
-    if (selectedPaymentMethod === "CardOnFile") {
-      chargeSavedCard.mutate(actionInvoice.id, {
-        onSuccess: () => {
-          setIsPaymentDialogOpen(false);
-          setSelectedPaymentMethod(null);
-          setShowChequeInput(false);
-          setChequeNumber("");
-          setActionInvoice(null);
-        },
-      });
-      return;
-    }
-
     if (selectedPaymentMethod === "Cheque" && !chequeNumber.trim()) {
       toast.error("Please enter a cheque number");
       return;
@@ -200,11 +191,22 @@ export function InvoicesPage() {
     });
   };
 
+  const handleQuickTakePayment = () => {
+    if (!actionInvoice || !actionHasCardOnFile) return;
+
+    chargeSavedCard.mutate(actionInvoice.id, {
+      onSuccess: () => {
+        setIsTakePaymentDialogOpen(false);
+        setActionInvoice(null);
+      },
+    });
+  };
+
+  const isQuickPaymentProcessing = markPaid.isPending;
   const actionHasCardOnFile = !!actionPaymentClient?.stripe_default_payment_method_id;
   const actionCardLabel = actionHasCardOnFile
     ? `${actionPaymentClient?.card_brand?.toUpperCase() ?? "CARD"} ending in ${actionPaymentClient?.card_last4 ?? "••••"}`
     : "";
-  const isQuickPaymentProcessing = markPaid.isPending || chargeSavedCard.isPending;
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
@@ -431,16 +433,30 @@ export function InvoicesPage() {
                         )}
 
                         {invoice.status === "Pending" && (
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActionInvoice(invoice);
-                              setIsPaymentDialogOpen(true);
-                            }}
-                          >
-                            <CheckCircle className="w-4 h-4 mr-2" style={{ color: "hsl(var(--green-vibrant))" }} />
-                            Mark as Paid
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActionInvoice(invoice);
+                                setIsPaymentDialogOpen(true);
+                              }}
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" style={{ color: "hsl(var(--green-vibrant))" }} />
+                              Mark as Paid
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-green-700 focus:text-green-700"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActionInvoice(invoice);
+                                setIsTakePaymentDialogOpen(true);
+                              }}
+                              disabled={chargeSavedCard.isPending}
+                            >
+                              <CreditCard className="w-4 h-4 mr-2" />
+                              Take a Payment
+                            </DropdownMenuItem>
+                          </>
                         )}
 
                         {(invoice.status === "Draft" || invoice.status === "Pending") && (
@@ -574,17 +590,6 @@ export function InvoicesPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3 py-4">
-            {actionHasCardOnFile && (
-              <Button
-                variant={selectedPaymentMethod === "CardOnFile" ? "default" : "outline"}
-                className="w-full justify-start"
-                onClick={() => { setSelectedPaymentMethod("CardOnFile"); setShowChequeInput(false); }}
-              >
-                <CreditCard className="w-4 h-4 mr-2" />
-                Card on file
-                <span className="ml-auto text-xs opacity-80">{actionCardLabel}</span>
-              </Button>
-            )}
             <Button
               variant={selectedPaymentMethod === "Cash" ? "default" : "outline"}
               className="w-full justify-start"
@@ -624,6 +629,44 @@ export function InvoicesPage() {
               style={{ backgroundColor: "hsl(var(--green-vibrant))" }}
             >
               {isQuickPaymentProcessing ? "Processing..." : "Confirm Payment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Take Payment Confirmation ─────────────────────────────────────── */}
+      <AlertDialog
+        open={isTakePaymentDialogOpen}
+        onOpenChange={(open) => {
+          setIsTakePaymentDialogOpen(open);
+          if (!open) setActionInvoice(null);
+        }}
+      >
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Take a Payment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Confirm charging{" "}
+              <strong>${formatCurrency(actionInvoice?.total ?? 0)}</strong>{" "}
+              to the saved card.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="rounded-lg border border-green-700/20 bg-green-50 p-3 text-sm text-green-700">
+            <div className="flex items-center gap-2 font-medium">
+              <CreditCard className="h-4 w-4" />
+              {isActionPaymentClientLoading
+                ? "Loading saved card..."
+                : actionCardLabel || "No saved card found"}
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleQuickTakePayment}
+              disabled={!actionHasCardOnFile || isActionPaymentClientLoading || chargeSavedCard.isPending}
+              className="bg-green-700 hover:bg-green-800"
+            >
+              {chargeSavedCard.isPending ? "Processing..." : "Confirm Charge"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
