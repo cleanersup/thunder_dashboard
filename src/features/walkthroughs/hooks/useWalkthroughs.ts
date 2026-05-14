@@ -83,14 +83,8 @@ export function useUpdateWalkthroughStatus() {
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       updateWalkthroughStatus(id, status),
-    onSuccess: (_, { id, status }) => {
-      // Side-effect notifications based on new status
-      if (status === "Completed") {
-        void supabase.functions.invoke("send-walkthrough-completion", { body: { walkthroughId: id } });
-        void supabase.functions.invoke("send-walkthrough-completion-sms", { body: { walkthroughId: id } });
-      } else if (status === "Cancelled") {
-        void supabase.functions.invoke("send-walkthrough-cancellation", { body: { walkthroughId: id } });
-      }
+    onSuccess: (_, { id }) => {
+      // Email/SMS: Postgres trigger → send-walkthrough-status-emails after status UPDATE
       qc.invalidateQueries({ queryKey: QK.walkthroughs });
       qc.invalidateQueries({ queryKey: QK.walkthrough(id) });
     },
