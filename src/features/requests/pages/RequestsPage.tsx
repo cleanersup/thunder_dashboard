@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import {
-  Copy, Edit, Search, CheckCircle2, Home, Building2,
+  Copy, Search, CheckCircle2, Home, Building2,
   Info, Globe, Share2, Linkedin, Monitor, MoreHorizontal,
-  ChevronLeft, ChevronRight, FileText,
+  ChevronLeft, ChevronRight, FileText, Plus,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
@@ -18,14 +18,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
-import { BookingDetailPanel } from "../components/BookingDetailPanel";
-import { useBookings } from "../hooks/useBookings";
+import { RequestDetailPanel } from "../components/RequestDetailPanel";
+import { useRequests } from "../hooks/useRequests";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { QK } from "@/shared/config/queryKeys";
 import { toast } from "sonner";
 import { cn } from "@/shared/utils/cn";
-import type { Booking } from "../types/booking.types";
+import type { Booking } from "../types/request.types";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -35,18 +35,18 @@ const getStatusBadge = (status: string) => {
   return "bg-muted text-muted-foreground border-border";
 };
 
-export function BookingPage() {
+export function RequestsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data: bookings = [], isLoading } = useBookings();
+  const { data: requests = [], isLoading } = useRequests();
   const { data: profile } = useProfile();
 
   // ─── Real-time ────────────────────────────────────────────────────────────
   useEffect(() => {
     const channel = supabase
-      .channel("bookings_changes")
+      .channel("bookings_changes_requests")
       .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => {
-        qc.invalidateQueries({ queryKey: QK.bookings });
+        qc.invalidateQueries({ queryKey: QK.requests });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -57,25 +57,25 @@ export function BookingPage() {
   const [selectedDate, setSelectedDate]       = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage]         = useState(1);
   const [showInfoDialog, setShowInfoDialog]   = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<Booking | null>(null);
   const [modalOpen, setModalOpen]             = useState(false);
 
   // ─── KPI counts ──────────────────────────────────────────────────────────
-  const totalCount        = bookings.length;
-  const newCount          = bookings.filter((b) => b.status === "new").length;
-  const residentialCount  = bookings.filter((b) => b.service_type === "residential").length;
-  const commercialCount   = bookings.filter((b) => b.service_type === "commercial").length;
+  const totalCount        = requests.length;
+  const newCount          = requests.filter((b) => b.status === "new").length;
+  const residentialCount  = requests.filter((b) => b.service_type === "residential").length;
+  const commercialCount   = requests.filter((b) => b.service_type === "commercial").length;
 
   const kpiCards = [
-    { title: "Total Bookings",  value: totalCount,       subtitle: "All time",         icon: FileText,     color: "hsl(var(--primary))"         },
-    { title: "New Bookings",    value: newCount,         subtitle: "Awaiting action",  icon: CheckCircle2, color: "hsl(var(--green-vibrant))"   },
+    { title: "Total Requests",  value: totalCount,       subtitle: "All time",         icon: FileText,     color: "hsl(var(--primary))"         },
+    { title: "New Requests",    value: newCount,         subtitle: "Awaiting action",  icon: CheckCircle2, color: "hsl(var(--green-vibrant))"   },
     { title: "Residential",     value: residentialCount, subtitle: "Service type",     icon: Home,         color: "hsl(var(--blue-vibrant))"    },
     { title: "Commercial",      value: commercialCount,  subtitle: "Service type",     icon: Building2,    color: "hsl(var(--orange-vibrant))"  },
   ];
 
   // ─── Filtering ───────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    return bookings
+    return requests
       .filter((b) => {
         if (statusFilter === "new")       return b.status === "new";
         if (statusFilter === "cancelled") return b.status === "cancelled";
@@ -94,11 +94,11 @@ export function BookingPage() {
           d.getFullYear() === selectedDate.getFullYear()
         );
       });
-  }, [bookings, statusFilter, searchQuery, selectedDate]);
+  }, [requests, statusFilter, searchQuery, selectedDate]);
 
   // ─── Pagination ──────────────────────────────────────────────────────────
-  const totalPages     = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-  const paginated      = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated  = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const handleFilterChange = (val: string) => { setStatusFilter(val); setCurrentPage(1); };
   const handleSearch       = (val: string) => { setSearchQuery(val);   setCurrentPage(1); };
@@ -115,8 +115,8 @@ export function BookingPage() {
     );
   };
 
-  const openDetail = (booking: Booking) => {
-    setSelectedBooking(booking);
+  const openDetail = (request: Booking) => {
+    setSelectedRequest(request);
     setModalOpen(true);
   };
 
@@ -152,9 +152,9 @@ export function BookingPage() {
 
             {/* Left: actions */}
             <div className="flex items-center gap-2">
-              <Button variant="outline" className="flex items-center gap-2 h-9 px-3" onClick={() => navigate("/booking/edit")}>
-                <Edit className="w-4 h-4" />
-                <span className="text-sm font-medium">Edit Form</span>
+              <Button className="flex items-center gap-2 h-9 px-3" onClick={() => navigate("/requests/new")}>
+                <Plus className="w-4 h-4" />
+                <span className="text-sm font-medium">New Request</span>
               </Button>
               <Button
                 className="flex items-center gap-2 h-9 px-3 bg-success text-success-foreground hover:bg-success/90"
@@ -245,7 +245,7 @@ export function BookingPage() {
               <div className="relative w-56">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search booking..."
+                  placeholder="Search requests..."
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
                   className="pl-9 h-9 bg-white"
@@ -259,7 +259,6 @@ export function BookingPage() {
                     size="sm"
                     className={cn("h-9 whitespace-nowrap", !selectedDate && "text-muted-foreground")}
                   >
-                    <Search className="mr-2 h-4 w-4 hidden" />
                     {selectedDate ? format(selectedDate, "MMM d") : "Date"}
                   </Button>
                 </PopoverTrigger>
@@ -299,7 +298,7 @@ export function BookingPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="h-10 font-bold">Date</TableHead>
-                <TableHead className="h-10 font-bold">Lead Name</TableHead>
+                <TableHead className="h-10 font-bold">Name</TableHead>
                 <TableHead className="h-10 font-bold">Type</TableHead>
                 <TableHead className="h-10 font-bold">Email</TableHead>
                 <TableHead className="h-10 font-bold">Phone</TableHead>
@@ -311,37 +310,37 @@ export function BookingPage() {
               {paginated.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    No bookings found
+                    No requests found
                   </TableCell>
                 </TableRow>
               ) : (
-                paginated.map((booking) => (
+                paginated.map((request) => (
                   <TableRow
-                    key={booking.id}
+                    key={request.id}
                     className="cursor-pointer hover:bg-muted/50 border-b border-border/50"
-                    onClick={() => openDetail(booking)}
+                    onClick={() => openDetail(request)}
                   >
                     <TableCell className="py-2 px-4">
-                      {format(parseISO(booking.created_at), "MMM dd, yyyy")}
+                      {format(parseISO(request.created_at), "MMM dd, yyyy")}
                     </TableCell>
-                    <TableCell className="py-2 px-4 font-medium">{booking.lead_name}</TableCell>
+                    <TableCell className="py-2 px-4 font-medium">{request.lead_name}</TableCell>
                     <TableCell className="py-2 px-4">
                       <div className="flex items-center gap-1.5">
-                        {booking.service_type === "residential"
+                        {request.service_type === "residential"
                           ? <Home className="w-3.5 h-3.5 text-muted-foreground" />
                           : <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
                         }
-                        <span className="capitalize">{booking.service_type}</span>
+                        <span className="capitalize">{request.service_type}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="py-2 px-4">{booking.email}</TableCell>
-                    <TableCell className="py-2 px-4">{booking.phone}</TableCell>
+                    <TableCell className="py-2 px-4">{request.email}</TableCell>
+                    <TableCell className="py-2 px-4">{request.phone}</TableCell>
                     <TableCell className="py-2 px-4">
                       <Badge
                         variant="outline"
-                        className={cn("font-medium capitalize", getStatusBadge(booking.status))}
+                        className={cn("font-medium capitalize", getStatusBadge(request.status))}
                       >
-                        {booking.status}
+                        {request.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="py-2 px-4 text-right">
@@ -352,7 +351,7 @@ export function BookingPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(booking); }}>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(request); }}>
                             <FileText className="w-4 h-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
@@ -371,7 +370,7 @@ export function BookingPage() {
           <div className="flex items-center justify-between px-4 py-3 border-t border-border/50">
             <span className="text-sm text-muted-foreground">
               Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to{" "}
-              {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} bookings
+              {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} requests
             </span>
             <div className="flex items-center gap-2">
               <Button
@@ -394,10 +393,10 @@ export function BookingPage() {
         )}
       </Card>
 
-      <BookingDetailPanel
-        booking={selectedBooking}
+      <RequestDetailPanel
+        booking={selectedRequest}
         open={modalOpen}
-        onClose={() => { setModalOpen(false); setSelectedBooking(null); }}
+        onClose={() => { setModalOpen(false); setSelectedRequest(null); }}
       />
     </div>
   );

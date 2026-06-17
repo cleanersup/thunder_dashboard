@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { walkthroughSchema } from "../schemas/walkthroughSchema";
 import type { WalkthroughFormData } from "../schemas/walkthroughSchema";
 import { useCreateWalkthrough, useUpdateWalkthrough, useWalkthrough } from "../hooks/useWalkthroughs";
+import { supabase } from "@/integrations/supabase/client";
 import { useAllEmployees } from "@/features/employees/hooks/useEmployees";
 import { EstimateClientStep } from "@/features/estimates/components/EstimateClientStep";
 import type { ClientEntity, LeadEntity } from "@/shared/types/entities";
@@ -50,9 +51,12 @@ interface AddWalkthroughPageProps {
 }
 
 export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = {}) {
-  const navigate = useNavigate();
-  const qc = useQueryClient();
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const qc        = useQueryClient();
   const { id: walkthroughId } = useParams<{ id: string }>();
+  const locationState  = (location.state as Record<string, unknown>) || {};
+  const fromRequestId  = locationState.fromRequestId as string | undefined;
   const isEdit = Boolean(walkthroughId);
   const isModal = onClose !== undefined;
 
@@ -203,7 +207,24 @@ export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = 
       });
     } else {
       create(payload, {
-        onSuccess: () => { toast.success("Walkthrough scheduled"); handleClose(); },
+        onSuccess: async (newWalkthrough) => {
+          toast.success("Walkthrough scheduled");
+          if (fromRequestId && newWalkthrough?.id) {
+            const contactType = payload.walkthrough_type as "client" | "lead";
+            const contactId   = contactType === "client" ? payload.client_id : payload.lead_id;
+            if (contactId) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              await (supabase as any).rpc("finalize_booking_conversion", {
+                p_booking_id:    fromRequestId,
+                p_walkthrough_id: newWalkthrough.id,
+                p_contact_type:  contactType,
+                p_contact_id:    contactId,
+              });
+              qc.invalidateQueries({ queryKey: QK.requests });
+            }
+          }
+          handleClose();
+        },
       });
     }
   }

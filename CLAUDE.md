@@ -5,11 +5,12 @@
 
 ---
 
-## Estado del proyecto (actualizado 2026-04-08)
+## Estado del proyecto (actualizado 2026-06-16)
 
 **Fases completadas:** F0 (parcial), F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F14, F15, F19, F20, F21
-**Fase activa:** ninguna — buscando próxima tarea
-**Pendientes bloqueadas:** F13 (suscripciones — decisiones negocio), F16 (i18n), F17 (testing), F18 (CI/CD AWS), F19 Time Clock (items faltantes)
+**New Workflow completado:** Booking→Requests, CRM separado (Leads/Clients/Tasks), Client Properties, ContactPicker, Jobs (infra+UI+PDF), Flujo de conversión Request→Estimate/Walkthrough→Job, AddRequest manual, limpieza de código muerto
+**Fase activa:** ninguna — next: F19 Time Clock items faltantes (TimeLineView, ShiftDetails) o features menores
+**Pendientes bloqueadas:** F13 (suscripciones — decisiones negocio), F16 (i18n), F17 (testing), F18 (CI/CD AWS)
 
 ---
 
@@ -99,6 +100,22 @@
   - `send-appointment-emails` (plural), `send-appointment-sms`
   - `send-contract-email`, `send-contract-sms`
   - `generate-company-description` (Auto Generate en contratos)
+  - `create-booking` (crea request desde dashboard o form público)
+  - `send-job-status-emails` (notifica cambio de status de job)
+
+### RPCs de conversión (ya desplegados en backend)
+- `finalize_booking_conversion(p_booking_id, p_contact_type, p_contact_id, p_estimate_id?, p_walkthrough_id?)` — Request → Estimate/Walkthrough
+- `finalize_estimate_to_job_conversion(p_estimate_id, p_job_id)` — Estimate → Job
+- `finalize_walkthrough_to_estimate_conversion(p_walkthrough_id, p_estimate_id)` — Walkthrough → Estimate
+- `cancel_recurring_job_series(p_job_id)` — cancela serie de jobs recurrentes
+
+### Tabla `jobs` (no está en tipos locales de Supabase)
+- Usar `(supabase as any).from('jobs')` en `jobsService.ts`
+- Lo mismo para `client_properties` y `client_property_contacts`
+
+### Tabla `bookings` — campos extendidos (migración aplicada)
+- `client_id`, `lead_id`, `contact_type` ('client'|'lead'|'anonymous'), `client_property_id`
+- `attachments` (JSONB array de BookingAttachmentMeta)
 
 ### Verificación obligatoria antes de terminar cada fase
 1. `npx tsc --noEmit` → 0 errores
@@ -114,18 +131,37 @@
 |---------|---------|--------|
 | Auth | `/auth`, `/forgot-password`, `/reset-password`, `/verify-email` | ✅ |
 | Dashboard | `/home` | ✅ |
-| CRM (Clients, Leads, Tasks) | `/crm` | ✅ |
+| Leads | `/leads` | ✅ |
+| Clients | `/clients` (+ Properties en detail panel) | ✅ |
+| Tasks | `/tasks` | ✅ |
 | Notifications | `/notifications` | ✅ |
-| Booking | `/booking`, `/booking/:userId` (public) | ✅ |
+| Requests | `/requests`, `/requests/new`, `/requests/edit`, `/booking/:userId` (public) | ✅ |
 | Estimates | `/estimates`, `/estimates/new/residential`, `/estimates/new/commercial`, `/public/estimate/:token` | ✅ |
+| Jobs | `/jobs`, `/jobs/new`, `/jobs/:id`, `/jobs/:id/edit` | ✅ |
 | Invoices | `/invoices`, `/invoices/new`, `/invoices/:id/edit`, `/invoices/:id/preview`, `/invoice/payment/:id` (public) | ✅ |
-| Scheduling | `/create-route`, `/create-route/new`, `/create-route/:id/edit`, `/smart-map` | ✅ |
+| Scheduling | `/create-route`, `/create-route/:id/edit`, `/smart-map` | ✅ |
 | Employees | `/employees` | ✅ |
-| Walkthroughs | `/walkthroughs`, `/walkthrough/residential/:id`, `/walkthrough/commercial/:id` (public) | ✅ |
-| Settings | `/profile`, `/profile/edit`, `/profile/company`, `/profile/security`, `/contact-card/:userId` (public) | ✅ |
+| Walkthroughs | `/walkthroughs`, `/walkthroughs/new`, `/walkthroughs/:id/edit`, `/walkthrough/residential/:id`, `/walkthrough/commercial/:id` (public) | ✅ |
+| Settings | `/profile`, `/edit-profile`, `/edit-company-info`, `/edit-security`, `/contact-card/:userId` (public) | ✅ |
 | Time Clock | `/time-clock` | ✅ |
 | Contracts | `/contracts` (FullScreenModal para create/edit) | ✅ |
 | Subscriptions | `/profile` (tab suscripciones) | 🟡 parcial |
+
+### Componentes shared relevantes (nuevos)
+- `ServicePropertySelector` → `src/shared/components/common/ServicePropertySelector.tsx`
+- `ContactPicker` + `ContactPickerValue` + `EMPTY_CONTACT` → `src/shared/components/common/ContactPicker.tsx`
+- `PropertyForm` → `src/features/crm/clients/components/PropertyForm.tsx`
+- `PropertyCard` → `src/features/crm/clients/components/PropertyCard.tsx`
+- `JobStatusBadge` → `src/features/jobs/components/JobStatusBadge.tsx`
+- `RequestForm` → `src/features/requests/components/RequestForm.tsx` (create/edit mode)
+- `ConvertRequestDialog` → `src/features/requests/components/ConvertRequestDialog.tsx`
+
+### Hooks relevantes (nuevos)
+- `useClientProperties(clientId)` → `src/features/crm/clients/hooks/useClientProperties.ts`
+- `useCustomQuestions()` → `src/features/requests/hooks/useCustomQuestions.ts`
+- `useJobs()`, `useJob(id)` → `src/features/jobs/hooks/useJobs.ts`
+- `useJobMutations` → `src/features/jobs/hooks/useJobMutations.ts`
+- `useConvertEstimateToJob()` → `src/features/jobs/hooks/useConvertEstimateToJob.ts`
 
 ---
 

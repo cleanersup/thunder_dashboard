@@ -28,7 +28,7 @@ import {
 import {
   CheckCircle, Mail, MessageSquare, Phone, MapPin, Building2, Calendar,
   FileText, Edit, Share, Download, Eye, EyeOff,
-  Users, Box, TrendingUp, DollarSign, X, Play, RefreshCw, Trash2, Clock, MoreHorizontal, Map,
+  Users, Box, TrendingUp, DollarSign, X, Play, RefreshCw, Trash2, Clock, MoreHorizontal, Map, Briefcase,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
@@ -47,6 +47,7 @@ import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { PDFService } from "@/shared/services/pdf.service";
 import { SidePanel } from "@/shared/components/common/SidePanel";
 import { buildInvoicePrefillFromEstimate } from "../utils/buildInvoicePrefill";
+import { useConvertEstimateToJob } from "@/features/jobs/hooks/useConvertEstimateToJob";
 
 // ─── Local helpers ────────────────────────────────────────────────────────────
 
@@ -94,31 +95,35 @@ interface EstimateDetailPanelProps {
 // ─── Footer component ─────────────────────────────────────────────────────────
 
 interface FooterProps {
-  status:           string;
-  isSending:        boolean;
-  isSendingSMS:     boolean;
-  isGeneratingLink: boolean;
-  isDownloadingPDF: boolean;
-  isAlreadyInRoute: boolean;
-  isAddingToRoute:  boolean;
-  hasPhone:         boolean;
-  onAccept:         () => void;
-  onSendEmail:      () => void;
-  onSendSMS:        () => void;
-  onEdit:           () => void;
-  onShare:          () => void;
-  onDownloadPDF:    () => void;
-  onConvert:        () => void;
-  onAddToRoute:     () => void;
-  onCancel:         () => void;
-  onDeleteDraft:    () => void;
-  onContinueDraft:  () => void;
-  onStartFresh:     () => void;
+  status:              string;
+  isSending:           boolean;
+  isSendingSMS:        boolean;
+  isGeneratingLink:    boolean;
+  isDownloadingPDF:    boolean;
+  isAlreadyInRoute:    boolean;
+  isAddingToRoute:     boolean;
+  hasPhone:            boolean;
+  hasJobConversion:    boolean;
+  isConvertingToJob:   boolean;
+  onAccept:            () => void;
+  onSendEmail:         () => void;
+  onSendSMS:           () => void;
+  onEdit:              () => void;
+  onShare:             () => void;
+  onDownloadPDF:       () => void;
+  onConvert:           () => void;
+  onConvertToJob:      () => void;
+  onAddToRoute:        () => void;
+  onCancel:            () => void;
+  onDeleteDraft:       () => void;
+  onContinueDraft:     () => void;
+  onStartFresh:        () => void;
 }
 
 function PanelFooter({
   status, isSending, isSendingSMS, isGeneratingLink, isDownloadingPDF, isAlreadyInRoute, isAddingToRoute, hasPhone,
-  onAccept, onSendEmail, onSendSMS, onEdit, onShare, onDownloadPDF, onConvert, onAddToRoute, onCancel,
+  hasJobConversion, isConvertingToJob,
+  onAccept, onSendEmail, onSendSMS, onEdit, onShare, onDownloadPDF, onConvert, onConvertToJob, onAddToRoute, onCancel,
   onDeleteDraft, onContinueDraft, onStartFresh,
 }: FooterProps) {
   // Draft: Continue · Start Fresh · More (Delete)
@@ -194,12 +199,23 @@ function PanelFooter({
   }
 
   // Accepted:
-  //   Not in route → Add to Route (primary) · More (Share, Download, Convert to Invoice, Cancel)
-  //   In route     → Convert to Invoice (primary) · More (Share, Download, Cancel)
+  //   No job yet → Convert to Job (primary) · More (Add to Route, Convert Invoice, Share, Download, Cancel)
+  //   Has job    → Add to Route / Convert to Invoice · More (Share, Download, Cancel)
   if (status === "Accepted") {
     return (
       <div className="flex items-center gap-2">
-        {!isAlreadyInRoute ? (
+        {!hasJobConversion ? (
+          <Button
+            size="sm"
+            className="flex-1"
+            style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }}
+            onClick={onConvertToJob}
+            disabled={isConvertingToJob}
+          >
+            <Briefcase className="w-4 h-4 mr-1.5" />
+            {isConvertingToJob ? "Converting…" : "Convert to Job"}
+          </Button>
+        ) : !isAlreadyInRoute ? (
           <Button size="sm" className="flex-1" onClick={onAddToRoute} disabled={isAddingToRoute}>
             <Map className="w-4 h-4 mr-1.5" /> {isAddingToRoute ? "Adding…" : "Add to Route"}
           </Button>
@@ -215,17 +231,20 @@ function PanelFooter({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            {!isAlreadyInRoute && (
+              <DropdownMenuItem onClick={onAddToRoute} disabled={isAddingToRoute}>
+                <Map className="w-4 h-4 mr-2" /> Add to Route
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={onShare} disabled={isGeneratingLink}>
               <Share className="w-4 h-4 mr-2" /> {isGeneratingLink ? "Generating…" : "Share"}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onDownloadPDF} disabled={isDownloadingPDF}>
               <Download className="w-4 h-4 mr-2" /> {isDownloadingPDF ? "Downloading…" : "Download PDF"}
             </DropdownMenuItem>
-            {!isAlreadyInRoute && (
-              <DropdownMenuItem onClick={onConvert}>
-                <FileText className="w-4 h-4 mr-2" /> Convert to Invoice
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem onClick={onConvert}>
+              <FileText className="w-4 h-4 mr-2" /> Convert to Invoice
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" /> Cancel Estimate
@@ -272,6 +291,8 @@ export function EstimateDetailPanel({
   const [isDeletingDraft,       setIsDeletingDraft]       = useState(false);
   const [isAlreadyInRoute,      setIsAlreadyInRoute]      = useState(false);
   const [isAddingToRoute,       setIsAddingToRoute]       = useState(false);
+  const [isConvertingToJob,     setIsConvertingToJob]     = useState(false);
+  const convertEstimateToJob = useConvertEstimateToJob();
   const [draftClientInfo, setDraftClientInfo] = useState<{
     name: string; email: string; phone: string;
     address: string; city: string; state: string; zip: string;
@@ -556,6 +577,16 @@ export function EstimateDetailPanel({
     }
   }
 
+  async function handleConvertToJob() {
+    if (!estimate) return;
+    await convertEstimateToJob({
+      estimate,
+      onStart:   () => setIsConvertingToJob(true),
+      onFinally: () => setIsConvertingToJob(false),
+      onSuccess: () => onClose(),
+    });
+  }
+
   function handleConvertToInvoice() {
     if (!estimate) return;
     const prefill = buildInvoicePrefillFromEstimate(estimate);
@@ -712,6 +743,8 @@ export function EstimateDetailPanel({
       isAlreadyInRoute={isAlreadyInRoute}
       isAddingToRoute={isAddingToRoute}
       hasPhone={!!estimate?.phone}
+      hasJobConversion={!!estimate?.job_id}
+      isConvertingToJob={isConvertingToJob}
       onAccept={() => setIsAcceptDialogOpen(true)}
       onSendEmail={handleSendEmail}
       onSendSMS={handleSendSMS}
@@ -719,6 +752,7 @@ export function EstimateDetailPanel({
       onShare={handleShare}
       onDownloadPDF={handleDownloadPDF}
       onConvert={handleConvertToInvoice}
+      onConvertToJob={handleConvertToJob}
       onAddToRoute={handleAddToRoute}
       onCancel={() => setIsCancelDialogOpen(true)}
       onDeleteDraft={() => setIsDeleteDraftOpen(true)}

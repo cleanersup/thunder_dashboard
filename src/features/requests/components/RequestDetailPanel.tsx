@@ -3,7 +3,7 @@ import { format, parseISO } from "date-fns";
 import {
   User, Calendar, Clock, Mail, Phone, MapPin,
   Home, Building2, XCircle,
-  Navigation, Users, UserPlus, Trash2, MessageSquare,
+  Navigation, Users, UserPlus, Trash2, MessageSquare, ArrowRight,
 } from "lucide-react";
 import { Button }        from "@/shared/components/ui/button";
 import { Badge }         from "@/shared/components/ui/badge";
@@ -11,11 +11,12 @@ import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { AddressRouteMap } from "@/shared/components/common/AddressRouteMap";
 import { SidePanel }     from "@/shared/components/common/SidePanel";
 import { useProfile }    from "@/shared/hooks/useProfile";
+import { ConvertRequestDialog } from "./ConvertRequestDialog";
 import {
   useConvertToLead, useConvertToClient,
-  useCancelBooking, useDeleteBooking,
-} from "../hooks/useBookings";
-import type { Booking } from "../types/booking.types";
+  useCancelRequest, useDeleteRequest,
+} from "../hooks/useRequests";
+import type { Booking } from "../types/request.types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
-interface BookingDetailPanelProps {
+interface RequestDetailPanelProps {
   booking: Booking | null;
   open: boolean;
   onClose: () => void;
@@ -47,14 +48,15 @@ interface BookingDetailPanelProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function BookingDetailPanel({ booking, open, onClose }: BookingDetailPanelProps) {
+export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPanelProps) {
   const { mutate: toLead   } = useConvertToLead();
   const { mutate: toClient } = useConvertToClient();
-  const { mutate: cancel   } = useCancelBooking();
-  const { mutate: remove   } = useDeleteBooking();
+  const { mutate: cancel   } = useCancelRequest();
+  const { mutate: remove   } = useDeleteRequest();
   const { data: profile }    = useProfile();
 
   const [confirmAction, setConfirmAction] = useState<"lead" | "client" | "cancel" | "delete" | null>(null);
+  const [convertOpen, setConvertOpen]     = useState(false);
 
   const handleConfirm = () => {
     if (!confirmAction || !booking) return;
@@ -66,10 +68,10 @@ export function BookingDetailPanel({ booking, open, onClose }: BookingDetailPane
   };
 
   const confirmMessages: Record<string, { title: string; description: string; label: string; variant?: "destructive" }> = {
-    lead:   { title: "Move to CRM",       description: "A new lead will be created and this booking will be deleted.",   label: "Move to CRM"     },
-    client: { title: "Convert to Client", description: "A new client will be created and this booking will be deleted.", label: "Convert"         },
-    cancel: { title: "Cancel Booking",    description: "This booking will be marked as cancelled.",                       label: "Cancel Booking", variant: "destructive" },
-    delete: { title: "Delete Booking",    description: "This booking will be permanently deleted.",                       label: "Delete",         variant: "destructive" },
+    lead:   { title: "Move to CRM",       description: "A new lead will be created and this request will be deleted.",   label: "Move to CRM"     },
+    client: { title: "Convert to Client", description: "A new client will be created and this request will be deleted.", label: "Convert"         },
+    cancel: { title: "Cancel Request",    description: "This request will be marked as cancelled.",                       label: "Cancel Request", variant: "destructive" },
+    delete: { title: "Delete Request",    description: "This request will be permanently deleted.",                       label: "Delete",         variant: "destructive" },
   };
 
   const confirm = confirmAction ? confirmMessages[confirmAction] : null;
@@ -77,6 +79,15 @@ export function BookingDetailPanel({ booking, open, onClose }: BookingDetailPane
 
   const footer = booking ? (
     <div className="flex flex-wrap items-center gap-2">
+      {booking.status === "new" && (
+        <Button
+          size="sm"
+          className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+          onClick={() => setConvertOpen(true)}
+        >
+          <ArrowRight className="h-3.5 w-3.5" /> Convert Request
+        </Button>
+      )}
       <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setConfirmAction("lead")}>
         <Users className="h-3.5 w-3.5" /> Move to CRM
       </Button>
@@ -182,7 +193,6 @@ export function BookingDetailPanel({ booking, open, onClose }: BookingDetailPane
               </div>
             </div>
 
-            {/* Route Map */}
             {targetAddress && (
               <AddressRouteMap
                 targetAddress={targetAddress}
@@ -285,7 +295,7 @@ export function BookingDetailPanel({ booking, open, onClose }: BookingDetailPane
           {/* Timeline */}
           <section className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timeline</h3>
-            <InfoRow icon={Clock} label="Booking Created" value={format(parseISO(booking.created_at), "MMMM dd, yyyy - h:mm a")} />
+            <InfoRow icon={Clock} label="Request Created" value={format(parseISO(booking.created_at), "MMMM dd, yyyy - h:mm a")} />
             {booking.updated_at !== booking.created_at && (
               <InfoRow icon={Clock} label="Last Updated" value={format(parseISO(booking.updated_at), "MMMM dd, yyyy - h:mm a")} />
             )}
@@ -302,6 +312,12 @@ export function BookingDetailPanel({ booking, open, onClose }: BookingDetailPane
         onConfirm={handleConfirm}
         confirmLabel={confirm?.label ?? "Confirm"}
         variant={confirm?.variant}
+      />
+
+      <ConvertRequestDialog
+        request={booking}
+        open={convertOpen}
+        onOpenChange={setConvertOpen}
       />
     </>
   );

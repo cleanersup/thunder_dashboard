@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   User, Building2, Phone, Mail, MapPin, MessageSquare,
   MessageCircle, Briefcase, FileText, Edit, Trash2, UserX, UserCheck, Route, Receipt,
-  CreditCard,
+  CreditCard, Plus,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -12,6 +12,10 @@ import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { SidePanel } from "@/shared/components/common/SidePanel";
 import { ClientForm } from "./ClientForm";
 import { ClientCardSetupDialog } from "./ClientCardSetupDialog";
+import { PropertyCard } from "./PropertyCard";
+import { PropertyForm } from "./PropertyForm";
+import { useClientProperties } from "../hooks/useClientProperties";
+import type { ClientProperty } from "../types/clientProperty.types";
 import {
   useClient,
   useDeleteClient,
@@ -53,6 +57,10 @@ export function ClientDetailPanel({ client, open, onClose }: ClientDetailPanelPr
   const [showDelete, setShowDelete] = useState(false);
   const [showRemoveCard, setShowRemoveCard] = useState(false);
   const [showCardSetup, setShowCardSetup] = useState(false);
+  const [propertyFormOpen, setPropertyFormOpen]       = useState(false);
+  const [editingProperty, setEditingProperty]         = useState<ClientProperty | undefined>();
+
+  const { data: properties = [] } = useClientProperties(client?.id);
 
   const { data: liveClient } = useClient(client?.id);
   const c = liveClient ?? client;
@@ -257,6 +265,35 @@ export function ClientDetailPanel({ client, open, onClose }: ClientDetailPanelPr
 
           <hr className="border-border" />
 
+          {/* Properties */}
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Properties</h3>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-xs gap-1"
+                onClick={() => { setEditingProperty(undefined); setPropertyFormOpen(true); }}
+              >
+                <Plus className="h-3 w-3" /> Add
+              </Button>
+            </div>
+            {properties.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No properties yet</p>
+            ) : (
+              properties.map((p) => (
+                <PropertyCard
+                  key={p.id}
+                  property={p}
+                  clientId={c.id}
+                  onEdit={(prop) => { setEditingProperty(prop); setPropertyFormOpen(true); }}
+                />
+              ))
+            )}
+          </section>
+
+          <hr className="border-border" />
+
           {/* Payment Methods */}
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-2">
@@ -325,6 +362,12 @@ export function ClientDetailPanel({ client, open, onClose }: ClientDetailPanelPr
       </SidePanel>
 
       <ClientForm open={showEdit} onClose={() => setShowEdit(false)} client={c} />
+      <PropertyForm
+        open={propertyFormOpen}
+        onOpenChange={setPropertyFormOpen}
+        clientId={c.id}
+        property={editingProperty}
+      />
       <ClientCardSetupDialog client={c} open={showCardSetup} onOpenChange={setShowCardSetup} />
       <ConfirmDialog
         open={showDelete}

@@ -14,8 +14,8 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/shared/utils/cn";
 import { useProfile } from "@/shared/hooks/useProfile";
-import { useBookingForms, useSaveBookingForms } from "../hooks/useBookings";
-import type { CustomQuestion, ServiceType } from "../types/booking.types";
+import { useRequestForms, useSaveRequestForms } from "../hooks/useRequests";
+import type { CustomQuestion, ServiceType } from "../types/request.types";
 
 const ADDITIONAL_SERVICES = [
   "Kitchen", "Oven", "Refrigerator", "Living Room", "Dining Room",
@@ -26,7 +26,6 @@ const COMMERCIAL_TYPES = [
   "School", "Church", "Office", "Warehouse", "Restaurant", "Other",
 ];
 
-/** Floating label input used in the form preview. */
 function FloatingInput({ id, label, type = "text" }: { id: string; label: string; type?: string }) {
   return (
     <div className="relative">
@@ -46,21 +45,21 @@ function FloatingInput({ id, label, type = "text" }: { id: string; label: string
   );
 }
 
-export function EditBookingFormPage() {
+export function EditRequestFormPage() {
   const navigate  = useNavigate();
   const { data: profile }  = useProfile();
-  const { data: formData = [], isLoading } = useBookingForms();
-  const { mutate: save, isPending }        = useSaveBookingForms();
+  const { data: formData = [], isLoading } = useRequestForms();
+  const { mutate: save, isPending }        = useSaveRequestForms();
 
-  const [questions, setQuestions]         = useState<CustomQuestion[]>([]);
-  const [serviceType, setServiceType]     = useState<ServiceType | "">("");
-  const [selectedDate, setSelectedDate]   = useState<Date | undefined>(undefined);
+  const [questions, setQuestions]           = useState<CustomQuestion[]>([]);
+  const [serviceType, setServiceType]       = useState<ServiceType | "">("");
+  const [selectedDate, setSelectedDate]     = useState<Date | undefined>(undefined);
   const [commercialType, setCommercialType] = useState("");
   const [additionalServices, setAdditionalServices] = useState<string[]>([]);
 
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
-  const [newQuestion, setNewQuestion]     = useState("");
-  const [questionFormType, setQuestionFormType] = useState<ServiceType | "">("");
+  const [newQuestion, setNewQuestion]             = useState("");
+  const [questionFormType, setQuestionFormType]   = useState<ServiceType | "">("");
 
   useEffect(() => {
     if (formData.length > 0) {
@@ -104,12 +103,12 @@ export function EditBookingFormPage() {
         {/* ── Header ──────────────────────────────────────────────── */}
         <div className="bg-sidebar px-6 py-4 flex items-center justify-between">
           <button
-            onClick={() => navigate("/booking")}
+            onClick={() => navigate("/requests")}
             className="p-2 -ml-2 hover:bg-white/10 rounded-lg transition-colors"
           >
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
-          <h1 className="text-lg font-semibold text-white">Edit Booking Form</h1>
+          <h1 className="text-lg font-semibold text-white">Edit Request Form</h1>
           <div className="w-10" />
         </div>
 
@@ -119,10 +118,10 @@ export function EditBookingFormPage() {
           <div className="px-4 py-3 bg-info-subtle">
             <h3 className="text-sm font-semibold text-primary mb-1 flex items-center gap-2">
               <Info className="w-4 h-4" />
-              Client Booking Form Preview
+              Client Request Form Preview
             </h3>
             <p className="text-xs text-primary/80">
-              This is what your clients will see when booking. Add questions below to customize your booking form.
+              This is what your clients will see when submitting a request. Add questions below to customize your form.
             </p>
           </div>
 
@@ -175,8 +174,6 @@ export function EditBookingFormPage() {
             <CardContent className="p-4 space-y-6">
               <h3 className="text-base font-semibold">Preferred Cleaning Date & Time</h3>
               <div className="space-y-6">
-
-                {/* Date picker (interactive so the preview feels real) */}
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -211,7 +208,6 @@ export function EditBookingFormPage() {
                   </SelectContent>
                 </Select>
 
-                {/* Service type — controls which section is shown */}
                 <Select value={serviceType} onValueChange={(v) => setServiceType(v as ServiceType)}>
                   <SelectTrigger className="h-12 rounded-md border border-border bg-white">
                     <SelectValue placeholder="Service Type" />
@@ -262,7 +258,6 @@ export function EditBookingFormPage() {
                     />
                   </div>
 
-                  {/* Residential custom questions — inline in preview */}
                   {questions.filter((q) => q.formType === "residential").map((q) => (
                     <div key={q.id} className="relative">
                       <Input
@@ -295,7 +290,6 @@ export function EditBookingFormPage() {
               <CardContent className="p-4 space-y-6">
                 <h3 className="text-base font-semibold">Select the property type</h3>
                 <div className="space-y-6">
-
                   <div className="grid grid-cols-2 gap-3">
                     {COMMERCIAL_TYPES.map((t) => (
                       <div
@@ -321,7 +315,6 @@ export function EditBookingFormPage() {
                     />
                   </div>
 
-                  {/* Commercial custom questions — inline in preview */}
                   {questions.filter((q) => q.formType === "commercial").map((q) => (
                     <div key={q.id} className="relative">
                       <Input

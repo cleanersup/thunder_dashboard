@@ -24,14 +24,22 @@ const VerifyEmailPage = lazy(() => import("@/features/auth/pages/VerifyEmailPage
 // Phase 4 — Dashboard ✅
 const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
 
-// Phase 5 — CRM ✅
-const CRMPage = lazy(() => import("@/features/crm/pages/CRMPage"));
+// Phase 5 — CRM ✅ (now split into Leads / Clients / Tasks)
+const LeadsPage   = lazy(() => import("@/features/crm/leads/pages/LeadsPage").then((m) => ({ default: m.LeadsPage })));
+const ClientsPage = lazy(() => import("@/features/crm/clients/pages/ClientsPage").then((m) => ({ default: m.ClientsPage })));
+const TasksPage   = lazy(() => import("@/features/tasks/pages/TasksPage").then((m) => ({ default: m.TasksPage })));
 const ClientWalletPage = lazy(() => import("@/features/crm/clients/pages/ClientWalletPage").then((m) => ({ default: m.ClientWalletPage })));
 const NotificationsPage = lazy(() => import("@/features/notifications/pages/NotificationsPage"));
 
-// Phase 6 — Booking ✅
-const BookingPage            = lazy(() => import("@/features/booking/pages/BookingPage").then((m) => ({ default: m.BookingPage })));
-const EditBookingFormPage    = lazy(() => import("@/features/booking/pages/EditBookingFormPage").then((m) => ({ default: m.EditBookingFormPage })));
+// Jobs ✅
+const JobsPage      = lazy(() => import("@/features/jobs/pages/JobsPage").then((m) => ({ default: m.JobsPage })));
+const AddJobPage    = lazy(() => import("@/features/jobs/pages/AddJobPage").then((m) => ({ default: m.AddJobPage })));
+const JobDetailPage = lazy(() => import("@/features/jobs/pages/JobDetailPage").then((m) => ({ default: m.JobDetailPage })));
+
+// Phase 6 — Requests (renamed from Booking) ✅
+const RequestsPage        = lazy(() => import("@/features/requests/pages/RequestsPage").then((m) => ({ default: m.RequestsPage })));
+const AddRequestPage      = lazy(() => import("@/features/requests/pages/AddRequestPage").then((m) => ({ default: m.AddRequestPage })));
+const EditRequestFormPage = lazy(() => import("@/features/requests/pages/EditRequestFormPage").then((m) => ({ default: m.EditRequestFormPage })));
 const PublicBookingFormPage  = lazy(() => import("@/features/booking/pages/PublicBookingFormPage").then((m) => ({ default: m.PublicBookingFormPage })));
 
 // Phase 7 — Estimates ✅
@@ -110,15 +118,28 @@ export function AppRouter() {
           {/* Phase 4 ✅ */}
           <Route path="/home" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
 
-          {/* Phase 5 ✅ */}
-          <Route path="/crm" element={<ProtectedRoute requireFeature="crm"><CRMPage /></ProtectedRoute>} />
+          {/* Jobs ✅ */}
+          <Route path="/jobs"          element={<ProtectedRoute requireFeature="jobs"><JobsPage /></ProtectedRoute>} />
+          <Route path="/jobs/new"      element={<ProtectedRoute requireFeature="jobs"><AddJobPage /></ProtectedRoute>} />
+          <Route path="/jobs/:id/edit" element={<ProtectedRoute requireFeature="jobs"><AddJobPage /></ProtectedRoute>} />
+          <Route path="/jobs/:id"      element={<ProtectedRoute requireFeature="jobs"><JobDetailPage /></ProtectedRoute>} />
+
+          {/* Phase 5 ✅ — CRM split into separate pages */}
+          <Route path="/crm"     element={<Navigate to="/leads" replace />} />
+          <Route path="/leads"   element={<ProtectedRoute requireFeature="crm"><LeadsPage /></ProtectedRoute>} />
+          <Route path="/clients" element={<ProtectedRoute requireFeature="crm"><ClientsPage /></ProtectedRoute>} />
+          <Route path="/tasks"   element={<ProtectedRoute requireFeature="crm"><TasksPage /></ProtectedRoute>} />
           <Route path="/client/wallet/:token" element={<ClientWalletPage />} />
           <Route path="/notifications" element={<ProtectedRoute requireSubscription={false}><NotificationsPage /></ProtectedRoute>} />
 
-          {/* Phase 6 ✅ */}
-          <Route path="/booking" element={<ProtectedRoute requireFeature="booking"><BookingPage /></ProtectedRoute>} />
-          <Route path="/booking/edit" element={<ProtectedRoute requireFeature="booking"><EditBookingFormPage /></ProtectedRoute>} />
-          {/* Public — no auth, must be after /booking/edit to avoid conflict */}
+          {/* Phase 6 ✅ — Requests (renamed from Booking) */}
+          <Route path="/requests"      element={<ProtectedRoute requireFeature="requests"><RequestsPage /></ProtectedRoute>} />
+          <Route path="/requests/new"  element={<ProtectedRoute requireFeature="requests"><AddRequestPage /></ProtectedRoute>} />
+          <Route path="/requests/edit" element={<ProtectedRoute requireFeature="requests"><EditRequestFormPage /></ProtectedRoute>} />
+          {/* Legacy redirect for old /booking route */}
+          <Route path="/booking"      element={<Navigate to="/requests" replace />} />
+          <Route path="/booking/edit" element={<Navigate to="/requests/edit" replace />} />
+          {/* Public — no auth, must be after protected routes to avoid conflict */}
           <Route path="/booking/:userId" element={<PublicBookingFormPage />} />
 
           {/* Phase 7 ✅ */}

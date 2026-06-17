@@ -22,6 +22,13 @@ export const QK = {
   invoices:      ["invoices"]       as const,
   bookings:      ["bookings"]       as const,
   bookingForms:  ["booking-forms"]  as const,
+
+  // Requests (renamed from bookings)
+  requests:          ["requests"]       as const,
+  requestForms:      ["request-forms"]  as const,
+  requestsCount:     ["requests-count"] as const,
+  request:           (id: string) => ["request", id]             as const,
+  requestConversion: (id: string) => ["request-conversion", id] as const,
   routes:        ["routes"]         as const,
   appointments:  ["appointments"]   as const,
   walkthroughs:  ["walkthroughs"]   as const,
@@ -61,6 +68,14 @@ export const QK = {
   employeesCount:            ["employees-count"]               as const,
   leadsCount:                ["leads-count"]                   as const,
   bookingsCount:             ["bookings-count"]                as const,
+
+  // ── Jobs ────────────────────────────────────────────────────────────────────
+  jobs:        ["jobs"]                                as const,
+  job:         (id: string)      => ["job", id]        as const,
+  jobInvoices: (ids: string[])   => ["job-invoices", ids] as const,
+
+  // ── Client Properties ───────────────────────────────────────────────────────
+  clientProperties: (clientId: string) => ["client-properties", clientId] as const,
 
   // ── Contracts (CON) ──────────────────────────────────────────────────────────
   contracts:   ["contracts"] as const,

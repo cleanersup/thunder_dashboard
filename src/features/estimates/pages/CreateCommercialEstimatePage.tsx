@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Building2 } from "lucide-react";
 import { COMMERCIAL_STEPS } from "../config/steps.config";
 import { EstimateClientStep, type ClientEntity, type LeadEntity, type EstimateEntityType } from "../components/EstimateClientStep";
@@ -26,6 +27,8 @@ import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { useDraftEstimate } from "../hooks/useDraftEstimate";
 import { fetchEstimate } from "../services/estimatesService";
 import { useCommercialPricing, isGroupB } from "../hooks/useCommercialPricing";
+import { supabase } from "@/integrations/supabase/client";
+import { QK } from "@/shared/config/queryKeys";
 import type { DraftData } from "../types/estimate.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -37,10 +40,12 @@ interface Props {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export function CreateCommercialEstimatePage({ open, onClose, initialState }: Props = {}) {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate      = useNavigate();
+  const location      = useLocation();
+  const qc            = useQueryClient();
   const locationState = (location.state as any) || {};
   const { isEditing, estimateId, estimateData, prefill } = initialState ?? locationState;
+  const fromRequestId = locationState.fromRequestId as string | undefined;
   const isModal      = onClose !== undefined;
   const continueDraft = initialState?.continueDraft ?? false;
   const goBack = useCallback(() => {
@@ -462,6 +467,19 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       } else {
         const created = await createEstimate(payload);
         finalId = created.id;
+        if (fromRequestId) {
+          const contactType = estimateType as "client" | "lead";
+          const contactId   = estimateType === "client" ? selectedClient?.id : selectedLead?.id;
+          if (contactId) {
+            await (supabase as any).rpc("finalize_booking_conversion", {
+              p_booking_id:  fromRequestId,
+              p_estimate_id: finalId,
+              p_contact_type: contactType,
+              p_contact_id:   contactId,
+            });
+            qc.invalidateQueries({ queryKey: QK.requests });
+          }
+        }
       }
 
       // Send email when delivery method includes email

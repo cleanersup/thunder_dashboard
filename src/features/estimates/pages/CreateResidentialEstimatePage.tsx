@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Building2 } from "lucide-react";
 import { RESIDENTIAL_STEPS } from "../config/steps.config";
 import { EstimateClientStep, type ClientEntity, type LeadEntity, type EstimateEntityType } from "../components/EstimateClientStep";
@@ -29,6 +30,8 @@ import { fetchClient } from "@/features/crm/clients/services/clientsService";
 import { fetchLead } from "@/features/crm/leads/services/leadsService";
 import { useResidentialPricing } from "../hooks/useResidentialPricing";
 import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
+import { supabase } from "@/integrations/supabase/client";
+import { QK } from "@/shared/config/queryKeys";
 import type { DraftData } from "../types/estimate.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -42,8 +45,10 @@ interface Props {
 export function CreateResidentialEstimatePage({ open, onClose, initialState }: Props = {}) {
   const navigate    = useNavigate();
   const location    = useLocation();
+  const qc          = useQueryClient();
   const locationState = (location.state as any) || {};
   const { isEditing, estimateId, estimateData, prefill, continueDraft } = initialState ?? locationState;
+  const fromRequestId = locationState.fromRequestId as string | undefined;
   const isModal = onClose !== undefined;
   const goBack = useCallback(() => {
     if (isModal) onClose!();
@@ -401,6 +406,19 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       } else {
         const saved = await createEst.mutateAsync(payload);
         savedId = saved.id;
+        if (fromRequestId) {
+          const contactType = estimateType as "client" | "lead";
+          const contactId   = estimateType === "client" ? selectedClient?.id : selectedLead?.id;
+          if (contactId) {
+            await (supabase as any).rpc("finalize_booking_conversion", {
+              p_booking_id:  fromRequestId,
+              p_estimate_id: savedId,
+              p_contact_type: contactType,
+              p_contact_id:   contactId,
+            });
+            qc.invalidateQueries({ queryKey: QK.requests });
+          }
+        }
       }
       if (deliveryMethod === "email" || deliveryMethod === "both") {
         await sendEstimateEmail({
