@@ -2,11 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   fetchRequests, fetchRequest,
-  updateRequestStatus, deleteRequest,
+  updateRequestStatus, updateRequest, deleteRequest,
   convertRequestToLead, convertRequestToClient,
   fetchRequestForms, saveRequestForms,
   fetchPublicProfile, fetchPublicBookingForms,
 } from "../services/requestsService";
+import type { RequestPayload } from "../types/request.types";
 import type { CustomQuestion } from "../types/request.types";
 import { QK } from "@/shared/config/queryKeys";
 
@@ -24,6 +25,19 @@ export function useRequest(id: string | undefined) {
   });
 }
 
+export function useUpdateRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: RequestPayload }) => updateRequest(id, payload),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: QK.requests });
+      qc.invalidateQueries({ queryKey: QK.request(id) });
+      toast.success("Request updated");
+    },
+    onError: () => toast.error("Failed to update request"),
+  });
+}
+
 export function useCancelRequest() {
   const qc = useQueryClient();
   return useMutation({
@@ -33,6 +47,30 @@ export function useCancelRequest() {
       toast.success("Request cancelled");
     },
     onError: () => toast.error("Failed to cancel request"),
+  });
+}
+
+export function useArchiveRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => updateRequestStatus(id, "archived"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.requests });
+      toast.success("Request archived");
+    },
+    onError: () => toast.error("Failed to archive request"),
+  });
+}
+
+export function useRestoreRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => updateRequestStatus(id, "new"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.requests });
+      toast.success("Request reactivated");
+    },
+    onError: () => toast.error("Failed to restore request"),
   });
 }
 

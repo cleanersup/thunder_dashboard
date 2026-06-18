@@ -39,25 +39,43 @@ import { useCreateWalkthrough, useUpdateWalkthrough, useWalkthrough } from "../h
 import { supabase } from "@/integrations/supabase/client";
 import { useAllEmployees } from "@/features/employees/hooks/useEmployees";
 import { EstimateClientStep } from "@/features/estimates/components/EstimateClientStep";
+import { useClients } from "@/features/crm/clients/hooks/useClients";
+import { useLeads } from "@/features/crm/leads/hooks/useLeads";
 import type { ClientEntity, LeadEntity } from "@/shared/types/entities";
 type WalkthroughEntityType = "client" | "lead";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface AddWalkthroughPageProps {
-  /** When provided, renders as a full-screen Dialog. Omit for standalone page mode. */
   open?: boolean;
   onClose?: () => void;
+  // Conversion-from-request prefill
+  fromRequestId?:      string;          // booking ID → calls finalize after save (no-date case)
+  walkthroughEditId?:  string;          // draft ID  → UPDATE instead of INSERT (date case)
+  prefillContactType?: "client" | "lead";
+  prefillContactId?:   string;
+  prefillServiceType?: "residential" | "commercial";
+  prefillDate?:        string;          // yyyy-MM-dd
+  prefillTime?:        string;          // HH:mm
+  prefillNotes?:       string;
 }
 
-export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = {}) {
+export function AddWalkthroughPage({
+  open, onClose,
+  fromRequestId:      fromRequestIdProp,
+  walkthroughEditId,
+  prefillContactType, prefillContactId,
+  prefillServiceType, prefillDate, prefillTime, prefillNotes,
+}: AddWalkthroughPageProps = {}) {
   const navigate  = useNavigate();
   const location  = useLocation();
   const qc        = useQueryClient();
-  const { id: walkthroughId } = useParams<{ id: string }>();
-  const locationState  = (location.state as Record<string, unknown>) || {};
-  const fromRequestId  = locationState.fromRequestId as string | undefined;
-  const isEdit = Boolean(walkthroughId);
+  const { id: urlWalkthroughId } = useParams<{ id: string }>();
+  // walkthroughEditId prop (modal conversion) takes precedence over URL param
+  const walkthroughId = walkthroughEditId ?? urlWalkthroughId;
+  const locationState = (location.state as Record<string, unknown>) || {};
+  const fromRequestId = fromRequestIdProp ?? (locationState.fromRequestId as string | undefined);
+  const isEdit  = Boolean(walkthroughId);
   const isModal = onClose !== undefined;
 
   const handleClose = useCallback(() => {
@@ -67,13 +85,18 @@ export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = 
 
   const { data: existing }                                     = useWalkthrough(walkthroughId);
   const { data: employees = [], isLoading: isLoadingEmployees } = useAllEmployees();
+  const { data: allClients = [] } = useClients();
+  const { data: allLeads   = [] } = useLeads();
 
   const { mutate: create, isPending: isCreating } = useCreateWalkthrough();
   const { mutate: update, isPending: isUpdating } = useUpdateWalkthrough();
   const isPending = isCreating || isUpdating;
 
   // ── Client/Lead picker state ──────────────────────────────────────────────
-  const [walkthroughType, setWalkthroughType] = useState<WalkthroughEntityType | null>("client");
+  // Use prefillContactType as initial value so the picker shows the right type immediately
+  const [walkthroughType, setWalkthroughType] = useState<WalkthroughEntityType | null>(
+    prefillContactType ?? "client"
+  );
   const [selectedClient,  setSelectedClient]  = useState<ClientEntity | null>(null);
   const [selectedLead,    setSelectedLead]    = useState<LeadEntity | null>(null);
   const [pickerErrors,    setPickerErrors]    = useState<{ type?: string; entity?: string }>({});
@@ -124,6 +147,50 @@ export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = 
       setSelectedEmployees(existing.assigned_employees ?? []);
     }
   }, [isEdit, existing, reset]);
+
+  // ── Auto-select contact from existing walkthrough (edit mode) ────────────
+  const [editContactDone, setEditContactDone] = useState(false);
+  useEffect(() => {
+    if (!isEdit || editContactDone || !existing) return;
+    if (existing.client_id && allClients.length > 0) {
+      const c = allClients.find((x) => x.id === existing.client_id);
+      if (c) { handleClientSelect(c as ClientEntity); setEditContactDone(true); }
+    } else if (existing.lead_id && allLeads.length > 0) {
+      const l = allLeads.find((x) => x.id === existing.lead_id);
+      if (l) { handleLeadSelect(l as LeadEntity); setEditContactDone(true); }
+    }
+  }, [isEdit, editContactDone, existing, allClients, allLeads]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Prefill from request conversion (create mode) ─────────────────────────
+  const [conversionPrefillDone, setConversionPrefillDone] = useState(false);
+  useEffect(() => {
+    if (isEdit || conversionPrefillDone || !prefillContactId) return;
+    if (prefillServiceType) {
+      setValue("service_type", prefillServiceType, { shouldValidate: true });
+    }
+    if (prefillNotes) setValue("notes", prefillNotes);
+    if (prefillDate) {
+      const [y, m, d] = prefillDate.split("-").map(Number);
+      const date = new Date(y, m - 1, d);
+      setSelectedDate(date);
+      setValue("scheduled_date", prefillDate, { shouldValidate: true });
+    }
+    if (prefillTime) setValue("scheduled_time", prefillTime);
+    setConversionPrefillDone(true);
+  }, [isEdit, conversionPrefillDone, prefillContactId, prefillServiceType, prefillDate, prefillTime, prefillNotes, setValue]);
+
+  // ── Auto-select contact from prefill props (when clients/leads list loads) ─
+  const [contactPrefillDone, setContactPrefillDone] = useState(false);
+  useEffect(() => {
+    if (isEdit || contactPrefillDone || !prefillContactId) return;
+    if (prefillContactType === "client" && allClients.length > 0) {
+      const c = allClients.find((x) => x.id === prefillContactId);
+      if (c) { handleClientSelect(c as ClientEntity); setContactPrefillDone(true); }
+    } else if (prefillContactType === "lead" && allLeads.length > 0) {
+      const l = allLeads.find((x) => x.id === prefillContactId);
+      if (l) { handleLeadSelect(l as LeadEntity); setContactPrefillDone(true); }
+    }
+  }, [isEdit, contactPrefillDone, prefillContactId, prefillContactType, allClients, allLeads]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Sync employees → form ──────────────────────────────────────────────────
   useEffect(() => {
@@ -215,10 +282,9 @@ export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = 
             if (contactId) {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               await (supabase as any).rpc("finalize_booking_conversion", {
-                p_booking_id:    fromRequestId,
+                p_booking_id:     fromRequestId,
+                p_estimate_id:    null,
                 p_walkthrough_id: newWalkthrough.id,
-                p_contact_type:  contactType,
-                p_contact_id:    contactId,
               });
               qc.invalidateQueries({ queryKey: QK.requests });
             }

@@ -474,8 +474,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
             await (supabase as any).rpc("finalize_booking_conversion", {
               p_booking_id:  fromRequestId,
               p_estimate_id: finalId,
-              p_contact_type: contactType,
-              p_contact_id:   contactId,
+              p_walkthrough_id: null,
             });
             qc.invalidateQueries({ queryKey: QK.requests });
           }

@@ -35,7 +35,15 @@ export interface RequestPayload {
   existingAttachments?:      BookingAttachmentMeta[];
 }
 
-export type Booking     = Database["public"]["Tables"]["bookings"]["Row"];
+export type Booking = Database["public"]["Tables"]["bookings"]["Row"] & {
+  converted_to_type?: "estimate" | "walkthrough" | null;
+  converted_to_id?:   string | null;
+  client_id?:         string | null;
+  lead_id?:           string | null;
+  contact_type?:      "client" | "lead" | "anonymous" | null;
+  client_property_id?: string | null;
+  attachments?:       BookingAttachmentMeta[] | null;
+};
 export type BookingInsert = Database["public"]["Tables"]["bookings"]["Insert"];
 export type BookingUpdate = Database["public"]["Tables"]["bookings"]["Update"];
 export type BookingForm = Database["public"]["Tables"]["booking_forms"]["Row"];
@@ -58,6 +66,20 @@ export interface RequestSummary {
   status: BookingStatus;
   email: string;
   phone: string;
+}
+
+/** Config emitted by ConvertRequestDialog when user picks "Walkthrough". */
+export interface WalkthroughConvertConfig {
+  /** booking ID — triggers finalize_booking_conversion after save (no-date case only) */
+  fromRequestId?:     string;
+  /** walkthrough draft ID — tells the form to UPDATE instead of INSERT (date case) */
+  walkthroughEditId?: string;
+  prefillContactType: "client" | "lead";
+  prefillContactId:   string;
+  prefillServiceType: "residential" | "commercial";
+  prefillDate?:       string;   // yyyy-MM-dd
+  prefillTime?:       string;   // HH:mm
+  prefillNotes?:      string;
 }
 
 /** Public company info shown on the public booking form. */

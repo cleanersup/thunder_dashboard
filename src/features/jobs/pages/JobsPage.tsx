@@ -81,7 +81,7 @@ export function JobsPage() {
   const handleSearch = (val: string) => { setSearchQuery(val); setCurrentPage(1); };
 
   return (
-    <div className="p-2.5 space-y-2.5">
+    <div className="min-h-full bg-background p-2.5 space-y-2.5">
 
       {/* ── KPI Cards ──────────────────────────────────────────────────── */}
       <Card className="border border-border/50 shadow-none">

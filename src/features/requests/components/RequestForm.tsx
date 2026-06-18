@@ -187,6 +187,7 @@ function AddressSection({ values, onChange, errors = {}, required = false }: Add
 export interface RequestFormProps {
   title:            string;
   mode?:            "create" | "edit";
+  isModal?:         boolean;
   initialValues?:   Partial<{
     fullName: string; email: string; phone: string;
     street: string; apt: string; city: string; state: string; zip: string;
@@ -210,6 +211,7 @@ export interface RequestFormProps {
 export function RequestForm({
   title,
   mode = "create",
+  isModal = false,
   initialValues,
   customQuestions,
   isSaving,
@@ -482,7 +484,7 @@ export function RequestForm({
       : [(entity as Lead).city, `${(entity as Lead).state ?? ""} ${(entity as Lead).zip_code ?? ""}`.trim()].filter(Boolean).join(", ");
 
     return (
-      <Card className="rounded-none border-0">
+      <Card className={cn(!isModal && "rounded-none border-0")}>
         <CardContent className="space-y-3 p-6">
           {[
             { icon: User,  label: "Full Name", value: entity.full_name },
@@ -515,7 +517,7 @@ export function RequestForm({
 
   const renderPropertySelector = () => (
     selectedClient && clientProperties.length > 0 ? (
-      <Card className="rounded-none border-0">
+      <Card className={cn(!isModal && "rounded-none border-0")}>
         <CardContent className="p-6 space-y-4">
           <div className="space-y-1">
             <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -556,28 +558,30 @@ export function RequestForm({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-full bg-background pb-8">
-      {/* Sticky header */}
-      <div className="bg-card px-4 py-3 sticky top-0 z-10 border-b border-border/50">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={onCancel}
-            className="p-2 -ml-2 hover:bg-secondary rounded-lg transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-base font-semibold">{title}</h1>
-          <div className="w-16" />
+    <div className={isModal ? "" : "h-full bg-background pb-8"}>
+      {/* Sticky header — page mode only */}
+      {!isModal && (
+        <div className="bg-card px-4 py-3 sticky top-0 z-10 border-b border-border/50">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={onCancel}
+              className="p-2 -ml-2 hover:bg-secondary rounded-lg transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <h1 className="text-base font-semibold">{title}</h1>
+            <div className="w-16" />
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="space-y-[5px] pt-[5px]">
+      <div className={isModal ? "space-y-4" : "space-y-[5px] pt-[5px]"}>
 
         {/* ── CREATE MODE: contact picker ──────────────────────────── */}
         {mode === "create" && (
           <>
             {/* Step 1: contact type */}
-            <Card className="rounded-none border-0">
+            <Card className={cn(!isModal && "rounded-none border-0")}>
               <CardContent className="p-6 space-y-3">
                 <div className="space-y-1">
                   <h2 className="text-lg font-semibold">Who is this request for?</h2>
@@ -632,7 +636,7 @@ export function RequestForm({
 
             {/* Step 2: pick the contact */}
             {contactType && contactType !== "anonymous" && (
-              <Card className="rounded-none border-0">
+              <Card className={cn(!isModal && "rounded-none border-0")}>
                 <CardContent className="p-6 space-y-4">
                   <div className="space-y-1">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -690,7 +694,7 @@ export function RequestForm({
 
             {/* Anonymous: manual contact entry */}
             {contactType === "anonymous" && (
-              <Card className="rounded-none border-0">
+              <Card className={cn(!isModal && "rounded-none border-0")}>
                 <CardContent className="p-6 space-y-4">
                   <div className="space-y-1">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -735,7 +739,7 @@ export function RequestForm({
         {/* ── EDIT MODE: optional contact picker ───────────────────── */}
         {mode === "edit" && (
           <>
-            <Card className="rounded-none border-0">
+            <Card className={cn(!isModal && "rounded-none border-0")}>
               <CardContent className="p-6 space-y-4">
                 <div className="space-y-1">
                   <h2 className="text-lg font-semibold">Contact</h2>
@@ -758,7 +762,7 @@ export function RequestForm({
             </Card>
 
             {contactType && contactType !== "anonymous" && (
-              <Card className="rounded-none border-0">
+              <Card className={cn(!isModal && "rounded-none border-0")}>
                 <CardContent className="p-6 space-y-4">
                   <h2 className="text-lg font-semibold flex items-center gap-2">
                     <User className="w-5 h-5" />
@@ -794,7 +798,7 @@ export function RequestForm({
             {renderPropertySelector()}
 
             {!selectedClient && !selectedLead && (
-              <Card className="rounded-none border-0">
+              <Card className={cn(!isModal && "rounded-none border-0")}>
                 <CardContent className="p-6 space-y-4">
                   <div className="space-y-1">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -822,7 +826,7 @@ export function RequestForm({
         )}
 
         {/* ── Preferred Date & Service ─────────────────────────────── */}
-        <Card className="rounded-none border-x-0">
+        <Card className={cn(!isModal && "rounded-none border-x-0")}>
           <CardContent className="p-4 space-y-5">
             <h3 className="text-base font-semibold">Preferred Date & Service</h3>
 
@@ -883,7 +887,7 @@ export function RequestForm({
 
         {/* ── Residential Details ──────────────────────────────────── */}
         {serviceType === "residential" && (
-          <Card className="rounded-none border-x-0">
+          <Card className={cn(!isModal && "rounded-none border-x-0")}>
             <CardContent className="p-4 space-y-5">
               <h3 className="text-base font-semibold">Residential Service Details</h3>
               <FloatInput id="bedrooms"  label="How many bedrooms"  type="number" value={bedrooms}  onChange={setBedrooms} />
@@ -933,7 +937,7 @@ export function RequestForm({
 
         {/* ── Commercial Details ───────────────────────────────────── */}
         {serviceType === "commercial" && (
-          <Card className="rounded-none border-x-0">
+          <Card className={cn(!isModal && "rounded-none border-x-0")}>
             <CardContent className="p-4 space-y-5">
               <h3 className="text-base font-semibold">Commercial Service Details</h3>
               <div>
@@ -983,7 +987,7 @@ export function RequestForm({
         )}
 
         {/* ── Attachments ──────────────────────────────────────────── */}
-        <Card className="rounded-none border-x-0">
+        <Card className={cn(!isModal && "rounded-none border-x-0")}>
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold">Attachments</h3>
@@ -1082,14 +1086,23 @@ export function RequestForm({
         </Card>
 
         {/* ── Actions ──────────────────────────────────────────────── */}
-        <Card className="rounded-none border-0">
-          <CardContent className="px-4 pt-4 pb-4 grid grid-cols-2 gap-3">
-            <Button variant="outline" onClick={onCancel}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving}>
+        {isModal ? (
+          <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
+            <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
+            <Button size="sm" onClick={handleSave} disabled={isSaving}>
               {isSaving ? "Saving..." : "Save"}
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        ) : (
+          <Card className={cn(!isModal && "rounded-none border-0")}>
+            <CardContent className="px-4 pt-4 pb-4 grid grid-cols-2 gap-3">
+              <Button variant="outline" onClick={onCancel}>Cancel</Button>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Lightbox */}

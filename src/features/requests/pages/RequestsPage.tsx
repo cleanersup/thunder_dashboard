@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import {
-  Copy, Search, CheckCircle2, Home, Building2,
-  Info, Globe, Share2, Linkedin, Monitor, MoreHorizontal,
-  ChevronLeft, ChevronRight, FileText, Plus,
+  Copy, Search, Home, Building2, MoreHorizontal,
+  ChevronLeft, ChevronRight, FileText, Plus, CalendarIcon,
+  Inbox, BarChart2, TrendingUp, FileCheck,
+  ArrowRightLeft, Edit, Archive, XCircle, Trash2, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
@@ -14,12 +14,18 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { Calendar } from "@/shared/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { RequestDetailPanel } from "../components/RequestDetailPanel";
-import { useRequests } from "../hooks/useRequests";
+import { ConvertRequestDialog } from "../components/ConvertRequestDialog";
+import { AddRequestPage } from "./AddRequestPage";
+import { EditRequestPage } from "./EditRequestPage";
+import { AddWalkthroughPage } from "@/features/walkthroughs/pages/AddWalkthroughPage";
+import { useRequests, useCancelRequest, useArchiveRequest, useRestoreRequest, useDeleteRequest } from "../hooks/useRequests";
+import { useNavigate } from "react-router-dom";
+import type { WalkthroughConvertConfig } from "../types/request.types";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { QK } from "@/shared/config/queryKeys";
@@ -32,12 +38,21 @@ const ITEMS_PER_PAGE = 10;
 const getStatusBadge = (status: string) => {
   if (status === "new")       return "bg-success-subtle text-success-subtle-foreground border-success-subtle-border";
   if (status === "cancelled") return "bg-destructive/10 text-destructive border-destructive/30";
+  if (status === "converted") return "bg-blue-500/10 text-blue-600 border-blue-200";
+  if (status === "archived")  return "bg-orange-500/10 text-orange-600 border-orange-200";
   return "bg-muted text-muted-foreground border-border";
 };
 
+const getStatusLabel = (request: Booking): string => {
+  if (request.status === "converted" && request.converted_to_type) {
+    return `→ ${request.converted_to_type === "walkthrough" ? "Walkthrough" : "Estimate"}`;
+  }
+  return request.status.charAt(0).toUpperCase() + request.status.slice(1);
+};
+
 export function RequestsPage() {
+  const qc       = useQueryClient();
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const { data: requests = [], isLoading } = useRequests();
   const { data: profile } = useProfile();
 
@@ -56,21 +71,77 @@ export function RequestsPage() {
   const [searchQuery, setSearchQuery]         = useState("");
   const [selectedDate, setSelectedDate]       = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage]         = useState(1);
-  const [showInfoDialog, setShowInfoDialog]   = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<Booking | null>(null);
-  const [modalOpen, setModalOpen]             = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [modalOpen, setModalOpen]                 = useState(false);
 
-  // ─── KPI counts ──────────────────────────────────────────────────────────
-  const totalCount        = requests.length;
-  const newCount          = requests.filter((b) => b.status === "new").length;
-  const residentialCount  = requests.filter((b) => b.service_type === "residential").length;
-  const commercialCount   = requests.filter((b) => b.service_type === "commercial").length;
+  // Derive from live list so the panel auto-updates after edits
+  const selectedRequest = selectedRequestId
+    ? (requests.find((r) => r.id === selectedRequestId) ?? null)
+    : null;
+  const [createOpen, setCreateOpen]           = useState(false);
+
+  // ─── Inline row actions ───────────────────────────────────────────────────
+  const [actionRequest, setActionRequest]     = useState<Booking | null>(null);
+  const [confirmAction, setConfirmAction]     = useState<"cancel" | "archive" | "delete" | null>(null);
+  const [editOpen, setEditOpen]                   = useState(false);
+  const [convertOpen, setConvertOpen]             = useState(false);
+  const [walkthroughOpen, setWalkthroughOpen]     = useState(false);
+  const [walkthroughConfig, setWalkthroughConfig] = useState<WalkthroughConvertConfig | null>(null);
+
+  const { mutate: cancelRequest  } = useCancelRequest();
+  const { mutate: archiveRequest } = useArchiveRequest();
+  const { mutate: restoreRequest } = useRestoreRequest();
+  const { mutate: deleteRequest  } = useDeleteRequest();
+
+  const handleConfirm = () => {
+    if (!confirmAction || !actionRequest) return;
+    if (confirmAction === "cancel")  cancelRequest(actionRequest.id);
+    if (confirmAction === "archive") archiveRequest(actionRequest.id);
+    if (confirmAction === "delete")  deleteRequest(actionRequest.id);
+    setConfirmAction(null);
+    setActionRequest(null);
+  };
+
+  // ─── KPI counts (current month vs previous month) ────────────────────────
+  const now = new Date();
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const currentMonthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const prevMonthStart    = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthEnd      = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+  const currentMonth = requests.filter((r) => {
+    const d = new Date(r.created_at);
+    return d >= currentMonthStart && d <= currentMonthEnd;
+  });
+  const prevMonth = requests.filter((r) => {
+    const d = new Date(r.created_at);
+    return d >= prevMonthStart && d <= prevMonthEnd;
+  });
+
+  const totalCurrent     = currentMonth.length;
+  const totalPrev        = prevMonth.length;
+  const newCurrent       = currentMonth.filter((r) => r.status === "new").length;
+  const newPrev          = prevMonth.filter((r) => r.status === "new").length;
+  const convertedCurrent = currentMonth.filter((r) => r.status === "converted").length;
+  const convertedPrev    = prevMonth.filter((r) => r.status === "converted").length;
+  const conversionRate   = totalCurrent > 0 ? Math.round((convertedCurrent / totalCurrent) * 100) : 0;
+  const prevConvRate     = totalPrev    > 0 ? Math.round((convertedPrev    / totalPrev)    * 100) : 0;
+
+  function diffLabel(current: number, prev: number) {
+    const diff = current - prev;
+    if (diff === 0) return <span className="text-muted-foreground text-xs">0 vs last month</span>;
+    return (
+      <span className={`text-xs font-medium ${diff > 0 ? "text-green-600" : "text-red-500"}`}>
+        {diff > 0 ? "+" : ""}{diff} vs last month
+      </span>
+    );
+  }
 
   const kpiCards = [
-    { title: "Total Requests",  value: totalCount,       subtitle: "All time",         icon: FileText,     color: "hsl(var(--primary))"         },
-    { title: "New Requests",    value: newCount,         subtitle: "Awaiting action",  icon: CheckCircle2, color: "hsl(var(--green-vibrant))"   },
-    { title: "Residential",     value: residentialCount, subtitle: "Service type",     icon: Home,         color: "hsl(var(--blue-vibrant))"    },
-    { title: "Commercial",      value: commercialCount,  subtitle: "Service type",     icon: Building2,    color: "hsl(var(--orange-vibrant))"  },
+    { title: "Total Requests",   value: String(totalCurrent),     subtitle: diffLabel(totalCurrent, totalPrev),         icon: Inbox,      color: "hsl(var(--blue-vibrant))"    },
+    { title: "New Requests",     value: String(newCurrent),       subtitle: diffLabel(newCurrent, newPrev),             icon: BarChart2,  color: "hsl(var(--orange-vibrant))"  },
+    { title: "Conversion Rate",  value: `${conversionRate}%`,     subtitle: diffLabel(conversionRate, prevConvRate),    icon: TrendingUp, color: "hsl(var(--green-vibrant))"   },
+    { title: "Converted",        value: String(convertedCurrent), subtitle: diffLabel(convertedCurrent, convertedPrev), icon: FileCheck,  color: "hsl(var(--purple-vibrant))"  },
   ];
 
   // ─── Filtering ───────────────────────────────────────────────────────────
@@ -116,15 +187,15 @@ export function RequestsPage() {
   };
 
   const openDetail = (request: Booking) => {
-    setSelectedRequest(request);
+    setSelectedRequestId(request.id);
     setModalOpen(true);
   };
 
   return (
-    <div className="min-h-full bg-background p-2.5">
+    <div className="min-h-full bg-background p-2.5 space-y-2.5">
 
       {/* ── KPI cards ──────────────────────────────────────────────────── */}
-      <Card className="border border-border/50 shadow-none mb-2.5">
+      <Card className="border border-border/50 shadow-none">
         <CardContent className="p-4">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {kpiCards.map((card) => (
@@ -133,7 +204,7 @@ export function RequestsPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">{card.title}</p>
                     <p className="text-2xl font-bold mt-1" style={{ color: card.color }}>{card.value}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{card.subtitle}</p>
+                    <div className="mt-1">{card.subtitle}</div>
                   </div>
                   <div className="p-2 rounded-lg bg-secondary/50">
                     <card.icon className="w-5 h-5" style={{ color: card.color }} />
@@ -146,90 +217,11 @@ export function RequestsPage() {
       </Card>
 
       {/* ── Toolbar ────────────────────────────────────────────────────── */}
-      <Card className="border border-border/50 shadow-none mb-2.5">
+      <Card className="border border-border/50 shadow-none">
         <CardContent className="p-3">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
 
-            {/* Left: actions */}
-            <div className="flex items-center gap-2">
-              <Button className="flex items-center gap-2 h-9 px-3" onClick={() => navigate("/requests/new")}>
-                <Plus className="w-4 h-4" />
-                <span className="text-sm font-medium">New Request</span>
-              </Button>
-              <Button
-                className="flex items-center gap-2 h-9 px-3 bg-success text-success-foreground hover:bg-success/90"
-                onClick={handleCopyLink}
-              >
-                <Copy className="w-4 h-4" />
-                <span className="text-sm font-medium">Copy Link</span>
-              </Button>
-
-              {/* Info dialog */}
-              <Dialog open={showInfoDialog} onOpenChange={setShowInfoDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9">
-                    <Info className="h-4 w-4 text-destructive" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle className="text-lg font-bold">Booking Link Information</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 text-sm">
-                    <div>
-                      <h3 className="font-semibold text-base mb-2">What is the booking link?</h3>
-                      <p className="text-muted-foreground">
-                        The booking link is a powerful tool for attracting new clients to your business.
-                        It works through a simple online form that potential clients fill out when requesting
-                        residential or commercial services. The form is fully customizable.
-                      </p>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-base mb-3">How to use the booking link?</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <h4 className="font-medium mb-1 flex items-center gap-2">
-                            <Globe className="w-4 h-4 text-primary" /> Google Business:
-                          </h4>
-                          <p className="text-muted-foreground">
-                            Copy and paste your booking link into the section where Google requests a booking URL.
-                          </p>
-                        </div>
-                        <div>
-                          <h4 className="font-medium mb-1 flex items-center gap-2">
-                            <Share2 className="w-4 h-4 text-primary" /> Social Media (Facebook/Instagram):
-                          </h4>
-                          <p className="text-muted-foreground">
-                            Share the link in your posts so interested users can fill out the form.
-                          </p>
-                        </div>
-                        <div>
-                          <h4 className="font-medium mb-1 flex items-center gap-2">
-                            <Linkedin className="w-4 h-4 text-primary" /> LinkedIn:
-                          </h4>
-                          <p className="text-muted-foreground">
-                            Use the link on your company profile or direct messages to potential clients.
-                          </p>
-                        </div>
-                        <div>
-                          <h4 className="font-medium mb-1 flex items-center gap-2">
-                            <Monitor className="w-4 h-4 text-primary" /> Website:
-                          </h4>
-                          <p className="text-muted-foreground">
-                            Add the link directly to your website so visitors can book without searching for contact options.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-muted-foreground">
-                      With the booking link, every click becomes an opportunity to acquire a new client.
-                    </p>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {/* Right: filters */}
+            {/* Left: filters */}
             <div className="flex items-center gap-2 flex-wrap">
               <Select value={statusFilter} onValueChange={handleFilterChange}>
                 <SelectTrigger className="w-[130px] h-9 bg-white">
@@ -238,7 +230,9 @@ export function RequestsPage() {
                 <SelectContent>
                   <SelectItem value="all">Status: All</SelectItem>
                   <SelectItem value="new">New</SelectItem>
+                  <SelectItem value="converted">Converted</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -259,10 +253,11 @@ export function RequestsPage() {
                     size="sm"
                     className={cn("h-9 whitespace-nowrap", !selectedDate && "text-muted-foreground")}
                   >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
                     {selectedDate ? format(selectedDate, "MMM d") : "Date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={selectedDate}
@@ -270,24 +265,35 @@ export function RequestsPage() {
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
+                  {selectedDate && (
+                    <div className="p-2 border-t">
+                      <Button variant="ghost" size="sm" className="w-full" onClick={() => handleDateChange(undefined)}>
+                        Clear date filter
+                      </Button>
+                    </div>
+                  )}
                 </PopoverContent>
               </Popover>
+            </div>
+
+            {/* Right: actions */}
+            <div className="flex items-center gap-2">
+              <Button className="h-9" onClick={() => setCreateOpen(true)}>
+                <Plus className="w-4 h-4 mr-1" />
+                New Request
+              </Button>
+              <Button
+                className="h-9 bg-success text-success-foreground hover:bg-success/90"
+                onClick={handleCopyLink}
+              >
+                <Copy className="w-4 h-4 mr-1" />
+                Copy Link
+              </Button>
+
             </div>
           </div>
         </CardContent>
       </Card>
-
-      {/* ── Active date filter indicator ───────────────────────────────── */}
-      {selectedDate && (
-        <div className="flex items-center justify-between bg-accent/50 p-2 rounded-md mb-2.5">
-          <span className="text-sm text-muted-foreground">
-            Filtered by: {format(selectedDate, "PPP")}
-          </span>
-          <Button variant="ghost" size="sm" onClick={() => handleDateChange(undefined)} className="h-6 px-2 text-xs">
-            Clear
-          </Button>
-        </div>
-      )}
 
       {/* ── Table ──────────────────────────────────────────────────────── */}
       <Card className="border border-border/50 shadow-none">
@@ -338,9 +344,9 @@ export function RequestsPage() {
                     <TableCell className="py-2 px-4">
                       <Badge
                         variant="outline"
-                        className={cn("font-medium capitalize", getStatusBadge(request.status))}
+                        className={cn("font-medium", getStatusBadge(request.status))}
                       >
-                        {request.status}
+                        {getStatusLabel(request)}
                       </Badge>
                     </TableCell>
                     <TableCell className="py-2 px-4 text-right">
@@ -350,11 +356,53 @@ export function RequestsPage() {
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(request); }}>
-                            <FileText className="w-4 h-4 mr-2" />
-                            View Details
+                            <FileText className="w-4 h-4 mr-2" /> View Details
                           </DropdownMenuItem>
+
+                          {request.status === "new" && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setActionRequest(request); setConvertOpen(true); }}>
+                                <ArrowRightLeft className="w-4 h-4 mr-2" /> Convert Request
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setActionRequest(request); setEditOpen(true); }}>
+                                <Edit className="w-4 h-4 mr-2" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setActionRequest(request); setConfirmAction("archive"); }}>
+                                <Archive className="w-4 h-4 mr-2" /> Archive
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={(e) => { e.stopPropagation(); setActionRequest(request); setConfirmAction("cancel"); }}
+                              >
+                                <XCircle className="w-4 h-4 mr-2" /> Cancel
+                              </DropdownMenuItem>
+                            </>
+                          )}
+
+                          {request.status === "cancelled" && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={(e) => { e.stopPropagation(); setActionRequest(request); setConfirmAction("delete"); }}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            </>
+                          )}
+
+                          {request.status === "archived" && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); restoreRequest(request.id); }}>
+                                <RefreshCw className="w-4 h-4 mr-2" /> Reactivate
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -396,8 +444,80 @@ export function RequestsPage() {
       <RequestDetailPanel
         booking={selectedRequest}
         open={modalOpen}
-        onClose={() => { setModalOpen(false); setSelectedRequest(null); }}
+        onClose={() => { setModalOpen(false); setSelectedRequestId(null); }}
       />
+
+      <AddRequestPage
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+      />
+
+      <EditRequestPage
+        bookingId={actionRequest?.id ?? null}
+        open={editOpen}
+        onClose={() => { setEditOpen(false); setActionRequest(null); }}
+      />
+
+      <ConvertRequestDialog
+        request={actionRequest}
+        open={convertOpen}
+        onOpenChange={(v) => { setConvertOpen(v); if (!v) setActionRequest(null); }}
+        onEstimateConvert={(route, state) => { setActionRequest(null); navigate(route, { state }); }}
+        onWalkthroughConvert={(config) => { setWalkthroughConfig(config); setWalkthroughOpen(true); setActionRequest(null); }}
+      />
+
+      <AddWalkthroughPage
+        open={walkthroughOpen}
+        onClose={() => { setWalkthroughOpen(false); setWalkthroughConfig(null); }}
+        fromRequestId={walkthroughConfig?.fromRequestId}
+        walkthroughEditId={walkthroughConfig?.walkthroughEditId}
+        prefillContactType={walkthroughConfig?.prefillContactType}
+        prefillContactId={walkthroughConfig?.prefillContactId}
+        prefillServiceType={walkthroughConfig?.prefillServiceType}
+        prefillDate={walkthroughConfig?.prefillDate}
+        prefillTime={walkthroughConfig?.prefillTime}
+        prefillNotes={walkthroughConfig?.prefillNotes}
+      />
+
+      {/* Confirm dialogs */}
+      <AlertDialog open={confirmAction === "cancel"} onOpenChange={(v) => { if (!v) setConfirmAction(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Request?</AlertDialogTitle>
+            <AlertDialogDescription>The request will remain visible with a Cancelled status.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, keep it</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleConfirm}>Yes, cancel</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmAction === "archive"} onOpenChange={(v) => { if (!v) setConfirmAction(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive Request?</AlertDialogTitle>
+            <AlertDialogDescription>The request will be archived. You can reactivate it later.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirm}>Archive</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmAction === "delete"} onOpenChange={(v) => { if (!v) setConfirmAction(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Request?</AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleConfirm}>Delete permanently</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

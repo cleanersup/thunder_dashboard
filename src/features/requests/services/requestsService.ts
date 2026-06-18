@@ -347,6 +347,10 @@ export async function resolveOrCreateContact(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
+  // 0. If already linked, reuse the existing contact directly
+  if (booking.client_id) return { type: "client", id: booking.client_id };
+  if (booking.lead_id)   return { type: "lead",   id: booking.lead_id };
+
   // 1. Try by email
   if (booking.email) {
     const found = await findContactByEmail(booking.email, user.id);
