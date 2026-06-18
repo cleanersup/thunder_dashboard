@@ -133,15 +133,29 @@ export function WalkthroughsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [detailWalkthrough, setDetailWalkthrough] = useState<WalkthroughWithContact | null>(null);
-  const [detailOpen, setDetailOpen]     = useState(false);
+  const [detailId, setDetailId]   = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  // Derive from live list so the panel auto-updates after edits
+  const detailWalkthrough = detailId
+    ? (walkthroughs.find((w) => w.id === detailId) ?? null)
+    : null;
   const [deleteTarget, setDeleteTarget] = useState<WalkthroughWithContact | null>(null);
   const [deleteOpen, setDeleteOpen]     = useState(false);
   const [cancelTarget, setCancelTarget] = useState<WalkthroughWithContact | null>(null);
   const [cancelOpen, setCancelOpen]     = useState(false);
-  const [qrOpen, setQrOpen]             = useState(false);
-  const [qrTarget, setQrTarget]         = useState<WalkthroughWithContact | null>(null);
-  const [createOpen, setCreateOpen]     = useState(false);
+  const [qrOpen, setQrOpen]               = useState(false);
+  const [qrTarget, setQrTarget]           = useState<WalkthroughWithContact | null>(null);
+  const [walkthroughModalOpen, setWalkthroughModalOpen] = useState(false);
+  const [walkthroughEditId,    setWalkthroughEditId]    = useState<string | undefined>(undefined);
+
+  function openCreate() { setWalkthroughEditId(undefined); setWalkthroughModalOpen(true); }
+  function openEdit(id: string) { setWalkthroughEditId(id); setWalkthroughModalOpen(true); }
+  function closeWalkthroughModal() { setWalkthroughModalOpen(false); setWalkthroughEditId(undefined); refetch(); }
+  const [scheduleTarget, setScheduleTarget] = useState<WalkthroughWithContact | null>(null);
+  const [scheduleOpen, setScheduleOpen]     = useState(false);
+  const [completeTarget, setCompleteTarget] = useState<WalkthroughWithContact | null>(null);
+  const [completeOpen, setCompleteOpen]     = useState(false);
 
   const contactCardUrl = `${import.meta.env.VITE_PUBLIC_APP_URL ?? window.location.origin}/contact-card/${user?.id ?? ""}`;
 
@@ -174,7 +188,7 @@ export function WalkthroughsPage() {
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   function openDetail(w: WalkthroughWithContact) {
-    setDetailWalkthrough(w);
+    setDetailId(w.id);
     setDetailOpen(true);
   }
 
@@ -269,6 +283,36 @@ export function WalkthroughsPage() {
     });
   }
 
+  function handleSchedule() {
+    if (!scheduleTarget) return;
+    updateStatus(
+      { id: scheduleTarget.id, status: "Scheduled" },
+      {
+        onSuccess: () => {
+          toast.success("Walkthrough scheduled");
+          setScheduleOpen(false);
+          setScheduleTarget(null);
+          refetch();
+        },
+      }
+    );
+  }
+
+  function handleMarkComplete() {
+    if (!completeTarget) return;
+    updateStatus(
+      { id: completeTarget.id, status: "Completed" },
+      {
+        onSuccess: () => {
+          toast.success("Walkthrough marked as completed");
+          setCompleteOpen(false);
+          setCompleteTarget(null);
+          refetch();
+        },
+      }
+    );
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -360,7 +404,7 @@ export function WalkthroughsPage() {
             </div>
 
             {/* Right: New */}
-            <Button className="h-9" onClick={() => setCreateOpen(true)}>
+            <Button className="h-9" onClick={openCreate}>
               <Plus className="h-4 w-4 mr-1" />
               New
             </Button>
@@ -419,86 +463,120 @@ export function WalkthroughsPage() {
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem onClick={() => openDetail(w)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View Details
+                          <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
+
+                        {/* Draft */}
+                        {w.status === "Draft" && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => openEdit(w.id)}>
+                              <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setScheduleTarget(w); setScheduleOpen(true); }}>
+                              <CalendarClock className="mr-2 h-4 w-4" /> Schedule
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmCancel(w)}>
+                              <XCircle className="mr-2 h-4 w-4" /> Cancel
+                            </DropdownMenuItem>
+                          </>
+                        )}
 
                         {/* Scheduled */}
                         {w.status === "Scheduled" && (
-                          <DropdownMenuItem onClick={() => navigate(`/walkthroughs/${w.id}/edit`)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                        )}
-                        {w.status === "Scheduled" && (
-                          <DropdownMenuItem
-                            className="text-green-600 focus:text-green-600"
-                            disabled={isStarting && qrTarget?.id === w.id}
-                            onClick={() => handleStartWalkthrough(w)}
-                          >
-                            {isStarting && qrTarget?.id === w.id
-                              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              : <Play className="mr-2 h-4 w-4" />
-                            }
-                            Start Walkthrough
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => openEdit(w.id)}>
+                              <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-green-600 focus:text-green-600"
+                              disabled={isStarting && qrTarget?.id === w.id}
+                              onClick={() => handleStartWalkthrough(w)}
+                            >
+                              {isStarting && qrTarget?.id === w.id
+                                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                : <Play className="mr-2 h-4 w-4" />}
+                              Start Walkthrough
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => void handleDownloadPDF(w)}>
+                              <Download className="mr-2 h-4 w-4" /> Download PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmCancel(w)}>
+                              <XCircle className="mr-2 h-4 w-4" /> Cancel
+                            </DropdownMenuItem>
+                          </>
                         )}
 
-                        {/* Pending */}
-                        {w.status === "Pending" && (
-                          <DropdownMenuItem onClick={() => navigate(`/walkthroughs/${w.id}/edit`)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
+                        {/* Pending / Started */}
+                        {(w.status === "Pending" || w.status === "Started") && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => openEdit(w.id)}>
+                              <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setCompleteTarget(w); setCompleteOpen(true); }}>
+                              <CheckCircle2 className="mr-2 h-4 w-4" /> Mark Complete
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => void handleDownloadPDF(w)}>
+                              <Download className="mr-2 h-4 w-4" /> Download PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmCancel(w)}>
+                              <XCircle className="mr-2 h-4 w-4" /> Cancel
+                            </DropdownMenuItem>
+                          </>
                         )}
 
                         {/* Completed */}
                         {w.status === "Completed" && (
-                          <DropdownMenuItem onClick={() => handleGenerateEstimate(w)}>
-                            <FileCheck className="mr-2 h-4 w-4" />
-                            Generate Estimate
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleGenerateEstimate(w)}>
+                              <FileCheck className="mr-2 h-4 w-4" /> Generate Estimate
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEdit(w.id)}>
+                              <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => void handleDownloadPDF(w)}>
+                              <Download className="mr-2 h-4 w-4" /> Download PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmCancel(w)}>
+                              <XCircle className="mr-2 h-4 w-4" /> Cancel
+                            </DropdownMenuItem>
+                          </>
                         )}
 
                         {/* Cancelled */}
                         {w.status === "Cancelled" && (
-                          <DropdownMenuItem onClick={() => navigate(`/walkthroughs/${w.id}/edit`)}>
-                            <CalendarClock className="mr-2 h-4 w-4" />
-                            Reschedule
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => openEdit(w.id)}>
+                              <CalendarClock className="mr-2 h-4 w-4" /> Reschedule
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => void handleDownloadPDF(w)}>
+                              <Download className="mr-2 h-4 w-4" /> Download PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmDelete(w)}>
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </>
                         )}
 
-                        {/* Download PDF (all except estimate_sent) */}
-                        {w.status !== "estimate_sent" && (
-                          <DropdownMenuItem onClick={() => void handleDownloadPDF(w)}>
-                            <Download className="mr-2 h-4 w-4" />
-                            Download PDF
-                          </DropdownMenuItem>
-                        )}
-
-                        {/* Destructive */}
-                        {(w.status === "Scheduled" || w.status === "Cancelled") && (
-                          <DropdownMenuSeparator />
-                        )}
-                        {w.status === "Scheduled" && (
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => confirmCancel(w)}
-                          >
-                            <XCircle className="mr-2 h-4 w-4" />
-                            Cancel Walkthrough
-                          </DropdownMenuItem>
-                        )}
-                        {w.status === "Cancelled" && (
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => confirmDelete(w)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
+                        {/* estimate_sent / Converted */}
+                        {(w.status === "estimate_sent" || w.status === "Converted") && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => void handleDownloadPDF(w)}>
+                              <Download className="mr-2 h-4 w-4" /> Download PDF
+                            </DropdownMenuItem>
+                          </>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -515,7 +593,7 @@ export function WalkthroughsPage() {
       <WalkthroughDetailsPanel
         walkthrough={detailWalkthrough}
         open={detailOpen}
-        onClose={() => setDetailOpen(false)}
+        onClose={() => { setDetailOpen(false); setDetailId(null); }}
         onUpdated={() => refetch()}
       />
 
@@ -561,10 +639,44 @@ export function WalkthroughsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Create walkthrough modal */}
+      {/* Schedule confirmation */}
+      <AlertDialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Schedule Walkthrough?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will confirm the walkthrough and notify the client.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go Back</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSchedule}>Yes, Schedule</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Mark Complete confirmation */}
+      <AlertDialog open={completeOpen} onOpenChange={setCompleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark as Completed?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure the walkthrough has been completed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go Back</AlertDialogCancel>
+            <AlertDialogAction onClick={handleMarkComplete}>Yes, Completed</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Create / Edit walkthrough modal — key forces remount on ID change */}
       <AddWalkthroughPage
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        key={walkthroughEditId ?? "create"}
+        open={walkthroughModalOpen}
+        onClose={closeWalkthroughModal}
+        walkthroughEditId={walkthroughEditId}
       />
 
       {/* QR — Share contact card */}

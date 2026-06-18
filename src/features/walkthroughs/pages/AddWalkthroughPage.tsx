@@ -31,6 +31,7 @@ import { EntityPickerField } from "@/shared/components/common/EntityPickerField"
 import type { EntityOption } from "@/shared/components/common/EntityPickerField";
 import { EmployeeForm } from "@/features/employees/components/EmployeeForm";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { cn } from "@/shared/utils/cn";
 import { toast } from "sonner";
 import { walkthroughSchema } from "../schemas/walkthroughSchema";
@@ -106,6 +107,8 @@ export function AddWalkthroughPage({
   const [selectedDate,       setSelectedDate]       = useState<Date | undefined>();
   const [selectedEmployees,  setSelectedEmployees]  = useState<string[]>([]);
   const [showCreateEmployee, setShowCreateEmployee] = useState(false);
+  const [confirmOpen, setConfirmOpen]               = useState(false);
+  const [pendingPayload, setPendingPayload]          = useState<WalkthroughFormData | null>(null);
 
   // ── Form ──────────────────────────────────────────────────────────────────
   const {
@@ -268,17 +271,35 @@ export function AddWalkthroughPage({
       lead_id:   data.walkthrough_type === "lead"   ? data.lead_id   : null,
     };
 
+    // Both create and edit show Confirm dialog before saving
+    setPendingPayload(payload);
+    setConfirmOpen(true);
+  }
+
+  // ── Confirm save (create and edit) ────────────────────────────────────────
+
+  function handleConfirm() {
+    if (!pendingPayload) return;
+
     if (isEdit && walkthroughId) {
-      update({ id: walkthroughId, data: payload }, {
-        onSuccess: () => { toast.success("Walkthrough updated"); handleClose(); },
+      // Edit: Draft or Cancelled → promote to Scheduled
+      const currentStatus = existing?.status ?? "";
+      const newStatus = (currentStatus === "Draft" || currentStatus === "Cancelled")
+        ? "Scheduled"
+        : undefined;
+
+      update({ id: walkthroughId, data: pendingPayload, newStatus }, {
+        onSuccess: () => { setConfirmOpen(false); setPendingPayload(null); handleClose(); },
       });
     } else {
-      create(payload, {
+      // Create: always Scheduled (all required fields were filled)
+      create(pendingPayload, {
         onSuccess: async (newWalkthrough) => {
-          toast.success("Walkthrough scheduled");
+          setConfirmOpen(false);
+          setPendingPayload(null);
           if (fromRequestId && newWalkthrough?.id) {
-            const contactType = payload.walkthrough_type as "client" | "lead";
-            const contactId   = contactType === "client" ? payload.client_id : payload.lead_id;
+            const contactType = pendingPayload.walkthrough_type as "client" | "lead";
+            const contactId   = contactType === "client" ? pendingPayload.client_id : pendingPayload.lead_id;
             if (contactId) {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               await (supabase as any).rpc("finalize_booking_conversion", {
@@ -489,6 +510,52 @@ export function AddWalkthroughPage({
     />
   );
 
+  // ── Confirm Changes dialog (edit mode) ────────────────────────────────────
+  const currentStatus  = existing?.status ?? "";
+  const willSchedule   = currentStatus === "Draft" || currentStatus === "Cancelled";
+  const contactName    = selectedClient?.full_name ?? selectedLead?.full_name ?? "—";
+  const confirmDialog = (
+    <Dialog open={confirmOpen} onOpenChange={(v) => { if (!v) { setConfirmOpen(false); setPendingPayload(null); } }}>
+      <DialogContent className="sm:max-w-md p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+          <DialogTitle className="text-xl font-bold">
+            {isEdit ? "Confirm Changes" : "Schedule Walkthrough"}
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">Please review the walkthrough details</p>
+        </DialogHeader>
+        <div className="px-6 py-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Client / Lead</span>
+            <span className="text-sm font-semibold">{contactName}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Date</span>
+            <span className="text-sm font-semibold">
+              {selectedDate ? format(selectedDate, "PPP") : "—"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Time</span>
+            <span className="text-sm font-semibold">{watch("scheduled_time") || "—"}</span>
+          </div>
+          {isEdit && willSchedule && (
+            <div className="mt-2 rounded-lg bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-700">
+              This walkthrough will be marked as <strong>Scheduled</strong>
+            </div>
+          )}
+        </div>
+        <div className="px-6 pb-6 grid grid-cols-2 gap-3">
+          <Button variant="outline" onClick={() => { setConfirmOpen(false); setPendingPayload(null); }} disabled={isPending}>
+            Go Back
+          </Button>
+          <Button onClick={handleConfirm} disabled={isPending}>
+            {isPending ? "Saving…" : (isEdit ? "Confirm" : "Schedule now")}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   // ── Modal mode — invoice-style layout ─────────────────────────────────────
   if (isModal) {
     return (
@@ -531,6 +598,7 @@ export function AddWalkthroughPage({
         </div>
 
         {employeeModal}
+        {confirmDialog}
       </FullScreenModal>
     );
   }
@@ -567,6 +635,7 @@ export function AddWalkthroughPage({
       </div>
 
       {employeeModal}
+      {confirmDialog}
     </div>
   );
 }

@@ -35,9 +35,13 @@ export interface Walkthrough {
 }
 
 export interface WalkthroughWithContact extends Walkthrough {
-  contact_name: string;
+  contact_name:   string;
   contact_phone?: string | null;
   contact_email?: string | null;
+  contact_street?: string | null;
+  contact_city?:   string | null;
+  contact_state?:  string | null;
+  contact_zip?:    string | null;
 }
 
 // ─── Private helpers ──────────────────────────────────────────────────────────
@@ -131,9 +135,13 @@ export async function fetchWalkthrough(id: string): Promise<WalkthroughWithConta
   return {
     ...(data as unknown as Walkthrough),
     assigned_employees: Array.isArray(data.assigned_employees) ? (data.assigned_employees as string[]) : null,
-    contact_name:  contact?.full_name  ?? "Unknown",
-    contact_phone: contact?.phone      ?? null,
-    contact_email: contact?.email      ?? null,
+    contact_name:   contact?.full_name      ?? "Unknown",
+    contact_phone:  contact?.phone          ?? null,
+    contact_email:  contact?.email          ?? null,
+    contact_street: contact?.service_street ?? null,
+    contact_city:   contact?.service_city   ?? null,
+    contact_state:  contact?.service_state  ?? null,
+    contact_zip:    contact?.service_zip    ?? null,
   };
 }
 
@@ -191,7 +199,7 @@ export async function createWalkthrough(formData: WalkthroughFormData): Promise<
   return data as unknown as Walkthrough;
 }
 
-export async function updateWalkthrough(id: string, formData: Partial<WalkthroughFormData>): Promise<Walkthrough> {
+export async function updateWalkthrough(id: string, formData: Partial<WalkthroughFormData>, newStatus?: string): Promise<Walkthrough> {
   const updatePayload: Record<string, unknown> = {};
   if (formData.walkthrough_type   !== undefined) updatePayload.walkthrough_type   = formData.walkthrough_type;
   if (formData.client_id          !== undefined) updatePayload.client_id          = formData.client_id;
@@ -202,6 +210,7 @@ export async function updateWalkthrough(id: string, formData: Partial<Walkthroug
   if (formData.duration           !== undefined) updatePayload.duration           = formData.duration ? parseInt(formData.duration) : null;
   if (formData.assigned_employees !== undefined) updatePayload.assigned_employees = formData.assigned_employees;
   if (formData.notes              !== undefined) updatePayload.notes              = formData.notes;
+  if (newStatus                   !== undefined) updatePayload.status             = newStatus;
 
   const { data, error } = await supabase
     .from("walkthroughs")

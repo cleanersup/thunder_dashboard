@@ -63,8 +63,8 @@ export function useCreateWalkthrough() {
 export function useUpdateWalkthrough() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<WalkthroughFormData> }) =>
-      updateWalkthrough(id, data),
+    mutationFn: ({ id, data, newStatus }: { id: string; data: Partial<WalkthroughFormData>; newStatus?: string }) =>
+      updateWalkthrough(id, data, newStatus),
     onSuccess: (_, { id }) => {
       // Fire-and-forget update notification
       void supabase.functions.invoke("send-walkthrough-update", {
