@@ -33,12 +33,13 @@ export function useWalkthroughs() {
   });
 }
 
-export function useWalkthrough(id: string | undefined) {
+export function useWalkthrough(id: string | undefined, options?: { staleTime?: number }) {
   return useQuery({
     queryKey: QK.walkthrough(id!),
     queryFn:  () => fetchWalkthrough(id!),
     enabled:  Boolean(id),
-    staleTime: 2 * 60 * 1000,
+    staleTime: options?.staleTime ?? 2 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -96,8 +97,9 @@ export function useDeleteWalkthrough() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteWalkthrough(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: QK.walkthroughs });
+      qc.invalidateQueries({ queryKey: QK.walkthrough(id) });
       toast.success("Walkthrough deleted successfully");
     },
     onError: () => toast.error("Failed to delete walkthrough"),

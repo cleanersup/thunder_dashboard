@@ -36,11 +36,11 @@ import type { Booking } from "../types/request.types";
 const ITEMS_PER_PAGE = 10;
 
 const getStatusBadge = (status: string) => {
-  if (status === "new")       return "bg-success-subtle text-success-subtle-foreground border-success-subtle-border";
-  if (status === "cancelled") return "bg-destructive/10 text-destructive border-destructive/30";
-  if (status === "converted") return "bg-blue-500/10 text-blue-600 border-blue-200";
-  if (status === "archived")  return "bg-orange-500/10 text-orange-600 border-orange-200";
-  return "bg-muted text-muted-foreground border-border";
+  if (status === "new")       return "bg-orange-500/15 text-orange-700 border-orange-500/30";
+  if (status === "converted") return "bg-purple-500/15 text-purple-700 border-purple-500/30";
+  if (status === "archived")  return "bg-secondary text-secondary-foreground border-border";
+  if (status === "cancelled") return "bg-red-500/15 text-red-700 border-red-500/30";
+  return "bg-secondary text-secondary-foreground border-border";
 };
 
 const getStatusLabel = (request: Booking): string => {

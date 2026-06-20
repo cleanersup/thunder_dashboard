@@ -81,11 +81,11 @@ export function EditRequestPage({ bookingId, open, onClose }: EditRequestPagePro
                     public_url: supabase.storage.from("route-files").getPublicUrl(att.path).data.publicUrl,
                   })
                 ),
-                initialContactType: (request.contact_type === "client" || request.contact_type === "lead")
-                  ? request.contact_type
+                initialContactType: ((request as any).contact_type === "client" || (request as any).contact_type === "lead")
+                  ? (request as any).contact_type as "client" | "lead"
                   : null,
-                initialClientId: request.client_id ?? null,
-                initialLeadId:   request.lead_id   ?? null,
+                initialClientId: (request as any).client_id ?? null,
+                initialLeadId:   (request as any).lead_id   ?? null,
               }}
               customQuestions={customQuestions}
               isSaving={isPending}

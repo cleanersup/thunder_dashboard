@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
 import { format } from "date-fns";
@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import {
   Plus, Search, CheckCircle, Clock, FileText, DollarSign,
   MoreHorizontal, Edit, Mail, Share, Download, X, ChevronLeft, ChevronRight,
-  BookOpen, FileSignature, Play, RefreshCw, Trash2, Calendar as CalendarIcon, MessageSquare,
+  BookOpen, FileSignature, Play, RefreshCw, Trash2, Calendar as CalendarIcon, MessageSquare, Briefcase,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -40,13 +40,15 @@ import { buildInvoicePrefillFromEstimate } from "../utils/buildInvoicePrefill";
 
 function getStatusBadge(status: string) {
   switch (status) {
+    case "Draft":     return "bg-yellow-500/15 text-yellow-700 border-yellow-500/30";
     case "Pending":
-    case "Viewed":   return "bg-warning-subtle text-warning-subtle-foreground border-warning-subtle-border";
-    case "Accepted": return "bg-success-subtle text-success-subtle-foreground border-success-subtle-border";
-    case "Draft":    return "bg-info-subtle text-info-subtle-foreground border-info-subtle-border";
-    case "Invoiced": return "bg-info-subtle text-info-subtle-foreground border-info-subtle-border";
-    case "Canceled": return "bg-destructive/10 text-destructive border-destructive/30";
-    default:         return "bg-muted text-muted-foreground border-border";
+    case "Viewed":
+    case "Declined":  return "bg-orange-500/15 text-orange-700 border-orange-500/30";
+    case "Accepted":  return "bg-green-500/15 text-green-700 border-green-500/30";
+    case "Invoiced":
+    case "Converted": return "bg-purple-500/15 text-purple-700 border-purple-500/30";
+    case "Canceled":  return "bg-red-500/15 text-red-700 border-red-500/30";
+    default:          return "bg-secondary text-secondary-foreground border-border";
   }
 }
 
@@ -54,6 +56,7 @@ function getStatusBadge(status: string) {
 
 export function EstimatesPage() {
   const navigate    = useNavigate();
+  const location    = useLocation();
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
   const { data: rawEstimates = [], isLoading } = useEstimates();
@@ -93,6 +96,7 @@ export function EstimatesPage() {
   const [isAcceptDialogOpen,      setIsAcceptDialogOpen]      = useState(false);
   const [isCancelDialogOpen,      setIsCancelDialogOpen]      = useState(false);
   const [isDeleteDraftDialogOpen, setIsDeleteDraftDialogOpen] = useState(false);
+  const [isDeleteDialogOpen,      setIsDeleteDialogOpen]      = useState(false);
   const [actionEstimate,          setActionEstimate]          = useState<any>(null);
 
   // ── Estimate form modals ──────────────────────────────────────────────────
@@ -115,6 +119,9 @@ export function EstimatesPage() {
     total:          e.total,
     status:         e.status,
     phone:          (e as any).phone as string | null,
+    // Autosave drafts (created by useDraftEstimate) store form state in draft_data.
+    // Request-converted drafts don't have draft_data — they use main_data instead.
+    hasDraftData:   !!(e as any).draft_data,
   }));
 
   // ── KPI stats ─────────────────────────────────────────────────────────────
@@ -159,6 +166,18 @@ export function EstimatesPage() {
     });
   }
 
+  // Auto-open detail panel when navigated here with a specific estimate ID.
+  // Always attempt to open — loadEstimate inside the panel handles "not found".
+  // Do NOT rely on rawEstimates cache to gate the open; the draft may not be
+  // in cache yet if the user navigated here right after a conversion.
+  const autoOpenId = (location.state as Record<string, unknown>)?.openId as string | undefined;
+  useEffect(() => {
+    if (!autoOpenId || isLoading) return;
+    navigate(location.pathname, { replace: true, state: {} });
+    setSelectedEstimateId(autoOpenId);
+    setIsDetailPanelOpen(true);
+  }, [autoOpenId, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Row actions ───────────────────────────────────────────────────────────
   function openDetail(id: string) {
     setSelectedEstimateId(id);
@@ -179,6 +198,26 @@ export function EstimatesPage() {
     setIsCancelDialogOpen(false);
     setActionEstimate(null);
     toast.success("Estimate canceled");
+  }
+
+  async function handleDeclineEstimate(estimate: any) {
+    await updateStatus.mutateAsync({ id: estimate.id, status: "Declined", estimate: { client_name: estimate.clientName, total: estimate.total } });
+    toast.success("Estimate declined");
+  }
+
+  async function handleDeleteEstimate() {
+    if (!actionEstimate) return;
+    try {
+      const { deleteEstimate } = await import("../services/estimatesService");
+      await deleteEstimate(actionEstimate.id);
+      queryClient.invalidateQueries({ queryKey: QK.estimates });
+      toast.success("Estimate deleted");
+    } catch {
+      toast.error("Failed to delete estimate");
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setActionEstimate(null);
+    }
   }
 
   async function handleSendSMSFromTable(estimate: any) {
@@ -409,12 +448,21 @@ export function EstimatesPage() {
                       <DropdownMenuContent align="end" className="w-48">
                         {estimate.status === "Draft" ? (
                           <>
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleContinueDraft(estimate); }}>
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation();
+                              // Autosave drafts restore from draft_data; request-converted
+                              // drafts have no draft_data and must be opened by ID.
+                              estimate.hasDraftData
+                                ? handleContinueDraft(estimate)
+                                : handleEditEstimate(estimate);
+                            }}>
                               <Play className="w-4 h-4 mr-2" /> Continue
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStartFreshDraft(estimate); }}>
-                              <RefreshCw className="w-4 h-4 mr-2" /> Start Fresh
-                            </DropdownMenuItem>
+                            {estimate.hasDraftData && (
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStartFreshDraft(estimate); }}>
+                                <RefreshCw className="w-4 h-4 mr-2" /> Start Fresh
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-destructive focus:text-destructive"
                               onClick={(e) => { e.stopPropagation(); setActionEstimate(estimate); setIsDeleteDraftDialogOpen(true); }}>
@@ -426,13 +474,15 @@ export function EstimatesPage() {
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(estimate.id); }}>
                               <FileText className="w-4 h-4 mr-2" /> View Details
                             </DropdownMenuItem>
+
+                            {/* Pending / Viewed */}
                             {(estimate.status === "Pending" || estimate.status === "Viewed") && (
                               <>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setActionEstimate(estimate); setIsAcceptDialogOpen(true); }}>
+                                  <CheckCircle className="w-4 h-4 mr-2 text-green-600" /> Mark as Accepted
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditEstimate(estimate); }}>
                                   <Edit className="w-4 h-4 mr-2" /> Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setActionEstimate(estimate); setIsAcceptDialogOpen(true); }}>
-                                  <CheckCircle className="w-4 h-4 mr-2 text-success" /> Mark as Accepted
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleSendEmail(estimate); }} disabled={isSending}>
                                   <Mail className="w-4 h-4 mr-2" /> {isSending ? "Sending..." : "Send reminder by email"}
@@ -442,26 +492,61 @@ export function EstimatesPage() {
                                     <MessageSquare className="w-4 h-4 mr-2" /> {isSendingSMS ? "Sending..." : "Send reminder by SMS"}
                                   </DropdownMenuItem>
                                 )}
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); generateShareLink(estimate.id); }} disabled={isGeneratingLink}>
+                                  <Share className="w-4 h-4 mr-2" /> Share
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadPDF(estimate); }}>
+                                  <Download className="w-4 h-4 mr-2" /> Download PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDeclineEstimate(estimate); }}>
+                                  <BookOpen className="w-4 h-4 mr-2 text-orange-500" /> Decline
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive focus:text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); setActionEstimate(estimate); setIsCancelDialogOpen(true); }}>
+                                  <X className="w-4 h-4 mr-2" /> Cancel Estimate
+                                </DropdownMenuItem>
                               </>
                             )}
+
+                            {/* Accepted */}
                             {estimate.status === "Accepted" && (
                               <>
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate("/create-route"); }}>
-                                  <CalendarIcon className="w-4 h-4 mr-2" /> Add to Route
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(estimate.id); }}>
+                                  <Briefcase className="w-4 h-4 mr-2" /> Convert to Job
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditEstimate(estimate); }}>
+                                  <Edit className="w-4 h-4 mr-2" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadPDF(estimate); }}>
+                                  <Download className="w-4 h-4 mr-2" /> Download PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); generateShareLink(estimate.id); }} disabled={isGeneratingLink}>
+                                  <Share className="w-4 h-4 mr-2" /> Share
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleConvertToInvoice(estimate); }}>
                                   <FileText className="w-4 h-4 mr-2" /> Convert to Invoice
                                 </DropdownMenuItem>
                               </>
                             )}
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); generateShareLink(estimate.id); }} disabled={isGeneratingLink}>
-                              <Share className="w-4 h-4 mr-2" /> Share
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadPDF(estimate); }}>
-                              <Download className="w-4 h-4 mr-2" /> Download PDF
-                            </DropdownMenuItem>
-                            {(estimate.status === "Pending" || estimate.status === "Viewed" || estimate.status === "Accepted") && (
+
+                            {/* Canceled */}
+                            {estimate.status === "Canceled" && (
                               <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-destructive focus:text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); setActionEstimate(estimate); setIsDeleteDialogOpen(true); }}>
+                                  <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                </DropdownMenuItem>
+                              </>
+                            )}
+
+                            {/* Declined */}
+                            {estimate.status === "Declined" && (
+                              <>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditEstimate(estimate); }}>
+                                  <Edit className="w-4 h-4 mr-2" /> Edit
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem className="text-destructive focus:text-destructive"
                                   onClick={(e) => { e.stopPropagation(); setActionEstimate(estimate); setIsCancelDialogOpen(true); }}>
@@ -552,6 +637,24 @@ export function EstimatesPage() {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setActionEstimate(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteDraft} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Delete estimate confirmation ─────────────────────────────────── */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Estimate?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This estimate will be permanently deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setActionEstimate(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteEstimate} className="bg-destructive text-destructive-foreground">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -1,20 +1,25 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { format, parseISO } from "date-fns";
 import {
   formatTime, formatDate, statusBadgeClass, formatStatusLabel, formatDuration,
 } from "../utils/walkthroughUtils";
 import {
-  Phone, Mail, CalendarIcon, Clock, FileText, Users,
+  Phone, Mail, CalendarIcon, Clock,
   Edit, Trash2, XCircle, FileCheck, MessageSquare, Play, Download,
-  CalendarClock, Loader2, User, CheckCircle2, MapPin, Navigation, Circle,
+  CalendarClock, Loader2, User, CheckCircle2, MapPin, Navigation, Circle, Receipt, ChevronRight, MoreHorizontal,
 } from "lucide-react";
 import { Badge }         from "@/shared/components/ui/badge";
 import { Button }        from "@/shared/components/ui/button";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { SidePanel }     from "@/shared/components/common/SidePanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/shared/components/ui/dropdown-menu";
 import { AddWalkthroughPage }  from "../pages/AddWalkthroughPage";
 import { AddressRouteMap }     from "@/shared/components/common/AddressRouteMap";
 import { toast }         from "sonner";
@@ -28,6 +33,8 @@ import {
   fetchWalkthroughPdfContext,
   type WalkthroughWithContact,
 } from "../services/walkthroughsService";
+import { supabase } from "@/integrations/supabase/client";
+import { QK } from "@/shared/config/queryKeys";
 import { buildWalkthroughPdfData } from "../utils/walkthroughPdfData";
 import { downloadWalkthroughPdf } from "../services/generateWalkthroughPDF";
 import { useProfile } from "@/shared/hooks/useProfile";
@@ -40,6 +47,7 @@ function statusToken(cls: string): { color: string; bg: string } {
   if (cls.includes("yellow")) return { color: "hsl(45 93% 42%)",  bg: "hsl(45 93% 47% / 0.15)" };
   if (cls.includes("red"))    return { color: "hsl(0 72% 51%)",   bg: "hsl(0 72% 51% / 0.15)"  };
   if (cls.includes("orange")) return { color: "hsl(25 95% 53%)",  bg: "hsl(25 95% 53% / 0.15)" };
+  if (cls.includes("purple")) return { color: "hsl(270 70% 50%)", bg: "hsl(270 70% 50% / 0.15)" };
   return { color: "hsl(220 9% 46%)", bg: "hsl(220 9% 46% / 0.15)" };
 }
 
@@ -93,6 +101,27 @@ export function WalkthroughDetailsPanel({
   const { data: employeeList = [] } = useWalkthroughEmployees(assignedIds, open);
   const { data: profile }           = useProfile();
 
+  const isConverted = walkthrough?.status === "Converted" || walkthrough?.status === "estimate_sent";
+  const { data: linkedEstimate, isLoading: isLoadingEstimate } = useQuery({
+    queryKey: [...QK.estimates, "linked-walkthrough", walkthrough?.id],
+    queryFn: async () => {
+      const contactFilter = walkthrough!.lead_id
+        ? { column: "lead_id",   value: walkthrough!.lead_id }
+        : { column: "client_id", value: walkthrough!.client_id! };
+      const { data } = await (supabase as any)
+        .from("estimates")
+        .select("id, service_type, status, client_name")
+        .eq(contactFilter.column, contactFilter.value)
+        .neq("is_draft", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data as { id: string; service_type: string; status: string; client_name: string } | null;
+    },
+    enabled: isConverted && !!(walkthrough?.lead_id || walkthrough?.client_id),
+    staleTime: 30_000,
+  });
+
   const contactCardUrl = `${import.meta.env.VITE_PUBLIC_APP_URL ?? window.location.origin}/contact-card/${userId ?? ""}`;
 
   // ── Action handlers ───────────────────────────────────────────────────────
@@ -139,7 +168,7 @@ export function WalkthroughDetailsPanel({
       const path = walkthrough.service_type === "residential"
         ? "/estimates/new/residential"
         : "/estimates/new/commercial";
-      navigate(path, { state: { prefill } });
+      navigate(path, { state: { prefill, fromWalkthroughId: walkthrough.id } });
       onClose();
     } catch { toast.error("Could not load walkthrough data for the estimate"); }
   }
@@ -148,93 +177,140 @@ export function WalkthroughDetailsPanel({
 
   const s = walkthrough?.status;
 
-  const btnBase    = "size-sm gap-1.5";
-  const btnOutline = `${btnBase} variant-outline`;
-
   const footer = !walkthrough || s === "estimate_sent" || s === "Converted" ? undefined : (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex items-center gap-2">
       {/* Draft */}
       {s === "Draft" && (
         <>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditOpen(true)}>
-            <Edit className="h-3.5 w-3.5" /> Edit
-          </Button>
-          <Button size="sm" className="gap-1.5" onClick={() => setScheduleOpen(true)} disabled={isUpdating}>
+          <Button size="sm" className="flex-1 gap-1.5" onClick={() => setScheduleOpen(true)} disabled={isUpdating}>
             <CalendarClock className="h-3.5 w-3.5" /> Schedule
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setCancelOpen(true)}>
-            <XCircle className="h-3.5 w-3.5" /> Cancel
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="px-2.5">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                <Edit className="h-4 w-4 mr-2" /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setCancelOpen(true)}>
+                <XCircle className="h-4 w-4 mr-2" /> Cancel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </>
       )}
 
       {/* Scheduled */}
       {s === "Scheduled" && (
         <>
-          <Button size="sm" disabled={isStarting} className="gap-1.5 bg-green-600 hover:bg-green-700 text-white" onClick={() => void handleStart()}>
+          <Button size="sm" className="flex-1 gap-1.5 bg-green-600 hover:bg-green-700 text-white" disabled={isStarting} onClick={() => void handleStart()}>
             {isStarting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            {isStarting ? "Sending…" : "Start"}
+            {isStarting ? "Sending…" : "Start Walkthrough"}
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditOpen(true)}>
-            <Edit className="h-3.5 w-3.5" /> Edit
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void handleDownloadPDF()}>
-            <Download className="h-3.5 w-3.5" /> PDF
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setCancelOpen(true)}>
-            <XCircle className="h-3.5 w-3.5" /> Cancel
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="px-2.5">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                <Edit className="h-4 w-4 mr-2" /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void handleDownloadPDF()}>
+                <Download className="h-4 w-4 mr-2" /> Download PDF
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setCancelOpen(true)}>
+                <XCircle className="h-4 w-4 mr-2" /> Cancel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </>
       )}
 
       {/* Pending / Started */}
       {(s === "Pending" || s === "Started") && (
         <>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditOpen(true)}>
-            <Edit className="h-3.5 w-3.5" /> Edit
-          </Button>
-          <Button size="sm" className="gap-1.5" onClick={() => setCompleteOpen(true)} disabled={isUpdating}>
+          <Button size="sm" className="flex-1 gap-1.5" onClick={() => setCompleteOpen(true)} disabled={isUpdating}>
             <CheckCircle2 className="h-3.5 w-3.5" /> Mark Complete
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void handleDownloadPDF()}>
-            <Download className="h-3.5 w-3.5" /> PDF
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setCancelOpen(true)}>
-            <XCircle className="h-3.5 w-3.5" /> Cancel
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="px-2.5">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                <Edit className="h-4 w-4 mr-2" /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void handleDownloadPDF()}>
+                <Download className="h-4 w-4 mr-2" /> Download PDF
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setCancelOpen(true)}>
+                <XCircle className="h-4 w-4 mr-2" /> Cancel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </>
       )}
 
       {/* Completed */}
       {s === "Completed" && (
         <>
-          <Button size="sm" className="gap-1.5" onClick={() => void handleGenerateEstimate()}>
+          <Button size="sm" className="flex-1 gap-1.5" onClick={() => void handleGenerateEstimate()}>
             <FileCheck className="h-3.5 w-3.5" /> Generate Estimate
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditOpen(true)}>
-            <Edit className="h-3.5 w-3.5" /> Edit
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void handleDownloadPDF()}>
-            <Download className="h-3.5 w-3.5" /> PDF
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setCancelOpen(true)}>
-            <XCircle className="h-3.5 w-3.5" /> Cancel
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="px-2.5">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                <Edit className="h-4 w-4 mr-2" /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void handleDownloadPDF()}>
+                <Download className="h-4 w-4 mr-2" /> Download PDF
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setCancelOpen(true)}>
+                <XCircle className="h-4 w-4 mr-2" /> Cancel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </>
       )}
 
       {/* Cancelled */}
       {s === "Cancelled" && (
         <>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditOpen(true)}>
+          <Button size="sm" className="flex-1 gap-1.5" onClick={() => setEditOpen(true)}>
             <CalendarClock className="h-3.5 w-3.5" /> Reschedule
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void handleDownloadPDF()}>
-            <Download className="h-3.5 w-3.5" /> PDF
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setDeleteOpen(true)} disabled={isDeleting}>
-            <Trash2 className="h-3.5 w-3.5" /> Delete
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="px-2.5">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => void handleDownloadPDF()}>
+                <Download className="h-4 w-4 mr-2" /> Download PDF
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteOpen(true)} disabled={isDeleting}>
+                <Trash2 className="h-4 w-4 mr-2" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </>
       )}
     </div>
@@ -333,6 +409,40 @@ export function WalkthroughDetailsPanel({
               </div>
             </div>
           </section>
+
+          {/* ── Converted To ─────────────────────────────────────────── */}
+          {isConverted && (
+            <>
+              <Divider />
+              <section className="space-y-2">
+                <SectionTitle>Converted To</SectionTitle>
+                {isLoadingEstimate ? (
+                  <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading estimate…
+                  </div>
+                ) : linkedEstimate ? (
+                  <button
+                    type="button"
+                    onClick={() => { onClose(); navigate("/estimates", { state: { openId: linkedEstimate.id } }); }}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-secondary/50 transition-colors text-left"
+                  >
+                    <div className="p-2 rounded bg-blue-500/10 flex-shrink-0">
+                      <Receipt className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">Estimate</p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {linkedEstimate.service_type} · {linkedEstimate.status}
+                      </p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                  </button>
+                ) : (
+                  <p className="text-sm text-muted-foreground px-1">The linked estimate was not found.</p>
+                )}
+              </section>
+            </>
+          )}
 
           <Divider />
 
@@ -466,7 +576,6 @@ export function WalkthroughDetailsPanel({
                       <div key={emp.id} className="flex items-center gap-2 text-sm p-2.5 rounded-lg bg-muted/40">
                         <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                         <span className="font-medium">{emp.first_name} {emp.last_name}</span>
-                        {emp.position && <span className="text-muted-foreground text-xs">— {emp.position}</span>}
                       </div>
                     ))}
                   </div>

@@ -48,7 +48,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const qc          = useQueryClient();
   const locationState = (location.state as any) || {};
   const { isEditing, estimateId, estimateData, prefill, continueDraft } = initialState ?? locationState;
-  const fromRequestId = locationState.fromRequestId as string | undefined;
+  const fromWalkthroughId  = locationState.fromWalkthroughId  as string | undefined;
   const isModal = onClose !== undefined;
   const goBack = useCallback(() => {
     if (isModal) onClose!();
@@ -395,6 +395,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       overhead_cost: overheadCost, total_operation_cost: totalOpCost,
       status: (deliveryMethod === "email" || deliveryMethod === "sms" || deliveryMethod === "both") ? "Pending" : "Draft",
       estimate_date: new Date().toISOString(),
+      is_draft: false,
     };
 
     try {
@@ -406,17 +407,12 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       } else {
         const saved = await createEst.mutateAsync(payload);
         savedId = saved.id;
-        if (fromRequestId) {
-          const contactType = estimateType as "client" | "lead";
-          const contactId   = estimateType === "client" ? selectedClient?.id : selectedLead?.id;
-          if (contactId) {
-            await (supabase as any).rpc("finalize_booking_conversion", {
-              p_booking_id:  fromRequestId,
-              p_estimate_id: savedId,
-              p_walkthrough_id: null,
-            });
-            qc.invalidateQueries({ queryKey: QK.requests });
-          }
+        if (fromWalkthroughId) {
+          await (supabase as any).rpc("finalize_walkthrough_to_estimate_conversion", {
+            p_walkthrough_id: fromWalkthroughId,
+            p_estimate_id:    savedId,
+          });
+          qc.invalidateQueries({ queryKey: QK.walkthroughs });
         }
       }
       if (deliveryMethod === "email" || deliveryMethod === "both") {
@@ -680,9 +676,10 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   }
 
   // ── Page mode ────────────────────────────────────────────────────────────
-  // Walkthrough "Generate Estimate" navigates here with `prefill` — match the Estimates
-  // feature modal shell (FullScreenModal + isModal layout) so styling is identical.
-  if (prefill) {
+  // Walkthrough "Generate Estimate" navigates with `prefill`.
+  // Request conversion navigates with `isEditing: true`.
+  // Both must render as FullScreenModal to match the modal-based UX.
+  if (prefill || isEditing) {
     return (
       <>
         {formDialogs}

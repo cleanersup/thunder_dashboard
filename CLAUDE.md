@@ -22,6 +22,13 @@
 | UX/UI, layout, componentes visuales | `thunder-web-version` → `/Users/diegoparedes/Documents/Desarrollo/thunder-web-version` |
 | Backend / DB | Supabase compartido — **NO tocar nada del backend** |
 
+### Regla fundamental de implementación
+**Antes de implementar cualquier feature, servicio, flujo o llamada a edge function: revisar cómo lo hace swift-slate y replicarlo.**
+- La lógica (orden de operaciones, campos, edge functions, manejo de errores) viene de swift-slate
+- El UX/UI (layout, componentes, estilos) viene del dashboard / thunder-web-version
+- Si swift-slate hace N pasos para una operación, el dashboard hace los mismos N pasos en el mismo orden
+- Nunca reemplazar una edge function por un insert/select directo aunque parezca equivalente — pueden tener restricciones RLS distintas o lógica server-side implícita
+
 ---
 
 ## Reglas de implementación (aplican siempre)
@@ -101,7 +108,21 @@
   - `send-contract-email`, `send-contract-sms`
   - `generate-company-description` (Auto Generate en contratos)
   - `create-booking` (crea request desde dashboard o form público)
+  - `send-booking-emails` (confirmación al lead + notificación al dueño al crear booking)
   - `send-job-status-emails` (notifica cambio de status de job)
+
+### RLS en tabla `bookings` — regla crítica
+- La tabla `bookings` solo permite **INSERT** a usuarios anónimos, NO SELECT
+- **NUNCA usar `.select()` después de `.insert()` en `bookings` desde contexto no autenticado** — genera 401 RLS
+- Para operaciones de escritura + lectura desde el form público (unauthenticated), usar siempre la edge function `create-booking` (corre con service role, bypasses RLS y retorna el booking con su `id`)
+- Lo mismo aplica para `notifications` — los inserts desde el form público son posibles solo porque el backend tiene políticas específicas para ello
+
+### Flujo completo del formulario público de booking
+Al hacer submit del form público (`/booking/:userId`):
+1. **Crear booking** → `supabase.functions.invoke("create-booking", { body: { ...fields, business_owner_id: userId, status: "new", contact_type: "anonymous", attachments: [] } })` — retorna `{ id }`. **La edge function ya envía internamente el email de confirmación al lead** — no llamar `send-booking-emails` por separado o el cliente recibirá dos correos.
+2. **Crear notificación in-app** → `supabase.from("notifications").insert({ user_id: userId, type: "booking_new", title: "New Booking Request", message: \`${fullName} submitted a new ${serviceType} booking request\`, related_id: booking.id, related_type: "booking", read: false })` — fire-and-forget (`.catch(() => {})`)
+- El `contact_type: "anonymous"` se resuelve a Lead automáticamente cuando el dueño abre el `ConvertRequestDialog` (que llama `resolveOrCreateContact`)
+- `send-booking-emails` es para otros contextos (ej. reenvío manual), NO para el submit inicial del form público
 
 ### RPCs de conversión (ya desplegados en backend)
 - `finalize_booking_conversion(p_booking_id, p_contact_type, p_contact_id, p_estimate_id?, p_walkthrough_id?)` — Request → Estimate/Walkthrough

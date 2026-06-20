@@ -351,21 +351,39 @@ export async function resolveOrCreateContact(
   if (booking.client_id) return { type: "client", id: booking.client_id };
   if (booking.lead_id)   return { type: "lead",   id: booking.lead_id };
 
+  // Persists the resolved contact back to the booking so future conversions
+  // reuse the same contact instead of creating duplicates.
+  const persistContact = async (contact: { type: "client" | "lead"; id: string }) => {
+    await (supabase as any)
+      .from("bookings")
+      .update({
+        [contact.type === "client" ? "client_id" : "lead_id"]: contact.id,
+        contact_type: contact.type,
+      })
+      .eq("id", booking.id);
+    return contact;
+  };
+
   // 1. Try by email
   if (booking.email) {
     const found = await findContactByEmail(booking.email, user.id);
-    if (found) return found;
+    if (found) return persistContact(found);
   }
 
   // 2. Try by name + phone
   if (booking.lead_name && booking.phone) {
     const found = await findContactByNamePhone(booking.lead_name, booking.phone, user.id);
-    if (found) return found;
+    if (found) return persistContact(found);
   }
 
   // 3. Create new lead
+  const additionalServices = Array.isArray(booking.additional_services)
+    ? (booking.additional_services as string[])
+    : [];
+
   const notes = [
     booking.service_details,
+    additionalServices.length > 0 ? `Additional services: ${additionalServices.join(", ")}` : null,
     booking.preferred_date ? `Preferred date: ${booking.preferred_date}` : null,
     booking.time_preference ? `Time preference: ${booking.time_preference}` : null,
   ].filter(Boolean).join("\n");
@@ -388,7 +406,7 @@ export async function resolveOrCreateContact(
   }).select("id").single();
   if (error) throw error;
 
-  return { type: "lead", id: newLead.id };
+  return persistContact({ type: "lead", id: newLead.id });
 }
 
 // ─── Public (unauthenticated) ─────────────────────────────────────────────────

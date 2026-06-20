@@ -40,14 +40,14 @@ export const JOB_STATUS_BORDER: Record<JobStatus, string> = {
 };
 
 export const JOB_STATUS_BADGE: Record<JobStatus, string> = {
-  Draft:     "bg-amber-50 text-amber-700 border-amber-200",
-  Scheduled: "bg-blue-50 text-blue-700 border-blue-200",
-  Upcoming:  "bg-sky-50 text-sky-700 border-sky-200",
-  Today:     "bg-green-50 text-green-700 border-green-200",
-  Ongoing:   "bg-blue-50 text-blue-700 border-blue-200",
-  Completed: "bg-teal-50 text-teal-700 border-teal-200",
-  Missed:    "bg-red-50 text-red-700 border-red-200",
-  Cancelled: "bg-gray-50 text-gray-600 border-gray-200",
+  Draft:     "bg-yellow-500/15 text-yellow-700 border-yellow-500/30",
+  Scheduled: "bg-blue-500/15 text-blue-700 border-blue-500/30",
+  Upcoming:  "bg-blue-500/15 text-blue-700 border-blue-500/30",
+  Today:     "bg-green-500/15 text-green-700 border-green-500/30",
+  Ongoing:   "bg-blue-500/15 text-blue-700 border-blue-500/30",
+  Completed: "bg-green-500/15 text-green-700 border-green-500/30",
+  Missed:    "bg-red-500/15 text-red-700 border-red-500/30",
+  Cancelled: "bg-red-500/15 text-red-700 border-red-500/30",
 };
 
 export const JOB_STATUS_ICON: Record<JobStatus, React.ReactNode> = {

@@ -52,8 +52,10 @@ export function ConvertRequestDialog({
     "residential" | "commercial";
 
   const invalidate = () => {
+    qc.invalidateQueries({ queryKey: QK.estimates });
     qc.invalidateQueries({ queryKey: QK.requests });
     qc.invalidateQueries({ queryKey: QK.request(request.id) });
+    qc.invalidateQueries({ queryKey: QK.leads });
   };
 
   const handleConvert = async (target: "estimate" | "walkthrough") => {
@@ -62,16 +64,96 @@ export function ConvertRequestDialog({
       const contact = await resolveOrCreateContact(request);
 
       if (target === "estimate") {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
         const route = serviceType === "commercial"
           ? "/estimates/new/commercial"
           : "/estimates/new/residential";
+
+        // Pre-populate the draft's stored fields from the request so the form
+        // opens with the correct values when it fetches the draft in edit mode.
+        const knownCommercialTypes = [
+          "restaurant", "office", "warehouse", "school", "bank",
+          "clinic", "church", "food-truck", "hotel", "gym",
+          "movie-theater", "auto-dealership",
+        ];
+        const mainData: Record<string, unknown> =
+          serviceType === "residential"
+            ? {
+                bedrooms:  request.bedrooms  ?? 0,
+                fullBaths: request.bathrooms ?? 0,
+              }
+            : (() => {
+                const rawType = (request.commercial_property_type ?? "").toLowerCase();
+                const isOther = rawType !== "" && !knownCommercialTypes.includes(rawType);
+                // For known types: store the type key directly.
+                // For "other"/custom types: store the actual custom value so the
+                // isEditing useEffect detects it as not-in-knownTypes → isOther=true.
+                const otherValue = request.other_commercial_type
+                  || (isOther ? request.commercial_property_type ?? "" : "");
+                return {
+                  propertyType: isOther ? otherValue : rawType,
+                };
+              })();
+
+        // Insert draft estimate immediately — request will be "converted" before
+        // the user even touches the form.
+        const { data: draft, error: draftError } = await (supabase as any)
+          .from("estimates")
+          .insert({
+            user_id:          user.id,
+            is_draft:         true,
+            current_step:     0,
+            service_type:     serviceType === "residential" ? "Residential" : "Commercial",
+            service_sub_type: "",
+            service_scope:    request.service_details  || null,
+            main_data:        mainData,
+            client_name:      request.lead_name        || "Draft",
+            email:            request.email            || "draft@placeholder.com",
+            phone:            request.phone            || "0000000000",
+            address:          request.street           || "Draft",
+            apt:              request.apt_suite        || null,
+            city:             request.city             || "Draft",
+            state:            request.state            || "NA",
+            zip:              request.zip_code         || "00000",
+            subtotal:         0,
+            total:            0,
+            status:           "Draft",
+            client_id:        contact.type === "client" ? contact.id : null,
+            lead_id:          contact.type === "lead"   ? contact.id : null,
+          })
+          .select("id")
+          .single();
+
+        if (draftError) throw draftError;
+
+        // Finalize conversion immediately — request becomes "converted" now.
+        try {
+          await (supabase as any).rpc("finalize_booking_conversion", {
+            p_booking_id:     request.id,
+            p_estimate_id:    draft.id,
+            p_walkthrough_id: null,
+          });
+        } catch (rpcErr) {
+          // Clean up orphaned draft if the RPC fails.
+          await (supabase as any)
+            .from("estimates")
+            .update({ status: "Deleted" })
+            .eq("id", draft.id);
+          throw rpcErr;
+        }
+
+        invalidate();
         onOpenChange(false);
+        toast.success("Draft estimate created", {
+          description: "Contact pre-selected — complete the estimate",
+        });
+
+        // Open form in EDIT mode — will UPDATE the draft, not INSERT a new row.
         onEstimateConvert?.(route, {
-          prefill: {
-            [contact.type === "client" ? "client_id" : "lead_id"]: contact.id,
-            service_type: serviceType,
-          },
-          fromRequestId: request.id,
+          isEditing:  true,
+          estimateId: draft.id,
         });
         return;
       }
@@ -131,6 +213,7 @@ export function ConvertRequestDialog({
       }
 
       // ── Case B: no preferred_date — form handles finalize after save ──────
+      invalidate();
       onOpenChange(false);
       onWalkthroughConvert({
         ...prefillBase,

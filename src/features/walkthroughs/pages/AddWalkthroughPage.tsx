@@ -33,7 +33,6 @@ import { EmployeeForm } from "@/features/employees/components/EmployeeForm";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { cn } from "@/shared/utils/cn";
-import { toast } from "sonner";
 import { walkthroughSchema } from "../schemas/walkthroughSchema";
 import type { WalkthroughFormData } from "../schemas/walkthroughSchema";
 import { useCreateWalkthrough, useUpdateWalkthrough, useWalkthrough } from "../hooks/useWalkthroughs";

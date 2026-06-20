@@ -5,17 +5,24 @@ import {
   Calendar, Clock, Mail, Phone, MapPin,
   Home, Building2, XCircle, FileText,
   Navigation, Trash2, MessageSquare, ArrowRightLeft, Edit,
-  Archive, RefreshCw, Receipt, ClipboardList, ChevronRight, Image as ImageIcon,
+  Archive, RefreshCw, Receipt, ClipboardList, ChevronRight, Image as ImageIcon, Loader2, Link2, MoreHorizontal,
 } from "lucide-react";
 import { Button }         from "@/shared/components/ui/button";
 import { Badge }          from "@/shared/components/ui/badge";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/shared/components/ui/dropdown-menu";
 import { ConfirmDialog }  from "@/shared/components/common/ConfirmDialog";
 import { AddressRouteMap } from "@/shared/components/common/AddressRouteMap";
 import { SidePanel }      from "@/shared/components/common/SidePanel";
 import { useProfile }     from "@/shared/hooks/useProfile";
 import { ConvertRequestDialog } from "./ConvertRequestDialog";
 import { EditRequestPage }      from "../pages/EditRequestPage";
+import { LinkContactDialog }    from "./LinkContactDialog";
 import { AddWalkthroughPage }   from "@/features/walkthroughs/pages/AddWalkthroughPage";
+import { useWalkthrough }       from "@/features/walkthroughs/hooks/useWalkthroughs";
+import { useEstimate }          from "@/features/estimates/hooks/useEstimates";
 import { useClientProperties }  from "@/features/crm/clients/hooks/useClientProperties";
 import {
   useCancelRequest, useDeleteRequest,
@@ -29,14 +36,14 @@ import { cn } from "@/shared/utils/cn";
 
 function statusBadge(booking: Booking): { label: string; color: string; bg: string } {
   const s = booking.status;
-  if (s === "new")       return { label: "New",       color: "hsl(142 71% 35%)",  bg: "hsl(142 71% 45% / 0.15)" };
+  if (s === "new")       return { label: "New",       color: "hsl(25 95% 53%)",   bg: "hsl(25 95% 53% / 0.15)"  };
+  if (s === "archived")  return { label: "Archived",  color: "hsl(220 9% 46%)",   bg: "hsl(220 9% 46% / 0.15)"  };
   if (s === "cancelled") return { label: "Cancelled", color: "hsl(0 72% 51%)",    bg: "hsl(0 72% 51% / 0.15)"   };
-  if (s === "archived")  return { label: "Archived",  color: "hsl(25 95% 53%)",   bg: "hsl(25 95% 53% / 0.15)"  };
   if (s === "converted") {
     const label = booking.converted_to_type
       ? `→ ${booking.converted_to_type === "walkthrough" ? "Walkthrough" : "Estimate"}`
       : "Converted";
-    return { label, color: "hsl(217 91% 60%)", bg: "hsl(217 91% 60% / 0.15)" };
+    return { label, color: "hsl(270 70% 50%)", bg: "hsl(270 70% 50% / 0.15)" };
   }
   return { label: s, color: "hsl(220 9% 46%)", bg: "hsl(220 9% 46% / 0.15)" };
 }
@@ -94,6 +101,7 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
   const [confirmAction, setConfirmAction]         = useState<"cancel" | "archive" | "delete" | null>(null);
   const [convertOpen, setConvertOpen]             = useState(false);
   const [editOpen, setEditOpen]                   = useState(false);
+  const [linkContactOpen, setLinkContactOpen]     = useState(false);
   const [lightboxUrl, setLightboxUrl]             = useState<string | null>(null);
   const [walkthroughOpen, setWalkthroughOpen]     = useState(false);
   const [walkthroughConfig, setWalkthroughConfig] = useState<WalkthroughConvertConfig | null>(null);
@@ -115,6 +123,26 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
   const confirm = confirmAction ? confirmMessages[confirmAction] : null;
   const badge   = booking ? statusBadge(booking) : undefined;
 
+  // ── Linked conversion record fetch (must be above the guard) ─────────────
+  const linkedWalkthroughId = booking?.converted_to_type === "walkthrough"
+    ? (booking.converted_to_id ?? undefined) : undefined;
+  const linkedEstimateId = booking?.converted_to_type === "estimate"
+    ? (booking.converted_to_id ?? null) : null;
+
+  const {
+    data:      linkedWalkthrough,
+    isLoading: isLoadingWalkthrough,
+    isError:   walkthroughDeleted,
+  } = useWalkthrough(linkedWalkthroughId, { staleTime: 0 });
+
+  const {
+    data:      linkedEstimate,
+    isLoading: isLoadingEstimate,
+    isError:   estimateDeleted,
+  } = useEstimate(linkedEstimateId, { staleTime: 0 });
+
+  const isLoadingLinked = isLoadingWalkthrough || isLoadingEstimate;
+
   // ── Property lookup (must be above the guard) ──────────────────────────────
   const { data: clientProperties = [] } = useClientProperties(booking?.client_id ?? undefined);
   const matchedProperty = booking?.client_property_id
@@ -128,30 +156,40 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
 
   // ── Footer ─────────────────────────────────────────────────────────────────
   const footer = booking ? (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex items-center gap-2">
       {booking.status === "new" && (
         <>
-          <Button size="sm" className="gap-1.5" onClick={() => setConvertOpen(true)}>
+          <Button size="sm" className="flex-1 gap-1.5" onClick={() => setConvertOpen(true)}>
             <ArrowRightLeft className="h-3.5 w-3.5" /> Convert
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditOpen(true)}>
-            <Edit className="h-3.5 w-3.5" /> Edit
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5 text-warning hover:text-warning" onClick={() => setConfirmAction("archive")}>
-            <Archive className="h-3.5 w-3.5" /> Archive
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => setConfirmAction("cancel")}>
-            <XCircle className="h-3.5 w-3.5" /> Cancel
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="px-2.5">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                <Edit className="h-4 w-4 mr-2" /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setConfirmAction("archive")}>
+                <Archive className="h-4 w-4 mr-2" /> Archive
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setConfirmAction("cancel")}>
+                <XCircle className="h-4 w-4 mr-2" /> Cancel Request
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </>
       )}
       {booking.status === "cancelled" && (
-        <Button size="sm" variant="outline" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => setConfirmAction("delete")}>
+        <Button size="sm" variant="outline" className="flex-1 gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => setConfirmAction("delete")}>
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </Button>
       )}
       {booking.status === "archived" && (
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => restore(booking.id, { onSuccess: onClose })}>
+        <Button size="sm" className="flex-1 gap-1.5" onClick={() => restore(booking.id, { onSuccess: onClose })}>
           <RefreshCw className="h-3.5 w-3.5" /> Reactivate
         </Button>
       )}
@@ -175,12 +213,6 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
     .filter(Boolean).join(", ");
   const mapsUrl        = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(targetAddress)}`;
 
-  const linkedPath = booking.converted_to_type === "estimate"
-    ? "/estimates"
-    : booking.converted_to_type === "walkthrough"
-      ? "/walkthroughs"
-      : null;
-
   return (
     <>
       <SidePanel open={open} onClose={onClose} title={booking.lead_name} badge={badge} footer={footer}>
@@ -191,27 +223,53 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
             <>
               <section className="space-y-2">
                 <SectionTitle>Converted To</SectionTitle>
-                <button
-                  type="button"
-                  onClick={() => { if (linkedPath) { onClose(); navigate(linkedPath); } }}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-secondary/50 transition-colors text-left"
-                >
-                  <div className={cn("p-2 rounded flex-shrink-0",
-                    booking.converted_to_type === "estimate" ? "bg-blue-500/10" : "bg-green-500/10"
-                  )}>
-                    {booking.converted_to_type === "estimate"
-                      ? <Receipt className="w-4 h-4 text-blue-500" />
-                      : <ClipboardList className="w-4 h-4 text-green-500" />
-                    }
+
+                {isLoadingLinked ? (
+                  <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading linked record…
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">
-                      {booking.converted_to_type === "estimate" ? "Estimate" : "Walkthrough"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">View the linked record</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                </button>
+                ) : (walkthroughDeleted && booking.converted_to_type === "walkthrough") ||
+                    (estimateDeleted    && booking.converted_to_type === "estimate") ? (
+                  <p className="text-sm text-muted-foreground px-1">
+                    The linked {booking.converted_to_type} was deleted.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      if (booking.converted_to_type === "walkthrough" && booking.converted_to_id) {
+                        navigate("/walkthroughs", { state: { openId: booking.converted_to_id } });
+                      } else if (booking.converted_to_type === "estimate" && booking.converted_to_id) {
+                        navigate("/estimates", { state: { openId: booking.converted_to_id } });
+                      }
+                    }}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-secondary/50 transition-colors text-left"
+                  >
+                    <div className={cn("p-2 rounded flex-shrink-0",
+                      booking.converted_to_type === "estimate" ? "bg-blue-500/10" : "bg-green-500/10"
+                    )}>
+                      {booking.converted_to_type === "estimate"
+                        ? <Receipt className="w-4 h-4 text-blue-500" />
+                        : <ClipboardList className="w-4 h-4 text-green-500" />
+                      }
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">
+                        {booking.converted_to_type === "estimate" ? "Estimate" : "Walkthrough"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {booking.converted_to_type === "walkthrough" && linkedWalkthrough
+                          ? `${linkedWalkthrough.service_type} · ${linkedWalkthrough.status}`
+                          : booking.converted_to_type === "estimate" && linkedEstimate
+                            ? `${(linkedEstimate as any).serviceType ?? (linkedEstimate as any).service_type ?? ""} · ${(linkedEstimate as any).status ?? ""}`.trim().replace(/^·\s*/, "")
+                            : "View the linked record"
+                        }
+                      </p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                  </button>
+                )}
               </section>
               <Divider />
             </>
@@ -273,6 +331,19 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
                 </div>
               </div>
             </div>
+
+            {/* Link to existing contact — only for anonymous requests with status new */}
+            {isAnonymous && booking.status === "new" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2 border-orange-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400"
+                onClick={() => setLinkContactOpen(true)}
+              >
+                <Link2 className="h-4 w-4" />
+                Link to existing Client or Lead
+              </Button>
+            )}
           </section>
 
           <Divider />
@@ -542,6 +613,13 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
         bookingId={booking.id}
         open={editOpen}
         onClose={() => setEditOpen(false)}
+      />
+
+      <LinkContactDialog
+        open={linkContactOpen}
+        onOpenChange={setLinkContactOpen}
+        bookingId={booking.id}
+        onLinked={onClose}
       />
     </>
   );

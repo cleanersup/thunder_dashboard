@@ -63,12 +63,12 @@ const ITEMS_PER_PAGE = 10;
 
 function getStatusBadgeClass(status: string) {
   switch (status) {
-    case "Active":   return "bg-green-100 text-green-700 border-green-200";
-    case "Pending":  return "bg-orange-100 text-orange-700 border-orange-200";
-    case "Draft":    return "bg-blue-100 text-blue-700 border-blue-200";
-    case "Expired":  return "bg-red-100 text-red-700 border-red-200";
-    case "Expiring": return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    default:         return "bg-gray-100 text-gray-700 border-gray-200";
+    case "Draft":    return "bg-yellow-500/15 text-yellow-700 border-yellow-500/30";
+    case "Pending":  return "bg-orange-500/15 text-orange-700 border-orange-500/30";
+    case "Active":   return "bg-green-500/15 text-green-700 border-green-500/30";
+    case "Expiring": return "bg-yellow-500/15 text-yellow-700 border-yellow-500/30";
+    case "Expired":  return "bg-red-500/15 text-red-700 border-red-500/30";
+    default:         return "bg-secondary text-secondary-foreground border-border";
   }
 }
 

@@ -22,10 +22,11 @@ import { QK } from "@/shared/config/queryKeys";
  */
 export function useEstimates() {
   return useQuery({
-    queryKey:     QK.estimates,
-    queryFn:      fetchEstimates,
-    staleTime:    2 * 60 * 1000, // 2 minutes
-    refetchOnMount: "always",
+    queryKey:        QK.estimates,
+    queryFn:         fetchEstimates,
+    staleTime:       0,
+    refetchOnMount:  "always",
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -33,12 +34,13 @@ export function useEstimates() {
  * Fetches a single estimate by ID.
  * @param id - The estimate UUID (pass null to skip)
  */
-export function useEstimate(id: string | null) {
+export function useEstimate(id: string | null, options?: { staleTime?: number }) {
   return useQuery({
     queryKey:  QK.estimate(id!),
     queryFn:   () => fetchEstimate(id!),
     enabled:   !!id,
-    staleTime: 60 * 1000,
+    staleTime: options?.staleTime ?? 60 * 1000,
+    retry: false,
   });
 }
 
@@ -131,8 +133,9 @@ export function useDeleteEstimate() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteEstimate,
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: QK.estimates });
+      qc.invalidateQueries({ queryKey: QK.estimate(id) });
       toast.success("Estimate deleted");
     },
     onError: (err: Error) => toast.error(err.message ?? "Failed to delete estimate"),

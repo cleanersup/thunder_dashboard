@@ -16,6 +16,7 @@ export async function fetchEstimates() {
     .from("estimates")
     .select("*")
     .eq("user_id", user.id)
+    .neq("status", "Deleted")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
@@ -85,12 +86,16 @@ export async function updateEstimateStatus(id: string, status: string) {
 }
 
 /**
- * Permanently deletes an estimate.
+ * Soft-deletes an estimate by setting status to 'Deleted'.
+ * Keeps the row in the DB so linked bookings/walkthroughs retain their reference.
  * @param id - The estimate UUID
  * @throws On Supabase query failure
  */
 export async function deleteEstimate(id: string) {
-  const { error } = await supabase.from("estimates").delete().eq("id", id);
+  const { error } = await supabase
+    .from("estimates")
+    .update({ status: "Deleted", updated_at: new Date().toISOString() })
+    .eq("id", id);
   if (error) throw error;
 }
 
@@ -234,7 +239,8 @@ export async function saveDraftEstimate(
 }
 
 /**
- * Permanently deletes a draft estimate.
+ * Soft-deletes a draft estimate (same as deleteEstimate but scoped to drafts).
+ * Keeps the row so any linked booking/walkthrough retains its reference.
  * @param draftId - The draft estimate UUID
  */
 export async function deleteDraftEstimate(draftId: string) {
@@ -242,10 +248,9 @@ export async function deleteDraftEstimate(draftId: string) {
   if (!user) return;
   await supabase
     .from("estimates")
-    .delete()
+    .update({ status: "Deleted", updated_at: new Date().toISOString() })
     .eq("id", draftId)
-    .eq("user_id", user.id)
-    .eq("is_draft", true);
+    .eq("user_id", user.id);
 }
 
 // ─── Activities + Notifications ───────────────────────────────────────────────

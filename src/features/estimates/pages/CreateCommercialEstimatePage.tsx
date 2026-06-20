@@ -45,7 +45,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   const qc            = useQueryClient();
   const locationState = (location.state as any) || {};
   const { isEditing, estimateId, estimateData, prefill } = initialState ?? locationState;
-  const fromRequestId = locationState.fromRequestId as string | undefined;
+  const fromWalkthroughId = locationState.fromWalkthroughId as string | undefined;
   const isModal      = onClose !== undefined;
   const continueDraft = initialState?.continueDraft ?? false;
   const goBack = useCallback(() => {
@@ -458,6 +458,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
         discount_value: applyDiscount && discountValue ? parseFloat(discountValue) : null,
         status: (deliveryMethod === "email" || deliveryMethod === "sms" || deliveryMethod === "both") ? "Pending" : "Draft",
         estimate_date:  new Date().toISOString().split("T")[0],
+        is_draft: false,
       };
 
       let finalId: string;
@@ -467,17 +468,12 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       } else {
         const created = await createEstimate(payload);
         finalId = created.id;
-        if (fromRequestId) {
-          const contactType = estimateType as "client" | "lead";
-          const contactId   = estimateType === "client" ? selectedClient?.id : selectedLead?.id;
-          if (contactId) {
-            await (supabase as any).rpc("finalize_booking_conversion", {
-              p_booking_id:  fromRequestId,
-              p_estimate_id: finalId,
-              p_walkthrough_id: null,
-            });
-            qc.invalidateQueries({ queryKey: QK.requests });
-          }
+        if (fromWalkthroughId) {
+          await (supabase as any).rpc("finalize_walkthrough_to_estimate_conversion", {
+            p_walkthrough_id: fromWalkthroughId,
+            p_estimate_id:    finalId,
+          });
+          qc.invalidateQueries({ queryKey: QK.walkthroughs });
         }
       }
 
@@ -756,9 +752,10 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   }
 
   // ── Page mode ────────────────────────────────────────────────────────────
-  // Walkthrough "Generate Estimate" navigates here with `prefill` — match the Estimates
-  // feature modal shell (FullScreenModal + isModal layout) so styling is identical.
-  if (prefill) {
+  // Walkthrough "Generate Estimate" navigates with `prefill`.
+  // Request conversion navigates with `isEditing: true`.
+  // Both must render as FullScreenModal to match the modal-based UX.
+  if (prefill || isEditing) {
     return (
       <>
         {formDialogs}

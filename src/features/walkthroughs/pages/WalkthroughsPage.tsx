@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import {
   formatTime,
@@ -75,7 +75,7 @@ import {
 import { buildWalkthroughPdfData } from "../utils/walkthroughPdfData";
 import { downloadWalkthroughPdf } from "../services/generateWalkthroughPDF";
 import { cn } from "@/shared/utils/cn";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useProfile } from "@/shared/hooks/useProfile";
@@ -121,8 +121,24 @@ const KPI_CONFIG = [
 
 export function WalkthroughsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { data: walkthroughs = [], isLoading, refetch } = useWalkthroughs();
+
+  // Auto-open detail panel when navigated here with a specific walkthrough ID
+  const autoOpenId = (location.state as Record<string, unknown>)?.openId as string | undefined;
+  useEffect(() => {
+    if (!autoOpenId || isLoading) return;
+    // Clear the state first so this effect doesn't re-fire
+    navigate(location.pathname, { replace: true, state: {} });
+    const found = walkthroughs.find((w) => w.id === autoOpenId);
+    if (found) {
+      setDetailId(autoOpenId);
+      setDetailOpen(true);
+    } else {
+      toast.error("The linked walkthrough was deleted");
+    }
+  }, [autoOpenId, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
   const { mutate: updateStatus } = useUpdateWalkthroughStatus();
   const { mutate: deleteMutate } = useDeleteWalkthrough();
   const { user } = useAuth();
