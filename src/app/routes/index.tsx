@@ -33,7 +33,6 @@ const NotificationsPage = lazy(() => import("@/features/notifications/pages/Noti
 
 // Jobs ✅
 const JobsPage      = lazy(() => import("@/features/jobs/pages/JobsPage").then((m) => ({ default: m.JobsPage })));
-const AddJobPage    = lazy(() => import("@/features/jobs/pages/AddJobPage").then((m) => ({ default: m.AddJobPage })));
 const JobDetailPage = lazy(() => import("@/features/jobs/pages/JobDetailPage").then((m) => ({ default: m.JobDetailPage })));
 
 // Phase 6 — Requests (renamed from Booking) ✅
@@ -119,10 +118,8 @@ export function AppRouter() {
           <Route path="/home" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
 
           {/* Jobs ✅ */}
-          <Route path="/jobs"          element={<ProtectedRoute requireFeature="jobs"><JobsPage /></ProtectedRoute>} />
-          <Route path="/jobs/new"      element={<ProtectedRoute requireFeature="jobs"><AddJobPage /></ProtectedRoute>} />
-          <Route path="/jobs/:id/edit" element={<ProtectedRoute requireFeature="jobs"><AddJobPage /></ProtectedRoute>} />
-          <Route path="/jobs/:id"      element={<ProtectedRoute requireFeature="jobs"><JobDetailPage /></ProtectedRoute>} />
+          <Route path="/jobs"     element={<ProtectedRoute requireFeature="jobs"><JobsPage /></ProtectedRoute>} />
+          <Route path="/jobs/:id" element={<ProtectedRoute requireFeature="jobs"><JobDetailPage /></ProtectedRoute>} />
 
           {/* Phase 5 ✅ — CRM split into separate pages */}
           <Route path="/crm"     element={<Navigate to="/leads" replace />} />

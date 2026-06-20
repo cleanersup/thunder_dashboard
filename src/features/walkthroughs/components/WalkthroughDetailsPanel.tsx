@@ -584,15 +584,19 @@ export function WalkthroughDetailsPanel({
             </>
           )}
 
-          {/* updated_at note */}
-          {walkthrough.updated_at !== walkthrough.created_at && (
-            <>
-              <Divider />
+          {/* ── Timeline ──────────────────────────────────────────────── */}
+          <Divider />
+          <section className="space-y-2">
+            <SectionTitle>Timeline</SectionTitle>
+            <p className="text-xs text-muted-foreground">
+              Created {format(parseISO(walkthrough.created_at), "MMM d, yyyy 'at' h:mm a")}
+            </p>
+            {walkthrough.updated_at !== walkthrough.created_at && (
               <p className="text-xs text-muted-foreground">
                 Updated {format(parseISO(walkthrough.updated_at), "MMM d, yyyy 'at' h:mm a")}
               </p>
-            </>
-          )}
+            )}
+          </section>
 
         </div>
       </SidePanel>

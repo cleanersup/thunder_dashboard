@@ -155,7 +155,7 @@ export function useConvertEstimateToJob() {
       qc.invalidateQueries({ queryKey: QK.job(newJob.id) });
       qc.invalidateQueries({ queryKey: QK.estimates });
       onSuccess?.();
-      navigate(`/jobs/${newJob.id}/edit`, { state: { fromEstimateId: estimate.id } });
+      navigate("/jobs", { state: { openId: newJob.id } });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
       toast.error(message);

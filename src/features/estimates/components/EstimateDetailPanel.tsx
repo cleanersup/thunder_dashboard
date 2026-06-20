@@ -28,7 +28,7 @@ import {
 import {
   CheckCircle, Mail, MessageSquare, Phone, MapPin, Building2, Calendar,
   FileText, Edit, Share, Download, Eye, EyeOff,
-  Users, Box, TrendingUp, DollarSign, X, Play, RefreshCw, Trash2, Clock, MoreHorizontal, Map, Briefcase, ThumbsDown,
+  Users, Box, TrendingUp, DollarSign, X, Play, RefreshCw, Trash2, Clock, MoreHorizontal, Map, Briefcase, ThumbsDown, ChevronRight,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
@@ -237,20 +237,9 @@ function PanelFooter({
     );
   }
 
-  // Converted / Invoiced: View linked Job (if job exists) or "job was deleted" message
+  // Converted / Invoiced: link shown in content card — no footer needed
   if (status === "Converted" || status === "Invoiced") {
-    if (!linkedJobId) {
-      return (
-        <p className="text-sm text-muted-foreground px-1">The linked job was deleted.</p>
-      );
-    }
-    return (
-      <div className="flex items-center gap-2">
-        <Button size="sm" className="flex-1 gap-1.5" onClick={onViewJob}>
-          <Briefcase className="w-4 h-4 mr-1.5" /> View linked Job
-        </Button>
-      </div>
-    );
+    return null;
   }
 
   // Declined: Edit (→Draft) primary + Edit and Send + More (Cancel)
@@ -1074,6 +1063,37 @@ export function EstimateDetailPanel({
                   </CardContent>
                 </Card>
 
+                {/* Converted To — same card pattern as Request & Walkthrough panels */}
+                {(f.status === "Converted" || f.status === "Invoiced") && (
+                  <Card className="border border-border/50">
+                    <CardContent className="p-4 space-y-2">
+                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Converted To
+                      </p>
+                      {(estimate as any)?.job_id ? (
+                        <button
+                          type="button"
+                          onClick={() => { onClose(); navigate("/jobs", { state: { openId: (estimate as any).job_id } }); }}
+                          className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-secondary/50 transition-colors text-left"
+                        >
+                          <div className="p-2 rounded bg-blue-500/10 flex-shrink-0">
+                            <Briefcase className="w-4 h-4 text-blue-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">Job</p>
+                            <p className="text-xs text-muted-foreground capitalize">
+                              {f.serviceType}
+                            </p>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                        </button>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">The linked job was deleted.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Total Amount + Net Profit */}
                 <Card className="border border-border/50">
                   <CardContent className="p-4">
@@ -1283,6 +1303,21 @@ export function EstimateDetailPanel({
                   </Card>
                 )}
               </>
+            )}
+
+            {/* ── Timeline ────────────────────────────────────────────── */}
+            {estimate && (
+              <div className="pt-2 space-y-2">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timeline</p>
+                <p className="text-xs text-muted-foreground">
+                  Created {format(new Date(estimate.created_at), "MMM d, yyyy 'at' h:mm a")}
+                </p>
+                {estimate.updated_at !== estimate.created_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Updated {format(new Date(estimate.updated_at), "MMM d, yyyy 'at' h:mm a")}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         )}

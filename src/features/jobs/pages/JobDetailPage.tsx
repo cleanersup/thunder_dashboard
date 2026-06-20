@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { AddJobPage } from "./AddJobPage";
 import { format, parseISO } from "date-fns";
 import {
   ChevronLeft, Edit, MapPin, User, Calendar, Clock,
   Briefcase, CheckCircle, XCircle, Trash2, Download,
+  Play, CalendarClock, FileText, MoreHorizontal, Receipt,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/shared/components/ui/dropdown-menu";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { JobStatusBadge } from "../components/JobStatusBadge";
@@ -35,14 +41,16 @@ export function JobDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: job, isLoading } = useJob(id);
-  const { mutate: deleteJob, isPending: deleting } = useDeleteJob();
-  const { mutate: updateStatus } = useUpdateJobStatus();
-  const { data: profile }        = useProfile();
+  const { mutate: deleteJob, isPending: deleting }   = useDeleteJob();
+  const { mutate: updateStatus, isPending: updating } = useUpdateJobStatus();
+  const { data: profile }           = useProfile();
   const { data: allEmployees = [] } = useAllEmployees();
 
-  const [showComplete, setShowComplete]   = useState(false);
-  const [showDelete, setShowDelete]       = useState(false);
-  const [showCancel, setShowCancel]       = useState(false);
+  const [showComplete,   setShowComplete]   = useState(false);
+  const [showDelete,     setShowDelete]     = useState(false);
+  const [showCancel,     setShowCancel]     = useState(false);
+  const [showPublish,    setShowPublish]    = useState(false);
+  const [showEditModal,  setShowEditModal]  = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   const handleDownloadPDF = async () => {
@@ -80,6 +88,157 @@ export function JobDetailPage() {
   const effectiveStatus = getEffectiveJobStatus(job);
   const propertyAddress = [job.propertyStreet, job.propertyApt, job.propertyCity, job.propertyState, job.propertyZip]
     .filter(Boolean).join(", ");
+  const firstInvoiceId = job.invoiceIds?.[0] ?? null;
+
+  // ── Footer actions by status (primary + ... dropdown) ────────────────────
+  const renderActions = () => {
+    // Draft: Publish & Schedule (primary) + Edit, Cancel
+    if (effectiveStatus === "Draft") {
+      return (
+        <div className="flex items-center gap-2">
+          <Button size="sm" className="flex-1 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setShowPublish(true)}>
+            <Play className="h-3.5 w-3.5" /> Publish & Schedule
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="px-2.5">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+                <Edit className="h-4 w-4 mr-2" /> Edit Job
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setShowCancel(true)}>
+                <XCircle className="h-4 w-4 mr-2" /> Cancel Job
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    }
+
+    // Scheduled: Cancel only
+    if (effectiveStatus === "Scheduled") {
+      return (
+        <Button size="sm" variant="outline" className="flex-1 gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => setShowCancel(true)}>
+          <XCircle className="h-3.5 w-3.5" /> Cancel Job
+        </Button>
+      );
+    }
+
+    // Upcoming / Today: Mark Completed (primary) + Edit, Reschedule, Cancel
+    if (effectiveStatus === "Upcoming" || effectiveStatus === "Today") {
+      return (
+        <div className="flex items-center gap-2">
+          <Button size="sm" className="flex-1 gap-1.5 bg-green-600 hover:bg-green-700 text-white" onClick={() => setShowComplete(true)}>
+            <CheckCircle className="h-3.5 w-3.5" /> Mark as Completed
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="px-2.5">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+                <Edit className="h-4 w-4 mr-2" /> Edit Job
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+                <CalendarClock className="h-4 w-4 mr-2" /> Reschedule
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setShowCancel(true)}>
+                <XCircle className="h-4 w-4 mr-2" /> Cancel Job
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    }
+
+    // Completed: Send Invoice (primary, if invoice) / Save PDF + dropdown
+    if (effectiveStatus === "Completed") {
+      return (
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={handleDownloadPDF} disabled={downloadingPDF}>
+            <Download className="h-3.5 w-3.5" /> {downloadingPDF ? "Generating…" : "Save PDF"}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="px-2.5">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {firstInvoiceId && (
+                <DropdownMenuItem onClick={() => navigate("/invoices", { state: { openId: firstInvoiceId } })}>
+                  <Receipt className="h-4 w-4 mr-2" /> View Invoice
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setShowDelete(true)}>
+                <Trash2 className="h-4 w-4 mr-2" /> Delete Permanently
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    }
+
+    // Missed: Mark Completed (primary) + Reschedule, Cancel
+    if (effectiveStatus === "Missed") {
+      return (
+        <div className="flex items-center gap-2">
+          <Button size="sm" className="flex-1 gap-1.5 bg-green-600 hover:bg-green-700 text-white" onClick={() => setShowComplete(true)}>
+            <CheckCircle className="h-3.5 w-3.5" /> Mark as Completed
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="px-2.5">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+                <CalendarClock className="h-4 w-4 mr-2" /> Reschedule
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setShowCancel(true)}>
+                <XCircle className="h-4 w-4 mr-2" /> Cancel Job
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    }
+
+    // Cancelled: Reschedule (primary) + Delete
+    if (effectiveStatus === "Cancelled") {
+      return (
+        <div className="flex items-center gap-2">
+          <Button size="sm" className="flex-1 gap-1.5" onClick={() => setShowEditModal(true)}>
+            <CalendarClock className="h-3.5 w-3.5" /> Reschedule
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="px-2.5">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setShowDelete(true)}>
+                <Trash2 className="h-4 w-4 mr-2" /> Delete Permanently
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <div className="p-2.5 space-y-2.5">
@@ -97,38 +256,8 @@ export function JobDetailPage() {
             <p className="text-sm text-muted-foreground">{job.clientName}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {effectiveStatus !== "Completed" && effectiveStatus !== "Cancelled" && (
-            <>
-              <Button variant="outline" size="sm" onClick={() => navigate(`/jobs/${job.id}/edit`)}>
-                <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit
-              </Button>
-              {effectiveStatus !== "Missed" && (
-                <Button size="sm" onClick={() => setShowComplete(true)}>
-                  <CheckCircle className="h-3.5 w-3.5 mr-1.5" /> Complete
-                </Button>
-              )}
-              <Button variant="outline" size="sm" className="text-warning hover:text-warning" onClick={() => setShowCancel(true)}>
-                <XCircle className="h-3.5 w-3.5 mr-1.5" /> Cancel
-              </Button>
-            </>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDownloadPDF}
-            disabled={downloadingPDF}
-          >
-            <Download className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => setShowDelete(true)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+        <div className="flex items-center gap-2 min-w-0">
+          {renderActions()}
         </div>
       </div>
 
@@ -239,6 +368,16 @@ export function JobDetailPage() {
       <JobCompleteDialog job={job} open={showComplete} onOpenChange={setShowComplete} />
 
       <ConfirmDialog
+        open={showPublish}
+        onOpenChange={setShowPublish}
+        title="Publish & Schedule"
+        description="The job will be marked as Upcoming and added to the active schedule."
+        onConfirm={() => updateStatus({ id: job.id, status: "Upcoming" }, { onSuccess: () => setShowPublish(false) })}
+        confirmLabel="Publish & Schedule"
+        isLoading={updating}
+      />
+
+      <ConfirmDialog
         open={showCancel}
         onOpenChange={setShowCancel}
         title="Cancel Job"
@@ -246,6 +385,7 @@ export function JobDetailPage() {
         onConfirm={() => updateStatus({ id: job.id, status: "Cancelled" }, { onSuccess: () => setShowCancel(false) })}
         confirmLabel="Cancel Job"
         variant="destructive"
+        isLoading={updating}
       />
 
       <ConfirmDialog
@@ -257,6 +397,12 @@ export function JobDetailPage() {
         confirmLabel="Delete"
         variant="destructive"
         isLoading={deleting}
+      />
+
+      <AddJobPage
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        jobId={job.id}
       />
     </div>
   );
