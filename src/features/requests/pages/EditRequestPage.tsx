@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- untyped Supabase rows (bookings extended fields not in generated types) */
 import { X } from "lucide-react";
 import { parseISO } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";

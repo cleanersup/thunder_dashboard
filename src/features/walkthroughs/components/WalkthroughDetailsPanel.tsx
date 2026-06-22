@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- untyped Supabase tables (jobs/client_properties not in generated types) */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";

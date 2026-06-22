@@ -452,9 +452,8 @@ export function EstimatesPage() {
                               e.stopPropagation();
                               // Autosave drafts restore from draft_data; request-converted
                               // drafts have no draft_data and must be opened by ID.
-                              estimate.hasDraftData
-                                ? handleContinueDraft(estimate)
-                                : handleEditEstimate(estimate);
+                              if (estimate.hasDraftData) handleContinueDraft(estimate);
+                              else handleEditEstimate(estimate);
                             }}>
                               <Play className="w-4 h-4 mr-2" /> Continue
                             </DropdownMenuItem>

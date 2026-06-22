@@ -5,7 +5,7 @@ import { format, parseISO } from "date-fns";
 import {
   Briefcase, CheckCircle, DollarSign, TrendingUp,
   Search, Plus, ChevronLeft, ChevronRight, MoreHorizontal, Eye, Edit, CalendarIcon, X,
-  Play, CalendarClock, XCircle, Trash2, Download, Receipt,
+  Play, CalendarClock, XCircle, Trash2, Receipt,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
@@ -16,7 +16,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { JobCompleteDialog } from "../components/JobCompleteDialog";
 import { useDeleteJob, useUpdateJobStatus } from "../hooks/useJobMutations";
-import { jobsService } from "../services/jobsService";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { Calendar } from "@/shared/components/ui/calendar";
 import { cn } from "@/shared/utils/cn";
@@ -32,6 +31,18 @@ import { getEffectiveJobStatus } from "../types/job.types";
 import type { JobStatusFilter } from "../config/jobStatusConfig";
 
 const ITEMS_PER_PAGE = 10;
+
+// Job status sort priority (matches swift-slate exactly). Module-scoped so it's a
+// stable reference and not a useMemo dependency.
+const STATUS_PRIORITY: Record<string, number> = {
+  Today: 0, Ongoing: 0,
+  Upcoming: 1,
+  Scheduled: 2,
+  Missed: 3,
+  Draft: 4,
+  Completed: 5,
+  Cancelled: 6,
+};
 
 export function JobsPage() {
   const navigate    = useNavigate();
@@ -109,15 +120,6 @@ export function JobsPage() {
   ];
 
   // ─── Filtering + sorting (matches swift-slate exactly) ───────────────────
-  const STATUS_PRIORITY: Record<string, number> = {
-    Today: 0, Ongoing: 0,
-    Upcoming: 1,
-    Scheduled: 2,
-    Missed: 3,
-    Draft: 4,
-    Completed: 5,
-    Cancelled: 6,
-  };
 
   const filtered = useMemo(() => {
     return jobs

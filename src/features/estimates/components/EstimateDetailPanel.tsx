@@ -7,10 +7,12 @@
  * and action handlers from EstimateDetailsModal to a single-column layout.
  *
  * Footer actions by status:
- *   Draft    → Continue · Start Fresh · More (Delete)
- *   Pending  → Accept · Send · More (Edit, Share, Download PDF, Convert, Cancel)
- *   Accepted → Add to Route (if not in route) · More (Edit, Share, Download PDF, Convert)
- *   Canceled → More (Edit, Share, Download PDF)
+ *   Draft    → Continue · More (Delete Draft)
+ *   Pending  → Mark as Accepted · More (Edit, Send email/SMS, Share, Download PDF, Decline, Cancel)
+ *   Accepted → Convert to Job/Invoice · More (Edit, Download PDF, Share, Add to Route)
+ *   Declined → Edit · More (Edit and Send, Cancel)
+ *   Canceled → Delete
+ * (Linked-job "View Job" link is rendered in the content card, not the footer.)
  */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -28,7 +30,7 @@ import {
 import {
   CheckCircle, Mail, MessageSquare, Phone, MapPin, Building2, Calendar,
   FileText, Edit, Share, Download, Eye, EyeOff,
-  Users, Box, TrendingUp, DollarSign, X, Play, RefreshCw, Trash2, Clock, MoreHorizontal, Map, Briefcase, ThumbsDown, ChevronRight,
+  Users, Box, TrendingUp, DollarSign, X, Play, Trash2, Clock, MoreHorizontal, Briefcase, ThumbsDown, ChevronRight,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
@@ -109,7 +111,6 @@ interface FooterProps {
   hasPhone:            boolean;
   hasJobConversion:    boolean;
   isConvertingToJob:   boolean;
-  linkedJobId:         string | null;
   onAccept:            () => void;
   onDecline:           () => void;
   onSendEmail:         () => void;
@@ -124,15 +125,14 @@ interface FooterProps {
   onDelete:            () => void;
   onDeleteDraft:       () => void;
   onContinueDraft:     () => void;
-  onViewJob:           () => void;
   onEditAndSend:       () => void;
 }
 
 function PanelFooter({
   status, isSending, isSendingSMS, isGeneratingLink, isDownloadingPDF, isAlreadyInRoute, isAddingToRoute, hasPhone,
-  hasJobConversion, isConvertingToJob, linkedJobId,
+  hasJobConversion, isConvertingToJob,
   onAccept, onDecline, onSendEmail, onSendSMS, onEdit, onShare, onDownloadPDF, onConvert, onConvertToJob, onAddToRoute, onCancel,
-  onDelete, onDeleteDraft, onContinueDraft, onViewJob, onEditAndSend,
+  onDelete, onDeleteDraft, onContinueDraft, onEditAndSend,
 }: FooterProps) {
   // Draft: Continue + More (Delete Draft)
   if (status === "Draft") {
@@ -231,6 +231,15 @@ function PanelFooter({
             <DropdownMenuItem onClick={onShare} disabled={isGeneratingLink}>
               <Share className="w-4 h-4 mr-2" /> {isGeneratingLink ? "Generating…" : "Share"}
             </DropdownMenuItem>
+            {isAlreadyInRoute ? (
+              <DropdownMenuItem disabled>
+                <MapPin className="w-4 h-4 mr-2" /> Already in Route
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={onAddToRoute} disabled={isAddingToRoute}>
+                <MapPin className="w-4 h-4 mr-2" /> {isAddingToRoute ? "Adding…" : "Add to Route"}
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -655,19 +664,6 @@ export function EstimateDetailPanel({
     else navigate(estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential");
   }
 
-  async function handleStartFreshDraft() {
-    if (!estimate) return;
-    try {
-      await deleteDraftEstimate(estimate.id);
-      qc.invalidateQueries({ queryKey: QK.estimates });
-      onClose();
-      if (onOpenEstimateWizard) onOpenEstimateWizard(estimate.service_type, false);
-      else navigate(estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential");
-    } catch {
-      toast.error("Failed to delete draft");
-    }
-  }
-
   async function handleDeleteDraft() {
     if (!estimate) return;
     setIsDeletingDraft(true);
@@ -795,7 +791,6 @@ export function EstimateDetailPanel({
       hasPhone={!!estimate?.phone}
       hasJobConversion={!!estimate?.job_id}
       isConvertingToJob={isConvertingToJob}
-      linkedJobId={(estimate as any)?.job_id ?? null}
       onAccept={() => setIsAcceptDialogOpen(true)}
       onDecline={handleDecline}
       onSendEmail={handleSendEmail}
@@ -810,7 +805,6 @@ export function EstimateDetailPanel({
       onDelete={() => setIsDeleteOpen(true)}
       onDeleteDraft={() => setIsDeleteDraftOpen(true)}
       onContinueDraft={handleContinueDraft}
-      onViewJob={() => { onClose(); navigate("/jobs", { state: { openId: (estimate as any)?.job_id } }); }}
       onEditAndSend={handleEditAndSend}
     />
   ) : undefined;

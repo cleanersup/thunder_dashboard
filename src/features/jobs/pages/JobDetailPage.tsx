@@ -5,7 +5,7 @@ import { format, parseISO } from "date-fns";
 import {
   ChevronLeft, Edit, MapPin, User, Calendar, Clock,
   Briefcase, CheckCircle, XCircle, Trash2, Download,
-  Play, CalendarClock, FileText, MoreHorizontal, Receipt,
+  Play, CalendarClock, MoreHorizontal, Receipt,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";

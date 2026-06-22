@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- untyped Supabase rows (linked estimate fields not in generated types) */
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { useNavigate } from "react-router-dom";

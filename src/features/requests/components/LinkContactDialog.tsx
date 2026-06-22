@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- untyped Supabase rows (bookings extended fields not in generated types) */
 import { useState } from "react";
 import { User } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

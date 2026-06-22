@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle2, CalendarIcon } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { createNotification } from "@/features/notifications/services/notificationsService";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -121,15 +121,14 @@ export function PublicBookingFormPage() {
       });
 
       // create-booking already sends the confirmation email to the lead.
-      // Create in-app notification for business owner
-      (supabase as any).from("notifications").insert({
-        user_id:      userId!,
-        type:         "booking_new",
-        title:        "New Booking Request",
-        message:      `${fullName} submitted a new ${serviceType} booking request`,
-        related_id:   booking.id,
-        related_type: "booking",
-        read:         false,
+      // Create in-app notification for business owner (fire-and-forget).
+      void createNotification({
+        userId:      userId!,
+        type:        "booking_new",
+        title:       "New Booking Request",
+        message:     `${fullName} submitted a new ${serviceType} booking request`,
+        relatedId:   booking.id,
+        relatedType: "booking",
       }).catch(() => {});
     },
     onSuccess: () => setSubmitted(true),

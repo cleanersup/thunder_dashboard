@@ -490,16 +490,28 @@ export function InvoicesPage() {
                         )}
 
                         {invoice.status === "Pending" && (
-                          <DropdownMenuItem
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              await sendInvoiceEmail(invoice.id);
-                            }}
-                            disabled={isSending}
-                          >
-                            <Mail className="w-4 h-4 mr-2" />
-                            Send Reminder
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await sendInvoiceEmail(invoice.id);
+                              }}
+                              disabled={isSending}
+                            >
+                              <Mail className="w-4 h-4 mr-2" />
+                              Send Reminder
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await sendInvoiceEmail(invoice.id);
+                              }}
+                              disabled={isSending}
+                            >
+                              <Share className="w-4 h-4 mr-2" />
+                              Send Invoice
+                            </DropdownMenuItem>
+                          </>
                         )}
 
                         <DropdownMenuItem

@@ -7,12 +7,12 @@ import {
   updateEstimate,
   updateEstimateStatus,
   deleteEstimate,
-  addEstimateActivity,
-  addEstimateNotification,
 } from "../services/estimatesService";
 import type { EstimateInsert, EstimateUpdate } from "../types/estimate.types";
 import { supabase } from "@/integrations/supabase/client";
 import { QK } from "@/shared/config/queryKeys";
+import { logEstimateActivity } from "@/shared/services/activityLog";
+import { createNotification } from "@/features/notifications/services/notificationsService";
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -55,7 +55,7 @@ export function useCreateEstimate() {
     mutationFn: async (payload: Omit<EstimateInsert, "user_id">) => {
       const estimate = await createEstimate(payload);
       const estimateNumber = `EST-${estimate.id.slice(0, 6)}`;
-      await addEstimateActivity("estimate_created", estimateNumber, estimate.client_name, estimate.total);
+      await logEstimateActivity("estimate_created", estimateNumber, estimate.client_name, estimate.total);
       return estimate;
     },
     onSuccess: () => {
@@ -96,23 +96,25 @@ export function useUpdateEstimateStatus() {
       if (user) {
         const estimateNumber = `EST-${id.slice(0, 6)}`;
         if (status === "Accepted") {
-          await addEstimateActivity("estimate_accepted", estimateNumber, estimate.client_name, estimate.total);
-          await addEstimateNotification(
-            user.id,
-            "estimate_accepted",
-            "Estimate Accepted",
-            `Estimate ${estimateNumber} for ${estimate.client_name} was accepted ($${estimate.total.toFixed(2)})`,
-            id,
-          );
+          await logEstimateActivity("estimate_accepted", estimateNumber, estimate.client_name, estimate.total);
+          await createNotification({
+            userId:      user.id,
+            type:        "estimate_accepted",
+            title:       "Estimate Accepted",
+            message:     `Estimate ${estimateNumber} for ${estimate.client_name} was accepted ($${estimate.total.toFixed(2)})`,
+            relatedId:   id,
+            relatedType: "estimate",
+          });
         } else if (status === "Canceled") {
-          await addEstimateActivity("estimate_canceled", estimateNumber, estimate.client_name, estimate.total);
-          await addEstimateNotification(
-            user.id,
-            "estimate_canceled",
-            "Estimate Canceled",
-            `Estimate ${estimateNumber} for ${estimate.client_name} was canceled`,
-            id,
-          );
+          await logEstimateActivity("estimate_canceled", estimateNumber, estimate.client_name, estimate.total);
+          await createNotification({
+            userId:      user.id,
+            type:        "estimate_canceled",
+            title:       "Estimate Canceled",
+            message:     `Estimate ${estimateNumber} for ${estimate.client_name} was canceled`,
+            relatedId:   id,
+            relatedType: "estimate",
+          });
         }
       }
     },

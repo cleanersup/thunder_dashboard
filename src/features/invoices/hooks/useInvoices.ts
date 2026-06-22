@@ -120,6 +120,8 @@ export function useMarkInvoiceAsPaid() {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: QK.invoices });
       qc.invalidateQueries({ queryKey: QK.invoice(data.id) });
+      qc.invalidateQueries({ queryKey: QK.notifications });
+      qc.invalidateQueries({ queryKey: QK.activities });
       toast.success("Invoice marked as paid");
     },
     onError: (err: Error) => {
@@ -157,6 +159,8 @@ export function useCancelInvoice() {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: QK.invoices });
       qc.invalidateQueries({ queryKey: QK.invoice(data.id) });
+      qc.invalidateQueries({ queryKey: QK.notifications });
+      qc.invalidateQueries({ queryKey: QK.activities });
       toast.success("Invoice cancelled");
     },
     onError: (err: Error) => {

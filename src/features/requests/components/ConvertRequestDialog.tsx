@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- untyped Supabase rows (bookings/estimates extended fields not in generated types) */
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Receipt, ClipboardList, Loader2 } from "lucide-react";

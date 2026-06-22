@@ -253,55 +253,6 @@ export async function deleteDraftEstimate(draftId: string) {
     .eq("user_id", user.id);
 }
 
-// ─── Activities + Notifications ───────────────────────────────────────────────
-
-/**
- * Logs an estimate activity (sent, accepted, canceled, etc.).
- * @param type           - Activity type key
- * @param estimateNumber - Short estimate number (e.g. "EST-ABC123")
- * @param clientName     - Client name for context
- * @param amount         - Estimate total
- */
-export async function addEstimateActivity(
-  type: "estimate_created" | "estimate_sent" | "estimate_accepted" | "estimate_canceled",
-  estimateNumber: string,
-  clientName: string,
-  amount: number,
-) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-  await supabase.from("activities").insert({
-    user_id:        user.id,
-    type,
-    title:          `Estimate ${estimateNumber} was ${type.split("_")[1]}`,
-    estimate_number: estimateNumber,
-    client_name:    clientName,
-    amount,
-  });
-}
-
-/**
- * Creates a notification for an estimate event.
- * @param userId  - The business owner's user_id
- * @param type    - Notification type
- * @param title   - Notification title
- * @param message - Notification message
- * @param relatedId - The estimate UUID
- */
-export async function addEstimateNotification(
-  userId: string,
-  type:    string,
-  title:   string,
-  message: string,
-  relatedId: string,
-) {
-  await supabase.from("notifications").insert({
-    user_id:      userId,
-    type,
-    title,
-    message,
-    related_id:   relatedId,
-    related_type: "estimate",
-    is_read:      false,
-  });
-}
+// Estimate activity logging + notifications are centralized in
+// @/shared/services/activityLog (logEstimateActivity) and
+// @/features/notifications/services/notificationsService (createNotification).

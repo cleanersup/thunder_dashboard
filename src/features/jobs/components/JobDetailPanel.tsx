@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- untyped Supabase rows (jobs extended fields not in generated types) */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -31,7 +32,6 @@ import { JOB_STATUS_BADGE }   from "../config/jobStatusConfig";
 import { generateJobPDF }     from "../services/generateJobPDF";
 import { useProfile }         from "@/shared/hooks/useProfile";
 import { useAllEmployees }    from "@/features/employees/hooks/useEmployees";
-import { cn }                 from "@/shared/utils/cn";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (

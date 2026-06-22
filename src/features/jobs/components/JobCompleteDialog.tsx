@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
-import { useUpdateJobStatus } from "../hooks/useJobMutations";
 import { jobsService } from "../services/jobsService";
 import { QK } from "@/shared/config/queryKeys";
 import type { Job } from "../types/job.types";
@@ -18,7 +17,6 @@ interface JobCompleteDialogProps {
 export function JobCompleteDialog({ job, open, onOpenChange }: JobCompleteDialogProps) {
   const navigate    = useNavigate();
   const qc          = useQueryClient();
-  const { mutate: updateStatus } = useUpdateJobStatus();
   const [isPending, setIsPending] = useState(false);
 
   const handleConfirm = async () => {

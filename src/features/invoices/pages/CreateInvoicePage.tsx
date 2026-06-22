@@ -787,7 +787,7 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2">
-            {!isEditing && (
+            {!isEditing && selectedClient && lineItems.length > 0 && (
               <AlertDialogAction
                 className="w-full bg-background text-foreground border border-input hover:bg-accent"
                 onClick={() => { setShowExitDialog(false); handleSaveDraft(); }}
