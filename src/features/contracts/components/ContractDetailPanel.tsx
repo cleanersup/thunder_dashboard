@@ -19,12 +19,14 @@ import type { Contract, ContractStatus } from "../types/contract.types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// SidePanel applies badge.color/badge.bg as inline CSS over a dark header, so
+// these must be color values (not Tailwind classes) and readable on dark.
 const STATUS_BADGE_MAP: Record<ContractStatus, { label: string; bg: string; color: string }> = {
-  Draft:    { label: "Draft",    bg: "bg-muted",          color: "text-muted-foreground" },
-  Pending:  { label: "Pending",  bg: "bg-blue-100",       color: "text-blue-700" },
-  Active:   { label: "Active",   bg: "bg-green-100",      color: "text-green-700" },
-  Expiring: { label: "Expiring", bg: "bg-yellow-100",     color: "text-yellow-800" },
-  Expired:  { label: "Expired",  bg: "bg-red-100",        color: "text-red-700" },
+  Draft:    { label: "Draft",    color: "hsl(220 9% 46%)",           bg: "hsl(220 9% 46% / 0.15)" },
+  Pending:  { label: "Pending",  color: "hsl(var(--info))",          bg: "hsl(var(--info) / 0.15)" },
+  Active:   { label: "Active",   color: "hsl(var(--green-vibrant))", bg: "hsl(var(--green-vibrant) / 0.15)" },
+  Expiring: { label: "Expiring", color: "hsl(38 92% 50%)",           bg: "hsl(38 92% 50% / 0.15)" },
+  Expired:  { label: "Expired",  color: "hsl(0 72% 51%)",            bg: "hsl(0 72% 51% / 0.15)" },
 };
 
 const FREQ_LABEL: Record<string, string> = {

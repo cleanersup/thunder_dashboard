@@ -53,12 +53,15 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
     t.status === "to do" ? "To Do" :
     t.status === "in progress" ? "In Progress" : "Completed";
 
+  // SidePanel renders the badge over a dark header, so colors must be readable
+  // there. --task-status-todo is a very dark navy (23% L) that disappears on the
+  // header, so the badge uses the lighter --info blue (same hue, 48% L) instead.
   const statusColor =
-    t.status === "to do"       ? "hsl(var(--task-status-todo))"      :
+    t.status === "to do"       ? "hsl(var(--info))"                  :
     t.status === "in progress" ? "hsl(var(--task-status-progress))"  :
                                  "hsl(var(--task-status-completed))";
   const statusBg =
-    t.status === "to do"       ? "hsl(var(--task-status-todo) / 0.15)"     :
+    t.status === "to do"       ? "hsl(var(--info) / 0.15)"                 :
     t.status === "in progress" ? "hsl(var(--task-status-progress) / 0.15)" :
                                  "hsl(var(--task-status-completed) / 0.15)";
 
