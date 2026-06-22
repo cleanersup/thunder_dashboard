@@ -25,9 +25,21 @@ import type { InvoiceStatus } from "../types/invoice.types";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function InvoicePreviewPage() {
+interface InvoicePreviewPageProps {
+  /** When true, renders without the page header/min-h-screen so it can live inside a modal step. */
+  embedded?: boolean;
+  /** Invoice id when embedded (otherwise read from the route param). */
+  invoiceId?: string;
+  /** Called when the user goes back (defaults to navigating to the edit route). */
+  onBack?: () => void;
+  /** Called after the invoice is sent (defaults to navigating to /invoices). */
+  onSent?: () => void;
+}
+
+export function InvoicePreviewPage({ embedded, invoiceId, onBack, onSent }: InvoicePreviewPageProps = {}) {
   const navigate = useNavigate();
-  const { id }   = useParams<{ id: string }>();
+  const { id: idParam } = useParams<{ id: string }>();
+  const id = invoiceId ?? idParam;
   const { data: profile }  = useProfile();
   const { sendInvoiceEmail, isSending } = useSendInvoiceEmail();
   const { sendInvoiceSMS }              = useSendInvoiceSMS();
@@ -74,6 +86,8 @@ export function InvoicePreviewPage() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
+  const handleBack = () => (onBack ? onBack() : navigate(`/invoices/${invoice.id}/edit`));
+
   const handleSend = async () => {
     if (!deliveryMethod) { setDeliveryError(true); return; }
     setDeliveryError(false);
@@ -97,7 +111,7 @@ export function InvoicePreviewPage() {
     }
 
     toast.success("Invoice sent successfully");
-    navigate("/invoices");
+    if (onSent) onSent(); else navigate("/invoices");
 
     // Post-send Stripe setup reminder (500ms delay, matching swift-slate)
     setTimeout(() => {
@@ -138,34 +152,8 @@ export function InvoicePreviewPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  return (
-    <div className="min-h-screen bg-background">
-
-      {/* ── Sticky header ──────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-border/50 bg-background">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-base font-semibold flex-1">Invoice Preview</h1>
-        <Badge
-          style={{
-            backgroundColor: `${statusColor}22`,
-            color: statusColor,
-            borderColor: `${statusColor}55`,
-          }}
-          className="font-semibold text-xs border"
-        >
-          {invoice.status}
-        </Badge>
-      </div>
-
-      {/* ── Content ────────────────────────────────────────────────────── */}
-      <div className="max-w-2xl mx-auto p-4 space-y-4 pb-6">
-
+  const content = (
+    <>
         {/* ── Delivery method ──────────────────────────────────────────── */}
         <DeliveryMethodSelector
           options={deliveryOptions}
@@ -331,25 +319,62 @@ export function InvoicePreviewPage() {
             </div>
           </CardContent>
         </Card>
+    </>
+  );
+
+  const footerBar = (
+    <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
+      <Button variant="outline" size="sm" onClick={handleBack} disabled={isBusy}>
+        Back
+      </Button>
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={handleSend} disabled={isBusy}>
+          {isBusy ? "Sending..." : "Send Invoice"}
+        </Button>
+      </div>
+    </div>
+  );
+
+  // ── Embedded mode — lives inside the CreateInvoicePage modal step ──────────
+  if (embedded) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 space-y-4 py-6 pb-4">
+        {content}
+        {footerBar}
+      </div>
+    );
+  }
+
+  // ── Page mode ──────────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-background">
+
+      {/* ── Sticky header ──────────────────────────────────────────────── */}
+      <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-border/50 bg-background">
+        <Button variant="ghost" size="icon" onClick={handleBack}>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-base font-semibold flex-1">Invoice Preview</h1>
+        <Badge
+          style={{
+            backgroundColor: `${statusColor}22`,
+            color: statusColor,
+            borderColor: `${statusColor}55`,
+          }}
+          className="font-semibold text-xs border"
+        >
+          {invoice.status}
+        </Badge>
+      </div>
+
+      {/* ── Content ────────────────────────────────────────────────────── */}
+      <div className="max-w-2xl mx-auto p-4 space-y-4 pb-6">
+        {content}
       </div>
 
       {/* ── Footer — match CreateInvoicePage (sm buttons, card bar, max-w-2xl) ─ */}
       <div className="sticky bottom-0 w-full max-w-2xl mx-auto px-4 pb-6">
-        <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
-            disabled={isBusy}
-          >
-            Back
-          </Button>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={handleSend} disabled={isBusy}>
-              {isBusy ? "Sending..." : "Send Invoice"}
-            </Button>
-          </div>
-        </div>
+        {footerBar}
       </div>
 
     </div>

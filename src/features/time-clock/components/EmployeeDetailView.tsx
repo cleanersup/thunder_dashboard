@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { eachDayOfInterval, format } from "date-fns";
+import { formatDisplayDateShort } from "@/shared/utils/formatters";
 import {
   ChevronLeft,
   Plus,
@@ -106,7 +107,7 @@ export function EmployeeDetailView({
     return {
       employeeName: empName,
       position:     employee.employees?.position ?? "",
-      dateRange:    `${format(detailDateFrom, "MMMM d, yyyy")} - ${format(detailDateTo, "MMMM d, yyyy")}`,
+      dateRange:    `${formatDisplayDateShort(detailDateFrom)} - ${formatDisplayDateShort(detailDateTo)}`,
       dateFrom:     detailDateFrom,
       dateTo:       detailDateTo,
       entries:      entries.map((e) => ({
@@ -225,7 +226,7 @@ export function EmployeeDetailView({
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="flex-1 h-9">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(detailDateFrom, "MMM d, yyyy")}
+                  {formatDisplayDateShort(detailDateFrom)}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -245,7 +246,7 @@ export function EmployeeDetailView({
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="flex-1 h-9">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(detailDateTo, "MMM d, yyyy")}
+                  {formatDisplayDateShort(detailDateTo)}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">

@@ -155,7 +155,9 @@ export function useConvertEstimateToJob() {
       qc.invalidateQueries({ queryKey: QK.job(newJob.id) });
       qc.invalidateQueries({ queryKey: QK.estimates });
       onSuccess?.();
-      navigate("/jobs", { state: { openId: newJob.id } });
+      // Open the job form in EDIT mode so the user can continue editing the draft —
+      // consistent with request→walkthrough/estimate conversions.
+      navigate("/jobs", { state: { openEditJobId: newJob.id } });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
       toast.error(message);

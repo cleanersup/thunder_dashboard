@@ -25,7 +25,7 @@ import {
 } from "@/shared/components/ui/alert-dialog";
 import { Button }         from "@/shared/components/ui/button";
 import { Input }          from "@/shared/components/ui/input";
-import { format }         from "date-fns";
+import { formatDisplayDateTime } from "@/shared/utils/formatters";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -511,11 +511,11 @@ export function InvoiceDetailPanel({
             <section className="space-y-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timeline</h3>
               <p className="text-xs text-muted-foreground">
-                Created {format(new Date(invoice.created_at), "MMM d, yyyy 'at' h:mm a")}
+                Created {formatDisplayDateTime(invoice.created_at)}
               </p>
               {invoice.updated_at !== invoice.created_at && (
                 <p className="text-xs text-muted-foreground">
-                  Updated {format(new Date(invoice.updated_at), "MMM d, yyyy 'at' h:mm a")}
+                  Updated {formatDisplayDateTime(invoice.updated_at)}
                 </p>
               )}
             </section>

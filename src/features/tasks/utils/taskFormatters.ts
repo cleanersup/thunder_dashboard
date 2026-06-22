@@ -1,4 +1,5 @@
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
+import { formatDisplayDate, formatDisplayDateTime } from "@/shared/utils/formatters";
 import type { Json } from "@/integrations/supabase/types";
 
 /**
@@ -13,8 +14,8 @@ export function formatDueDate(due: string | null): string {
   try {
     const parsed = parseISO(due);
     return due.length > 10
-      ? format(parsed, "MMM d, yyyy, hh:mm aa")
-      : format(parsed, "MMM d, yyyy");
+      ? formatDisplayDateTime(parsed)
+      : formatDisplayDate(parsed);
   } catch {
     return due;
   }

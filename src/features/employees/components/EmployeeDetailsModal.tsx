@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format, parseISO } from "date-fns";
+import { formatDisplayDate, formatDisplayDateShort } from "@/shared/utils/formatters";
 import {
   User,
   Phone,
@@ -150,7 +150,7 @@ export function EmployeeDetailsModal({
         email:       employee!.email    ?? undefined,
         phone:       employee!.phone    ?? undefined,
         birthday:    employee!.birthday
-          ? format(parseISO(employee!.birthday), "MM/dd/yyyy")
+          ? formatDisplayDateShort(employee!.birthday)
           : undefined,
         gender:    employee!.gender   ?? "",
         position:  employee!.position ?? "",
@@ -296,7 +296,7 @@ export function EmployeeDetailsModal({
                           <div>
                             <p className="text-xs text-muted-foreground">Date of Birth</p>
                             <p className="text-sm font-medium text-foreground">
-                              {format(parseISO(employee.birthday), "MMMM dd, yyyy")}
+                              {formatDisplayDate(employee.birthday)}
                             </p>
                           </div>
                         </div>
@@ -439,7 +439,7 @@ export function EmployeeDetailsModal({
                         <div>
                           <p className="text-xs text-muted-foreground">Created</p>
                           <p className="text-sm font-medium text-foreground">
-                            {format(parseISO(employee.created_at), "MMM dd, yyyy")}
+                            {formatDisplayDate(employee.created_at)}
                           </p>
                         </div>
                       </div>
@@ -450,7 +450,7 @@ export function EmployeeDetailsModal({
                           <div>
                             <p className="text-xs text-muted-foreground">Last Updated</p>
                             <p className="text-sm font-medium text-foreground">
-                              {format(parseISO(employee.updated_at), "MMM dd, yyyy")}
+                              {formatDisplayDate(employee.updated_at)}
                             </p>
                           </div>
                         </div>

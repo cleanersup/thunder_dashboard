@@ -110,6 +110,7 @@ export function ConvertRequestDialog({
             service_sub_type: "",
             service_scope:    request.service_details  || null,
             main_data:        mainData,
+            additional_data:  { propertyId: contact.type === "client" ? (request.client_property_id ?? null) : null },
             client_name:      request.lead_name        || "Draft",
             email:            request.email            || "draft@placeholder.com",
             phone:            request.phone            || "0000000000",
@@ -168,6 +169,7 @@ export function ConvertRequestDialog({
         prefillContactId:   contact.id,
         prefillServiceType: serviceType,
         prefillNotes:       request.service_details ?? undefined,
+        prefillPropertyId:  contact.type === "client" ? (request.client_property_id ?? null) : null,
       };
 
       // ── Case A: preferred_date exists — create draft immediately ──────────
@@ -178,6 +180,7 @@ export function ConvertRequestDialog({
             user_id:            user.id,
             client_id:          contact.type === "client" ? contact.id : null,
             lead_id:            contact.type === "lead"   ? contact.id : null,
+            property_id:        contact.type === "client" ? (request.client_property_id ?? null) : null,
             walkthrough_type:   contact.type,
             service_type:       serviceType,
             scheduled_date:     request.preferred_date,

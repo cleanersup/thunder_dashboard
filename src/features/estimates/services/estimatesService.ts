@@ -173,6 +173,10 @@ export async function loadDraftEstimate(serviceType: "Residential" | "Commercial
     .eq("user_id", user.id)
     .eq("service_type", serviceType)
     .eq("is_draft", true)
+    // Only wizard autosave drafts have draft_data. Request/walkthrough-converted
+    // drafts store their state in main_data/additional_data and must NOT be adopted
+    // (and later deleted) by the "new estimate" wizard.
+    .not("draft_data", "is", null)
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();

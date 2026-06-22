@@ -5,7 +5,7 @@
  */
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { format } from "date-fns";
+import { formatDisplayDate, formatDisplayDateShort } from "@/shared/utils/formatters";
 import {
   Plus, FileEdit, XCircle, ChevronLeft, ChevronRight, Search,
   Calendar as CalendarIcon, CheckCircle, Clock, MoreHorizontal,
@@ -295,7 +295,7 @@ export function InvoicesPage() {
                     className={cn("h-9 whitespace-nowrap", !selectedDate && "text-muted-foreground")}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "MMM d") : "Date"}
+                    {selectedDate ? formatDisplayDateShort(selectedDate) : "Date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -347,7 +347,7 @@ export function InvoicesPage() {
       {selectedDate && (
         <div className="flex items-center justify-between bg-accent/50 p-2 rounded-md mb-2.5 text-sm">
           <span className="text-muted-foreground">
-            Filtered by: {format(selectedDate, "PPP")}
+            Filtered by: {formatDisplayDate(selectedDate)}
           </span>
           <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setSelectedDate(undefined)}>
             Clear

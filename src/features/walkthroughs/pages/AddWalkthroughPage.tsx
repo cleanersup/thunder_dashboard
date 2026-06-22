@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
 import { format } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import {
   ChevronLeft,
   CalendarIcon,
@@ -39,9 +40,11 @@ import { useCreateWalkthrough, useUpdateWalkthrough, useWalkthrough } from "../h
 import { supabase } from "@/integrations/supabase/client";
 import { useAllEmployees } from "@/features/employees/hooks/useEmployees";
 import { EstimateClientStep } from "@/features/estimates/components/EstimateClientStep";
+import { ServicePropertySelector } from "@/shared/components/common/ServicePropertySelector";
 import { useClients } from "@/features/crm/clients/hooks/useClients";
 import { useLeads } from "@/features/crm/leads/hooks/useLeads";
 import type { ClientEntity, LeadEntity } from "@/shared/types/entities";
+import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
 type WalkthroughEntityType = "client" | "lead";
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -58,6 +61,7 @@ interface AddWalkthroughPageProps {
   prefillDate?:        string;          // yyyy-MM-dd
   prefillTime?:        string;          // HH:mm
   prefillNotes?:       string;
+  prefillPropertyId?:  string | null;   // client_property_id from request (clients only)
 }
 
 export function AddWalkthroughPage({
@@ -65,7 +69,7 @@ export function AddWalkthroughPage({
   fromRequestId:      fromRequestIdProp,
   walkthroughEditId,
   prefillContactType, prefillContactId,
-  prefillServiceType, prefillDate, prefillTime, prefillNotes,
+  prefillServiceType, prefillDate, prefillTime, prefillNotes, prefillPropertyId,
 }: AddWalkthroughPageProps = {}) {
   const navigate  = useNavigate();
   const location  = useLocation();
@@ -99,6 +103,7 @@ export function AddWalkthroughPage({
   );
   const [selectedClient,  setSelectedClient]  = useState<ClientEntity | null>(null);
   const [selectedLead,    setSelectedLead]    = useState<LeadEntity | null>(null);
+  const [selectedProperty, setSelectedProperty] = useState<ClientProperty | null>(null);
   const [pickerErrors,    setPickerErrors]    = useState<{ type?: string; entity?: string }>({});
 
   // ── Local UI state ────────────────────────────────────────────────────────
@@ -135,6 +140,7 @@ export function AddWalkthroughPage({
         walkthrough_type:   type,
         client_id:          existing.client_id  ?? undefined,
         lead_id:            existing.lead_id    ?? undefined,
+        property_id:        existing.property_id ?? undefined,
         service_type:       existing.service_type as "residential" | "commercial",
         scheduled_date:     existing.scheduled_date,
         scheduled_time:     existing.scheduled_time,
@@ -217,14 +223,25 @@ export function AddWalkthroughPage({
     setWalkthroughType(type);
     setValue("walkthrough_type", type);
     if (type === "client") { setSelectedLead(null);   setValue("lead_id",   null); }
-    else                   { setSelectedClient(null); setValue("client_id", null); }
+    else {
+      setSelectedClient(null);   setValue("client_id", null);
+      setSelectedProperty(null); setValue("property_id", null);
+    }
     setPickerErrors({});
   }
 
   function handleClientSelect(client: ClientEntity) {
     setSelectedClient(client);
     setValue("client_id", client.id, { shouldValidate: true });
+    // Reset property — ServicePropertySelector re-resolves the primary for the new client
+    setSelectedProperty(null);
+    setValue("property_id", null);
     setPickerErrors({});
+  }
+
+  function handlePropertyChange(property: ClientProperty | null) {
+    setSelectedProperty(property);
+    setValue("property_id", property?.id ?? null);
   }
 
   function handleLeadSelect(lead: LeadEntity) {
@@ -266,8 +283,9 @@ export function AddWalkthroughPage({
 
     const payload: WalkthroughFormData = {
       ...data,
-      client_id: data.walkthrough_type === "client" ? data.client_id : null,
-      lead_id:   data.walkthrough_type === "lead"   ? data.lead_id   : null,
+      client_id:   data.walkthrough_type === "client" ? data.client_id   : null,
+      lead_id:     data.walkthrough_type === "lead"   ? data.lead_id     : null,
+      property_id: data.walkthrough_type === "client" ? data.property_id : null,
     };
 
     // Both create and edit show Confirm dialog before saving
@@ -337,6 +355,18 @@ export function AddWalkthroughPage({
             errors={pickerErrors}
             infoText="Verify the email and phone number — they will be used to send the walkthrough confirmation."
           />
+
+          {/* Service property — clients only */}
+          {walkthroughType === "client" && selectedClient && (
+            <div className="mt-4">
+              <ServicePropertySelector
+                clientId={selectedClient.id}
+                value={selectedProperty}
+                onChange={handlePropertyChange}
+                preferredPropertyId={existing?.property_id ?? prefillPropertyId}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -412,7 +442,7 @@ export function AddWalkthroughPage({
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "MM/dd/yyyy") : "Pick date"}
+                    {selectedDate ? formatDisplayDate(selectedDate) : "Pick date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -530,7 +560,7 @@ export function AddWalkthroughPage({
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Date</span>
             <span className="text-sm font-semibold">
-              {selectedDate ? format(selectedDate, "PPP") : "—"}
+              {selectedDate ? formatDisplayDate(selectedDate) : "—"}
             </span>
           </div>
           <div className="flex items-center justify-between">

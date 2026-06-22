@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format } from "date-fns";
+import { formatDisplayDateShort } from "@/shared/utils/formatters";
 import { CalendarIcon, Download, Clock, DollarSign } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
@@ -69,7 +69,7 @@ export function TimesheetsTab({
       totalPay:   pay,
     }));
     const data: GeneralTimesheetData = {
-      dateRange:        `${format(dateFrom, "MMMM d, yyyy")} - ${format(dateTo, "MMMM d, yyyy")}`,
+      dateRange:        `${formatDisplayDateShort(dateFrom)} - ${formatDisplayDateShort(dateTo)}`,
       employees,
       grandTotalHours:  totalHours,
       grandTotalPay:    totalPay,
@@ -86,7 +86,7 @@ export function TimesheetsTab({
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="flex-1 h-9">
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {format(dateFrom, "MMM d, yyyy")}
+              {formatDisplayDateShort(dateFrom)}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -105,7 +105,7 @@ export function TimesheetsTab({
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="flex-1 h-9">
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {format(dateTo, "MMM d, yyyy")}
+              {formatDisplayDateShort(dateTo)}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">

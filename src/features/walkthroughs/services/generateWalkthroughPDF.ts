@@ -4,6 +4,46 @@
  */
 import jsPDF from "jspdf";
 import { FileService } from "@/shared/services/file.service";
+
+/**
+ * Fetches a photo URL and normalizes it to a JPEG data URL (via canvas) so jsPDF
+ * can embed it regardless of the source format (png/webp/jpg). Returns null on failure
+ * so a single broken image never aborts the whole PDF.
+ */
+async function loadPhotoForPdf(
+  url: string,
+): Promise<{ dataUrl: string; width: number; height: number } | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = objUrl;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.drawImage(img, 0, 0);
+      return {
+        dataUrl: canvas.toDataURL("image/jpeg", 0.8),
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      };
+    } finally {
+      URL.revokeObjectURL(objUrl);
+    }
+  } catch {
+    return null;
+  }
+}
+
 export interface WalkthroughPDFData {
   companyLogo?: string;
   companyName: string;
@@ -41,7 +81,7 @@ export interface WalkthroughPDFData {
   commercialData?: any;
 }
 
-export function generateWalkthroughPDF(data: WalkthroughPDFData): InstanceType<typeof jsPDF> {
+export async function generateWalkthroughPDF(data: WalkthroughPDFData): Promise<InstanceType<typeof jsPDF>> {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -763,6 +803,62 @@ export function generateWalkthroughPDF(data: WalkthroughPDFData): InstanceType<t
     }
   }
 
+  // Section 6: Photos — 2-column grid on its own page(s)
+  const photoUrls: string[] = (() => {
+    const res = Array.isArray(data.residentialData?.photos) ? data.residentialData.photos : [];
+    const com = Array.isArray(data.commercialData?.photos) ? data.commercialData.photos : [];
+    return [...res, ...com].filter((u): u is string => typeof u === "string" && u.length > 0);
+  })();
+
+  if (photoUrls.length > 0) {
+    const loaded = (await Promise.all(photoUrls.map(loadPhotoForPdf))).filter(
+      (p): p is { dataUrl: string; width: number; height: number } => p !== null,
+    );
+
+    if (loaded.length > 0) {
+      doc.addPage();
+      addFooter();
+      yPosition = margin + 20;
+
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text("WALKTHROUGH PHOTOS", pageWidth / 2, yPosition, { align: "center" });
+      doc.setTextColor(0, 0, 0);
+      yPosition += 12;
+
+      // 2-column grid; each photo fits inside a fixed slot preserving aspect ratio
+      const colGap = 8;
+      const rowGap = 8;
+      const slotW = (contentWidth - colGap) / 2;
+      const slotH = 55;
+      const bottomLimit = pageHeight - 35;
+
+      loaded.forEach((photo, index) => {
+        const col = index % 2;
+        if (col === 0 && index > 0) yPosition += slotH + rowGap;
+
+        if (yPosition + slotH > bottomLimit) {
+          doc.addPage();
+          addFooter();
+          yPosition = margin + 5;
+        }
+
+        const slotX = margin + col * (slotW + colGap);
+        const scale = Math.min(slotW / photo.width, slotH / photo.height);
+        const drawW = photo.width * scale;
+        const drawH = photo.height * scale;
+        const offsetX = (slotW - drawW) / 2;
+
+        try {
+          doc.addImage(photo.dataUrl, "JPEG", slotX + offsetX, yPosition, drawW, drawH);
+        } catch (err) {
+          console.error("Error adding walkthrough photo to PDF:", err);
+        }
+      });
+    }
+  }
+
   return doc;
 }
 
@@ -772,7 +868,7 @@ function walkthroughPdfFileName(data: WalkthroughPDFData): string {
 }
 
 /** Triggers a browser download of the walkthrough PDF. */
-export function downloadWalkthroughPdf(data: WalkthroughPDFData): void {
-  const doc = generateWalkthroughPDF(data);
+export async function downloadWalkthroughPdf(data: WalkthroughPDFData): Promise<void> {
+  const doc = await generateWalkthroughPDF(data);
   FileService.downloadBlob(doc.output("blob"), walkthroughPdfFileName(data));
 }

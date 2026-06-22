@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { format } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import {
   ChevronLeft, Calendar as CalendarIcon, Plus, Trash2,
   FileText, List, Calculator, StickyNote,
@@ -33,6 +34,7 @@ import {
 } from "@/shared/components/ui/alert-dialog";
 import { ClientPicker } from "@/shared/components/common/ClientPicker";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
+import { InvoicePreviewPage } from "./InvoicePreviewPage";
 import { Calendar } from "@/shared/components/ui/calendar";
 import { cn }       from "@/shared/utils/cn";
 import { toast }    from "sonner";
@@ -108,6 +110,9 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
   const [existingAttachments, setExistingAttachments] = useState<InvoiceAttachment[]>([]);
   const [currentStatus, setCurrentStatus] = useState<"Draft" | "Pending" | "Paid" | "Cancelled">("Draft");
   const [isLoading,     setIsLoading]     = useState(false);
+  // Wizard step: "form" → "send" (preview + Choose Delivery Method, shown inline like estimates)
+  const [step,           setStep]           = useState<"form" | "send">("form");
+  const [sentInvoiceId,  setSentInvoiceId]  = useState<string | null>(null);
   const [showExitDialog,    setShowExitDialog]    = useState(false);
   const [showClientWarning, setShowClientWarning] = useState(false);
   const [showStripeModal,   setShowStripeModal]   = useState(false);
@@ -200,7 +205,9 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
       setExistingAttachments(invoiceData.attachments);
     }
     const fakeClient: ClientEntity = {
-      id: "",
+      // Synthetic (non-empty) id: the invoice stores denormalized client data, not a CRM id.
+      // Must not be "" — an empty SelectItem value crashes the picker's Select.
+      id: `invoice-client-${invoiceData.id}`,
       full_name:      invoiceData.client_name,
       company:        invoiceData.company_name ?? null,
       email:          invoiceData.email,
@@ -278,14 +285,19 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
       const discV = parseFloat(discountValue) || 0;
       const taxR  = parseFloat(taxRate) || 0;
 
-      if (isEditing && id) {
+      // Once created (first Next), treat as editing so going Back→Next updates the
+      // same invoice instead of creating a duplicate.
+      const effectiveId     = id ?? sentInvoiceId;
+      const editingExisting  = isEditing || !!sentInvoiceId;
+
+      if (editingExisting && effectiveId) {
         // Upload any new files, then combine with existing
-        const uploaded = await uploadInvoiceAttachments(id, attachmentFiles);
+        const uploaded = await uploadInvoiceAttachments(effectiveId, attachmentFiles);
         const allAttachments = [...existingAttachments, ...uploaded];
 
         updateMutation.mutate(
           {
-            id,
+            id: effectiveId,
             updates: {
               invoice_name:   invoiceTitle || null,
               invoice_date:   format(issueDate, "yyyy-MM-dd"),
@@ -304,7 +316,7 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
           {
             onSuccess: () => {
               setIsLoading(false);
-              if (toPreview) navigate(`/invoices/${id}/preview`);
+              if (toPreview) { setSentInvoiceId(effectiveId); setStep("send"); }
               else { toast.success("Invoice updated"); goBack(); }
             },
             onError: () => setIsLoading(false),
@@ -352,7 +364,7 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
                 }
               }
               setIsLoading(false);
-              if (toPreview) navigate(`/invoices/${inv.id}/preview`);
+              if (toPreview) { setSentInvoiceId(inv.id); setStep("send"); }
               else { toast.success("Draft saved"); goBack(); }
             },
             onError: () => setIsLoading(false),
@@ -413,7 +425,7 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {issueDate ? format(issueDate, "PPP") : "Pick a date"}
+                  {issueDate ? formatDisplayDate(issueDate) : "Pick a date"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -443,7 +455,7 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dueDate ? format(dueDate, "PPP") : "Pick a date"}
+                  {dueDate ? formatDisplayDate(dueDate) : "Pick a date"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -841,7 +853,7 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
   if (isModal) {
     return (
       <>
-        <FullScreenModal open={open ?? false} onClose={() => setShowExitDialog(true)}>
+        <FullScreenModal open={open ?? false} onClose={() => (step === "send" ? goBack() : setShowExitDialog(true))}>
           {/* Header — clean with bottom border only */}
           <div className="border-b flex-shrink-0 bg-white">
             <div className="max-w-2xl mx-auto">
@@ -849,7 +861,7 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
                 <div className="w-1/3"></div>
                 <div className="w-1/3 text-center">
                   <h1 className="font-semibold text-base leading-tight">
-                    {isEditing ? "Edit Invoice" : "New Invoice"}
+                    {step === "send" ? "Send Invoice" : isEditing ? "Edit Invoice" : "New Invoice"}
                   </h1>
                 </div>
                 <div className="flex items-center w-1/3 justify-end">
@@ -857,7 +869,7 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 flex-shrink-0"
-                    onClick={() => setShowExitDialog(true)}
+                    onClick={() => (step === "send" ? goBack() : setShowExitDialog(true))}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -866,12 +878,21 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
             </div>
           </div>
 
-          {/* Scrollable form body */}
+          {/* Scrollable body — form or send step */}
           <div className="flex-1 overflow-y-auto bg-background">
-            <div className="max-w-2xl mx-auto px-4 space-y-4 py-6 pb-4">
-              {formContent}
-              {!isPrefilling && footerButtons}
-            </div>
+            {step === "send" && sentInvoiceId ? (
+              <InvoicePreviewPage
+                embedded
+                invoiceId={sentInvoiceId}
+                onBack={() => setStep("form")}
+                onSent={goBack}
+              />
+            ) : (
+              <div className="max-w-2xl mx-auto px-4 space-y-4 py-6 pb-4">
+                {formContent}
+                {!isPrefilling && footerButtons}
+              </div>
+            )}
           </div>
         </FullScreenModal>
         {sharedDialogs}
@@ -880,6 +901,16 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
   }
 
   // ── Page mode ───────────────────────────────────────────────────────────────
+  if (step === "send" && sentInvoiceId) {
+    return (
+      <InvoicePreviewPage
+        invoiceId={sentInvoiceId}
+        onBack={() => setStep("form")}
+        onSent={goBack}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}

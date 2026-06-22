@@ -22,6 +22,7 @@ export interface Walkthrough {
   service_type: string;
   client_id: string | null;
   lead_id: string | null;
+  property_id: string | null;
   scheduled_date: string;
   scheduled_time: string;
   duration: number | null;
@@ -174,6 +175,124 @@ export async function buildEstimatePrefillFromWalkthrough(
   return mergeWalkthroughEstimatePrefill(w, mapped);
 }
 
+/**
+ * Converts a completed walkthrough into a **draft estimate immediately** (mirrors the
+ * request→estimate flow): inserts a draft estimate with the walkthrough's on-site data
+ * mapped into main_data/additional_data, then finalizes the walkthrough→estimate
+ * conversion so the walkthrough is marked converted right away.
+ *
+ * Returns the draft id + the estimate form route. The caller opens the form in EDIT
+ * mode (isEditing) so Discard never deletes the persisted draft.
+ */
+export async function createEstimateDraftFromWalkthrough(
+  w: WalkthroughWithContact,
+): Promise<{ estimateId: string; route: string; isResidential: boolean }> {
+  const user = await getCurrentUser();
+  const prefill = await buildEstimatePrefillFromWalkthrough(w);
+  const p = prefill as Record<string, unknown>;
+  const isResidential = w.service_type === "residential";
+  const contactType = w.walkthrough_type; // 'client' | 'lead'
+  const propertyId = (w as { property_id?: string | null }).property_id ?? null;
+
+  // Resolve the real contact (client/lead) so the estimate's denormalized fields
+  // (client_name, email, address…) are correct — w.contact_* isn't always populated.
+  const contact = await fetchContactInfo(w.walkthrough_type, w.client_id, w.lead_id);
+
+  const num = (v: unknown, d = 0): number => (typeof v === "number" ? v : d);
+  const str = (v: unknown, d = ""): string => (typeof v === "string" ? v : d);
+
+  // ── Build estimate payload from the walkthrough prefill ───────────────────
+  const base = {
+    user_id:        user.id,
+    is_draft:       true,
+    current_step:   0,
+    client_name:    contact?.full_name      || w.contact_name  || "Draft",
+    email:          contact?.email          || w.contact_email || "draft@placeholder.com",
+    phone:          contact?.phone          || w.contact_phone || "0000000000",
+    address:        contact?.service_street || w.contact_street || "Draft",
+    city:           contact?.service_city   || w.contact_city   || "Draft",
+    state:          contact?.service_state  || w.contact_state  || "NA",
+    zip:            contact?.service_zip    || w.contact_zip    || "00000",
+    subtotal:       0,
+    total:          0,
+    status:         "Draft",
+    client_id:      contactType === "client" ? w.client_id : null,
+    lead_id:        contactType === "lead"   ? w.lead_id   : null,
+  };
+
+  let payload: Record<string, unknown>;
+  if (isResidential) {
+    payload = {
+      ...base,
+      service_type:     "Residential",
+      service_sub_type: str(p.selectedService),
+      service_scope:    str(p.scope) || null,
+      main_data: {
+        squareFootage: str(p.squareFootage),
+        bedrooms:    num(p.bedrooms),    kitchens:  num(p.kitchens),
+        livingRooms: num(p.livingRooms), diningRooms: num(p.diningRooms),
+        offices:     num(p.offices),     fullBaths: num(p.fullBaths), halfBaths: num(p.halfBaths),
+      },
+      additional_data: {
+        fans: num(p.fans), oven: num(p.oven), refrigerator: num(p.refrigerator),
+        blinds: num(p.blinds), windowsInside: num(p.windowsInside), windowsOutside: num(p.windowsOutside),
+        propertyId,
+      },
+      extra_services: (p.extras as Record<string, boolean>) ?? {},
+      pets:           p.pets === "yes" ? "Yes" : "No",
+    };
+  } else {
+    const effPropType = p.isOtherProperty ? str(p.otherPropertyType) : str(p.propertyType);
+    payload = {
+      ...base,
+      service_type:     "Commercial",
+      service_sub_type: `${effPropType} - ${str(p.serviceType)}`,
+      service_scope:    str(p.scopeDetails) || null,
+      main_data: {
+        propertyType: effPropType, propertySize: str(p.propertySize), serviceType: str(p.serviceType),
+        employees: num(p.employeeCount), hourlyRate: str(p.hourlyRate), cleaningDuration: num(p.cleaningDuration),
+        startTime: str(p.startTime), clientProvidesSupplies: p.clientProvidesSupplies === true,
+        frequency: str(p.recurringFrequency), selectedWeekDays: Array.isArray(p.selectedWeekDays) ? p.selectedWeekDays : [],
+        contractDuration: str(p.contractDuration), contractTimeUnit: str(p.contractTimeUnit, "months"),
+      },
+      additional_data: {
+        serviceSchedule: str(p.serviceSchedule), greaseLevel: str(p.greaseLevel),
+        restaurantCondition: str(p.restaurantCondition), dustLevel: str(p.dustLevel),
+        propertyCondition: str(p.propertyCondition), extraServices: Array.isArray(p.extraServices) ? p.extraServices : [],
+        propertyId,
+      },
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: draft, error } = await (supabase as any)
+    .from("estimates")
+    .insert(payload)
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  // Finalize the conversion immediately so the walkthrough is marked converted.
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).rpc("finalize_walkthrough_to_estimate_conversion", {
+      p_walkthrough_id: w.id,
+      p_estimate_id:    draft.id,
+    });
+  } catch (rpcErr) {
+    // Clean up the orphaned draft if the RPC fails so it doesn't pollute the list.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("estimates").update({ status: "Deleted" }).eq("id", draft.id);
+    throw rpcErr;
+  }
+
+  return {
+    estimateId:    draft.id,
+    route:         isResidential ? "/estimates/new/residential" : "/estimates/new/commercial",
+    isResidential,
+  };
+}
+
 export async function createWalkthrough(formData: WalkthroughFormData): Promise<Walkthrough> {
   const user = await getCurrentUser();
 
@@ -184,6 +303,7 @@ export async function createWalkthrough(formData: WalkthroughFormData): Promise<
       walkthrough_type:   formData.walkthrough_type,
       client_id:          formData.client_id ?? null,
       lead_id:            formData.lead_id   ?? null,
+      property_id:        formData.walkthrough_type === "client" ? (formData.property_id ?? null) : null,
       service_type:       formData.service_type,
       scheduled_date:     formData.scheduled_date,
       scheduled_time:     formData.scheduled_time,
@@ -204,6 +324,7 @@ export async function updateWalkthrough(id: string, formData: Partial<Walkthroug
   if (formData.walkthrough_type   !== undefined) updatePayload.walkthrough_type   = formData.walkthrough_type;
   if (formData.client_id          !== undefined) updatePayload.client_id          = formData.client_id;
   if (formData.lead_id            !== undefined) updatePayload.lead_id            = formData.lead_id;
+  if (formData.property_id        !== undefined) updatePayload.property_id        = formData.property_id;
   if (formData.service_type       !== undefined) updatePayload.service_type       = formData.service_type;
   if (formData.scheduled_date     !== undefined) updatePayload.scheduled_date     = formData.scheduled_date;
   if (formData.scheduled_time     !== undefined) updatePayload.scheduled_time     = formData.scheduled_time;

@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
 import { jobsService } from "../services/jobsService";
+import { useSendInvoiceEmail } from "@/features/invoices/hooks/useSendInvoiceEmail";
 import { QK } from "@/shared/config/queryKeys";
 import type { Job } from "../types/job.types";
 
@@ -17,6 +18,7 @@ interface JobCompleteDialogProps {
 export function JobCompleteDialog({ job, open, onOpenChange }: JobCompleteDialogProps) {
   const navigate    = useNavigate();
   const qc          = useQueryClient();
+  const { sendInvoiceEmail } = useSendInvoiceEmail();
   const [isPending, setIsPending] = useState(false);
 
   const handleConfirm = async () => {
@@ -33,13 +35,17 @@ export function JobCompleteDialog({ job, open, onOpenChange }: JobCompleteDialog
 
       onOpenChange(false);
 
-      // 3. Navigate to the final invoice (non-deposit) if created
+      // 3. Final invoice (non-deposit) created by the trigger
       const finalInvoiceId = refreshed?.invoiceIds?.find(
         (id) => id !== job.depositInvoiceId
       ) ?? refreshed?.invoiceIds?.[0];
 
       if (finalInvoiceId) {
-        toast.success("Job completed — invoice ready to send");
+        toast.success("Job completed");
+        // 4. Auto-send the invoice to the client (mirrors swift-slate).
+        // Failure to send is non-fatal — the job is already completed and the
+        // invoice exists; sendInvoiceEmail surfaces its own success/error toast.
+        await sendInvoiceEmail(finalInvoiceId);
         navigate("/invoices", { state: { openId: finalInvoiceId } });
       } else {
         toast.success("Job completed");
@@ -58,8 +64,8 @@ export function JobCompleteDialog({ job, open, onOpenChange }: JobCompleteDialog
           <DialogTitle>Complete Job</DialogTitle>
           <DialogDescription>
             {job?.applyDeposit
-              ? "Mark this job as completed. An invoice will be generated automatically for the remaining balance."
-              : "Mark this job as completed. An invoice will be generated automatically."}
+              ? "Mark this job as completed. An invoice for the remaining balance will be generated and sent to the client automatically."
+              : "Mark this job as completed. An invoice will be generated and sent to the client automatically."}
           </DialogDescription>
         </DialogHeader>
         <div className="flex gap-2 pt-2">

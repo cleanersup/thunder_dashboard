@@ -14,6 +14,7 @@ import {
   isSameDay, isSameMonth,
   getMonth,
 } from "date-fns";
+import { formatDisplayTime } from "@/shared/utils/formatters";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/utils/cn";
@@ -291,8 +292,8 @@ function DayView({
                       <div className="font-semibold truncate">{appt.clients?.full_name}</div>
                       {appt.scheduled_time && (
                         <div className="opacity-90 truncate">
-                          {format(new Date(`2000-01-01T${appt.scheduled_time}`), "h:mm a")}
-                          {appt.end_time && ` – ${format(new Date(`2000-01-01T${appt.end_time}`), "h:mm a")}`}
+                          {formatDisplayTime(appt.scheduled_time)}
+                          {appt.end_time && ` – ${formatDisplayTime(appt.end_time)}`}
                         </div>
                       )}
                     </div>

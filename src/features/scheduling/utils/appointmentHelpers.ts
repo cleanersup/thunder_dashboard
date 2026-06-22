@@ -5,24 +5,16 @@
  * AppointmentDetailModal, AppointmentPreviewStep, AppointmentStaffStep,
  * AppointmentScheduleStep, and AppointmentCard.
  */
+import { formatDisplayTime } from "@/shared/utils/formatters";
 
 // ─── Time ─────────────────────────────────────────────────────────────────────
 
 /**
- * Formats a "HH:MM" time string to "h:MM AM/PM".
+ * Formats a "HH:MM" time string to the unified "09:00 AM" display.
  * Returns "" if time is null/undefined.
  */
 export function formatTime(time: string | null | undefined): string {
-  if (!time) return "";
-  try {
-    const [h, m] = time.split(":");
-    const hour = parseInt(h, 10);
-    const ampm = hour >= 12 ? "PM" : "AM";
-    const h12  = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${h12}:${m} ${ampm}`;
-  } catch {
-    return time;
-  }
+  return formatDisplayTime(time) || (time ?? "");
 }
 
 /**

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
+import { formatDisplayDateShort } from "@/shared/utils/formatters";
 import {
   Copy, Search, Home, Building2, MoreHorizontal,
   ChevronLeft, ChevronRight, FileText, Plus, CalendarIcon,
@@ -254,7 +255,7 @@ export function RequestsPage() {
                     className={cn("h-9 whitespace-nowrap", !selectedDate && "text-muted-foreground")}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "MMM d") : "Date"}
+                    {selectedDate ? formatDisplayDateShort(selectedDate) : "Date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -327,7 +328,7 @@ export function RequestsPage() {
                     onClick={() => openDetail(request)}
                   >
                     <TableCell className="py-2 px-4">
-                      {format(parseISO(request.created_at), "MMM dd, yyyy")}
+                      {formatDisplayDateShort(request.created_at)}
                     </TableCell>
                     <TableCell className="py-2 px-4 font-medium">{request.lead_name}</TableCell>
                     <TableCell className="py-2 px-4">
@@ -477,6 +478,7 @@ export function RequestsPage() {
         prefillDate={walkthroughConfig?.prefillDate}
         prefillTime={walkthroughConfig?.prefillTime}
         prefillNotes={walkthroughConfig?.prefillNotes}
+        prefillPropertyId={walkthroughConfig?.prefillPropertyId}
       />
 
       {/* Confirm dialogs */}

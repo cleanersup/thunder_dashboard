@@ -6,7 +6,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { QK } from "@/shared/config/queryKeys";
-import { format } from "date-fns";
+import { formatDisplayDate, formatDisplayDateShort } from "@/shared/utils/formatters";
 import { formatDateOnly } from "@/shared/utils/formatters";
 import {
   Plus, Search, MoreHorizontal, ChevronLeft, ChevronRight,
@@ -294,7 +294,7 @@ export function ContractsPage() {
               </p>
               <p className="text-xs text-amber-700">
                 Contracts requires the Essential plan after{" "}
-                {format(CONTRACT_CUTOFF_DATE, "MMMM d, yyyy")}.
+                {formatDisplayDate(CONTRACT_CUTOFF_DATE)}.
               </p>
             </div>
           </div>
@@ -520,7 +520,7 @@ export function ContractsPage() {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "MMM d") : "Date"}
+                    {selectedDate ? formatDisplayDateShort(selectedDate) : "Date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="end">
@@ -547,7 +547,7 @@ export function ContractsPage() {
       {selectedDate && (
         <div className="flex items-center justify-between bg-accent/50 p-2 rounded-md mb-2.5">
           <span className="text-[13px] text-muted-foreground">
-            Filtered by: {format(selectedDate, "PPP")}
+            Filtered by: {formatDisplayDate(selectedDate)}
           </span>
           <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setSelectedDate(undefined)}>
             Clear
@@ -610,7 +610,7 @@ export function ContractsPage() {
                   <TableCell className="py-2 px-4 font-medium">{contract.recipient_name}</TableCell>
                   <TableCell className="py-2 px-4 font-mono text-xs">{contract.contract_number}</TableCell>
                   <TableCell className="py-2 px-4 text-muted-foreground">
-                    {format(new Date(contract.created_at), "MMM d, yyyy")}
+                    {formatDisplayDateShort(contract.created_at)}
                   </TableCell>
                   <TableCell className="py-2 px-4">
                     <div className="flex flex-col">

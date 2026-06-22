@@ -16,6 +16,8 @@ import {
 
 interface UseDraftEstimateOptions {
   serviceType: "Residential" | "Commercial";
+  /** When false, the hook never loads or adopts an existing draft (e.g. editing a specific estimate). Default true. */
+  enabled?: boolean;
 }
 
 interface UseDraftEstimateReturn {
@@ -33,7 +35,7 @@ interface UseDraftEstimateReturn {
   lastSaved:    Date | null;
 }
 
-export function useDraftEstimate({ serviceType }: UseDraftEstimateOptions): UseDraftEstimateReturn {
+export function useDraftEstimate({ serviceType, enabled = true }: UseDraftEstimateOptions): UseDraftEstimateReturn {
   const [draftId,     setDraftId]     = useState<string | null>(null);
   const [loadedDraft, setLoadedDraft] = useState<{ draftData: DraftData; id: string } | null>(null);
   const [isSaving,    setIsSaving]    = useState(false);
@@ -46,6 +48,7 @@ export function useDraftEstimate({ serviceType }: UseDraftEstimateOptions): UseD
 
   // ── Mount: load existing draft ───────────────────────────────────────────
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     (async () => {
       try {
@@ -61,7 +64,7 @@ export function useDraftEstimate({ serviceType }: UseDraftEstimateOptions): UseD
       }
     })();
     return () => { cancelled = true; };
-  }, [serviceType]);
+  }, [serviceType, enabled]);
 
   // ── saveDraft (immediate, explicit user action only) ─────────────────────
   const saveDraft = useCallback(async (data: DraftData) => {

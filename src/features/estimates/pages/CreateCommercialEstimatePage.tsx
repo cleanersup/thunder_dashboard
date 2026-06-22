@@ -5,6 +5,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Building2 } from "lucide-react";
 import { COMMERCIAL_STEPS } from "../config/steps.config";
 import { EstimateClientStep, type ClientEntity, type LeadEntity, type EstimateEntityType } from "../components/EstimateClientStep";
+import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
+import { getEstimatePropertyId, propertyToEstimateAddress } from "../utils/estimateProperty";
+import { buildDepositAdditionalFields, restoreDepositFromAdditionalData } from "../utils/estimateDeposit";
+import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
 import { EstimateFormLayout }    from "../components/EstimateFormLayout";
 import { DraftStatusIndicator }  from "../components/DraftStatusIndicator";
 import { ExitConfirmationDialog } from "../components/ExitConfirmationDialog";
@@ -71,6 +75,18 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   const [estimateType,   setEstimateType]   = useState<EstimateEntityType | null>(null);
   const [selectedClient, setSelectedClient] = useState<ClientEntity | null>(null);
   const [selectedLead,   setSelectedLead]   = useState<LeadEntity | null>(null);
+  const [selectedProperty,  setSelectedProperty]  = useState<ClientProperty | null>(null);
+  const [pendingPropertyId, setPendingPropertyId] = useState<string | null>(null);
+
+  // Resolve pendingPropertyId (from edit/draft/conversion) once the client's properties load
+  const { data: clientPropertiesList = [] } = useClientProperties(
+    estimateType === "client" ? selectedClient?.id : undefined,
+  );
+  useEffect(() => {
+    if (!pendingPropertyId || clientPropertiesList.length === 0) return;
+    const prop = clientPropertiesList.find((p) => p.id === pendingPropertyId);
+    if (prop) { setSelectedProperty(prop); setPendingPropertyId(null); }
+  }, [pendingPropertyId, clientPropertiesList]);
 
   // ── Step 1: Property ──────────────────────────────────────────────────────
   const [propertyType,       setPropertyType]       = useState("");
@@ -107,6 +123,11 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   const [applyDiscount,  setApplyDiscount]  = useState(false);
   const [discountType,   setDiscountType]   = useState<"percentage" | "amount">("percentage");
   const [discountValue,  setDiscountValue]  = useState("");
+
+  // ── Deposit ───────────────────────────────────────────────────────────────
+  const [applyDeposit,   setApplyDeposit]   = useState(false);
+  const [depositType,    setDepositType]    = useState<"percentage" | "amount">("amount");
+  const [depositValue,   setDepositValue]   = useState("");
 
   // ── Step 6: Send ──────────────────────────────────────────────────────────
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
@@ -161,6 +182,9 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
         setDustLevel(ad.dustLevel ?? "");
         setPropertyCondition(ad.propertyCondition ?? "");
         setExtraServices(Array.isArray(ad.extraServices) ? ad.extraServices : []);
+        setPendingPropertyId(getEstimatePropertyId(d.additional_data));
+        const dep = restoreDepositFromAdditionalData(d.additional_data);
+        setApplyDeposit(dep.applyDeposit); setDepositType(dep.depositType); setDepositValue(dep.depositValue);
         setEmployeeCount(md.employees ?? 0);
         setHourlyRate(md.hourlyRate?.toString() ?? "");
         setCleaningDuration(md.cleaningDuration ?? 0);
@@ -276,7 +300,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
 
   // ── Draft ─────────────────────────────────────────────────────────────────
   const { saveDraft, deleteDraft, isSaving, lastSaved, loadedDraft, clearLoadedDraft } =
-    useDraftEstimate({ serviceType: "Commercial" });
+    useDraftEstimate({ serviceType: "Commercial", enabled: !isEditing });
 
   // Restore draft only when user explicitly chose "Continue" from the drafts list
   useEffect(() => {
@@ -314,6 +338,10 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
     if (fd.discountType     !== undefined) setDiscountType(fd.discountType);
     if (fd.discountValue    !== undefined) setDiscountValue(fd.discountValue);
     if (fd.deliveryMethod   !== undefined) setDeliveryMethod(fd.deliveryMethod);
+    if (fd.propertyId) setPendingPropertyId(fd.propertyId as string);
+    if (fd.applyDeposit  !== undefined) setApplyDeposit(fd.applyDeposit);
+    if (fd.depositType   !== undefined) setDepositType(fd.depositType);
+    if (fd.depositValue  !== undefined) setDepositValue(fd.depositValue);
 
     (async () => {
       if (draftData.clientId) {
@@ -346,6 +374,8 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       dustLevel, propertyCondition, extraServices,
       employeeCount, hourlyRate, cleaningDuration, startTime,
       scopeDetails, useCustomPrice, customPrice, applyDiscount, discountType, discountValue, deliveryMethod,
+      propertyId: selectedProperty?.id ?? null,
+      applyDeposit, depositType, depositValue,
     },
   }), [
     currentStep, estimateType, selectedClient, selectedLead,
@@ -355,6 +385,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
     dustLevel, propertyCondition, extraServices,
     employeeCount, hourlyRate, cleaningDuration, startTime,
     scopeDetails, useCustomPrice, customPrice, applyDiscount, discountType, discountValue, deliveryMethod,
+    selectedProperty, applyDeposit, depositType, depositValue,
   ]);
 
 
@@ -425,6 +456,17 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       const entity = (estimateType === "client" ? selectedClient : selectedLead)!;
       const { costs, subtotal, total } = pricing;
 
+      // When a service property is selected, its address overrides the client's default address
+      const clientAddr = selectedProperty
+        ? propertyToEstimateAddress(selectedProperty)
+        : {
+            address: `${selectedClient?.service_street ?? ""}${selectedClient?.service_apt ? ` ${selectedClient.service_apt}` : ""}`,
+            apt:     selectedClient?.service_apt   ?? "",
+            city:    selectedClient?.service_city  ?? "",
+            state:   selectedClient?.service_state ?? "",
+            zip:     selectedClient?.service_zip   ?? "",
+          };
+
       const payload = {
         client_id:      estimateType === "client" ? (selectedClient?.id ?? null) : null,
         lead_id:        estimateType === "lead"   ? (selectedLead?.id   ?? null) : null,
@@ -432,13 +474,11 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
         company_name:   estimateType === "client" ? (selectedClient?.company ?? null) : (selectedLead?.company_name ?? null),
         email:          entity.email,
         phone:          entity.phone,
-        address:        estimateType === "client"
-          ? `${selectedClient!.service_street}${selectedClient!.service_apt ? ` ${selectedClient!.service_apt}` : ""}`
-          : selectedLead!.address,
-        apt:            estimateType === "client" ? selectedClient!.service_apt : selectedLead!.apt_suite,
-        city:           estimateType === "client" ? selectedClient!.service_city  : selectedLead!.city,
-        state:          estimateType === "client" ? selectedClient!.service_state : selectedLead!.state,
-        zip:            estimateType === "client" ? selectedClient!.service_zip   : selectedLead!.zip_code,
+        address:        estimateType === "client" ? clientAddr.address : selectedLead!.address,
+        apt:            estimateType === "client" ? clientAddr.apt   : selectedLead!.apt_suite,
+        city:           estimateType === "client" ? clientAddr.city  : selectedLead!.city,
+        state:          estimateType === "client" ? clientAddr.state : selectedLead!.state,
+        zip:            estimateType === "client" ? clientAddr.zip   : selectedLead!.zip_code,
         service_type:   "Commercial" as const,
         service_sub_type: `${effectivePropertyType} - ${serviceType}`,
         service_scope:  scopeDetails || null,
@@ -448,7 +488,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
           clientProvidesSupplies, frequency: recurringFrequency,
           selectedWeekDays, contractDuration, contractTimeUnit,
         },
-        additional_data: { serviceSchedule, greaseLevel, restaurantCondition, dustLevel, propertyCondition, extraServices },
+        additional_data: { serviceSchedule, greaseLevel, restaurantCondition, dustLevel, propertyCondition, extraServices, propertyId: selectedProperty?.id ?? null, ...buildDepositAdditionalFields(applyDeposit, depositType, depositValue) },
         labor_cost:           costs.laborCost,
         supplies_cost:        costs.suppliesCost,
         overhead_cost:        costs.overheadCost,
@@ -513,15 +553,19 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       case 0: return (
         <EstimateClientStep
           estimateType={estimateType}
-          onEstimateTypeChange={(type) => { setEstimateType(type); setSelectedClient(null); setSelectedLead(null); }}
+          onEstimateTypeChange={(type) => { setEstimateType(type); setSelectedClient(null); setSelectedLead(null); setSelectedProperty(null); }}
           selectedClient={selectedClient} selectedLead={selectedLead}
-          onClientSelect={(c) => { setSelectedClient(c); setSelectedLead(null); }}
-          onLeadSelect={(l)   => { setSelectedLead(l);   setSelectedClient(null); }}
+          onClientSelect={(c) => { setSelectedClient(c); setSelectedLead(null); setSelectedProperty(null); }}
+          onLeadSelect={(l)   => { setSelectedLead(l);   setSelectedClient(null); setSelectedProperty(null); }}
           companyAddress={companyAddress || undefined}
           errors={{
             type:   errors.estimateType   ? "Please select a client type" : undefined,
             entity: errors.selectedEntity ? `Please select a ${estimateType ?? "client or lead"}` : undefined,
           }}
+          showPropertySelector
+          selectedProperty={selectedProperty}
+          onPropertyChange={setSelectedProperty}
+          preferredPropertyId={selectedProperty?.id ?? pendingPropertyId}
         />
       );
       case 1: return (
@@ -585,11 +629,15 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
           client={selectedEntity ? { name: selectedEntity.full_name, email: selectedEntity.email ?? "", phone: selectedEntity.phone ?? "" } : null}
           useCustomPrice={useCustomPrice} customPrice={customPrice}
           applyDiscount={applyDiscount} discountType={discountType} discountValue={discountValue}
+          applyDeposit={applyDeposit} depositType={depositType} depositValue={depositValue}
           onUseCustomPriceChange={(v) => { setUseCustomPrice(v); if (!v) setCustomPrice(""); }}
           onCustomPriceChange={setCustomPrice}
           onApplyDiscountChange={(v) => { setApplyDiscount(v); if (!v) setDiscountValue(""); }}
           onDiscountTypeChange={setDiscountType}
           onDiscountValueChange={setDiscountValue}
+          onApplyDepositChange={(v) => { setApplyDeposit(v); if (!v) setDepositValue(""); }}
+          onDepositTypeChange={setDepositType}
+          onDepositValueChange={setDepositValue}
         />
       );
       case 6: {

@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- untyped Supabase tables (jobs/client_properties not in generated types) */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
-import { format, parseISO } from "date-fns";
+import { formatDisplayDateTime } from "@/shared/utils/formatters";
 import {
   formatTime, formatDate, statusBadgeClass, formatStatusLabel, formatDuration,
 } from "../utils/walkthroughUtils";
@@ -30,7 +30,7 @@ import {
   useWalkthroughEmployees, useCurrentUserId, useSendWalkthroughStart,
 } from "../hooks/useWalkthroughs";
 import {
-  buildEstimatePrefillFromWalkthrough,
+  createEstimateDraftFromWalkthrough,
   fetchWalkthroughPdfContext,
   type WalkthroughWithContact,
 } from "../services/walkthroughsService";
@@ -85,6 +85,7 @@ export function WalkthroughDetailsPanel({
   walkthrough, open, onClose, onUpdated,
 }: WalkthroughDetailsPanelProps) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const { mutate: updateStatus, isPending: isUpdating } = useUpdateWalkthroughStatus();
   const { mutate: deleteMutate, isPending: isDeleting } = useDeleteWalkthrough();
@@ -157,7 +158,7 @@ export function WalkthroughDetailsPanel({
     try {
       const ctx = await fetchWalkthroughPdfContext(walkthrough.id);
       const pdfData = buildWalkthroughPdfData(profile, ctx.walkthrough, ctx.contact, ctx.residential, ctx.commercial, ctx.employees);
-      downloadWalkthroughPdf(pdfData);
+      await downloadWalkthroughPdf(pdfData);
       toast.success("PDF downloaded");
     } catch { toast.error("Could not generate PDF"); }
   }
@@ -165,13 +166,14 @@ export function WalkthroughDetailsPanel({
   async function handleGenerateEstimate() {
     if (!walkthrough) return;
     try {
-      const prefill = await buildEstimatePrefillFromWalkthrough(walkthrough);
-      const path = walkthrough.service_type === "residential"
-        ? "/estimates/new/residential"
-        : "/estimates/new/commercial";
-      navigate(path, { state: { prefill, fromWalkthroughId: walkthrough.id } });
+      // Create the draft estimate immediately and finalize the conversion,
+      // then open the form in EDIT mode so Discard can't delete the persisted draft.
+      const { estimateId, route } = await createEstimateDraftFromWalkthrough(walkthrough);
+      qc.invalidateQueries({ queryKey: QK.walkthroughs });
+      qc.invalidateQueries({ queryKey: QK.estimates });
+      navigate(route, { state: { isEditing: true, estimateId } });
       onClose();
-    } catch { toast.error("Could not load walkthrough data for the estimate"); }
+    } catch { toast.error("Could not generate estimate from walkthrough"); }
   }
 
   // ── Footer by status ──────────────────────────────────────────────────────
@@ -340,7 +342,7 @@ export function WalkthroughDetailsPanel({
       key: "created",
       label: "Walkthrough Created",
       reached: true,
-      subtitle: format(parseISO(walkthrough.created_at), "MMM d, yyyy 'at' h:mm a"),
+      subtitle: formatDisplayDateTime(walkthrough.created_at),
     },
     {
       key: "scheduled",
@@ -590,11 +592,11 @@ export function WalkthroughDetailsPanel({
           <section className="space-y-2">
             <SectionTitle>Timeline</SectionTitle>
             <p className="text-xs text-muted-foreground">
-              Created {format(parseISO(walkthrough.created_at), "MMM d, yyyy 'at' h:mm a")}
+              Created {formatDisplayDateTime(walkthrough.created_at)}
             </p>
             {walkthrough.updated_at !== walkthrough.created_at && (
               <p className="text-xs text-muted-foreground">
-                Updated {format(parseISO(walkthrough.updated_at), "MMM d, yyyy 'at' h:mm a")}
+                Updated {formatDisplayDateTime(walkthrough.updated_at)}
               </p>
             )}
           </section>

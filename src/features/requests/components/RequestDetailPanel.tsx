@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- untyped Supabase rows (linked estimate fields not in generated types) */
 import { useState } from "react";
-import { format, parseISO } from "date-fns";
+import { formatDisplayDate, formatDisplayDateTime } from "@/shared/utils/formatters";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar, Clock, Mail, Phone, MapPin,
@@ -383,7 +383,7 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
               <InfoRow
                 icon={Calendar}
                 label="Preferred Date"
-                value={format(parseISO(booking.preferred_date), "MMMM dd, yyyy")}
+                value={formatDisplayDate(booking.preferred_date)}
               />
             )}
 
@@ -546,11 +546,11 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
           <section className="space-y-2">
             <SectionTitle>Timeline</SectionTitle>
             <p className="text-xs text-muted-foreground">
-              Created {format(parseISO(booking.created_at), "MMM d, yyyy 'at' h:mm a")}
+              Created {formatDisplayDateTime(booking.created_at)}
             </p>
             {booking.updated_at !== booking.created_at && (
               <p className="text-xs text-muted-foreground">
-                Updated {format(parseISO(booking.updated_at), "MMM d, yyyy 'at' h:mm a")}
+                Updated {formatDisplayDateTime(booking.updated_at)}
               </p>
             )}
           </section>
@@ -608,6 +608,7 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
         prefillDate={walkthroughConfig?.prefillDate}
         prefillTime={walkthroughConfig?.prefillTime}
         prefillNotes={walkthroughConfig?.prefillNotes}
+        prefillPropertyId={walkthroughConfig?.prefillPropertyId}
       />
 
       <EditRequestPage

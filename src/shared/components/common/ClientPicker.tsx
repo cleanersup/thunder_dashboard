@@ -36,7 +36,18 @@ export function ClientPicker({
   const [showNewClient, setShowNewClient] = useState(false);
 
   const { data: clientsRaw = [] } = useClients();
-  const clients = clientsRaw as unknown as ClientEntity[];
+
+  // Only active clients are selectable (matches ClientLeadPicker / ContactPicker).
+  const activeClients = clientsRaw.filter((c) => (c as { status?: string }).status === "active");
+  const clients = activeClients as unknown as ClientEntity[];
+
+  // If the selected client isn't in the active list (e.g. editing an invoice whose
+  // client was deactivated, or a synthetic client), inject it so the Select resolves its value.
+  // Guard against empty ids — a <SelectItem value=""> throws.
+  const clientsWithSelected = ((selectedClient && !clients.find((c) => c.id === selectedClient.id))
+    ? [...clients, selectedClient]
+    : clients
+  ).filter((c) => c.id);
 
   const selectedAddress = selectedClient
     ? [
@@ -61,7 +72,7 @@ export function ClientPicker({
         <Select
           value={selectedClient?.id ?? ""}
           onValueChange={(id) => {
-            const c = clients.find((c) => c.id === id);
+            const c = clientsWithSelected.find((c) => c.id === id);
             if (c) onClientSelect(c);
           }}
         >
@@ -69,12 +80,12 @@ export function ClientPicker({
             <SelectValue placeholder="Select customer" />
           </SelectTrigger>
           <SelectContent>
-            {clients.map((c) => (
+            {clientsWithSelected.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.full_name}
               </SelectItem>
             ))}
-            {clients.length === 0 && (
+            {clientsWithSelected.length === 0 && (
               <p className="px-2 py-4 text-center text-sm text-muted-foreground">
                 No clients found
               </p>

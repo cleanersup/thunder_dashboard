@@ -17,7 +17,7 @@ import {
   MessageSquare, Edit, Trash2, Navigation, RefreshCcw,
   FileText, Download,
 } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import {
   Dialog,
   DialogContent,
@@ -257,7 +257,7 @@ export function AppointmentDetailModal({
                       <div className="border-t border-border/30 mb-3" />
                       <p className="text-xs text-muted-foreground mb-1">Service Date</p>
                       <p className="text-sm font-semibold">
-                        {format(parseISO(appointment.scheduled_date), "EEEE, MMMM do, yyyy")}
+                        {formatDisplayDate(appointment.scheduled_date)}
                       </p>
                     </CardContent>
                   </Card>
@@ -273,7 +273,7 @@ export function AppointmentDetailModal({
                             <span className="text-xs text-muted-foreground">Date</span>
                           </div>
                           <span className="text-sm font-medium">
-                            {format(parseISO(appointment.scheduled_date), "PPP")}
+                            {formatDisplayDate(appointment.scheduled_date)}
                           </span>
                         </div>
 

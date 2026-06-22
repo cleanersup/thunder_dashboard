@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { formatDisplayDateTime } from "@/shared/utils/formatters";
 import { Pencil } from "lucide-react";
 import { formatDbTimeDisplay } from "../utils/parseDbDateTime";
 import { Button } from "@/shared/components/ui/button";
@@ -76,7 +76,7 @@ export function ShiftCard({
         <div className="flex items-center gap-1.5 ml-auto">
           {entry.manually_edited && !isEditing && (
             <span
-              title={entry.edited_at ? `Edited ${format(new Date(entry.edited_at), "MMM d, h:mm a")}` : "Manually edited"}
+              title={entry.edited_at ? `Edited ${formatDisplayDateTime(entry.edited_at)}` : "Manually edited"}
               className="text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded"
             >
               Edited

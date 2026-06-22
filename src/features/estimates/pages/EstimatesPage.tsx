@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
-import { format } from "date-fns";
+import { formatDisplayDate, formatDisplayDateShort } from "@/shared/utils/formatters";
 import { formatDateOnly } from "@/shared/utils/formatters";
 import { cn } from "@/shared/utils/cn";
 import { toast } from "sonner";
@@ -112,7 +112,7 @@ export function EstimatesPage() {
   const formattedEstimates = rawEstimates.map((e) => ({
     id:             e.id,
     estimateNumber: `EST-${e.id.slice(0, 6)}`,
-    shortDate:      format(new Date(e.created_at), "MMM dd, yyyy"),
+    shortDate:      formatDisplayDateShort(e.created_at),
     clientName:     e.client_name,
     serviceType:    e.service_type,
     serviceSubType: e.service_sub_type ?? "",
@@ -367,7 +367,7 @@ export function EstimatesPage() {
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className={cn("h-9 whitespace-nowrap", !selectedDate && "text-muted-foreground")}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "MMM d") : "Date"}
+                    {selectedDate ? formatDisplayDateShort(selectedDate) : "Date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -400,7 +400,7 @@ export function EstimatesPage() {
       {/* ── Date filter badge ─────────────────────────────────────────────── */}
       {selectedDate && (
         <div className="flex items-center justify-between bg-accent/50 p-2 rounded-md">
-          <span className="text-sm text-muted-foreground">Filtered by: {format(selectedDate, "PPP")}</span>
+          <span className="text-sm text-muted-foreground">Filtered by: {formatDisplayDate(selectedDate)}</span>
           <Button variant="ghost" size="sm" onClick={() => setSelectedDate(undefined)} className="h-6 px-2 text-xs">Clear</Button>
         </div>
       )}

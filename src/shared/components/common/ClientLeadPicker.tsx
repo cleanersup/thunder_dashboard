@@ -31,7 +31,9 @@ import { LeadForm }   from "@/features/crm/leads/components/LeadForm";
 import { useClients } from "@/features/crm/clients/hooks/useClients";
 import { useLeads }   from "@/features/crm/leads/hooks/useLeads";
 import { AddressRouteMap } from "@/shared/components/common/AddressRouteMap";
+import { ServicePropertySelector } from "@/shared/components/common/ServicePropertySelector";
 import type { ClientEntity, LeadEntity } from "@/shared/types/entities";
+import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
 
 export type EntityType = "client" | "lead";
 
@@ -52,6 +54,12 @@ export interface ClientLeadPickerProps {
     type?:   string;
     entity?: string;
   };
+  /** Enables the client service-property selector (clients only). */
+  showPropertySelector?: boolean;
+  selectedProperty?: ClientProperty | null;
+  onPropertyChange?: (property: ClientProperty | null) => void;
+  /** Property id to pre-select once the client's properties load (edit/draft/conversion). */
+  preferredPropertyId?: string | null;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -66,6 +74,10 @@ export function ClientLeadPicker({
   companyAddress,
   infoText = "Verify the email and phone number — they will be used to send the document.",
   errors,
+  showPropertySelector = false,
+  selectedProperty = null,
+  onPropertyChange,
+  preferredPropertyId,
 }: ClientLeadPickerProps) {
   const [showNewClient, setShowNewClient] = useState(false);
   const [showNewLead,   setShowNewLead]   = useState(false);
@@ -75,9 +87,12 @@ export function ClientLeadPicker({
   const { data: clientsRaw = [] } = useClients();
   const { data: leadsRaw   = [] } = useLeads();
 
+  // Only active clients are selectable (matches ContactPicker behaviour).
+  const activeClientsRaw = clientsRaw.filter((c) => (c as { status?: string }).status === "active");
+
   // Both hooks return CRM service types; cast to the shared EntityType shape.
-  const clients = clientsRaw as unknown as ClientEntity[];
-  const leads   = leadsRaw   as unknown as LeadEntity[];
+  const clients = activeClientsRaw as unknown as ClientEntity[];
+  const leads   = leadsRaw         as unknown as LeadEntity[];
 
   // If the selected entity is not in the fetched list (e.g. synthetic client from an estimate
   // edit where the contact was not saved to CRM), inject it so the Select can resolve its value.
@@ -96,8 +111,11 @@ export function ClientLeadPicker({
                  : entityType === "lead"   ? selectedLead
                  : null;
 
+  // When a service property is selected, its address drives the route map.
   const selectedAddress = entityType === "client" && selectedClient
-    ? [selectedClient.service_street, selectedClient.service_city, selectedClient.service_state, selectedClient.service_zip].filter(Boolean).join(", ")
+    ? (selectedProperty
+        ? [selectedProperty.street, selectedProperty.city, selectedProperty.state, selectedProperty.zip_code].filter(Boolean).join(", ")
+        : [selectedClient.service_street, selectedClient.service_city, selectedClient.service_state, selectedClient.service_zip].filter(Boolean).join(", "))
     : entityType === "lead" && selectedLead
     ? [selectedLead.address, selectedLead.city, selectedLead.state, selectedLead.zip_code].filter(Boolean).join(", ")
     : null;
@@ -239,6 +257,16 @@ export function ClientLeadPicker({
                 </div>
               </div>
             </div>
+          )}
+
+          {/* ── Service property (clients only) — shown before the map ─────── */}
+          {showPropertySelector && entityType === "client" && selectedClient && (
+            <ServicePropertySelector
+              clientId={selectedClient.id}
+              value={selectedProperty}
+              onChange={(p) => onPropertyChange?.(p)}
+              preferredPropertyId={preferredPropertyId}
+            />
           )}
 
           {/* ── Route map (only when companyAddress is provided) ──────────── */}

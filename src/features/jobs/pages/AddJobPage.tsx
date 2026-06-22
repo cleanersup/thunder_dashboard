@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
@@ -286,7 +287,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                         <PopoverTrigger asChild>
                           <Button variant="outline" className={cn("w-full mt-1 justify-start text-left font-normal", !jobDate && "text-muted-foreground")}>
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {jobDate ? format(jobDate, "PPP") : "Select date"}
+                            {jobDate ? formatDisplayDate(jobDate) : "Select date"}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">

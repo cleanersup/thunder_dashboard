@@ -1,4 +1,5 @@
 import { TrendingUp } from "lucide-react";
+import { format as formatDate } from "date-fns";
 import {
   BarChart,
   Bar,
@@ -8,7 +9,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { format as formatDate } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { ChartSkeleton } from "@/shared/components/common/SkeletonCard";
 import { formatCurrency } from "@/shared/utils/formatters";
