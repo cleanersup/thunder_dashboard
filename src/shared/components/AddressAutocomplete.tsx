@@ -28,6 +28,8 @@ interface AddressAutocompleteProps {
   error?:          boolean;
   disabled?:       boolean;
   className?:      string;
+  /** ISO alpha-2 country code to restrict suggestions. Empty string = no restriction. Defaults to "us". */
+  country?:        string;
 }
 
 export function AddressAutocomplete({
@@ -38,6 +40,7 @@ export function AddressAutocomplete({
   error       = false,
   disabled    = false,
   className   = "",
+  country     = "us",
 }: AddressAutocompleteProps) {
   const inputRef        = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
@@ -50,7 +53,7 @@ export function AddressAutocomplete({
 
     autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
       types:                ["address"],
-      componentRestrictions: { country: "us" },
+      componentRestrictions: country ? { country } : undefined,
       fields:               ["address_components", "formatted_address"],
     });
 
@@ -102,7 +105,13 @@ export function AddressAutocomplete({
         el.removeEventListener("touchend", handleClick);
       });
     };
-  }, [loaded, google, isInitialized, onChange, onAddressSelect]);
+  }, [loaded, google, isInitialized, onChange, onAddressSelect, country]);
+
+  // Update country restriction when the selected country changes (after init).
+  useEffect(() => {
+    if (!isInitialized || !autocompleteRef.current) return;
+    autocompleteRef.current.setComponentRestrictions(country ? { country } : null);
+  }, [country, isInitialized]);
 
   return (
     <>

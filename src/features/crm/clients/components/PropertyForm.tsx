@@ -6,6 +6,11 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Switch } from "@/shared/components/ui/switch";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/shared/components/ui/select";
+import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
+import { COUNTRY_OPTIONS } from "@/shared/constants/countries";
 import { clientPropertySchema, type ClientPropertySchema } from "../schemas/clientPropertySchema";
 import { useCreateClientProperty, useUpdateClientProperty } from "../hooks/useClientProperties";
 import type { ClientProperty } from "../types/clientProperty.types";
@@ -32,7 +37,7 @@ export function PropertyForm({ open, onOpenChange, clientId, property }: Propert
       city:       "",
       state:      "",
       zip_code:   "",
-      country:    "",
+      country:    "us",
       is_primary: false,
     },
   });
@@ -48,16 +53,20 @@ export function PropertyForm({ open, onOpenChange, clientId, property }: Propert
               city:       property.city,
               state:      property.state,
               zip_code:   property.zip_code,
-              country:    property.country    ?? "",
+              country:    property.country    ?? "us",
               is_primary: property.is_primary,
             }
           : {
               title: "", street: "", apt_suite: "", city: "",
-              state: "", zip_code: "", country: "", is_primary: false,
+              state: "", zip_code: "", country: "us", is_primary: false,
             }
       );
     }
   }, [open, property, form]);
+
+  const country = form.watch("country") || "us";
+  // 'all' = no country restriction on autocomplete suggestions.
+  const autocompleteCountry = country === "all" ? "" : country;
 
   const onSubmit = (data: ClientPropertySchema) => {
     const payload = {
@@ -80,20 +89,52 @@ export function PropertyForm({ open, onOpenChange, clientId, property }: Propert
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        onPointerDownOutside={(e) => {
+          if ((e.target as HTMLElement).closest?.(".pac-container")) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Property" : "Add Property"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+          className="space-y-4 py-2"
+        >
           <div className="space-y-1.5">
             <Label htmlFor="title">Title (optional)</Label>
             <Input id="title" placeholder="e.g. Main Office" {...form.register("title")} />
           </div>
 
           <div className="space-y-1.5">
+            <Label htmlFor="country">Country</Label>
+            <Select value={country} onValueChange={(v) => form.setValue("country", v)}>
+              <SelectTrigger id="country"><SelectValue placeholder="Select country" /></SelectTrigger>
+              <SelectContent>
+                {COUNTRY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
             <Label htmlFor="street">Street *</Label>
-            <Input id="street" placeholder="123 Main St" {...form.register("street")} />
+            <AddressAutocomplete
+              value={form.watch("street") ?? ""}
+              onChange={(v) => form.setValue("street", v)}
+              onAddressSelect={(c) => {
+                form.setValue("street",   c.street);
+                form.setValue("city",     c.city);
+                form.setValue("state",    c.state);
+                form.setValue("zip_code", c.zip);
+              }}
+              country={autocompleteCountry}
+              error={!!form.formState.errors.street}
+            />
             {form.formState.errors.street && (
               <p className="text-xs text-destructive">{form.formState.errors.street.message}</p>
             )}
@@ -128,11 +169,6 @@ export function PropertyForm({ open, onOpenChange, clientId, property }: Propert
                 <p className="text-xs text-destructive">{form.formState.errors.zip_code.message}</p>
               )}
             </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="country">Country</Label>
-            <Input id="country" placeholder="US" {...form.register("country")} />
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-border p-3">
