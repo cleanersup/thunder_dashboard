@@ -22,7 +22,6 @@ import {
   useUpdateClient,
   useClearClientSavedCard,
 } from "../hooks/useClients";
-import { CLIENT_STATUS_BADGE } from "@/shared/constants/styleTokens";
 import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import { toast } from "sonner";
 import type { Client } from "../../types/crm.types";
@@ -81,12 +80,12 @@ export function ClientDetailPanel({ client, open, onClose }: ClientDetailPanelPr
     clearSavedCard.mutate(c.id, { onSuccess: () => setShowRemoveCard(false) });
   };
 
+  // SidePanel applies badge.color/badge.bg as inline CSS, so these must be color
+  // values (not Tailwind classes). Mirrors the RequestDetailPanel status badge.
   const badge = c
-    ? {
-        label: c.status === "active" ? "Active" : "Inactive",
-        color: "text-white",
-        bg: CLIENT_STATUS_BADGE[c.status] ?? "bg-secondary text-secondary-foreground",
-      }
+    ? c.status === "active"
+      ? { label: "Active",   color: "hsl(var(--green-vibrant))", bg: "hsl(var(--green-vibrant) / 0.15)" }
+      : { label: "Inactive", color: "hsl(220 9% 46%)",           bg: "hsl(220 9% 46% / 0.15)" }
     : undefined;
 
   const footer = c ? (
