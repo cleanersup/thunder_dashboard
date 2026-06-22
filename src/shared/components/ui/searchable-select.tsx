@@ -1,20 +1,20 @@
 import * as React from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils/cn";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/shared/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { useIsMobile } from "@/hooks/use-mobile";
+} from "@/shared/components/ui/popover";
+import { Input } from "@/shared/components/ui/input";
+import { Button } from "@/shared/components/ui/button";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 
 export interface SearchableSelectOption {
   value: string;
@@ -153,7 +153,7 @@ export const SearchableSelect = React.forwardRef<
               className={cn(
                 "w-full justify-between h-10 bg-background font-normal",
                 !value && "text-muted-foreground",
-                error && "border-red-500 border-2",
+                error && "border-destructive border-2",
                 className
               )}
             >
@@ -201,7 +201,7 @@ export const SearchableSelect = React.forwardRef<
           className={cn(
             "w-full justify-between h-10 bg-background font-normal",
             !value && "text-muted-foreground",
-            error && "border-red-500 border-2",
+            error && "border-destructive border-2",
             className
           )}
         >

@@ -1,0 +1,268 @@
+import { type ElementType } from "react";
+import { format } from "date-fns";
+import {
+  MapPin, User, Briefcase, CalendarDays, UserCheck,
+  DollarSign, FileText, MessageSquare, Phone, Mail, MapPinned, ImageIcon, ClipboardList,
+} from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
+import type { AppointmentFormData, Route } from "../../types/scheduling.types";
+import type { ClientEntity } from "@/shared/types/entities";
+import {
+  formatTime,
+  calculateTotalHours,
+  calculateLaborCost,
+  buildClientAddress,
+  RECURRING_FREQ_LABELS,
+} from "../../utils/appointmentHelpers";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Employee {
+  id: string;
+  first_name: string;
+  last_name: string;
+  position: string | null;
+  hourly_rate: number | null;
+}
+
+interface Props {
+  form: AppointmentFormData;
+  routes: Route[];
+  selectedClient: ClientEntity | null;
+  employees: Employee[];
+  contractFile: File | null;
+  existingContractUrl?: string | null;
+  uploadedPhotos: File[];
+  existingPhotoUrls?: string[];
+}
+
+// ─── Section header ──────────────────────────────────────────────────────────
+
+function SectionTitle({ icon: Icon, label }: { icon: ElementType; label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Icon className="h-4 w-4 text-primary" />
+      <h3 className="text-sm font-semibold text-foreground">{label}</h3>
+    </div>
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function AppointmentPreviewStep({
+  form,
+  routes,
+  selectedClient,
+  employees,
+  contractFile,
+  existingContractUrl,
+  uploadedPhotos,
+  existingPhotoUrls = [],
+}: Props) {
+  const route = routes.find((r) => r.id === form.route_id);
+
+  const assignedEmployees = employees.filter((e) =>
+    (form.assigned_employees ?? []).includes(e.id),
+  );
+
+  const totalHours    = calculateTotalHours(form.scheduled_time, form.end_time);
+  const laborCost     = calculateLaborCost(assignedEmployees, totalHours);
+  const clientAddress = buildClientAddress(selectedClient);
+
+  const recurringLabel =
+    form.service_type === "Recurring" &&
+    form.recurring_frequency &&
+    form.recurring_frequency !== "none"
+      ? `${RECURRING_FREQ_LABELS[form.recurring_frequency] ?? form.recurring_frequency}${
+          form.recurring_duration
+            ? ` · ${form.recurring_duration} ${form.recurring_duration_unit ?? "months"}`
+            : ""
+        }`
+      : null;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-muted-foreground" />
+            Route Preview
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Review all information before finalizing
+          </p>
+        </CardHeader>
+        <CardContent>
+        <div className="space-y-5">
+
+        {/* Route */}
+        <div className="space-y-1">
+          <SectionTitle icon={MapPin} label="Route" />
+          <p className="text-sm text-foreground pl-6">{route?.name ?? "—"}</p>
+        </div>
+
+        {/* Client */}
+        {selectedClient && (
+          <div className="space-y-2">
+            <SectionTitle icon={User} label="Client" />
+            <div className="pl-6 space-y-2">
+              <p className="text-sm font-medium text-foreground">{selectedClient.full_name}</p>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                {selectedClient.phone && (
+                  <p className="flex items-center gap-2">
+                    <Phone className="h-3.5 w-3.5 shrink-0" />
+                    {selectedClient.phone}
+                  </p>
+                )}
+                {selectedClient.email && (
+                  <p className="flex items-center gap-2">
+                    <Mail className="h-3.5 w-3.5 shrink-0" />
+                    {selectedClient.email}
+                  </p>
+                )}
+                {clientAddress && (
+                  <p className="flex items-center gap-2">
+                    <MapPinned className="h-3.5 w-3.5 shrink-0" />
+                    {clientAddress}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Service */}
+        {(form.service_type || form.cleaning_type) && (
+          <div className="space-y-2">
+            <SectionTitle icon={Briefcase} label="Service" />
+            <div className="pl-6 space-y-1 text-sm text-foreground">
+              {form.service_type && (
+                <p>
+                  <span className="font-medium">Type:</span>{" "}
+                  {form.service_type}
+                </p>
+              )}
+              {form.cleaning_type && (
+                <p>
+                  <span className="font-medium">Cleaning Type:</span>{" "}
+                  {form.cleaning_type}
+                </p>
+              )}
+              {recurringLabel && (
+                <p>
+                  <span className="font-medium">Frequency:</span>{" "}
+                  {recurringLabel}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Date & Time */}
+        {form.scheduled_date && (
+          <div className="space-y-2">
+            <SectionTitle icon={CalendarDays} label="Date & Time" />
+            <div className="pl-6 space-y-1 text-sm text-foreground">
+              <p>
+                <span className="font-medium">Date:</span>{" "}
+                {format(new Date(form.scheduled_date + "T00:00:00"), "PPP")}
+              </p>
+              <p>
+                <span className="font-medium">Time:</span>{" "}
+                {formatTime(form.scheduled_time)}
+                {form.end_time && ` – ${formatTime(form.end_time)}`}
+              </p>
+              {totalHours !== null && (
+                <p>
+                  <span className="font-medium">Duration:</span>{" "}
+                  {totalHours.toFixed(2)} hours
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Team Members */}
+        {assignedEmployees.length > 0 && (
+          <div className="space-y-2">
+            <SectionTitle icon={UserCheck} label="Team Members" />
+            <div className="pl-6 space-y-1">
+              {assignedEmployees.map((emp) => (
+                <p key={emp.id} className="text-sm text-foreground">
+                  • {emp.first_name} {emp.last_name}
+                  {emp.position ? ` — ${emp.position}` : ""}
+                </p>
+              ))}
+              {laborCost !== null && laborCost > 0 && (
+                <p className="text-sm font-semibold text-green-700 dark:text-green-400 pt-1">
+                  Total Labor Cost: ${laborCost.toFixed(2)}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Deposit */}
+        {form.deposit_required === "yes" && form.deposit_amount != null && (
+          <div className="space-y-1">
+            <SectionTitle icon={DollarSign} label="Deposit" />
+            <p className="text-sm text-foreground pl-6">
+              ${form.deposit_amount.toFixed(2)}
+            </p>
+          </div>
+        )}
+
+        {/* Contract / Estimate */}
+        {(contractFile || existingContractUrl) && (
+          <div className="space-y-1">
+            <SectionTitle icon={FileText} label="Contract/Estimate" />
+            <p className="text-sm text-foreground pl-6 flex items-center gap-2">
+              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              {contractFile ? contractFile.name : "Existing contract attached"}
+            </p>
+          </div>
+        )}
+
+        {/* Instructions */}
+        {form.notes && (
+          <div className="space-y-1">
+            <SectionTitle icon={MessageSquare} label="Instructions" />
+            <p className="text-sm text-muted-foreground pl-6 whitespace-pre-wrap">
+              {form.notes}
+            </p>
+          </div>
+        )}
+
+        {/* Reference Photos */}
+        {(uploadedPhotos.length > 0 || existingPhotoUrls.length > 0) && (
+          <div className="space-y-2">
+            <SectionTitle icon={ImageIcon} label="Reference Photos" />
+            <div className="pl-6 grid grid-cols-3 gap-2">
+              {uploadedPhotos.map((photo, idx) => (
+                <div key={`new-${idx}`} className="aspect-square rounded-lg overflow-hidden bg-muted">
+                  <img
+                    src={URL.createObjectURL(photo)}
+                    alt={`Photo ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ))}
+              {existingPhotoUrls.map((url, idx) => (
+                <div key={`existing-${idx}`} className="aspect-square rounded-lg overflow-hidden bg-muted">
+                  <img
+                    src={url}
+                    alt={`Existing photo ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -71,6 +72,100 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // ── Semantic priority tokens ───────────────────────────────────────
+        priority: {
+          low: {
+            DEFAULT: "hsl(var(--priority-low) / <alpha-value>)",
+            foreground: "hsl(var(--priority-low-foreground))",
+          },
+          medium: {
+            DEFAULT: "hsl(var(--priority-medium) / <alpha-value>)",
+            foreground: "hsl(var(--priority-medium-foreground))",
+          },
+          high: {
+            DEFAULT: "hsl(var(--priority-high) / <alpha-value>)",
+            foreground: "hsl(var(--priority-high-foreground))",
+          },
+        },
+        // ── Semantic task-status tokens ────────────────────────────────────
+        "task-status": {
+          todo: {
+            DEFAULT: "hsl(var(--task-status-todo) / <alpha-value>)",
+            foreground: "hsl(var(--task-status-todo-foreground))",
+          },
+          progress: {
+            DEFAULT: "hsl(var(--task-status-progress) / <alpha-value>)",
+            foreground: "hsl(var(--task-status-progress-foreground))",
+          },
+          completed: {
+            DEFAULT: "hsl(var(--task-status-completed) / <alpha-value>)",
+            foreground: "hsl(var(--task-status-completed-foreground))",
+          },
+        },
+        // ── Semantic lead-status tokens ────────────────────────────────────
+        "lead-status": {
+          new: {
+            DEFAULT: "hsl(var(--lead-status-new) / <alpha-value>)",
+            foreground: "hsl(var(--lead-status-new-foreground))",
+          },
+          contacted: {
+            DEFAULT: "hsl(var(--lead-status-contacted) / <alpha-value>)",
+            foreground: "hsl(var(--lead-status-contacted-foreground))",
+          },
+          walkthrough: {
+            DEFAULT: "hsl(var(--lead-status-walkthrough) / <alpha-value>)",
+            foreground: "hsl(var(--lead-status-walkthrough-foreground))",
+          },
+          estimate: {
+            DEFAULT: "hsl(var(--lead-status-estimate) / <alpha-value>)",
+            foreground: "hsl(var(--lead-status-estimate-foreground))",
+          },
+          decision: {
+            DEFAULT: "hsl(var(--lead-status-decision) / <alpha-value>)",
+            foreground: "hsl(var(--lead-status-decision-foreground))",
+          },
+        },
+        // ── Semantic client-status tokens ──────────────────────────────────
+        "client-status": {
+          active: {
+            DEFAULT: "hsl(var(--client-status-active) / <alpha-value>)",
+            foreground: "hsl(var(--client-status-active-foreground))",
+          },
+          inactive: {
+            DEFAULT: "hsl(var(--client-status-inactive) / <alpha-value>)",
+            foreground: "hsl(var(--client-status-inactive-foreground))",
+          },
+        },
+        // ── Semantic success (accepted, completed, active states) ──────────
+        success: {
+          DEFAULT: "hsl(var(--success) / <alpha-value>)",
+          foreground: "hsl(var(--success-foreground))",
+          subtle: "hsl(var(--success-subtle) / <alpha-value>)",
+          "subtle-foreground": "hsl(var(--success-subtle-foreground))",
+          "subtle-border": "hsl(var(--success-subtle-border))",
+        },
+        // ── Semantic info (notice cards, draft, invoiced states) ───────────
+        info: {
+          DEFAULT: "hsl(var(--info) / <alpha-value>)",
+          foreground: "hsl(var(--info-foreground))",
+          subtle: "hsl(var(--info-subtle) / <alpha-value>)",
+          "subtle-foreground": "hsl(var(--info-subtle-foreground))",
+          "subtle-border": "hsl(var(--info-subtle-border))",
+        },
+        // ── Semantic warning (pending, in-progress states) ─────────────────
+        warning: {
+          DEFAULT: "hsl(var(--warning) / <alpha-value>)",
+          foreground: "hsl(var(--warning-foreground))",
+          subtle: "hsl(var(--warning-subtle) / <alpha-value>)",
+          "subtle-foreground": "hsl(var(--warning-subtle-foreground))",
+          "subtle-border": "hsl(var(--warning-subtle-border))",
+        },
+        // ── Vibrant accent tokens (as Tailwind classes) ────────────────────
+        "green-vibrant":  "hsl(var(--green-vibrant) / <alpha-value>)",
+        "blue-vibrant":   "hsl(var(--blue-vibrant) / <alpha-value>)",
+        "purple-vibrant": "hsl(var(--purple-vibrant) / <alpha-value>)",
+        "orange-vibrant": "hsl(var(--orange-vibrant) / <alpha-value>)",
+        "yellow-vibrant": "hsl(var(--yellow-vibrant) / <alpha-value>)",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -98,5 +193,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindcssAnimate],
 } satisfies Config;
