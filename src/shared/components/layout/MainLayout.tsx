@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { SidebarProvider, SidebarInset } from "@/shared/components/ui/sidebar";
 import { DesktopSidebar } from "./DesktopSidebar";
 import { DesktopHeader } from "./DesktopHeader";
@@ -25,7 +25,12 @@ export function MainLayout({ children }: MainLayoutProps) {
         <DesktopSidebar />
         <SidebarInset className="flex flex-col flex-1 min-w-0">
           <DesktopHeader />
-          <main className="flex-1 overflow-auto">{children}</main>
+          <main className="flex-1 overflow-auto">
+            {/* Inner Suspense boundary: keeps sidebar + header persistent while
+                the lazy page chunk loads, so navigation doesn't trigger the
+                full-screen route loader. Each page renders its own content loader. */}
+            <Suspense fallback={null}>{children}</Suspense>
+          </main>
         </SidebarInset>
       </div>
 

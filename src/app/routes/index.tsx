@@ -124,7 +124,7 @@ export function AppRouter() {
           {/* Phase 5 ✅ — CRM split into separate pages */}
           <Route path="/crm"     element={<Navigate to="/leads" replace />} />
           <Route path="/leads"   element={<ProtectedRoute requireFeature="crm"><LeadsPage /></ProtectedRoute>} />
-          <Route path="/clients" element={<ProtectedRoute requireFeature="crm"><ClientsPage /></ProtectedRoute>} />
+          <Route path="/clients" element={<ProtectedRoute><ClientsPage /></ProtectedRoute>} />
           <Route path="/tasks"   element={<ProtectedRoute requireFeature="crm"><TasksPage /></ProtectedRoute>} />
           <Route path="/client/wallet/:token" element={<ClientWalletPage />} />
           <Route path="/notifications" element={<ProtectedRoute requireSubscription={false}><NotificationsPage /></ProtectedRoute>} />

@@ -618,8 +618,21 @@ swift-slate tiene mapas en LeadDetails y WalkthroughDetails. Nuestros modales lo
 ---
 
 ## FASE 13 — Suscripciones ⚠️ Requiere decisiones de negocio
-> Estado: 🟡 Bloqueada — espera confirmación
+> Estado: 🟡 Bloqueada — espera confirmación (billing). Control de acceso por plan ✅
 
+### Control de acceso por plan (✅ 2026-06-22)
+- [x] Matriz `PLAN_FEATURES` alineada **exactamente** a swift-slate (`src/shared/config/planFeatures.ts`):
+  - `basic`: estimates, invoices, employee
+  - `essential`: + requests, walkthrough, jobs, routes (schedule)
+  - `professional`: + crm, time_clock, smart_map (tasks reusa `crm`, ambos professional)
+- [x] Añadidos `FEATURE_NAMES` y `getMinimumPlanForFeature` (paridad swift-slate)
+- [x] **Clients** siempre accesible (sin feature gate) — igual que swift navConfig. Ruta `/clients` sin `requireFeature`
+- [x] **Contracts** conserva su lógica propia de trial (`useContractAccess`), NO entra en la matriz — decisión de negocio confirmada con el usuario
+- [x] Sidebar muestra **todos** los items; los bloqueados llevan candado (Lock) sobre el ícono + texto atenuado y al click navegan a `/subscription-plans` con `state.message` (patrón MoreMenuModal de swift). Ya no se ocultan (eliminado `filterNav`)
+- [x] `SubscriptionPlansPage` muestra banner con el mensaje cuando se llega desde un item bloqueado
+- [x] `ProtectedRoute requireFeature` se mantiene como red de seguridad para URL directa
+
+### Billing (pendiente)
 - [ ] **[DECISIÓN]** Confirmar Stripe Billing para suscripciones web
 - [ ] **[DECISIÓN]** Definir si existe tier web-only y sus features
 - [ ] `features/subscriptions/services/subscriptionsService.ts` (JSDoc)
@@ -801,6 +814,7 @@ Esto significa:
 | 2026-03-25 | Profile redesign ✅ | ProfilePage: centered max-w-2xl card + underline tabs (info/company/security/subscriptions). SubscriptionPlansContent: Switch billing toggle + ACTIVE badge top-left ribbon. Stripe error handling: data.error detection + AlertDialog feedback. Build: 0 errores. |
 | 2026-03-26 | CON-3 footer fix ✅ | Footer wizard: removido fixed bottom-0. Ahora inline dentro del scroll (mt-4, justify-between). Botones: Cancel (outline, px-6) izquierda → abre exit dialog — Next (primary, px-6) derecha. Max-w-2xl centrado en desktop. "Leave" en exit dialog usa goBack() (cierra modal o navega). Build: 0 errores. |
 | 2026-03-26 | CON-3 ✅ + FullScreenModal ✅ | CreateContractPage convertido a FullScreenModal (abre desde ContractsPage con showCreate/editId state, no navega). ContractsPage: import CreateContractStep1Page, modal state, New Contract button + Edit/Renew dropdown items abren modal. Build: 0 errores. |
+| 2026-06-22 | Navegación + F13 acceso por plan ✅ | (1) Fix doble loader al navegar: Suspense boundary movido dentro de MainLayout (`fallback={null}`), sidebar/header persisten, solo el loader de tabla queda. (2) Matriz `PLAN_FEATURES` alineada exacto a swift-slate + `FEATURE_NAMES`/`getMinimumPlanForFeature`. Clients siempre accesible. Contracts conserva trial propio. Sidebar muestra items bloqueados con candado → navegan a /subscription-plans con state.message (ya no se ocultan). SubscriptionPlansPage banner de upgrade. tsc + build: 0 errores. |
 | 2026-03-26 | CON-3 ✅ | CreateContractPage wizard container + Step 1 completo: ContractProgressBar (dot+line stepper), recipient search dropdown (clients+leads combinados, tipo badge, Add New Client abre ClientForm modal), display read-only (Name/Email/Phone/Address), Contract Period (date pickers con disabled < start), Contract Value (type=text inputMode=decimal + estimated total hint), Who We Are / Why Choose Us / Our Services / Service Coverage (textareas, pre-populate from profile as any). Edit mode: prefill desde useContract(id). Footer sticky: Save as Draft + Next. Exit dialog. Build: 0 errores. |
 | 2026-03-26 | CON-2 ✅ | ContractsPage completa: 4 KPI cards (Active/Pending/Expiring/Expired), toolbar (status filter + search + date picker + New button), tabla con 7 cols (Period/Frequency/Total hidden en mobile), dropdown acciones por estado, confirm dialog para delete, paginación. ContractStatusBadge con CSS vars semánticas. Build: 0 errores. |
 | 2026-03-25 | CON-1 ✅ | Contracts setup & base: types, schemas, config (CONTRACT_CUTOFF_DATE=2026-06-23), mocks (10 contratos), contractsMockService, contractsService (as any — tabla no existe aún en Supabase types), hooks (useContracts, useContract, useContractNumber, useSendContractEmail, useSendContractSMS, useContractAccess), skeleton pages (5 páginas), queryKeys (QK.contracts + QK.contract), routes (/contracts, /contracts/new, /step2, /step3, /:id/edit, /public/contract/:token, /contract redirect), VITE_USE_CONTRACT_MOCKS=true. Build: 0 errores. |
