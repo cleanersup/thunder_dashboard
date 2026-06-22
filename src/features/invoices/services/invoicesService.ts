@@ -5,6 +5,44 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { Invoice, InvoiceFilters, InvoiceFormData } from "../types/invoice.types";
+import { logInvoiceActivity } from "@/shared/services/activityLog";
+import { createNotification } from "@/features/notifications/services/notificationsService";
+
+// ─── Activity / notification side-effects (best-effort, never throw) ──────────
+
+/** Records an `invoice_paid` activity + owner notification. Never throws. */
+async function notifyInvoicePaid(inv: Invoice): Promise<void> {
+  try {
+    await logInvoiceActivity("invoice_paid", inv.invoice_number, inv.client_name, inv.total);
+    await createNotification({
+      userId:      inv.user_id,
+      type:        "invoice_paid",
+      title:       "Invoice Paid",
+      message:     `Invoice ${inv.invoice_number} for ${inv.client_name} has been paid ($${inv.total.toFixed(2)})`,
+      relatedId:   inv.id,
+      relatedType: "invoice",
+    });
+  } catch (e) {
+    console.error("[invoicesService] notifyInvoicePaid:", e);
+  }
+}
+
+/** Records an `invoice_canceled` activity + owner notification. Never throws. */
+async function notifyInvoiceCanceled(inv: Invoice): Promise<void> {
+  try {
+    await logInvoiceActivity("invoice_canceled", inv.invoice_number, inv.client_name, inv.total);
+    await createNotification({
+      userId:      inv.user_id,
+      type:        "invoice_canceled",
+      title:       "Invoice Canceled",
+      message:     `Invoice ${inv.invoice_number} for ${inv.client_name} was canceled`,
+      relatedId:   inv.id,
+      relatedType: "invoice",
+    });
+  } catch (e) {
+    console.error("[invoicesService] notifyInvoiceCanceled:", e);
+  }
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -168,7 +206,9 @@ export async function createInvoice(
     .single();
 
   if (error) throw error;
-  return data as Invoice;
+  const created = data as Invoice;
+  void logInvoiceActivity("invoice_created", created.invoice_number, created.client_name, created.total);
+  return created;
 }
 
 // ─── Update ───────────────────────────────────────────────────────────────────
@@ -229,6 +269,7 @@ export async function markInvoiceAsPaid(
     paid_date:      new Date().toISOString().split("T")[0],
   });
   queueInvoicePaidConfirmationEmails(id);
+  await notifyInvoicePaid(updated);
   return updated;
 }
 
@@ -268,7 +309,9 @@ export async function chargeInvoiceSavedCard(id: string): Promise<void> {
  * @returns Promise<Invoice>
  */
 export async function cancelInvoice(id: string): Promise<Invoice> {
-  return updateInvoice(id, { status: "Cancelled" });
+  const canceled = await updateInvoice(id, { status: "Cancelled" });
+  await notifyInvoiceCanceled(canceled);
+  return canceled;
 }
 
 /**

@@ -3,7 +3,8 @@
  * Main invoices listing page with KPI cards, table, search, and filters.
  * Adapted from thunder-web-version/src/pages/Invoices.tsx.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import {
   Plus, FileEdit, XCircle, ChevronLeft, ChevronRight, Search,
@@ -72,6 +73,18 @@ export function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState<"All" | InvoiceStatus>("All");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [currentPage,  setCurrentPage]  = useState(1);
+
+  const location = useLocation();
+
+  // ── Auto-open panel from state (coming from job completion or linked record) ─
+  useEffect(() => {
+    const state = location.state as { openId?: string } | null;
+    if (state?.openId) {
+      setDetailId(state.openId);
+      setIsDetailOpen(true);
+      window.history.replaceState({}, "");
+    }
+  }, [location.state]);
 
   // ── Modal state ──────────────────────────────────────────────────────────────
   const [detailId,       setDetailId]       = useState<string | null>(null);
@@ -477,16 +490,28 @@ export function InvoicesPage() {
                         )}
 
                         {invoice.status === "Pending" && (
-                          <DropdownMenuItem
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              await sendInvoiceEmail(invoice.id);
-                            }}
-                            disabled={isSending}
-                          >
-                            <Mail className="w-4 h-4 mr-2" />
-                            Send Reminder
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await sendInvoiceEmail(invoice.id);
+                              }}
+                              disabled={isSending}
+                            >
+                              <Mail className="w-4 h-4 mr-2" />
+                              Send Reminder
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await sendInvoiceEmail(invoice.id);
+                              }}
+                              disabled={isSending}
+                            >
+                              <Share className="w-4 h-4 mr-2" />
+                              Send Invoice
+                            </DropdownMenuItem>
+                          </>
                         )}
 
                         <DropdownMenuItem

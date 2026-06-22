@@ -33,12 +33,13 @@ export function useWalkthroughs() {
   });
 }
 
-export function useWalkthrough(id: string | undefined) {
+export function useWalkthrough(id: string | undefined, options?: { staleTime?: number }) {
   return useQuery({
     queryKey: QK.walkthrough(id!),
     queryFn:  () => fetchWalkthrough(id!),
     enabled:  Boolean(id),
-    staleTime: 2 * 60 * 1000,
+    staleTime: options?.staleTime ?? 2 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -49,8 +50,11 @@ export function useCreateWalkthrough() {
   return useMutation({
     mutationFn: (data: WalkthroughFormData) => createWalkthrough(data),
     onSuccess: (result) => {
-      // Fire-and-forget confirmation notification
+      // Fire-and-forget confirmation notifications (email + SMS), matching swift-slate
       void supabase.functions.invoke("send-walkthrough-confirmation", {
+        body: { walkthroughId: result.id },
+      });
+      void supabase.functions.invoke("send-walkthrough-confirmation-sms", {
         body: { walkthroughId: result.id },
       });
       qc.invalidateQueries({ queryKey: QK.walkthroughs });
@@ -63,11 +67,14 @@ export function useCreateWalkthrough() {
 export function useUpdateWalkthrough() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<WalkthroughFormData> }) =>
-      updateWalkthrough(id, data),
+    mutationFn: ({ id, data, newStatus }: { id: string; data: Partial<WalkthroughFormData>; newStatus?: string }) =>
+      updateWalkthrough(id, data, newStatus),
     onSuccess: (_, { id }) => {
-      // Fire-and-forget update notification
+      // Fire-and-forget update notifications (email + SMS), matching swift-slate
       void supabase.functions.invoke("send-walkthrough-update", {
+        body: { walkthroughId: id },
+      });
+      void supabase.functions.invoke("send-walkthrough-update-sms", {
         body: { walkthroughId: id },
       });
       qc.invalidateQueries({ queryKey: QK.walkthroughs });
@@ -83,8 +90,14 @@ export function useUpdateWalkthroughStatus() {
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       updateWalkthroughStatus(id, status),
-    onSuccess: (_, { id }) => {
-      // Email/SMS: Postgres trigger → send-walkthrough-status-emails after status UPDATE
+    onSuccess: (_, { id, status }) => {
+      // Email: Postgres trigger → send-walkthrough-status-emails after status UPDATE.
+      // Cancellation SMS is sent explicitly (fire-and-forget), matching swift-slate.
+      if (status === "Cancelled") {
+        void supabase.functions.invoke("send-walkthrough-cancellation-sms", {
+          body: { walkthroughId: id },
+        });
+      }
       qc.invalidateQueries({ queryKey: QK.walkthroughs });
       qc.invalidateQueries({ queryKey: QK.walkthrough(id) });
     },
@@ -96,8 +109,9 @@ export function useDeleteWalkthrough() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteWalkthrough(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: QK.walkthroughs });
+      qc.invalidateQueries({ queryKey: QK.walkthrough(id) });
       toast.success("Walkthrough deleted successfully");
     },
     onError: () => toast.error("Failed to delete walkthrough"),

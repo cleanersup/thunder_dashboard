@@ -7,10 +7,12 @@
  * and action handlers from EstimateDetailsModal to a single-column layout.
  *
  * Footer actions by status:
- *   Draft    → Continue · Start Fresh · More (Delete)
- *   Pending  → Accept · Send · More (Edit, Share, Download PDF, Convert, Cancel)
- *   Accepted → Add to Route (if not in route) · More (Edit, Share, Download PDF, Convert)
- *   Canceled → More (Edit, Share, Download PDF)
+ *   Draft    → Continue · More (Delete Draft)
+ *   Pending  → Mark as Accepted · More (Edit, Send email/SMS, Share, Download PDF, Decline, Cancel)
+ *   Accepted → Convert to Job/Invoice · More (Edit, Download PDF, Share, Add to Route)
+ *   Declined → Edit · More (Edit and Send, Cancel)
+ *   Canceled → Delete
+ * (Linked-job "View Job" link is rendered in the content card, not the footer.)
  */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -28,7 +30,7 @@ import {
 import {
   CheckCircle, Mail, MessageSquare, Phone, MapPin, Building2, Calendar,
   FileText, Edit, Share, Download, Eye, EyeOff,
-  Users, Box, TrendingUp, DollarSign, X, Play, RefreshCw, Trash2, Clock, MoreHorizontal, Map,
+  Users, Box, TrendingUp, DollarSign, X, Play, Trash2, Clock, MoreHorizontal, Briefcase, ThumbsDown, ChevronRight,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
@@ -47,6 +49,7 @@ import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { PDFService } from "@/shared/services/pdf.service";
 import { SidePanel } from "@/shared/components/common/SidePanel";
 import { buildInvoicePrefillFromEstimate } from "../utils/buildInvoicePrefill";
+import { useConvertEstimateToJob } from "@/features/jobs/hooks/useConvertEstimateToJob";
 
 // ─── Local helpers ────────────────────────────────────────────────────────────
 
@@ -57,23 +60,27 @@ function formatPhone(phone: string) {
 
 function getStatusColor(status: string) {
   switch (status) {
+    case "Draft":     return "hsl(45 93% 42%)";
     case "Pending":
-    case "Viewed":   return "hsl(var(--orange-vibrant))";
-    case "Accepted": return "hsl(var(--green-vibrant))";
-    case "Draft":    return "hsl(var(--muted-foreground))";
-    case "Canceled": return "hsl(var(--destructive))";
-    default:         return "hsl(var(--muted-foreground))";
+    case "Viewed":    return "hsl(var(--orange-vibrant))";
+    case "Accepted":  return "hsl(var(--green-vibrant))";
+    case "Invoiced":
+    case "Converted": return "hsl(270 70% 50%)";
+    case "Canceled":  return "hsl(var(--destructive))";
+    default:          return "hsl(var(--muted-foreground))";
   }
 }
 
 function getStatusBg(status: string) {
   switch (status) {
+    case "Draft":     return "hsl(45 93% 47% / 0.15)";
     case "Pending":
-    case "Viewed":   return "hsl(var(--orange-vibrant) / 0.1)";
-    case "Accepted": return "hsl(var(--green-vibrant) / 0.1)";
-    case "Draft":    return "hsl(var(--muted))";
-    case "Canceled": return "hsl(var(--destructive) / 0.1)";
-    default:         return "hsl(var(--muted))";
+    case "Viewed":    return "hsl(var(--orange-vibrant) / 0.1)";
+    case "Accepted":  return "hsl(var(--green-vibrant) / 0.1)";
+    case "Invoiced":
+    case "Converted": return "hsl(270 70% 50% / 0.15)";
+    case "Canceled":  return "hsl(var(--destructive) / 0.1)";
+    default:          return "hsl(var(--muted))";
   }
 }
 
@@ -94,42 +101,45 @@ interface EstimateDetailPanelProps {
 // ─── Footer component ─────────────────────────────────────────────────────────
 
 interface FooterProps {
-  status:           string;
-  isSending:        boolean;
-  isSendingSMS:     boolean;
-  isGeneratingLink: boolean;
-  isDownloadingPDF: boolean;
-  isAlreadyInRoute: boolean;
-  isAddingToRoute:  boolean;
-  hasPhone:         boolean;
-  onAccept:         () => void;
-  onSendEmail:      () => void;
-  onSendSMS:        () => void;
-  onEdit:           () => void;
-  onShare:          () => void;
-  onDownloadPDF:    () => void;
-  onConvert:        () => void;
-  onAddToRoute:     () => void;
-  onCancel:         () => void;
-  onDeleteDraft:    () => void;
-  onContinueDraft:  () => void;
-  onStartFresh:     () => void;
+  status:              string;
+  isSending:           boolean;
+  isSendingSMS:        boolean;
+  isGeneratingLink:    boolean;
+  isDownloadingPDF:    boolean;
+  isAlreadyInRoute:    boolean;
+  isAddingToRoute:     boolean;
+  hasPhone:            boolean;
+  hasJobConversion:    boolean;
+  isConvertingToJob:   boolean;
+  onAccept:            () => void;
+  onDecline:           () => void;
+  onSendEmail:         () => void;
+  onSendSMS:           () => void;
+  onEdit:              () => void;
+  onShare:             () => void;
+  onDownloadPDF:       () => void;
+  onConvert:           () => void;
+  onConvertToJob:      () => void;
+  onAddToRoute:        () => void;
+  onCancel:            () => void;
+  onDelete:            () => void;
+  onDeleteDraft:       () => void;
+  onContinueDraft:     () => void;
+  onEditAndSend:       () => void;
 }
 
 function PanelFooter({
   status, isSending, isSendingSMS, isGeneratingLink, isDownloadingPDF, isAlreadyInRoute, isAddingToRoute, hasPhone,
-  onAccept, onSendEmail, onSendSMS, onEdit, onShare, onDownloadPDF, onConvert, onAddToRoute, onCancel,
-  onDeleteDraft, onContinueDraft, onStartFresh,
+  hasJobConversion, isConvertingToJob,
+  onAccept, onDecline, onSendEmail, onSendSMS, onEdit, onShare, onDownloadPDF, onConvert, onConvertToJob, onAddToRoute, onCancel,
+  onDelete, onDeleteDraft, onContinueDraft, onEditAndSend,
 }: FooterProps) {
-  // Draft: Continue · Start Fresh · More (Delete)
+  // Draft: Continue + More (Delete Draft)
   if (status === "Draft") {
     return (
       <div className="flex items-center gap-2">
         <Button size="sm" className="flex-1" onClick={onContinueDraft}>
           <Play className="w-4 h-4 mr-1.5" /> Continue
-        </Button>
-        <Button size="sm" variant="outline" className="flex-1" onClick={onStartFresh}>
-          <RefreshCw className="w-4 h-4 mr-1.5" /> Start Fresh
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -139,7 +149,7 @@ function PanelFooter({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onDeleteDraft}>
-              <Trash2 className="w-4 h-4 mr-2" /> Delete
+              <Trash2 className="w-4 h-4 mr-2" /> Delete Draft
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -147,16 +157,11 @@ function PanelFooter({
     );
   }
 
-  // Pending / Viewed: Mark as Accepted · More (Edit, Send Email, Send SMS, Share, Download, Cancel)
+  // Pending / Viewed: Mark as Accepted (primary) + More (Edit, Send Email, SMS, Share, PDF, Decline, Cancel)
   if (status === "Pending" || status === "Viewed") {
     return (
       <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          className="flex-1"
-          style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }}
-          onClick={onAccept}
-        >
+        <Button size="sm" className="flex-1" style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }} onClick={onAccept}>
           <CheckCircle className="w-4 h-4 mr-1.5" /> Mark as Accepted
         </Button>
         <DropdownMenu>
@@ -184,6 +189,9 @@ function PanelFooter({
               <Download className="w-4 h-4 mr-2" /> {isDownloadingPDF ? "Downloading…" : "Download PDF"}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDecline}>
+              <ThumbsDown className="w-4 h-4 mr-2 text-orange-500" /> Decline
+            </DropdownMenuItem>
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" /> Cancel Estimate
             </DropdownMenuItem>
@@ -193,15 +201,14 @@ function PanelFooter({
     );
   }
 
-  // Accepted:
-  //   Not in route → Add to Route (primary) · More (Share, Download, Convert to Invoice, Cancel)
-  //   In route     → Convert to Invoice (primary) · More (Share, Download, Cancel)
+  // Accepted: Convert to Job (primary, if no job) / Convert to Invoice + More (Edit, PDF, Share)
   if (status === "Accepted") {
     return (
       <div className="flex items-center gap-2">
-        {!isAlreadyInRoute ? (
-          <Button size="sm" className="flex-1" onClick={onAddToRoute} disabled={isAddingToRoute}>
-            <Map className="w-4 h-4 mr-1.5" /> {isAddingToRoute ? "Adding…" : "Add to Route"}
+        {!hasJobConversion ? (
+          <Button size="sm" className="flex-1" style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }} onClick={onConvertToJob} disabled={isConvertingToJob}>
+            <Briefcase className="w-4 h-4 mr-1.5" />
+            {isConvertingToJob ? "Converting…" : "Convert to Job"}
           </Button>
         ) : (
           <Button size="sm" className="flex-1" onClick={onConvert}>
@@ -215,17 +222,52 @@ function PanelFooter({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={onShare} disabled={isGeneratingLink}>
-              <Share className="w-4 h-4 mr-2" /> {isGeneratingLink ? "Generating…" : "Share"}
+            <DropdownMenuItem onClick={onEdit}>
+              <Edit className="w-4 h-4 mr-2" /> Edit
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onDownloadPDF} disabled={isDownloadingPDF}>
               <Download className="w-4 h-4 mr-2" /> {isDownloadingPDF ? "Downloading…" : "Download PDF"}
             </DropdownMenuItem>
-            {!isAlreadyInRoute && (
-              <DropdownMenuItem onClick={onConvert}>
-                <FileText className="w-4 h-4 mr-2" /> Convert to Invoice
+            <DropdownMenuItem onClick={onShare} disabled={isGeneratingLink}>
+              <Share className="w-4 h-4 mr-2" /> {isGeneratingLink ? "Generating…" : "Share"}
+            </DropdownMenuItem>
+            {isAlreadyInRoute ? (
+              <DropdownMenuItem disabled>
+                <MapPin className="w-4 h-4 mr-2" /> Already in Route
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={onAddToRoute} disabled={isAddingToRoute}>
+                <MapPin className="w-4 h-4 mr-2" /> {isAddingToRoute ? "Adding…" : "Add to Route"}
               </DropdownMenuItem>
             )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    );
+  }
+
+  // Converted / Invoiced: link shown in content card — no footer needed
+  if (status === "Converted" || status === "Invoiced") {
+    return null;
+  }
+
+  // Declined: Edit (→Draft) primary + Edit and Send + More (Cancel)
+  if (status === "Declined") {
+    return (
+      <div className="flex items-center gap-2">
+        <Button size="sm" className="flex-1" onClick={onEdit}>
+          <Edit className="w-4 h-4 mr-1.5" /> Edit
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="px-2.5">
+              <MoreHorizontal className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={onEditAndSend}>
+              <Share className="w-4 h-4 mr-2" /> Edit and Send
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" /> Cancel Estimate
@@ -236,14 +278,11 @@ function PanelFooter({
     );
   }
 
-  // Canceled: Share · Download PDF
+  // Canceled: Delete
   return (
     <div className="flex items-center gap-2">
-      <Button size="sm" variant="outline" className="flex-1" onClick={onShare} disabled={isGeneratingLink}>
-        <Share className="w-4 h-4 mr-1.5" /> {isGeneratingLink ? "Generating…" : "Share"}
-      </Button>
-      <Button size="sm" variant="outline" className="flex-1" onClick={onDownloadPDF} disabled={isDownloadingPDF}>
-        <Download className="w-4 h-4 mr-1.5" /> {isDownloadingPDF ? "Downloading…" : "Download PDF"}
+      <Button size="sm" variant="outline" className="flex-1 gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={onDelete}>
+        <Trash2 className="w-4 h-4" /> Delete
       </Button>
     </div>
   );
@@ -270,8 +309,12 @@ export function EstimateDetailPanel({
   const [isEmailSuccessOpen,    setIsEmailSuccessOpen]    = useState(false);
   const [isDeleteDraftOpen,     setIsDeleteDraftOpen]     = useState(false);
   const [isDeletingDraft,       setIsDeletingDraft]       = useState(false);
+  const [isDeleteOpen,          setIsDeleteOpen]          = useState(false);
+  const [isDeleting,            setIsDeleting]            = useState(false);
   const [isAlreadyInRoute,      setIsAlreadyInRoute]      = useState(false);
   const [isAddingToRoute,       setIsAddingToRoute]       = useState(false);
+  const [isConvertingToJob,     setIsConvertingToJob]     = useState(false);
+  const convertEstimateToJob = useConvertEstimateToJob();
   const [draftClientInfo, setDraftClientInfo] = useState<{
     name: string; email: string; phone: string;
     address: string; city: string; state: string; zip: string;
@@ -378,6 +421,30 @@ export function EstimateDetailPanel({
     toast.success("Estimate canceled");
   }
 
+  async function handleDecline() {
+    if (!estimate) return;
+    await updateStatus.mutateAsync({ id: estimate.id, status: "Declined", estimate: { client_name: estimate.client_name, total: estimate.total } });
+    setEstimate({ ...estimate, status: "Declined" });
+    toast.success("Estimate declined");
+  }
+
+  async function handleDelete() {
+    if (!estimate) return;
+    setIsDeleting(true);
+    try {
+      const { deleteEstimate } = await import("../services/estimatesService");
+      await deleteEstimate(estimate.id);
+      qc.invalidateQueries({ queryKey: QK.estimates });
+      toast.success("Estimate deleted");
+      onClose();
+    } catch {
+      toast.error("Failed to delete estimate");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteOpen(false);
+    }
+  }
+
   async function handleDownloadPDF() {
     if (!estimate || !profile) { toast.error("Missing data to generate PDF"); return; }
     setIsDownloadingPDF(true);
@@ -455,8 +522,14 @@ export function EstimateDetailPanel({
     });
   }
 
-  function handleEdit() {
+  async function handleEdit() {
     if (!estimate) return;
+    // Reset status before editing (mirrors swift-slate behavior)
+    if (estimate.status === "Accepted") {
+      await updateStatus.mutateAsync({ id: estimate.id, status: "Pending", estimate: { client_name: estimate.client_name, total: estimate.total } });
+    } else if (estimate.status === "Declined") {
+      await updateStatus.mutateAsync({ id: estimate.id, status: "Draft", estimate: { client_name: estimate.client_name, total: estimate.total } });
+    }
     onClose();
     if (onEdit) {
       onEdit(estimate);
@@ -464,6 +537,13 @@ export function EstimateDetailPanel({
       const route = estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential";
       navigate(route, { state: { isEditing: true, estimateId: estimate.id, estimateData: estimate } });
     }
+  }
+
+  function handleEditAndSend() {
+    if (!estimate) return;
+    onClose();
+    const route = estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential";
+    navigate(route, { state: { isEditing: true, estimateId: estimate.id, estimateData: estimate } });
   }
 
   async function handleAddToRoute() {
@@ -556,6 +636,16 @@ export function EstimateDetailPanel({
     }
   }
 
+  async function handleConvertToJob() {
+    if (!estimate) return;
+    await convertEstimateToJob({
+      estimate,
+      onStart:   () => setIsConvertingToJob(true),
+      onFinally: () => setIsConvertingToJob(false),
+      onSuccess: () => onClose(),
+    });
+  }
+
   function handleConvertToInvoice() {
     if (!estimate) return;
     const prefill = buildInvoicePrefillFromEstimate(estimate);
@@ -572,19 +662,6 @@ export function EstimateDetailPanel({
     onClose();
     if (onOpenEstimateWizard) onOpenEstimateWizard(estimate.service_type, true);
     else navigate(estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential");
-  }
-
-  async function handleStartFreshDraft() {
-    if (!estimate) return;
-    try {
-      await deleteDraftEstimate(estimate.id);
-      qc.invalidateQueries({ queryKey: QK.estimates });
-      onClose();
-      if (onOpenEstimateWizard) onOpenEstimateWizard(estimate.service_type, false);
-      else navigate(estimate.service_type === "Commercial" ? "/estimates/new/commercial" : "/estimates/new/residential");
-    } catch {
-      toast.error("Failed to delete draft");
-    }
   }
 
   async function handleDeleteDraft() {
@@ -712,18 +789,23 @@ export function EstimateDetailPanel({
       isAlreadyInRoute={isAlreadyInRoute}
       isAddingToRoute={isAddingToRoute}
       hasPhone={!!estimate?.phone}
+      hasJobConversion={!!estimate?.job_id}
+      isConvertingToJob={isConvertingToJob}
       onAccept={() => setIsAcceptDialogOpen(true)}
+      onDecline={handleDecline}
       onSendEmail={handleSendEmail}
       onSendSMS={handleSendSMS}
       onEdit={handleEdit}
       onShare={handleShare}
       onDownloadPDF={handleDownloadPDF}
       onConvert={handleConvertToInvoice}
+      onConvertToJob={handleConvertToJob}
       onAddToRoute={handleAddToRoute}
       onCancel={() => setIsCancelDialogOpen(true)}
+      onDelete={() => setIsDeleteOpen(true)}
       onDeleteDraft={() => setIsDeleteDraftOpen(true)}
       onContinueDraft={handleContinueDraft}
-      onStartFresh={handleStartFreshDraft}
+      onEditAndSend={handleEditAndSend}
     />
   ) : undefined;
 
@@ -975,6 +1057,37 @@ export function EstimateDetailPanel({
                   </CardContent>
                 </Card>
 
+                {/* Converted To — same card pattern as Request & Walkthrough panels */}
+                {(f.status === "Converted" || f.status === "Invoiced") && (
+                  <Card className="border border-border/50">
+                    <CardContent className="p-4 space-y-2">
+                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Converted To
+                      </p>
+                      {(estimate as any)?.job_id ? (
+                        <button
+                          type="button"
+                          onClick={() => { onClose(); navigate("/jobs", { state: { openId: (estimate as any).job_id } }); }}
+                          className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-secondary/50 transition-colors text-left"
+                        >
+                          <div className="p-2 rounded bg-blue-500/10 flex-shrink-0">
+                            <Briefcase className="w-4 h-4 text-blue-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">Job</p>
+                            <p className="text-xs text-muted-foreground capitalize">
+                              {f.serviceType}
+                            </p>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                        </button>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">The linked job was deleted.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Total Amount + Net Profit */}
                 <Card className="border border-border/50">
                   <CardContent className="p-4">
@@ -1185,6 +1298,21 @@ export function EstimateDetailPanel({
                 )}
               </>
             )}
+
+            {/* ── Timeline ────────────────────────────────────────────── */}
+            {estimate && (
+              <div className="pt-2 space-y-2">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timeline</p>
+                <p className="text-xs text-muted-foreground">
+                  Created {format(new Date(estimate.created_at), "MMM d, yyyy 'at' h:mm a")}
+                </p>
+                {estimate.updated_at !== estimate.created_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Updated {format(new Date(estimate.updated_at), "MMM d, yyyy 'at' h:mm a")}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </SidePanel>
@@ -1225,6 +1353,28 @@ export function EstimateDetailPanel({
             <AlertDialogCancel>Keep Estimate</AlertDialogCancel>
             <AlertDialogAction onClick={handleCancel} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Cancel Estimate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Delete estimate confirmation ─────────────────────────────────────── */}
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Estimate?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This estimate will be permanently deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

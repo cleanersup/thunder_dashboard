@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { addEstimateActivity } from "../services/estimatesService";
+import { logEstimateActivity } from "@/shared/services/activityLog";
 
 interface SendEstimateEmailParams {
   estimateData:   Record<string, any>;
@@ -47,7 +47,7 @@ export function useSendEstimateEmail() {
       }
 
       // Log activity
-      await addEstimateActivity(
+      await logEstimateActivity(
         "estimate_sent",
         estimateData.id?.slice(0, 6) ? `EST-${estimateData.id.slice(0, 6)}` : "N/A",
         estimateData.client_name || "Unknown",

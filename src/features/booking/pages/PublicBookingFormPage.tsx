@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle2, CalendarIcon } from "lucide-react";
+import { createNotification } from "@/features/notifications/services/notificationsService";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -93,11 +94,12 @@ export function PublicBookingFormPage() {
   );
 
   const { mutate: submit, isPending } = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!fullName || !email || !phone || !street || !city || !state || !zip || !serviceType) {
         throw new Error("Please fill in all required fields.");
       }
-      return submitPublicBooking(userId!, {
+
+      const booking = await submitPublicBooking(userId!, {
         lead_name:                fullName,
         email,
         phone:                    phone.replace(/\D/g, ""),
@@ -117,6 +119,17 @@ export function PublicBookingFormPage() {
         service_details:          serviceDetails || null,
         custom_answers:           Object.keys(customAnswers).length > 0 ? customAnswers : null,
       });
+
+      // create-booking already sends the confirmation email to the lead.
+      // Create in-app notification for business owner (fire-and-forget).
+      void createNotification({
+        userId:      userId!,
+        type:        "booking_new",
+        title:       "New Booking Request",
+        message:     `${fullName} submitted a new ${serviceType} booking request`,
+        relatedId:   booking.id,
+        relatedType: "booking",
+      }).catch(() => {});
     },
     onSuccess: () => setSubmitted(true),
     onError:   (err: Error) => toast.error(err.message ?? "Failed to submit booking"),

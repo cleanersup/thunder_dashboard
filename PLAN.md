@@ -797,12 +797,85 @@ Esto significa:
 | 2026-03-26 | CON-4 ✅ CON-5 ✅ CON-6 ✅ CON-11 ✅ CON-12 ✅ | Step 2 Policies: drag-to-reorder nativo, Auto Generate (generate-company-description edge fn), Save as Default (profile cols clause_*), Add Custom Policy modal, delete confirm, init desde profile. Step 3 Preview + Send: ContractPreview HTML (paginado), generateContractPDF (jsPDF adaptado a ContractClause[]), DeliveryMethodSelector, Download PDF, Send Contract (createM/updateM → sendEmail/sendSMS), success dialog. ContractDetailModal (DetailModal+InfoRow, 2-col grid, Resend Email/SMS, Edit action). CON-12: useContractAccess trial banner + no-access banner en ContractsPage. View Details wireable + row click → detail modal. Build: 0 errores. |
 | 2026-03-20 | F21 planificada | Contratos: plan completo de migración desde thunder-web-version. |
 | 2026-04-01 | F22 cancelada | Auto Generate con Claude Haiku — descartado, no se implementará. |
+| 2026-06-15 | New Workflow Spec ✅ | Implementación completa de specs SPEC_PART1–7. Ver detalle abajo. |
 | 2026-03-25 | Profile redesign ✅ | ProfilePage: centered max-w-2xl card + underline tabs (info/company/security/subscriptions). SubscriptionPlansContent: Switch billing toggle + ACTIVE badge top-left ribbon. Stripe error handling: data.error detection + AlertDialog feedback. Build: 0 errores. |
 | 2026-03-26 | CON-3 footer fix ✅ | Footer wizard: removido fixed bottom-0. Ahora inline dentro del scroll (mt-4, justify-between). Botones: Cancel (outline, px-6) izquierda → abre exit dialog — Next (primary, px-6) derecha. Max-w-2xl centrado en desktop. "Leave" en exit dialog usa goBack() (cierra modal o navega). Build: 0 errores. |
 | 2026-03-26 | CON-3 ✅ + FullScreenModal ✅ | CreateContractPage convertido a FullScreenModal (abre desde ContractsPage con showCreate/editId state, no navega). ContractsPage: import CreateContractStep1Page, modal state, New Contract button + Edit/Renew dropdown items abren modal. Build: 0 errores. |
 | 2026-03-26 | CON-3 ✅ | CreateContractPage wizard container + Step 1 completo: ContractProgressBar (dot+line stepper), recipient search dropdown (clients+leads combinados, tipo badge, Add New Client abre ClientForm modal), display read-only (Name/Email/Phone/Address), Contract Period (date pickers con disabled < start), Contract Value (type=text inputMode=decimal + estimated total hint), Who We Are / Why Choose Us / Our Services / Service Coverage (textareas, pre-populate from profile as any). Edit mode: prefill desde useContract(id). Footer sticky: Save as Draft + Next. Exit dialog. Build: 0 errores. |
 | 2026-03-26 | CON-2 ✅ | ContractsPage completa: 4 KPI cards (Active/Pending/Expiring/Expired), toolbar (status filter + search + date picker + New button), tabla con 7 cols (Period/Frequency/Total hidden en mobile), dropdown acciones por estado, confirm dialog para delete, paginación. ContractStatusBadge con CSS vars semánticas. Build: 0 errores. |
 | 2026-03-25 | CON-1 ✅ | Contracts setup & base: types, schemas, config (CONTRACT_CUTOFF_DATE=2026-06-23), mocks (10 contratos), contractsMockService, contractsService (as any — tabla no existe aún en Supabase types), hooks (useContracts, useContract, useContractNumber, useSendContractEmail, useSendContractSMS, useContractAccess), skeleton pages (5 páginas), queryKeys (QK.contracts + QK.contract), routes (/contracts, /contracts/new, /step2, /step3, /:id/edit, /public/contract/:token, /contract redirect), VITE_USE_CONTRACT_MOCKS=true. Build: 0 errores. |
+
+---
+
+---
+
+## New Workflow Implementation (2026-06-15/16) ✅
+
+### TAREA 1 — planFeatures.ts + queryKeys.ts ✅
+- `FeatureKey`: `"booking"` → `"requests"`, añadido `"jobs"`
+- `PLAN_FEATURES`: essential usa `"requests"`, professional añade `"jobs"`
+- `queryKeys.ts`: nuevas keys `QK.requests`, `QK.requestForms`, `QK.requestsCount`, `QK.request(id)`, `QK.requestConversion(id)`, `QK.jobs`, `QK.job(id)`, `QK.jobInvoices(ids)`, `QK.clientProperties(clientId)`
+
+### TAREA 2 — Booking → Requests ✅
+- Nueva feature `src/features/requests/` con todos los archivos renombrados y actualizados
+- `requestsService.ts`: funciones renombradas + `resolveOrCreateContact` + `createRequest` + `updateRequest` (con `create-booking` edge fn + attachments upload)
+- `useRequests.ts`: hooks con nuevas QK
+- `RequestDetailPanel.tsx`: panel con botón "Convert Request" (abre `ConvertRequestDialog`)
+- `RequestsPage.tsx`: KPI "Total/New Requests", botón "+ New Request" 
+- `EditRequestFormPage.tsx`: formulario de edición del form público
+- `ConvertRequestDialog.tsx`: opciones Estimate/Walkthrough con resolución de contacto
+- `useCustomQuestions.ts`: hook para preguntas personalizadas del booking form
+- `RequestForm.tsx`: formulario completo (create/edit, contact picker, address, attachments, image compression)
+- `AddRequestPage.tsx`: página `/requests/new` que orquesta `RequestForm`
+- Sidebar: `/requests`, ícono `CalendarClock`, feature `"requests"`
+- Routes: `/requests`, `/requests/new`, `/requests/edit`, redirects de `/booking` y `/booking/edit`
+- **`/booking/:userId` permanece igual** (URL pública)
+
+### TAREA 3 — CRM separado ✅
+- `useCRMStats.ts` extendido: activeLeads, hotLeads, convertedLeads, inactiveClients, pendingTasks, inProgressTasks, completedTasks
+- `LeadsPage.tsx` (`/leads`): KPI + kanban
+- `ClientsPage.tsx` (`/clients`): KPI + tabla
+- `TasksPage.tsx` (`/tasks`): KPI + tabla
+- Sidebar: 3 entradas separadas (Leads/Clients/Tasks)
+- Routes: `/crm` → redirect a `/leads`
+
+### TAREA 3C — Client Properties ✅
+- `clientProperty.types.ts`, `clientPropertyService.ts`, `useClientProperties.ts`, `clientPropertySchema.ts`
+- `PropertyForm.tsx` (modal crear/editar propiedades con toggle Primary)
+- `PropertyCard.tsx` (card con Set Primary / Edit / Delete)
+- `ClientDetailPanel.tsx` actualizado con sección "Properties"
+
+### TAREA 3D — ServicePropertySelector + ContactPicker ✅
+- `ServicePropertySelector.tsx`: select propiedad con auto-select primary, muestra dirección seleccionada
+- `ContactPicker.tsx`: toggle Client/Lead + picker + ServicePropertySelector integrado + auto-select por URL params
+
+### TAREA 4 — Jobs infraestructura ✅
+- `job.types.ts`: tipos completos + helpers puros (`dbToJob`, `getEffectiveJobStatus`, etc.)
+- `jobStatusConfig.tsx`: colores, badges, íconos por status
+- `jobsService.ts`: CRUD completo (usa `db = supabase as any` para tabla no tipada)
+- `useJobs.ts`, `useJobMutations.ts`, `useJobInvoices.ts`, `useConvertEstimateToJob.ts`
+- `jobSchema.ts`: Zod schema
+
+### TAREA 5 — Jobs UI ✅
+- `JobStatusBadge.tsx`, `JobCompleteDialog.tsx`
+- `JobsPage.tsx` (`/jobs`): KPI (Total/Completed/Revenue/Completion Rate), filtros, tabla, real-time
+- `AddJobPage.tsx` (`/jobs/new`, `/jobs/:id/edit`): `ContactPicker` integrado, pricing con discount/tax/deposit
+- `JobDetailPage.tsx` (`/jobs/:id`): detalle 2 columnas, acciones Complete/Cancel/Delete/Download PDF
+- `generateJobPDF.ts`: PDF de work order con logo, company info, services table, totals
+
+### TAREA 6 — Flujo de conversión ✅
+- `ConvertRequestDialog.tsx`: Request → Estimate o Walkthrough (con `resolveOrCreateContact`)
+- `AddWalkthroughPage.tsx`: detecta `fromRequestId`, llama `finalize_booking_conversion` RPC en success
+- `CreateResidentialEstimatePage.tsx` + `CreateCommercialEstimatePage.tsx`: detectan `fromRequestId`, llaman RPC en success
+- `EstimateDetailPanel.tsx`: botón "Convert to Job" cuando `status=Accepted && !estimate.job_id`; usa `useConvertEstimateToJob`
+
+### TAREA 8 — Rutas + Sidebar Jobs ✅
+- Rutas `/jobs`, `/jobs/new`, `/jobs/:id`, `/jobs/:id/edit`
+- Sidebar: entrada "Jobs" con ícono `Briefcase`, feature `"jobs"`, posición entre Estimates e Invoices
+
+### Limpieza de código muerto ✅
+- Eliminados: `booking/BookingPage.tsx`, `booking/EditBookingFormPage.tsx`, `booking/BookingDetailPanel.tsx`, `booking/BookingDetailModal.tsx`, `crm/pages/CRMPage.tsx`
+- Instalado `@stripe/react-stripe-js` (dependencia faltante)
 
 ---
 

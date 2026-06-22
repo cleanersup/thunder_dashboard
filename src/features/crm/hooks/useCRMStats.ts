@@ -16,10 +16,17 @@ export function useCRMStats() {
   const { data: tasks = [],  isLoading: loadingTasks }   = useTasks();
 
   const stats = useMemo(() => ({
-    totalLeads:    leads.length,
-    allClients:    clients.length,
-    activeClients: clients.filter((c) => c.status === "active").length,
-    totalTasks:    tasks.length,
+    totalLeads:      leads.length,
+    allClients:      clients.length,
+    activeClients:   clients.filter((c) => c.status === "active").length,
+    inactiveClients: clients.filter((c) => c.status === "inactive").length,
+    totalTasks:      tasks.length,
+    activeLeads:     leads.filter((l) => l.status === "active").length,
+    hotLeads:        leads.filter((l) => l.priority_level === "high").length,
+    convertedLeads:  leads.filter((l) => l.status === "won").length,
+    pendingTasks:    tasks.filter((t) => t.status === "pending").length,
+    inProgressTasks: tasks.filter((t) => t.status === "in_progress").length,
+    completedTasks:  tasks.filter((t) => t.status === "completed").length,
   }), [clients, leads, tasks]);
 
   return {

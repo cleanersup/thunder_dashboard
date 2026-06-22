@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Building2 } from "lucide-react";
 import { RESIDENTIAL_STEPS } from "../config/steps.config";
 import { EstimateClientStep, type ClientEntity, type LeadEntity, type EstimateEntityType } from "../components/EstimateClientStep";
@@ -29,6 +30,8 @@ import { fetchClient } from "@/features/crm/clients/services/clientsService";
 import { fetchLead } from "@/features/crm/leads/services/leadsService";
 import { useResidentialPricing } from "../hooks/useResidentialPricing";
 import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
+import { supabase } from "@/integrations/supabase/client";
+import { QK } from "@/shared/config/queryKeys";
 import type { DraftData } from "../types/estimate.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -42,8 +45,10 @@ interface Props {
 export function CreateResidentialEstimatePage({ open, onClose, initialState }: Props = {}) {
   const navigate    = useNavigate();
   const location    = useLocation();
+  const qc          = useQueryClient();
   const locationState = (location.state as any) || {};
   const { isEditing, estimateId, estimateData, prefill, continueDraft } = initialState ?? locationState;
+  const fromWalkthroughId  = locationState.fromWalkthroughId  as string | undefined;
   const isModal = onClose !== undefined;
   const goBack = useCallback(() => {
     if (isModal) onClose!();
@@ -390,6 +395,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       overhead_cost: overheadCost, total_operation_cost: totalOpCost,
       status: (deliveryMethod === "email" || deliveryMethod === "sms" || deliveryMethod === "both") ? "Pending" : "Draft",
       estimate_date: new Date().toISOString(),
+      is_draft: false,
     };
 
     try {
@@ -401,6 +407,13 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       } else {
         const saved = await createEst.mutateAsync(payload);
         savedId = saved.id;
+        if (fromWalkthroughId) {
+          await (supabase as any).rpc("finalize_walkthrough_to_estimate_conversion", {
+            p_walkthrough_id: fromWalkthroughId,
+            p_estimate_id:    savedId,
+          });
+          qc.invalidateQueries({ queryKey: QK.walkthroughs });
+        }
       }
       if (deliveryMethod === "email" || deliveryMethod === "both") {
         await sendEstimateEmail({
@@ -663,9 +676,10 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   }
 
   // ── Page mode ────────────────────────────────────────────────────────────
-  // Walkthrough "Generate Estimate" navigates here with `prefill` — match the Estimates
-  // feature modal shell (FullScreenModal + isModal layout) so styling is identical.
-  if (prefill) {
+  // Walkthrough "Generate Estimate" navigates with `prefill`.
+  // Request conversion navigates with `isEditing: true`.
+  // Both must render as FullScreenModal to match the modal-based UX.
+  if (prefill || isEditing) {
     return (
       <>
         {formDialogs}

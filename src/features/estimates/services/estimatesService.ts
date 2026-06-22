@@ -16,6 +16,7 @@ export async function fetchEstimates() {
     .from("estimates")
     .select("*")
     .eq("user_id", user.id)
+    .neq("status", "Deleted")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
@@ -85,12 +86,16 @@ export async function updateEstimateStatus(id: string, status: string) {
 }
 
 /**
- * Permanently deletes an estimate.
+ * Soft-deletes an estimate by setting status to 'Deleted'.
+ * Keeps the row in the DB so linked bookings/walkthroughs retain their reference.
  * @param id - The estimate UUID
  * @throws On Supabase query failure
  */
 export async function deleteEstimate(id: string) {
-  const { error } = await supabase.from("estimates").delete().eq("id", id);
+  const { error } = await supabase
+    .from("estimates")
+    .update({ status: "Deleted", updated_at: new Date().toISOString() })
+    .eq("id", id);
   if (error) throw error;
 }
 
@@ -234,7 +239,8 @@ export async function saveDraftEstimate(
 }
 
 /**
- * Permanently deletes a draft estimate.
+ * Soft-deletes a draft estimate (same as deleteEstimate but scoped to drafts).
+ * Keeps the row so any linked booking/walkthrough retains its reference.
  * @param draftId - The draft estimate UUID
  */
 export async function deleteDraftEstimate(draftId: string) {
@@ -242,61 +248,11 @@ export async function deleteDraftEstimate(draftId: string) {
   if (!user) return;
   await supabase
     .from("estimates")
-    .delete()
+    .update({ status: "Deleted", updated_at: new Date().toISOString() })
     .eq("id", draftId)
-    .eq("user_id", user.id)
-    .eq("is_draft", true);
+    .eq("user_id", user.id);
 }
 
-// ─── Activities + Notifications ───────────────────────────────────────────────
-
-/**
- * Logs an estimate activity (sent, accepted, canceled, etc.).
- * @param type           - Activity type key
- * @param estimateNumber - Short estimate number (e.g. "EST-ABC123")
- * @param clientName     - Client name for context
- * @param amount         - Estimate total
- */
-export async function addEstimateActivity(
-  type: "estimate_created" | "estimate_sent" | "estimate_accepted" | "estimate_canceled",
-  estimateNumber: string,
-  clientName: string,
-  amount: number,
-) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-  await supabase.from("activities").insert({
-    user_id:        user.id,
-    type,
-    title:          `Estimate ${estimateNumber} was ${type.split("_")[1]}`,
-    estimate_number: estimateNumber,
-    client_name:    clientName,
-    amount,
-  });
-}
-
-/**
- * Creates a notification for an estimate event.
- * @param userId  - The business owner's user_id
- * @param type    - Notification type
- * @param title   - Notification title
- * @param message - Notification message
- * @param relatedId - The estimate UUID
- */
-export async function addEstimateNotification(
-  userId: string,
-  type:    string,
-  title:   string,
-  message: string,
-  relatedId: string,
-) {
-  await supabase.from("notifications").insert({
-    user_id:      userId,
-    type,
-    title,
-    message,
-    related_id:   relatedId,
-    related_type: "estimate",
-    is_read:      false,
-  });
-}
+// Estimate activity logging + notifications are centralized in
+// @/shared/services/activityLog (logEstimateActivity) and
+// @/features/notifications/services/notificationsService (createNotification).

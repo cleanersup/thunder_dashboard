@@ -7,12 +7,12 @@ import {
   updateEstimate,
   updateEstimateStatus,
   deleteEstimate,
-  addEstimateActivity,
-  addEstimateNotification,
 } from "../services/estimatesService";
 import type { EstimateInsert, EstimateUpdate } from "../types/estimate.types";
 import { supabase } from "@/integrations/supabase/client";
 import { QK } from "@/shared/config/queryKeys";
+import { logEstimateActivity } from "@/shared/services/activityLog";
+import { createNotification } from "@/features/notifications/services/notificationsService";
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -22,10 +22,11 @@ import { QK } from "@/shared/config/queryKeys";
  */
 export function useEstimates() {
   return useQuery({
-    queryKey:     QK.estimates,
-    queryFn:      fetchEstimates,
-    staleTime:    2 * 60 * 1000, // 2 minutes
-    refetchOnMount: "always",
+    queryKey:        QK.estimates,
+    queryFn:         fetchEstimates,
+    staleTime:       0,
+    refetchOnMount:  "always",
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -33,12 +34,13 @@ export function useEstimates() {
  * Fetches a single estimate by ID.
  * @param id - The estimate UUID (pass null to skip)
  */
-export function useEstimate(id: string | null) {
+export function useEstimate(id: string | null, options?: { staleTime?: number }) {
   return useQuery({
     queryKey:  QK.estimate(id!),
     queryFn:   () => fetchEstimate(id!),
     enabled:   !!id,
-    staleTime: 60 * 1000,
+    staleTime: options?.staleTime ?? 60 * 1000,
+    retry: false,
   });
 }
 
@@ -53,7 +55,7 @@ export function useCreateEstimate() {
     mutationFn: async (payload: Omit<EstimateInsert, "user_id">) => {
       const estimate = await createEstimate(payload);
       const estimateNumber = `EST-${estimate.id.slice(0, 6)}`;
-      await addEstimateActivity("estimate_created", estimateNumber, estimate.client_name, estimate.total);
+      await logEstimateActivity("estimate_created", estimateNumber, estimate.client_name, estimate.total);
       return estimate;
     },
     onSuccess: () => {
@@ -94,23 +96,25 @@ export function useUpdateEstimateStatus() {
       if (user) {
         const estimateNumber = `EST-${id.slice(0, 6)}`;
         if (status === "Accepted") {
-          await addEstimateActivity("estimate_accepted", estimateNumber, estimate.client_name, estimate.total);
-          await addEstimateNotification(
-            user.id,
-            "estimate_accepted",
-            "Estimate Accepted",
-            `Estimate ${estimateNumber} for ${estimate.client_name} was accepted ($${estimate.total.toFixed(2)})`,
-            id,
-          );
+          await logEstimateActivity("estimate_accepted", estimateNumber, estimate.client_name, estimate.total);
+          await createNotification({
+            userId:      user.id,
+            type:        "estimate_accepted",
+            title:       "Estimate Accepted",
+            message:     `Estimate ${estimateNumber} for ${estimate.client_name} was accepted ($${estimate.total.toFixed(2)})`,
+            relatedId:   id,
+            relatedType: "estimate",
+          });
         } else if (status === "Canceled") {
-          await addEstimateActivity("estimate_canceled", estimateNumber, estimate.client_name, estimate.total);
-          await addEstimateNotification(
-            user.id,
-            "estimate_canceled",
-            "Estimate Canceled",
-            `Estimate ${estimateNumber} for ${estimate.client_name} was canceled`,
-            id,
-          );
+          await logEstimateActivity("estimate_canceled", estimateNumber, estimate.client_name, estimate.total);
+          await createNotification({
+            userId:      user.id,
+            type:        "estimate_canceled",
+            title:       "Estimate Canceled",
+            message:     `Estimate ${estimateNumber} for ${estimate.client_name} was canceled`,
+            relatedId:   id,
+            relatedType: "estimate",
+          });
         }
       }
     },
@@ -131,8 +135,9 @@ export function useDeleteEstimate() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteEstimate,
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: QK.estimates });
+      qc.invalidateQueries({ queryKey: QK.estimate(id) });
       toast.success("Estimate deleted");
     },
     onError: (err: Error) => toast.error(err.message ?? "Failed to delete estimate"),

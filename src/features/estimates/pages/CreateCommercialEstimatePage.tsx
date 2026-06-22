@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Building2 } from "lucide-react";
 import { COMMERCIAL_STEPS } from "../config/steps.config";
 import { EstimateClientStep, type ClientEntity, type LeadEntity, type EstimateEntityType } from "../components/EstimateClientStep";
@@ -26,6 +27,8 @@ import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { useDraftEstimate } from "../hooks/useDraftEstimate";
 import { fetchEstimate } from "../services/estimatesService";
 import { useCommercialPricing, isGroupB } from "../hooks/useCommercialPricing";
+import { supabase } from "@/integrations/supabase/client";
+import { QK } from "@/shared/config/queryKeys";
 import type { DraftData } from "../types/estimate.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -37,10 +40,12 @@ interface Props {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export function CreateCommercialEstimatePage({ open, onClose, initialState }: Props = {}) {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate      = useNavigate();
+  const location      = useLocation();
+  const qc            = useQueryClient();
   const locationState = (location.state as any) || {};
   const { isEditing, estimateId, estimateData, prefill } = initialState ?? locationState;
+  const fromWalkthroughId = locationState.fromWalkthroughId as string | undefined;
   const isModal      = onClose !== undefined;
   const continueDraft = initialState?.continueDraft ?? false;
   const goBack = useCallback(() => {
@@ -453,6 +458,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
         discount_value: applyDiscount && discountValue ? parseFloat(discountValue) : null,
         status: (deliveryMethod === "email" || deliveryMethod === "sms" || deliveryMethod === "both") ? "Pending" : "Draft",
         estimate_date:  new Date().toISOString().split("T")[0],
+        is_draft: false,
       };
 
       let finalId: string;
@@ -462,6 +468,13 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       } else {
         const created = await createEstimate(payload);
         finalId = created.id;
+        if (fromWalkthroughId) {
+          await (supabase as any).rpc("finalize_walkthrough_to_estimate_conversion", {
+            p_walkthrough_id: fromWalkthroughId,
+            p_estimate_id:    finalId,
+          });
+          qc.invalidateQueries({ queryKey: QK.walkthroughs });
+        }
       }
 
       // Send email when delivery method includes email
@@ -739,9 +752,10 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   }
 
   // ── Page mode ────────────────────────────────────────────────────────────
-  // Walkthrough "Generate Estimate" navigates here with `prefill` — match the Estimates
-  // feature modal shell (FullScreenModal + isModal layout) so styling is identical.
-  if (prefill) {
+  // Walkthrough "Generate Estimate" navigates with `prefill`.
+  // Request conversion navigates with `isEditing: true`.
+  // Both must render as FullScreenModal to match the modal-based UX.
+  if (prefill || isEditing) {
     return (
       <>
         {formDialogs}

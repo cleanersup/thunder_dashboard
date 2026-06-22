@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
@@ -31,29 +31,51 @@ import { EntityPickerField } from "@/shared/components/common/EntityPickerField"
 import type { EntityOption } from "@/shared/components/common/EntityPickerField";
 import { EmployeeForm } from "@/features/employees/components/EmployeeForm";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { cn } from "@/shared/utils/cn";
-import { toast } from "sonner";
 import { walkthroughSchema } from "../schemas/walkthroughSchema";
 import type { WalkthroughFormData } from "../schemas/walkthroughSchema";
 import { useCreateWalkthrough, useUpdateWalkthrough, useWalkthrough } from "../hooks/useWalkthroughs";
+import { supabase } from "@/integrations/supabase/client";
 import { useAllEmployees } from "@/features/employees/hooks/useEmployees";
 import { EstimateClientStep } from "@/features/estimates/components/EstimateClientStep";
+import { useClients } from "@/features/crm/clients/hooks/useClients";
+import { useLeads } from "@/features/crm/leads/hooks/useLeads";
 import type { ClientEntity, LeadEntity } from "@/shared/types/entities";
 type WalkthroughEntityType = "client" | "lead";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface AddWalkthroughPageProps {
-  /** When provided, renders as a full-screen Dialog. Omit for standalone page mode. */
   open?: boolean;
   onClose?: () => void;
+  // Conversion-from-request prefill
+  fromRequestId?:      string;          // booking ID → calls finalize after save (no-date case)
+  walkthroughEditId?:  string;          // draft ID  → UPDATE instead of INSERT (date case)
+  prefillContactType?: "client" | "lead";
+  prefillContactId?:   string;
+  prefillServiceType?: "residential" | "commercial";
+  prefillDate?:        string;          // yyyy-MM-dd
+  prefillTime?:        string;          // HH:mm
+  prefillNotes?:       string;
 }
 
-export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = {}) {
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-  const { id: walkthroughId } = useParams<{ id: string }>();
-  const isEdit = Boolean(walkthroughId);
+export function AddWalkthroughPage({
+  open, onClose,
+  fromRequestId:      fromRequestIdProp,
+  walkthroughEditId,
+  prefillContactType, prefillContactId,
+  prefillServiceType, prefillDate, prefillTime, prefillNotes,
+}: AddWalkthroughPageProps = {}) {
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const qc        = useQueryClient();
+  const { id: urlWalkthroughId } = useParams<{ id: string }>();
+  // walkthroughEditId prop (modal conversion) takes precedence over URL param
+  const walkthroughId = walkthroughEditId ?? urlWalkthroughId;
+  const locationState = (location.state as Record<string, unknown>) || {};
+  const fromRequestId = fromRequestIdProp ?? (locationState.fromRequestId as string | undefined);
+  const isEdit  = Boolean(walkthroughId);
   const isModal = onClose !== undefined;
 
   const handleClose = useCallback(() => {
@@ -63,13 +85,18 @@ export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = 
 
   const { data: existing }                                     = useWalkthrough(walkthroughId);
   const { data: employees = [], isLoading: isLoadingEmployees } = useAllEmployees();
+  const { data: allClients = [] } = useClients();
+  const { data: allLeads   = [] } = useLeads();
 
   const { mutate: create, isPending: isCreating } = useCreateWalkthrough();
   const { mutate: update, isPending: isUpdating } = useUpdateWalkthrough();
   const isPending = isCreating || isUpdating;
 
   // ── Client/Lead picker state ──────────────────────────────────────────────
-  const [walkthroughType, setWalkthroughType] = useState<WalkthroughEntityType | null>("client");
+  // Use prefillContactType as initial value so the picker shows the right type immediately
+  const [walkthroughType, setWalkthroughType] = useState<WalkthroughEntityType | null>(
+    prefillContactType ?? "client"
+  );
   const [selectedClient,  setSelectedClient]  = useState<ClientEntity | null>(null);
   const [selectedLead,    setSelectedLead]    = useState<LeadEntity | null>(null);
   const [pickerErrors,    setPickerErrors]    = useState<{ type?: string; entity?: string }>({});
@@ -79,6 +106,8 @@ export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = 
   const [selectedDate,       setSelectedDate]       = useState<Date | undefined>();
   const [selectedEmployees,  setSelectedEmployees]  = useState<string[]>([]);
   const [showCreateEmployee, setShowCreateEmployee] = useState(false);
+  const [confirmOpen, setConfirmOpen]               = useState(false);
+  const [pendingPayload, setPendingPayload]          = useState<WalkthroughFormData | null>(null);
 
   // ── Form ──────────────────────────────────────────────────────────────────
   const {
@@ -120,6 +149,50 @@ export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = 
       setSelectedEmployees(existing.assigned_employees ?? []);
     }
   }, [isEdit, existing, reset]);
+
+  // ── Auto-select contact from existing walkthrough (edit mode) ────────────
+  const [editContactDone, setEditContactDone] = useState(false);
+  useEffect(() => {
+    if (!isEdit || editContactDone || !existing) return;
+    if (existing.client_id && allClients.length > 0) {
+      const c = allClients.find((x) => x.id === existing.client_id);
+      if (c) { handleClientSelect(c as ClientEntity); setEditContactDone(true); }
+    } else if (existing.lead_id && allLeads.length > 0) {
+      const l = allLeads.find((x) => x.id === existing.lead_id);
+      if (l) { handleLeadSelect(l as LeadEntity); setEditContactDone(true); }
+    }
+  }, [isEdit, editContactDone, existing, allClients, allLeads]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Prefill from request conversion (create mode) ─────────────────────────
+  const [conversionPrefillDone, setConversionPrefillDone] = useState(false);
+  useEffect(() => {
+    if (isEdit || conversionPrefillDone || !prefillContactId) return;
+    if (prefillServiceType) {
+      setValue("service_type", prefillServiceType, { shouldValidate: true });
+    }
+    if (prefillNotes) setValue("notes", prefillNotes);
+    if (prefillDate) {
+      const [y, m, d] = prefillDate.split("-").map(Number);
+      const date = new Date(y, m - 1, d);
+      setSelectedDate(date);
+      setValue("scheduled_date", prefillDate, { shouldValidate: true });
+    }
+    if (prefillTime) setValue("scheduled_time", prefillTime);
+    setConversionPrefillDone(true);
+  }, [isEdit, conversionPrefillDone, prefillContactId, prefillServiceType, prefillDate, prefillTime, prefillNotes, setValue]);
+
+  // ── Auto-select contact from prefill props (when clients/leads list loads) ─
+  const [contactPrefillDone, setContactPrefillDone] = useState(false);
+  useEffect(() => {
+    if (isEdit || contactPrefillDone || !prefillContactId) return;
+    if (prefillContactType === "client" && allClients.length > 0) {
+      const c = allClients.find((x) => x.id === prefillContactId);
+      if (c) { handleClientSelect(c as ClientEntity); setContactPrefillDone(true); }
+    } else if (prefillContactType === "lead" && allLeads.length > 0) {
+      const l = allLeads.find((x) => x.id === prefillContactId);
+      if (l) { handleLeadSelect(l as LeadEntity); setContactPrefillDone(true); }
+    }
+  }, [isEdit, contactPrefillDone, prefillContactId, prefillContactType, allClients, allLeads]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Sync employees → form ──────────────────────────────────────────────────
   useEffect(() => {
@@ -197,13 +270,47 @@ export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = 
       lead_id:   data.walkthrough_type === "lead"   ? data.lead_id   : null,
     };
 
+    // Both create and edit show Confirm dialog before saving
+    setPendingPayload(payload);
+    setConfirmOpen(true);
+  }
+
+  // ── Confirm save (create and edit) ────────────────────────────────────────
+
+  function handleConfirm() {
+    if (!pendingPayload) return;
+
     if (isEdit && walkthroughId) {
-      update({ id: walkthroughId, data: payload }, {
-        onSuccess: () => { toast.success("Walkthrough updated"); handleClose(); },
+      // Edit: Draft or Cancelled → promote to Scheduled
+      const currentStatus = existing?.status ?? "";
+      const newStatus = (currentStatus === "Draft" || currentStatus === "Cancelled")
+        ? "Scheduled"
+        : undefined;
+
+      update({ id: walkthroughId, data: pendingPayload, newStatus }, {
+        onSuccess: () => { setConfirmOpen(false); setPendingPayload(null); handleClose(); },
       });
     } else {
-      create(payload, {
-        onSuccess: () => { toast.success("Walkthrough scheduled"); handleClose(); },
+      // Create: always Scheduled (all required fields were filled)
+      create(pendingPayload, {
+        onSuccess: async (newWalkthrough) => {
+          setConfirmOpen(false);
+          setPendingPayload(null);
+          if (fromRequestId && newWalkthrough?.id) {
+            const contactType = pendingPayload.walkthrough_type as "client" | "lead";
+            const contactId   = contactType === "client" ? pendingPayload.client_id : pendingPayload.lead_id;
+            if (contactId) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              await (supabase as any).rpc("finalize_booking_conversion", {
+                p_booking_id:     fromRequestId,
+                p_estimate_id:    null,
+                p_walkthrough_id: newWalkthrough.id,
+              });
+              qc.invalidateQueries({ queryKey: QK.requests });
+            }
+          }
+          handleClose();
+        },
       });
     }
   }
@@ -402,6 +509,52 @@ export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = 
     />
   );
 
+  // ── Confirm Changes dialog (edit mode) ────────────────────────────────────
+  const currentStatus  = existing?.status ?? "";
+  const willSchedule   = currentStatus === "Draft" || currentStatus === "Cancelled";
+  const contactName    = selectedClient?.full_name ?? selectedLead?.full_name ?? "—";
+  const confirmDialog = (
+    <Dialog open={confirmOpen} onOpenChange={(v) => { if (!v) { setConfirmOpen(false); setPendingPayload(null); } }}>
+      <DialogContent className="sm:max-w-md p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+          <DialogTitle className="text-xl font-bold">
+            {isEdit ? "Confirm Changes" : "Schedule Walkthrough"}
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">Please review the walkthrough details</p>
+        </DialogHeader>
+        <div className="px-6 py-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Client / Lead</span>
+            <span className="text-sm font-semibold">{contactName}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Date</span>
+            <span className="text-sm font-semibold">
+              {selectedDate ? format(selectedDate, "PPP") : "—"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Time</span>
+            <span className="text-sm font-semibold">{watch("scheduled_time") || "—"}</span>
+          </div>
+          {isEdit && willSchedule && (
+            <div className="mt-2 rounded-lg bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-700">
+              This walkthrough will be marked as <strong>Scheduled</strong>
+            </div>
+          )}
+        </div>
+        <div className="px-6 pb-6 grid grid-cols-2 gap-3">
+          <Button variant="outline" onClick={() => { setConfirmOpen(false); setPendingPayload(null); }} disabled={isPending}>
+            Go Back
+          </Button>
+          <Button onClick={handleConfirm} disabled={isPending}>
+            {isPending ? "Saving…" : (isEdit ? "Confirm" : "Schedule now")}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   // ── Modal mode — invoice-style layout ─────────────────────────────────────
   if (isModal) {
     return (
@@ -444,6 +597,7 @@ export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = 
         </div>
 
         {employeeModal}
+        {confirmDialog}
       </FullScreenModal>
     );
   }
@@ -480,6 +634,7 @@ export function AddWalkthroughPage({ open, onClose }: AddWalkthroughPageProps = 
       </div>
 
       {employeeModal}
+      {confirmDialog}
     </div>
   );
 }
