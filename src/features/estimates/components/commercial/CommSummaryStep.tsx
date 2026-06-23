@@ -34,11 +34,17 @@ export interface CommSummaryStepProps {
   applyDiscount:  boolean;
   discountType:   "percentage" | "amount";
   discountValue:  string;
+  applyDeposit:   boolean;
+  depositType:    "percentage" | "amount";
+  depositValue:   string;
   onUseCustomPriceChange: (v: boolean) => void;
   onCustomPriceChange:    (v: string) => void;
   onApplyDiscountChange:  (v: boolean) => void;
   onDiscountTypeChange:   (v: "percentage" | "amount") => void;
   onDiscountValueChange:  (v: string) => void;
+  onApplyDepositChange:   (v: boolean) => void;
+  onDepositTypeChange:    (v: "percentage" | "amount") => void;
+  onDepositValueChange:   (v: string) => void;
 }
 
 const fmt = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -46,8 +52,10 @@ const fmt = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits
 export function CommSummaryStep({
   costs, total, serviceSubType, client,
   useCustomPrice, customPrice, applyDiscount, discountType, discountValue,
+  applyDeposit, depositType, depositValue,
   onUseCustomPriceChange, onCustomPriceChange,
   onApplyDiscountChange, onDiscountTypeChange, onDiscountValueChange,
+  onApplyDepositChange, onDepositTypeChange, onDepositValueChange,
 }: CommSummaryStepProps) {
   const netProfit = total - costs.totalOperationCost;
 
@@ -218,6 +226,80 @@ export function CommSummaryStep({
                 <Info className="h-4 w-4 text-info shrink-0 mt-0.5" />
                 <p className="text-xs text-info-subtle-foreground">
                   The discount will be applied to the final price and will affect the net profit calculation
+                </p>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Deposit */}
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <h4 className="text-sm font-semibold flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            Deposit
+          </h4>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Do you want to require a deposit?</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">No</span>
+              <Switch checked={applyDeposit} onCheckedChange={onApplyDepositChange} />
+              <span className="text-xs text-muted-foreground">Yes</span>
+            </div>
+          </div>
+
+          {applyDeposit && (
+            <>
+              <div className="space-y-2">
+                <Label>Deposit Type</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant={depositType === "percentage" ? "default" : "outline"}
+                    onClick={() => onDepositTypeChange("percentage")}
+                    className="w-full"
+                  >
+                    <Percent className="h-4 w-4 mr-2" />
+                    Percentage
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={depositType === "amount" ? "default" : "outline"}
+                    onClick={() => onDepositTypeChange("amount")}
+                    className="w-full"
+                  >
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Amount
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="depositValue">
+                  {depositType === "percentage" ? "Deposit Percentage" : "Deposit Amount"}
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    {depositType === "percentage" ? "%" : "$"}
+                  </span>
+                  <Input
+                    id="depositValue"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={depositValue}
+                    onChange={(e) => onDepositValueChange(toDecimalString(e.target.value))}
+                    className="pl-7"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 rounded-lg border border-info-subtle-border bg-info-subtle/50 p-3">
+                <Info className="h-4 w-4 text-info shrink-0 mt-0.5" />
+                <p className="text-xs text-info-subtle-foreground">
+                  The deposit will be required before the job starts and will be reflected in the job record
                 </p>
               </div>
             </>

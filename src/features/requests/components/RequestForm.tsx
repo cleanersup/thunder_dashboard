@@ -25,6 +25,7 @@ import { LeadForm }            from "@/features/crm/leads/components/LeadForm";
 import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
 import { toast }    from "sonner";
 import { format }   from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import { cn }       from "@/shared/utils/cn";
 import { toIntegerString } from "@/shared/utils/numericInput";
 import type { RequestPayload, BookingAttachmentMeta } from "../types/request.types";
@@ -840,7 +841,7 @@ export function RequestForm({
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? format(selectedDate, "PPP") : "Select Preferred Date"}
+                  {selectedDate ? formatDisplayDate(selectedDate) : "Select Preferred Date"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">

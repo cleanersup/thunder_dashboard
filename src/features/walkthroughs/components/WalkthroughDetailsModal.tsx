@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
 import { QRCodeSVG } from "qrcode.react";
 import {
   formatTime,
@@ -35,7 +37,7 @@ import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { toast } from "sonner";
 import { useUpdateWalkthroughStatus, useDeleteWalkthrough, useWalkthroughEmployees, useCurrentUserId, useSendWalkthroughStart } from "../hooks/useWalkthroughs";
 import {
-  buildEstimatePrefillFromWalkthrough,
+  createEstimateDraftFromWalkthrough,
   fetchWalkthroughPdfContext,
   type WalkthroughWithContact,
 } from "../services/walkthroughsService";
@@ -61,6 +63,7 @@ export function WalkthroughDetailsModal({
   onUpdated,
 }: WalkthroughDetailsModalProps) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const { mutate: updateStatus }                       = useUpdateWalkthroughStatus();
   const { mutate: deleteMutate, isPending: isDeleting } = useDeleteWalkthrough();
@@ -146,7 +149,7 @@ export function WalkthroughDetailsModal({
         ctx.commercial,
         ctx.employees,
       );
-      downloadWalkthroughPdf(pdfData);
+      await downloadWalkthroughPdf(pdfData);
       toast.success("PDF downloaded");
       onOpenChange(false);
     } catch (e) {
@@ -157,14 +160,13 @@ export function WalkthroughDetailsModal({
 
   async function handleGenerateEstimate() {
     try {
-      const prefill = await buildEstimatePrefillFromWalkthrough(walkthrough!);
-      const path = walkthrough!.service_type === "residential"
-        ? "/estimates/new/residential"
-        : "/estimates/new/commercial";
-      navigate(path, { state: { prefill } });
+      const { estimateId, route } = await createEstimateDraftFromWalkthrough(walkthrough!);
+      qc.invalidateQueries({ queryKey: QK.walkthroughs });
+      qc.invalidateQueries({ queryKey: QK.estimates });
+      navigate(route, { state: { isEditing: true, estimateId } });
       onOpenChange(false);
     } catch {
-      toast.error("Could not load walkthrough data for the estimate");
+      toast.error("Could not generate estimate from walkthrough");
     }
   }
 

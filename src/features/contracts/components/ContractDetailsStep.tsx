@@ -5,6 +5,7 @@
  */
 import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import {
   CalendarIcon, DollarSign, Building2, Check, ClipboardList, Globe, Sparkles,
 } from "lucide-react";
@@ -261,7 +262,7 @@ export function ContractDetailsStep({
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "MMM d, yyyy") : "Pick a date"}
+                    {startDate ? formatDisplayDate(startDate) : "Pick a date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -301,7 +302,7 @@ export function ContractDetailsStep({
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "MMM d, yyyy") : "Pick a date"}
+                    {endDate ? formatDisplayDate(endDate) : "Pick a date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">

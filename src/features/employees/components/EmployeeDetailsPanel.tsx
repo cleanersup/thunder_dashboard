@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format, parseISO } from "date-fns";
+import { formatDisplayDate, formatDisplayDateShort } from "@/shared/utils/formatters";
 import {
   User, Phone, Mail, MessageSquare, Briefcase, Calendar,
   DollarSign, Edit, Trash2, Clock, UserCheck, UserX,
@@ -139,7 +139,7 @@ export function EmployeeDetailsPanel({
         email:       employee!.email    ?? undefined,
         phone:       employee!.phone    ?? undefined,
         birthday:    employee!.birthday
-          ? format(parseISO(employee!.birthday), "MM/dd/yyyy")
+          ? formatDisplayDateShort(employee!.birthday)
           : undefined,
         gender:    employee!.gender    ?? "",
         position:  employee!.position  ?? "",
@@ -266,7 +266,7 @@ export function EmployeeDetailsPanel({
             {address && <InfoRow icon={MapPin} label="Address" value={address} />}
 
             {employee.birthday && (
-              <InfoRow icon={Calendar} label="Date of Birth" value={format(parseISO(employee.birthday), "MMMM dd, yyyy")} />
+              <InfoRow icon={Calendar} label="Date of Birth" value={formatDisplayDate(employee.birthday)} />
             )}
           </section>
 
@@ -354,9 +354,9 @@ export function EmployeeDetailsPanel({
           {/* Timeline */}
           <section className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timeline</h3>
-            <InfoRow icon={Calendar} label="Created" value={format(parseISO(employee.created_at), "MMM dd, yyyy")} />
+            <InfoRow icon={Calendar} label="Created" value={formatDisplayDate(employee.created_at)} />
             {employee.updated_at && (
-              <InfoRow icon={Clock} label="Last Updated" value={format(parseISO(employee.updated_at), "MMM dd, yyyy")} />
+              <InfoRow icon={Clock} label="Last Updated" value={formatDisplayDate(employee.updated_at)} />
             )}
           </section>
 

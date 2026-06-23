@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
+import { formatDisplayDate, formatDisplayTime, formatDisplayDateTime } from "@/shared/utils/formatters";
 import {
   Briefcase, Calendar, Clock, User, Mail, Phone, MapPin,
   Edit, CheckCircle, XCircle, Trash2, Download, Play,
@@ -121,7 +122,7 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
       await jobsService.updateStatus(job.id, "Upcoming");
       qc.invalidateQueries({ queryKey: QK.jobs });
       qc.invalidateQueries({ queryKey: QK.job(job.id) });
-      toast.success(`Rescheduled to ${format(rescheduleDate, "MMMM d, yyyy")}${rescheduleStart ? ` at ${rescheduleStart}` : ""}`);
+      toast.success(`Rescheduled to ${formatDisplayDate(rescheduleDate)}${rescheduleStart ? ` at ${formatDisplayTime(rescheduleStart)}` : ""}`);
       setShowReschedule(false);
       setRescheduleDate(undefined);
       onUpdated();
@@ -320,9 +321,9 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
                 <JobStatusBadge status={job.status} job={job} size="sm" />
               </div>
               <InfoRow icon={Briefcase} label="Service Type"  value={<span className="capitalize">{job.serviceType}</span>} />
-              <InfoRow icon={Calendar}  label="Date"          value={format(parseISO(job.jobDate), "EEEE, MMMM d, yyyy")} />
+              <InfoRow icon={Calendar}  label="Date"          value={formatDisplayDate(job.jobDate)} />
               {(job.startTime || job.endTime) && (
-                <InfoRow icon={Clock} label="Time" value={`${job.startTime || "—"}${job.endTime ? ` – ${job.endTime}` : ""}`} />
+                <InfoRow icon={Clock} label="Time" value={`${job.startTime ? formatDisplayTime(job.startTime) : "—"}${job.endTime ? ` – ${formatDisplayTime(job.endTime)}` : ""}`} />
               )}
             </section>
 
@@ -442,11 +443,11 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
             <section className="space-y-2">
               <SectionTitle>Timeline</SectionTitle>
               <p className="text-xs text-muted-foreground">
-                Created {format(new Date(job.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                Created {formatDisplayDateTime(job.createdAt)}
               </p>
               {job.updatedAt !== job.createdAt && (
                 <p className="text-xs text-muted-foreground">
-                  Updated {format(new Date(job.updatedAt), "MMM d, yyyy 'at' h:mm a")}
+                  Updated {formatDisplayDateTime(job.updatedAt)}
                 </p>
               )}
             </section>

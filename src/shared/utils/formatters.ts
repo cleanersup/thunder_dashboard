@@ -28,6 +28,55 @@ export function formatDateOnly(dateStr: string, fmt: string = "MMMM d, yyyy"): s
   return format(parseDateOnly(dateStr), fmt);
 }
 
+// ─── Unified display formats ────────────────────────────────────────────────
+// Single source of truth for how dates and times appear across the dashboard.
+// Date: "Wednesday, 06/24/2026"  ·  Time: "09:00 AM"
+
+/** Long date with weekday — the canonical display format (matches the Schedule section). */
+export const DISPLAY_DATE_FMT = "EEEE, MM/dd/yyyy";
+/** Compact numeric date for dense tables/lists (no weekday). */
+export const DISPLAY_DATE_SHORT_FMT = "MM/dd/yyyy";
+/** 12-hour time with leading zero and AM/PM. */
+export const DISPLAY_TIME_FMT = "hh:mm a";
+
+function toDisplayDate(value: string | Date | null | undefined): Date | null {
+  if (value == null || value === "") return null;
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+  // Time-only strings ("HH:mm" / "HH:mm:ss") → anchor to an arbitrary day.
+  const timeMatch = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(value.trim());
+  if (timeMatch) {
+    const [, h, m] = timeMatch;
+    return new Date(2000, 0, 1, Number(h), Number(m));
+  }
+  // Date-only strings (YYYY-MM-DD) → parse as local noon to avoid TZ shift.
+  const date = value.includes("T") ? new Date(value) : parseDateOnly(value);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+/** "Wednesday, 06/24/2026" — canonical date display. Accepts Date or ISO/date-only string. */
+export function formatDisplayDate(value: string | Date | null | undefined): string {
+  const d = toDisplayDate(value);
+  return d ? format(d, DISPLAY_DATE_FMT) : "";
+}
+
+/** "06/24/2026" — compact date for tables. */
+export function formatDisplayDateShort(value: string | Date | null | undefined): string {
+  const d = toDisplayDate(value);
+  return d ? format(d, DISPLAY_DATE_SHORT_FMT) : "";
+}
+
+/** "09:00 AM" — canonical time display. Accepts "HH:mm", "HH:mm:ss", or a Date. */
+export function formatDisplayTime(value: string | Date | null | undefined): string {
+  const d = toDisplayDate(value);
+  return d ? format(d, DISPLAY_TIME_FMT) : "";
+}
+
+/** "Wednesday, 06/24/2026 at 09:00 AM" — combined date + time from a full timestamp. */
+export function formatDisplayDateTime(value: string | Date | null | undefined): string {
+  const d = value instanceof Date ? value : value ? new Date(value) : null;
+  return d && !isNaN(d.getTime()) ? format(d, `${DISPLAY_DATE_FMT} 'at' ${DISPLAY_TIME_FMT}`) : "";
+}
+
 /**
  * Formats a number as a USD currency string (no $ symbol — append manually if needed).
  * @param amount - Numeric amount to format

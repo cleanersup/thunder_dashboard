@@ -11,7 +11,7 @@ import { Calendar } from "@/shared/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/shared/components/ui/dialog";
 import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import { cn } from "@/shared/utils/cn";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { useRequestForms, useSaveRequestForms } from "../hooks/useRequests";
@@ -184,7 +184,7 @@ export function EditRequestFormPage() {
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, "PPP") : "Select Preferred Date"}
+                      {selectedDate ? formatDisplayDate(selectedDate) : "Select Preferred Date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">

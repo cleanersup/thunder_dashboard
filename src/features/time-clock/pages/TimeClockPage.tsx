@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
+import { formatDisplayDateShort } from "@/shared/utils/formatters";
 import {
   CalendarIcon, Search,
   MoreHorizontal, Eye, Pencil, CheckCircle,
@@ -229,7 +230,7 @@ export function TimeClockPage() {
                     <PopoverTrigger asChild>
                       <Button variant="outline" size="sm" className="h-9 gap-2">
                         <CalendarIcon className="w-4 h-4" />
-                        {format(selectedDate, "MMM d")}
+                        {formatDisplayDateShort(selectedDate)}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="end">
@@ -250,7 +251,7 @@ export function TimeClockPage() {
                       <PopoverTrigger asChild>
                         <Button variant="outline" size="sm" className="h-9 gap-2">
                           <CalendarIcon className="w-4 h-4" />
-                          {format(timesheetsFrom, "MMM d")}
+                          {formatDisplayDateShort(timesheetsFrom)}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="end">
@@ -267,7 +268,7 @@ export function TimeClockPage() {
                       <PopoverTrigger asChild>
                         <Button variant="outline" size="sm" className="h-9 gap-2">
                           <CalendarIcon className="w-4 h-4" />
-                          {format(timesheetsTo, "MMM d")}
+                          {formatDisplayDateShort(timesheetsTo)}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="end">

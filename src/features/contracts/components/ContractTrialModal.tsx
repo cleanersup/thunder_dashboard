@@ -14,7 +14,7 @@ import {
 } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
-import { format } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import { CONTRACT_CUTOFF_DATE } from "../config/contracts.config";
 import { markContractTrialModalShown } from "../utils/contractTrialStorage";
 
@@ -25,7 +25,7 @@ interface ContractTrialModalProps {
 }
 
 export function ContractTrialModal({ open, daysRemaining, onClose }: ContractTrialModalProps) {
-  const cutoffFormatted = format(CONTRACT_CUTOFF_DATE, "MMMM d, yyyy");
+  const cutoffFormatted = formatDisplayDate(CONTRACT_CUTOFF_DATE);
 
   const handleClose = () => {
     markContractTrialModalShown();

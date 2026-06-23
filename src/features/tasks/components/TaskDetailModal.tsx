@@ -4,7 +4,7 @@ import {
   User, Building2, Phone, Mail, MessageSquare,
   Edit, Trash2, Play, CheckCircle, MoreHorizontal,
 } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { formatDisplayDateTime } from "@/shared/utils/formatters";
 import { Button } from "@/shared/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -234,8 +234,8 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
           <hr className="border-border" />
           <section className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timeline</h3>
-            <InfoRow icon={Clock} label="Created"      value={format(parseISO(t.created_at), "MMM d, yyyy · h:mm a")} />
-            <InfoRow icon={Clock} label="Last Updated" value={format(parseISO(t.updated_at), "MMM d, yyyy · h:mm a")} />
+            <InfoRow icon={Clock} label="Created"      value={formatDisplayDateTime(t.created_at)} />
+            <InfoRow icon={Clock} label="Last Updated" value={formatDisplayDateTime(t.updated_at)} />
           </section>
 
         </div>

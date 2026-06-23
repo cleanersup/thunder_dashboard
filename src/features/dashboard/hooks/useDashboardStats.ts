@@ -7,15 +7,7 @@
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import {
-  startOfMonth,
-  endOfMonth,
-  eachWeekOfInterval,
-  endOfWeek,
-  format as formatDate,
-  isWithinInterval,
-  subMonths,
-} from "date-fns";
+import { format as formatDate, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek, isWithinInterval, subMonths } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchClientsCount,

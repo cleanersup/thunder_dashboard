@@ -5,6 +5,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Building2 } from "lucide-react";
 import { RESIDENTIAL_STEPS } from "../config/steps.config";
 import { EstimateClientStep, type ClientEntity, type LeadEntity, type EstimateEntityType } from "../components/EstimateClientStep";
+import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
+import { getEstimatePropertyId, propertyToEstimateAddress } from "../utils/estimateProperty";
+import { buildDepositAdditionalFields, restoreDepositFromAdditionalData } from "../utils/estimateDeposit";
+import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
 import { EstimateFormLayout }    from "../components/EstimateFormLayout";
 import { DraftStatusIndicator }  from "../components/DraftStatusIndicator";
 import { ExitConfirmationDialog } from "../components/ExitConfirmationDialog";
@@ -80,7 +84,19 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const [estimateType,   setEstimateType]   = useState<EstimateEntityType | null>(null);
   const [selectedClient, setSelectedClient] = useState<ClientEntity | null>(null);
   const [selectedLead,   setSelectedLead]   = useState<LeadEntity | null>(null);
+  const [selectedProperty, setSelectedProperty] = useState<ClientProperty | null>(null);
+  const [pendingPropertyId, setPendingPropertyId] = useState<string | null>(null);
   const [stepErrors,     setStepErrors]     = useState<Record<string, boolean>>({});
+
+  // Resolve pendingPropertyId (from edit/draft/conversion) once the client's properties load
+  const { data: clientProperties = [] } = useClientProperties(
+    estimateType === "client" ? selectedClient?.id : undefined,
+  );
+  useEffect(() => {
+    if (!pendingPropertyId || clientProperties.length === 0) return;
+    const prop = clientProperties.find((p) => p.id === pendingPropertyId);
+    if (prop) { setSelectedProperty(prop); setPendingPropertyId(null); }
+  }, [pendingPropertyId, clientProperties]);
 
   // ── Step 1: Service ───────────────────────────────────────────────────────
   const [selectedService,      setSelectedService]      = useState("");
@@ -127,6 +143,11 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const [discountType,   setDiscountType]   = useState<"percentage" | "amount">("percentage");
   const [discountValue,  setDiscountValue]  = useState("");
 
+  // ── Deposit ───────────────────────────────────────────────────────────────
+  const [applyDeposit,   setApplyDeposit]   = useState(false);
+  const [depositType,    setDepositType]    = useState<"percentage" | "amount">("amount");
+  const [depositValue,   setDepositValue]   = useState("");
+
   // ── Step 10: Send ─────────────────────────────────────────────────────────
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
   const [showSuccess,    setShowSuccess]    = useState(false);
@@ -160,6 +181,9 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         const ad = (d.additional_data as any) ?? {};
         setFans(ad.fans ?? 0); setOven(ad.oven ?? 0); setRefrigerator(ad.refrigerator ?? 0);
         setBlinds(ad.blinds ?? 0); setWindowsInside(ad.windowsInside ?? 0); setWindowsOutside(ad.windowsOutside ?? 0);
+        setPendingPropertyId(getEstimatePropertyId(d.additional_data));
+        const dep = restoreDepositFromAdditionalData(d.additional_data);
+        setApplyDeposit(dep.applyDeposit); setDepositType(dep.depositType); setDepositValue(dep.depositValue);
         if (d.extra_services) setExtras(d.extra_services as any);
         setPets(d.pets === "Yes" ? "yes" : d.pets === "No" ? "no" : null);
         setScope(d.service_scope ?? "");
@@ -261,7 +285,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
 
   // ── Draft ─────────────────────────────────────────────────────────────────
   const { saveDraft, deleteDraft, isSaving, lastSaved, loadedDraft, clearLoadedDraft } =
-    useDraftEstimate({ serviceType: "Residential" });
+    useDraftEstimate({ serviceType: "Residential", enabled: !isEditing });
 
   // Restore draft only when user explicitly chose "Continue" from the drafts list
   useEffect(() => {
@@ -299,6 +323,10 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     if (fd.discountType   !== undefined) setDiscountType(fd.discountType);
     if (fd.discountValue  !== undefined) setDiscountValue(fd.discountValue);
     if (fd.deliveryMethod !== undefined) setDeliveryMethod(fd.deliveryMethod);
+    if (fd.propertyId) setPendingPropertyId(fd.propertyId as string);
+    if (fd.applyDeposit  !== undefined) setApplyDeposit(fd.applyDeposit);
+    if (fd.depositType   !== undefined) setDepositType(fd.depositType);
+    if (fd.depositValue  !== undefined) setDepositValue(fd.depositValue);
 
     (async () => {
       if (draftData.clientId) {
@@ -330,6 +358,8 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       fans, oven, refrigerator, blinds, windowsInside, windowsOutside,
       extras, pets, laundryService, laundryPounds, scope,
       useCustomPrice, customPrice, applyDiscount, discountType, discountValue, deliveryMethod,
+      propertyId: selectedProperty?.id ?? null,
+      applyDeposit, depositType, depositValue,
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [
@@ -338,6 +368,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     fans, oven, refrigerator, blinds, windowsInside, windowsOutside,
     extras, pets, laundryService, laundryPounds, scope,
     useCustomPrice, customPrice, applyDiscount, discountType, discountValue, deliveryMethod,
+    selectedProperty, applyDeposit, depositType, depositValue,
   ]);
 
   // ── Pricing ───────────────────────────────────────────────────────────────
@@ -351,11 +382,17 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   // ── Client helpers ────────────────────────────────────────────────────────
   function getClientInfo() {
     if (estimateType === "client" && selectedClient) {
+      // When a service property is selected, its address overrides the client's default address
+      const addr = selectedProperty
+        ? propertyToEstimateAddress(selectedProperty)
+        : {
+            address: selectedClient.service_street, apt: selectedClient.service_apt ?? "",
+            city: selectedClient.service_city, state: selectedClient.service_state, zip: selectedClient.service_zip,
+          };
       return {
         name: selectedClient.full_name, company: selectedClient.company ?? "",
         phone: selectedClient.phone, email: selectedClient.email,
-        address: selectedClient.service_street, apt: selectedClient.service_apt ?? "",
-        city: selectedClient.service_city, state: selectedClient.service_state, zip: selectedClient.service_zip,
+        ...addr,
       };
     }
     if (estimateType === "lead" && selectedLead) {
@@ -385,7 +422,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       service_type: "Residential", service_sub_type: selectedService,
       service_scope: scope || null,
       main_data: { squareFootage, bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths } as any,
-      additional_data: { fans, oven, refrigerator, blinds, windowsInside, windowsOutside } as any,
+      additional_data: { fans, oven, refrigerator, blinds, windowsInside, windowsOutside, propertyId: selectedProperty?.id ?? null, ...buildDepositAdditionalFields(applyDeposit, depositType, depositValue) } as any,
       extra_services: extras as any,
       pets: pets === "yes" ? "Yes" : "No",
       laundry: laundryService ? `${laundryService} - ${laundryPounds} pounds` : "No",
@@ -476,15 +513,19 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       case 0: return (
         <EstimateClientStep
           estimateType={estimateType}
-          onEstimateTypeChange={(type) => { setEstimateType(type); setSelectedClient(null); setSelectedLead(null); }}
+          onEstimateTypeChange={(type) => { setEstimateType(type); setSelectedClient(null); setSelectedLead(null); setSelectedProperty(null); }}
           selectedClient={selectedClient} selectedLead={selectedLead}
-          onClientSelect={(c) => { setSelectedClient(c); setSelectedLead(null); }}
-          onLeadSelect={(l) => { setSelectedLead(l); setSelectedClient(null); }}
+          onClientSelect={(c) => { setSelectedClient(c); setSelectedLead(null); setSelectedProperty(null); }}
+          onLeadSelect={(l) => { setSelectedLead(l); setSelectedClient(null); setSelectedProperty(null); }}
           companyAddress={companyAddress || undefined}
           errors={{
             type:   stepErrors.estimateType   ? "Please select a client type" : undefined,
             entity: stepErrors.selectedEntity ? `Please select a ${estimateType ?? "client or lead"}` : undefined,
           }}
+          showPropertySelector
+          selectedProperty={selectedProperty}
+          onPropertyChange={setSelectedProperty}
+          preferredPropertyId={selectedProperty?.id ?? pendingPropertyId}
         />
       );
       case 1: return (
@@ -547,8 +588,10 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
           client={client ? { name: client.name, email: client.email, phone: client.phone, address: client.address, city: client.city, state: client.state, zip: client.zip } : null}
           useCustomPrice={useCustomPrice} customPrice={customPrice}
           applyDiscount={applyDiscount} discountType={discountType} discountValue={discountValue}
+          applyDeposit={applyDeposit} depositType={depositType} depositValue={depositValue}
           onUseCustomPriceChange={setUseCustomPrice} onCustomPriceChange={setCustomPrice}
           onApplyDiscountChange={setApplyDiscount} onDiscountTypeChange={setDiscountType} onDiscountValueChange={setDiscountValue}
+          onApplyDepositChange={setApplyDeposit} onDepositTypeChange={setDepositType} onDepositValueChange={setDepositValue}
         />
       );
       case 9: return (
@@ -563,6 +606,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
           scope={scope}
           total={pricing.total} subtotal={pricing.subtotal}
           applyDiscount={applyDiscount} discountType={discountType} discountValue={discountValue}
+          applyDeposit={applyDeposit} depositType={depositType} depositValue={depositValue}
         />
       );
       case 10: return (

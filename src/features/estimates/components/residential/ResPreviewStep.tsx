@@ -46,6 +46,9 @@ export interface ResPreviewStepProps {
   applyDiscount:   boolean;
   discountType:    "percentage" | "amount";
   discountValue:   string;
+  applyDeposit:    boolean;
+  depositType:     "percentage" | "amount";
+  depositValue:    string;
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -79,6 +82,7 @@ export function ResPreviewStep({
   fans, oven, refrigerator, blinds, windowsInside, windowsOutside,
   extras, pets, laundryService, laundryPounds, scope,
   total, subtotal, applyDiscount, discountType, discountValue,
+  applyDeposit, depositType, depositValue,
 }: ResPreviewStepProps) {
 
   const hasAdditional = fans > 0 || oven > 0 || refrigerator > 0 || blinds > 0 || windowsInside > 0 || windowsOutside > 0;
@@ -88,6 +92,12 @@ export function ResPreviewStep({
     ? discountType === "percentage"
       ? (subtotal * parseFloat(discountValue)) / 100
       : parseFloat(discountValue)
+    : 0;
+
+  const depositAmount = applyDeposit && depositValue
+    ? depositType === "percentage"
+      ? (total * parseFloat(depositValue)) / 100
+      : parseFloat(depositValue)
     : 0;
 
   return (
@@ -192,6 +202,14 @@ export function ResPreviewStep({
           <span className="text-base font-semibold">Total:</span>
           <span className="text-base font-bold text-primary">${total.toFixed(2)}</span>
         </div>
+        {applyDeposit && depositAmount > 0 && (
+          <div className="flex justify-between border-t pt-2 text-orange-600">
+            <span className="text-sm">
+              Deposit Required ({depositType === "percentage" ? `${depositValue}%` : `$${depositValue}`}):
+            </span>
+            <span className="text-sm font-medium">${depositAmount.toFixed(2)}</span>
+          </div>
+        )}
       </Section>
     </div>
   );

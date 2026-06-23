@@ -80,6 +80,7 @@ export interface WalkthroughConvertConfig {
   prefillDate?:       string;   // yyyy-MM-dd
   prefillTime?:       string;   // HH:mm
   prefillNotes?:      string;
+  prefillPropertyId?: string | null;   // client_property_id from the request (clients only)
 }
 
 /** Public company info shown on the public booking form. */

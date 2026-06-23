@@ -1,5 +1,5 @@
 import { type ElementType } from "react";
-import { format } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import {
   MapPin, User, Briefcase, CalendarDays, UserCheck,
   DollarSign, FileText, MessageSquare, Phone, Mail, MapPinned, ImageIcon, ClipboardList,
@@ -165,7 +165,7 @@ export function AppointmentPreviewStep({
             <div className="pl-6 space-y-1 text-sm text-foreground">
               <p>
                 <span className="font-medium">Date:</span>{" "}
-                {format(new Date(form.scheduled_date + "T00:00:00"), "PPP")}
+                {formatDisplayDate(form.scheduled_date)}
               </p>
               <p>
                 <span className="font-medium">Time:</span>{" "}

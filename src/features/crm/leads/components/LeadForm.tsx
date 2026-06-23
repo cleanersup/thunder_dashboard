@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import { Calendar as CalendarIcon, Paperclip, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { Button }   from "@/shared/components/ui/button";
@@ -375,7 +376,7 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {followupDate ? format(followupDate, "PPP") : "Pick a date"}
+                    {followupDate ? formatDisplayDate(followupDate) : "Pick a date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">

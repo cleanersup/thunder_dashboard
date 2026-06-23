@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
-import { format } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/shared/config/queryKeys";
+import { formatDisplayDateShort } from "@/shared/utils/formatters";
 import {
   formatTime,
   formatDate,
@@ -68,7 +70,7 @@ import { useWalkthroughs, useUpdateWalkthroughStatus, useDeleteWalkthrough, useS
 import { WalkthroughDetailsPanel } from "../components/WalkthroughDetailsPanel";
 import { AddWalkthroughPage } from "./AddWalkthroughPage";
 import {
-  buildEstimatePrefillFromWalkthrough,
+  createEstimateDraftFromWalkthrough,
   fetchWalkthroughPdfContext,
   type WalkthroughWithContact,
 } from "../services/walkthroughsService";
@@ -122,6 +124,7 @@ const KPI_CONFIG = [
 export function WalkthroughsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const qc = useQueryClient();
 
   const { data: walkthroughs = [], isLoading, refetch } = useWalkthroughs();
 
@@ -230,13 +233,12 @@ export function WalkthroughsPage() {
 
   async function handleGenerateEstimate(w: WalkthroughWithContact) {
     try {
-      const prefill = await buildEstimatePrefillFromWalkthrough(w);
-      const path = w.service_type === "residential"
-        ? "/estimates/new/residential"
-        : "/estimates/new/commercial";
-      navigate(path, { state: { prefill } });
+      const { estimateId, route } = await createEstimateDraftFromWalkthrough(w);
+      qc.invalidateQueries({ queryKey: QK.walkthroughs });
+      qc.invalidateQueries({ queryKey: QK.estimates });
+      navigate(route, { state: { isEditing: true, estimateId } });
     } catch {
-      toast.error("Could not load walkthrough data for the estimate");
+      toast.error("Could not generate estimate from walkthrough");
     }
   }
 
@@ -255,7 +257,7 @@ export function WalkthroughsPage() {
         ctx.commercial,
         ctx.employees,
       );
-      downloadWalkthroughPdf(pdfData);
+      await downloadWalkthroughPdf(pdfData);
       toast.success("PDF downloaded");
     } catch (e) {
       console.error(e);
@@ -398,7 +400,7 @@ export function WalkthroughsPage() {
                     className={cn("h-9 whitespace-nowrap", !selectedDate && "text-muted-foreground")}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "MMM d") : "Date"}
+                    {selectedDate ? formatDisplayDateShort(selectedDate) : "Date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">

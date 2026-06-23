@@ -14,7 +14,7 @@ import {
   MessageSquare, Edit, Trash2, Navigation,
   FileText, Download,
 } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -253,7 +253,7 @@ export function AppointmentDetailPanel({
             <h2 className="text-xl font-bold text-foreground mb-1">{client?.full_name ?? "—"}</h2>
             <p className="text-xs text-muted-foreground">Service Date</p>
             <p className="text-sm font-semibold">
-              {format(parseISO(appointment.scheduled_date), "EEEE, MMMM do, yyyy")}
+              {formatDisplayDate(appointment.scheduled_date)}
             </p>
           </div>
 
@@ -262,7 +262,7 @@ export function AppointmentDetailPanel({
           {/* Schedule */}
           <section className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Schedule</h3>
-            <InfoLabel label="Date" value={format(parseISO(appointment.scheduled_date), "PPP")} />
+            <InfoLabel label="Date" value={formatDisplayDate(appointment.scheduled_date)} />
             {appointment.scheduled_time && (
               <InfoLabel label="Start Time" value={formatTime(appointment.scheduled_time)} />
             )}

@@ -4,7 +4,7 @@
  * Shows all contract information + quick actions by status.
  * Actions mirror the table row dropdown menu exactly.
  */
-import { format, parseISO } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import {
   User, Mail, Phone, MapPin, CalendarIcon, DollarSign,
   FileSignature, ClipboardList, Send, Edit2, Mail as MailIcon,
@@ -67,7 +67,7 @@ export function ContractDetailModal({
   const activeClauses = contract.sections.filter((c) => c.body?.trim()).length;
 
   const fmtDate = (iso: string | null) =>
-    iso ? format(parseISO(iso), "MMM d, yyyy") : "—";
+    iso ? formatDisplayDate(iso) : "—";
 
   return (
     <DetailModal

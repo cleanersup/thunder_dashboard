@@ -1,16 +1,12 @@
-import { format, parse } from "date-fns";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { DURATION_LABELS } from "../config/walkthroughConfig";
+import { formatDisplayTime } from "@/shared/utils/formatters";
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
 
 export function formatTime(time: string): string {
-  try {
-    const fmt = time.split(":").length === 3 ? "HH:mm:ss" : "HH:mm";
-    return format(parse(time, fmt, new Date()), "h:mm a");
-  } catch {
-    return time;
-  }
+  return formatDisplayTime(time) || time;
 }
 
 /**

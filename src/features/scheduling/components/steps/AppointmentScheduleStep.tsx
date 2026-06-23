@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import { CalendarDays, CalendarIcon } from "lucide-react";
 import { Label } from "@/shared/components/ui/label";
 import { Input } from "@/shared/components/ui/input";
@@ -67,7 +68,7 @@ export function AppointmentScheduleStep({
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {scheduledDate
-                    ? format(new Date(scheduledDate + "T00:00:00"), "PPP")
+                    ? formatDisplayDate(scheduledDate)
                     : "Pick a date"}
                 </Button>
               </PopoverTrigger>

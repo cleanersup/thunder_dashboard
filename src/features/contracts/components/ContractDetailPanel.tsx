@@ -4,7 +4,7 @@
  * Shows all contract information + footer actions by status.
  * Actions mirror the table row dropdown menu exactly.
  */
-import { format, parseISO } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import {
   User, Mail, Phone, MapPin, CalendarIcon, DollarSign,
   FileSignature, ClipboardList, Send, Edit2, Mail as MailIcon,
@@ -76,7 +76,7 @@ export function ContractDetailPanel({
   const sendSMS   = useSendContractSMS();
 
   const fmtDate = (iso: string | null) =>
-    iso ? format(parseISO(iso), "MMM d, yyyy") : "—";
+    iso ? formatDisplayDate(iso) : "—";
 
   const badgeInfo     = contract ? STATUS_BADGE_MAP[contract.status] ?? STATUS_BADGE_MAP.Draft : undefined;
   const activeClauses = contract ? contract.sections.filter((c) => c.body?.trim()).length : 0;

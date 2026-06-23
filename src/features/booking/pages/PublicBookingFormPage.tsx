@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { cn } from "@/shared/utils/cn";
 import { toIntegerString } from "@/shared/utils/numericInput";
 import { format } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import type { CustomQuestion } from "../types/booking.types";
 
 const ADDITIONAL_SERVICES = [
@@ -223,7 +224,7 @@ export function PublicBookingFormPage() {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "PPP") : "Select Preferred Date"}
+                    {selectedDate ? formatDisplayDate(selectedDate) : "Select Preferred Date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">

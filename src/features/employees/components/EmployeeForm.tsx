@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
+import { formatDisplayDateShort } from "@/shared/utils/formatters";
 import { CalendarIcon, Download, Upload, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
@@ -392,7 +393,7 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {birthdayDate ? format(birthdayDate, "MM/dd/yyyy") : "Select date"}
+                      {birthdayDate ? formatDisplayDateShort(birthdayDate) : "Select date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">

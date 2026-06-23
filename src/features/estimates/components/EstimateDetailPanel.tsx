@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
-import { format } from "date-fns";
+import { formatDisplayDateTime } from "@/shared/utils/formatters";
 import { formatDateOnly } from "@/shared/utils/formatters";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -1152,7 +1152,7 @@ export function EstimateDetailPanel({
                             </p>
                             {estimate.viewed_at && (
                               <p className="text-xs text-muted-foreground">
-                                {format(new Date(estimate.viewed_at), "MMM d, yyyy 'at' h:mm a")}
+                                {formatDisplayDateTime(estimate.viewed_at)}
                               </p>
                             )}
                           </div>
@@ -1304,11 +1304,11 @@ export function EstimateDetailPanel({
               <div className="pt-2 space-y-2">
                 <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timeline</p>
                 <p className="text-xs text-muted-foreground">
-                  Created {format(new Date(estimate.created_at), "MMM d, yyyy 'at' h:mm a")}
+                  Created {formatDisplayDateTime(estimate.created_at)}
                 </p>
                 {estimate.updated_at !== estimate.created_at && (
                   <p className="text-xs text-muted-foreground">
-                    Updated {format(new Date(estimate.updated_at), "MMM d, yyyy 'at' h:mm a")}
+                    Updated {formatDisplayDateTime(estimate.updated_at)}
                   </p>
                 )}
               </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format } from "date-fns";
+import { formatDisplayDate } from "@/shared/utils/formatters";
 import { CalendarIcon, Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avatar";
@@ -45,7 +45,7 @@ export function TodayTab({ entries, selectedDate, onDateChange, onSelectEmployee
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="h-9">
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {format(selectedDate, "MMM d, yyyy")}
+              {formatDisplayDate(selectedDate)}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -74,7 +74,7 @@ export function TodayTab({ entries, selectedDate, onDateChange, onSelectEmployee
         </div>
       ) : Object.keys(grouped).length === 0 ? (
         <p className="text-center text-sm text-muted-foreground py-8">
-          No employees clocked in on {format(selectedDate, "MMM d, yyyy")}
+          No employees clocked in on {formatDisplayDate(selectedDate)}
         </p>
       ) : (
         Object.entries(grouped).map(([empId, empEntries]) => {
