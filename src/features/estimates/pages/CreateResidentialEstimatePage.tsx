@@ -42,7 +42,7 @@ import type { DraftData } from "../types/estimate.types";
 interface Props {
   open?: boolean;
   onClose?: () => void;
-  initialState?: { isEditing?: boolean; estimateId?: string; estimateData?: any; prefill?: any; continueDraft?: boolean; };
+  initialState?: { isEditing?: boolean; isConversionDraft?: boolean; estimateId?: string; estimateData?: any; prefill?: any; continueDraft?: boolean; };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -51,7 +51,10 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const location    = useLocation();
   const qc          = useQueryClient();
   const locationState = (location.state as any) || {};
-  const { isEditing, estimateId, estimateData, prefill, continueDraft } = initialState ?? locationState;
+  const { isEditing, isConversionDraft, estimateId, estimateData, prefill, continueDraft } = initialState ?? locationState;
+  // `isEditing` keeps its save semantics (UPDATE the draft, don't delete on discard),
+  // but a conversion draft is brand-new to the user, so display copy reads "New/Create".
+  const displayEditing = isEditing && !isConversionDraft;
   const fromWalkthroughId  = locationState.fromWalkthroughId  as string | undefined;
   const isModal = onClose !== undefined;
   const goBack = useCallback(() => {
@@ -677,7 +680,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
               </div>
             </div>
             <AlertDialogTitle className="text-center">
-              {isEditing ? "Estimate Updated!" : "Estimate Created!"}
+              {displayEditing ? "Estimate Updated!" : "Estimate Created!"}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-center">
               {deliveryMethod ? "The estimate has been created and sent successfully." : "The estimate has been saved successfully."}
@@ -707,7 +710,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
             onExit={handleExit}
             isLastStep={step === RESIDENTIAL_STEPS.length - 1}
             isLoading={isLoading}
-            isEditing={isEditing}
+            isEditing={displayEditing}
             isModal
             draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
           >
@@ -737,7 +740,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
             onExit={handleExit}
             isLastStep={step === RESIDENTIAL_STEPS.length - 1}
             isLoading={isLoading}
-            isEditing={isEditing}
+            isEditing={displayEditing}
             isModal
             draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
           >
@@ -760,7 +763,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         onExit={handleExit}
         isLastStep={step === RESIDENTIAL_STEPS.length - 1}
         isLoading={isLoading}
-        isEditing={isEditing}
+        isEditing={displayEditing}
         draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
       >
         {renderStep()}

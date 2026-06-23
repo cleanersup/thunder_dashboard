@@ -5,7 +5,7 @@ import { Receipt, ClipboardList, Loader2 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/shared/components/ui/dialog";
-import { resolveOrCreateContact } from "../services/requestsService";
+import { resolveOrCreateContact, resolveClientPropertyId } from "../services/requestsService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { QK } from "@/shared/config/queryKeys";
@@ -64,6 +64,13 @@ export function ConvertRequestDialog({
     try {
       const contact = await resolveOrCreateContact(request);
 
+      // Resolve the service property the request was created for. Prefers the
+      // persisted FK; falls back to matching the booking address against the
+      // client's active properties so the draft never defaults to the primary.
+      const resolvedPropertyId = contact.type === "client"
+        ? await resolveClientPropertyId(contact.id, request)
+        : null;
+
       if (target === "estimate") {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
@@ -110,7 +117,7 @@ export function ConvertRequestDialog({
             service_sub_type: "",
             service_scope:    request.service_details  || null,
             main_data:        mainData,
-            additional_data:  { propertyId: contact.type === "client" ? (request.client_property_id ?? null) : null },
+            additional_data:  { propertyId: resolvedPropertyId },
             client_name:      request.lead_name        || "Draft",
             email:            request.email            || "draft@placeholder.com",
             phone:            request.phone            || "0000000000",
@@ -153,9 +160,12 @@ export function ConvertRequestDialog({
         });
 
         // Open form in EDIT mode — will UPDATE the draft, not INSERT a new row.
+        // isConversionDraft → the form is new to the user, so its copy reads
+        // "New/Create" even though it persists via the UPDATE (edit) path.
         onEstimateConvert?.(route, {
-          isEditing:  true,
-          estimateId: draft.id,
+          isEditing:        true,
+          isConversionDraft: true,
+          estimateId:       draft.id,
         });
         return;
       }
@@ -169,7 +179,7 @@ export function ConvertRequestDialog({
         prefillContactId:   contact.id,
         prefillServiceType: serviceType,
         prefillNotes:       request.service_details ?? undefined,
-        prefillPropertyId:  contact.type === "client" ? (request.client_property_id ?? null) : null,
+        prefillPropertyId:  resolvedPropertyId,
       };
 
       // ── Case A: preferred_date exists — create draft immediately ──────────
@@ -180,7 +190,7 @@ export function ConvertRequestDialog({
             user_id:            user.id,
             client_id:          contact.type === "client" ? contact.id : null,
             lead_id:            contact.type === "lead"   ? contact.id : null,
-            property_id:        contact.type === "client" ? (request.client_property_id ?? null) : null,
+            property_id:        resolvedPropertyId,
             walkthrough_type:   contact.type,
             service_type:       serviceType,
             scheduled_date:     request.preferred_date,

@@ -74,9 +74,11 @@ export function InvoicePreviewPage({ embedded, invoiceId, onBack, onSent }: Invo
 
   const { items: lineItems, error: lineItemsError } = safeParseLineItems(invoice.line_items);
   const subtotal  = lineItems.reduce((s, i) => s + i.total, 0);
+  // Percentage discount applies to positive services only (excludes deposit-credit lines).
+  const discountBase = lineItems.reduce((s, i) => s + (i.total > 0 ? i.total : 0), 0);
   const taxRate   = invoice.tax_rate ?? 0;
   const discAmt   = invoice.discount_type === "percentage"
-    ? subtotal * ((invoice.discount_value ?? 0) / 100)
+    ? discountBase * ((invoice.discount_value ?? 0) / 100)
     : (invoice.discount_value ?? 0);
   const taxAmt    = (subtotal - discAmt) * (taxRate / 100);
   const total     = subtotal - discAmt + taxAmt;

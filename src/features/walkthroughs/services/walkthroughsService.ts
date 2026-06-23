@@ -131,7 +131,12 @@ export async function fetchWalkthrough(id: string): Promise<WalkthroughWithConta
 
   if (error) throw error;
 
-  const contact = await fetchContactInfo(data.walkthrough_type, data.client_id, data.lead_id);
+  const contact = await fetchContactInfo(
+    data.walkthrough_type,
+    data.client_id,
+    data.lead_id,
+    (data as { property_id?: string | null }).property_id,
+  );
 
   return {
     ...(data as unknown as Walkthrough),
@@ -196,7 +201,8 @@ export async function createEstimateDraftFromWalkthrough(
 
   // Resolve the real contact (client/lead) so the estimate's denormalized fields
   // (client_name, email, address…) are correct — w.contact_* isn't always populated.
-  const contact = await fetchContactInfo(w.walkthrough_type, w.client_id, w.lead_id);
+  // Pass property_id so the address matches the selected service property.
+  const contact = await fetchContactInfo(w.walkthrough_type, w.client_id, w.lead_id, propertyId);
 
   const num = (v: unknown, d = 0): number => (typeof v === "number" ? v : d);
   const str = (v: unknown, d = ""): string => (typeof v === "string" ? v : d);
@@ -377,7 +383,12 @@ export async function fetchWalkthroughForForm(id: string) {
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const contactInfo = await fetchContactInfo(data.walkthrough_type, data.client_id, data.lead_id);
+  const contactInfo = await fetchContactInfo(
+    data.walkthrough_type,
+    data.client_id,
+    data.lead_id,
+    (data as { property_id?: string | null }).property_id,
+  );
   return { ...data, contactInfo } as typeof data & { contactInfo: Awaited<ReturnType<typeof fetchContactInfo>> };
 }
 
@@ -504,7 +515,12 @@ export async function fetchWalkthroughPdfContext(walkthroughId: string): Promise
     ? (walkthrough.assigned_employees as string[])
     : [];
   const [contact, resRes, comRes, employees] = await Promise.all([
-    fetchContactInfo(walkthrough.walkthrough_type, walkthrough.client_id, walkthrough.lead_id),
+    fetchContactInfo(
+      walkthrough.walkthrough_type,
+      walkthrough.client_id,
+      walkthrough.lead_id,
+      (walkthrough as { property_id?: string | null }).property_id,
+    ),
     supabase.from("residential_walkthrough_data").select("*").eq("walkthrough_id", walkthroughId).maybeSingle(),
     supabase.from("commercial_walkthrough_data").select("*").eq("walkthrough_id", walkthroughId).maybeSingle(),
     fetchEmployeesForWalkthroughPdf(assigned),

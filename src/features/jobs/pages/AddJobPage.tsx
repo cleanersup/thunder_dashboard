@@ -61,14 +61,14 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
   // ─── Pricing ──────────────────────────────────────────────────────────
   const [applyDiscount, setApplyDiscount]       = useState(false);
   const [discountType, setDiscountType]         = useState<"percentage" | "amount">("percentage");
-  const [discountValueStr, setDiscountValueStr] = useState("0");
+  const [discountValueStr, setDiscountValueStr] = useState("");
   const [applyTax, setApplyTax]                 = useState(false);
-  const [taxRateStr, setTaxRateStr]             = useState("0");
+  const [taxRateStr, setTaxRateStr]             = useState("");
 
   // ─── Deposit ──────────────────────────────────────────────────────────
   const [applyDeposit, setApplyDeposit]         = useState(false);
   const [depositType, setDepositType]           = useState<"percentage" | "amount">("percentage");
-  const [depositValueStr, setDepositValueStr]   = useState("0");
+  const [depositValueStr, setDepositValueStr]   = useState("");
 
   // ─── Pre-fill from existing job (edit mode) ───────────────────────────
   const [prefillDone, setPrefillDone] = useState(false);
@@ -85,12 +85,12 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
     setNotes(existingJob.notes ?? "");
     setApplyDiscount(existingJob.applyDiscount);
     setDiscountType((existingJob.discountType as "percentage" | "amount") ?? "percentage");
-    setDiscountValueStr(String(existingJob.discountValue ?? 0));
+    setDiscountValueStr(existingJob.discountValue ? String(existingJob.discountValue) : "");
     setApplyTax(existingJob.applyTax);
-    setTaxRateStr(String(existingJob.taxRate ?? 0));
+    setTaxRateStr(existingJob.taxRate ? String(existingJob.taxRate) : "");
     setApplyDeposit(existingJob.applyDeposit);
     setDepositType((existingJob.depositType as "percentage" | "amount") ?? "percentage");
-    setDepositValueStr(String(existingJob.depositValue ?? 0));
+    setDepositValueStr(existingJob.depositValue ? String(existingJob.depositValue) : "");
     setPrefillDone(true);
   }, [open, isEdit, existingJob, prefillDone]);
 
@@ -107,11 +107,11 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
       setJobDetails("");
       setNotes("");
       setApplyDiscount(false);
-      setDiscountValueStr("0");
+      setDiscountValueStr("");
       setApplyTax(false);
-      setTaxRateStr("0");
+      setTaxRateStr("");
       setApplyDeposit(false);
-      setDepositValueStr("0");
+      setDepositValueStr("");
       setPrefillDone(false);
     }
   }, [open]);
@@ -381,7 +381,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                               <SelectItem value="amount">$</SelectItem>
                             </SelectContent>
                           </Select>
-                          <Input type="text" inputMode="decimal" value={discountValueStr} onChange={(e) => setDiscountValueStr(toDecimalString(e.target.value))} className="h-9" />
+                          <Input type="text" inputMode="decimal" value={discountValueStr} onChange={(e) => setDiscountValueStr(toDecimalString(e.target.value))} className="h-9" placeholder="0" />
                         </div>
                         {discountAmount > 0 && (
                           <div className="flex justify-between text-sm text-destructive">
@@ -421,7 +421,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                               <SelectItem value="amount">$</SelectItem>
                             </SelectContent>
                           </Select>
-                          <Input type="text" inputMode="decimal" value={depositValueStr} onChange={(e) => setDepositValueStr(toDecimalString(e.target.value))} className="h-9" />
+                          <Input type="text" inputMode="decimal" value={depositValueStr} onChange={(e) => setDepositValueStr(toDecimalString(e.target.value))} className="h-9" placeholder="0" />
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Deposit</span><span className="font-medium">${depositAmount.toFixed(2)}</span>

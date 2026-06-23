@@ -39,7 +39,7 @@ import type { DraftData } from "../types/estimate.types";
 interface Props {
   open?: boolean;
   onClose?: () => void;
-  initialState?: { isEditing?: boolean; estimateId?: string; estimateData?: any; prefill?: any; continueDraft?: boolean; };
+  initialState?: { isEditing?: boolean; isConversionDraft?: boolean; estimateId?: string; estimateData?: any; prefill?: any; continueDraft?: boolean; };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -48,8 +48,11 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   const location      = useLocation();
   const qc            = useQueryClient();
   const locationState = (location.state as any) || {};
-  const { isEditing, estimateId, estimateData, prefill } = initialState ?? locationState;
+  const { isEditing, isConversionDraft, estimateId, estimateData, prefill } = initialState ?? locationState;
   const fromWalkthroughId = locationState.fromWalkthroughId as string | undefined;
+  // `isEditing` keeps its save semantics (UPDATE the draft, don't delete on discard),
+  // but a conversion draft is brand-new to the user, so display copy reads "New/Create".
+  const displayEditing = isEditing && !isConversionDraft;
   const isModal      = onClose !== undefined;
   const continueDraft = initialState?.continueDraft ?? false;
   const goBack = useCallback(() => {
@@ -757,7 +760,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
               </div>
             </div>
             <AlertDialogTitle className="text-center">
-              {isEditing ? "Estimate Updated!" : "Estimate Created!"}
+              {displayEditing ? "Estimate Updated!" : "Estimate Created!"}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-center">
               {deliveryMethod ? "The estimate has been created and sent successfully." : "The estimate has been saved successfully."}
@@ -779,7 +782,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       <>
         <FullScreenModal open={open ?? false} onClose={handleExit}>
           <EstimateFormLayout
-            title={isEditing ? "Edit Commercial Estimate" : "New Commercial Estimate"}
+            title={displayEditing ? "Edit Commercial Estimate" : "New Commercial Estimate"}
             steps={COMMERCIAL_STEPS}
             currentStep={currentStep}
             onBack={handleBack}
@@ -787,7 +790,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
             onExit={handleExit}
             isLastStep={currentStep === COMMERCIAL_STEPS.length - 1}
             isLoading={isLoading}
-            isEditing={isEditing}
+            isEditing={displayEditing}
             isModal
             draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
           >
@@ -809,7 +812,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
         {formDialogs}
         <FullScreenModal open onClose={handleExit}>
           <EstimateFormLayout
-            title={isEditing ? "Edit Commercial Estimate" : "New Commercial Estimate"}
+            title={displayEditing ? "Edit Commercial Estimate" : "New Commercial Estimate"}
             steps={COMMERCIAL_STEPS}
             currentStep={currentStep}
             onBack={handleBack}
@@ -817,7 +820,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
             onExit={handleExit}
             isLastStep={currentStep === COMMERCIAL_STEPS.length - 1}
             isLoading={isLoading}
-            isEditing={isEditing}
+            isEditing={displayEditing}
             isModal
             draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
           >
@@ -832,7 +835,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
     <>
       {formDialogs}
       <EstimateFormLayout
-        title={isEditing ? "Edit Commercial Estimate" : "New Commercial Estimate"}
+        title={displayEditing ? "Edit Commercial Estimate" : "New Commercial Estimate"}
         steps={COMMERCIAL_STEPS}
         currentStep={currentStep}
         onBack={handleBack}
@@ -840,7 +843,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
         onExit={handleExit}
         isLastStep={currentStep === COMMERCIAL_STEPS.length - 1}
         isLoading={isLoading}
-        isEditing={isEditing}
+        isEditing={displayEditing}
         draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
       >
         {renderStep()}

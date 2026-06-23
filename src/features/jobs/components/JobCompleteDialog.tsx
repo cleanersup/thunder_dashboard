@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/shared/components/ui/button";
 import { jobsService } from "../services/jobsService";
 import { useSendInvoiceEmail } from "@/features/invoices/hooks/useSendInvoiceEmail";
+import { updateInvoice } from "@/features/invoices/services/invoicesService";
 import { QK } from "@/shared/config/queryKeys";
 import type { Job } from "../types/job.types";
 
@@ -45,7 +46,19 @@ export function JobCompleteDialog({ job, open, onOpenChange }: JobCompleteDialog
         // 4. Auto-send the invoice to the client (mirrors swift-slate).
         // Failure to send is non-fatal — the job is already completed and the
         // invoice exists; sendInvoiceEmail surfaces its own success/error toast.
-        await sendInvoiceEmail(finalInvoiceId);
+        const result = await sendInvoiceEmail(finalInvoiceId);
+        // 5. The backend trigger creates the final invoice as Draft. Once it's
+        // been sent, reflect that by marking it Pending (awaiting payment) so it
+        // doesn't linger as an unsent draft.
+        if (result.success) {
+          try {
+            await updateInvoice(finalInvoiceId, { status: "Pending" });
+            qc.invalidateQueries({ queryKey: QK.invoices });
+            qc.invalidateQueries({ queryKey: QK.invoice(finalInvoiceId) });
+          } catch (e) {
+            console.error("Failed to mark final invoice as Pending:", e);
+          }
+        }
         navigate("/invoices", { state: { openId: finalInvoiceId } });
       } else {
         toast.success("Job completed");

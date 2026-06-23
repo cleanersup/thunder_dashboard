@@ -146,14 +146,19 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
 
   // ── Property lookup (must be above the guard) ──────────────────────────────
   const { data: clientProperties = [] } = useClientProperties(booking?.client_id ?? undefined);
-  const matchedProperty = booking?.client_property_id
-    ? clientProperties.find((p) => p.id === booking.client_property_id)
-    : clientProperties.find(
-        (p) =>
-          p.street.toLowerCase().trim() === (booking?.street ?? "").toLowerCase().trim() &&
-          p.city.toLowerCase().trim()   === (booking?.city   ?? "").toLowerCase().trim() &&
-          p.zip_code.trim()             === (booking?.zip_code ?? "").trim()
-      );
+  // Match by the booking's denormalized address first — the persisted client_property_id
+  // FK is unreliable (a backend trigger normalizes it to the primary property), whereas
+  // the address is copied untouched from the property the user selected on the request.
+  const matchedProperty =
+    clientProperties.find(
+      (p) =>
+        p.street.toLowerCase().trim() === (booking?.street ?? "").toLowerCase().trim() &&
+        p.city.toLowerCase().trim()   === (booking?.city   ?? "").toLowerCase().trim() &&
+        p.zip_code.trim()             === (booking?.zip_code ?? "").trim()
+    ) ??
+    (booking?.client_property_id
+      ? clientProperties.find((p) => p.id === booking.client_property_id)
+      : undefined);
 
   // ── Footer ─────────────────────────────────────────────────────────────────
   const footer = booking ? (

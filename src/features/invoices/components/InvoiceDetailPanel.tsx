@@ -37,6 +37,7 @@ import {
   useMarkInvoiceAsPaid,
   useChargeInvoiceSavedCard,
   useCancelInvoice,
+  useUpdateInvoice,
 } from "../hooks/useInvoices";
 import { useSendInvoiceEmail }      from "../hooks/useSendInvoiceEmail";
 import { useSendInvoiceReminder }   from "../hooks/useSendInvoiceReminder";
@@ -71,6 +72,7 @@ export function InvoiceDetailPanel({
   const markPaid                           = useMarkInvoiceAsPaid();
   const chargeSavedCard                    = useChargeInvoiceSavedCard();
   const cancelInv                          = useCancelInvoice();
+  const updateInv                          = useUpdateInvoice();
 
   const { data: invoice, isLoading } = useInvoice(open && invoiceId ? invoiceId : undefined);
   const { data: paymentClient } = useClientByEmail(invoice?.user_id, invoice?.email);
@@ -143,6 +145,10 @@ export function InvoiceDetailPanel({
       if (invoice) {
         void logInvoiceActivity("invoice_sent", invoice.invoice_number, invoice.client_name, invoice.total);
       }
+      // A Draft invoice that's been sent should move to Pending (awaiting payment).
+      if (invoice?.status === "Draft") {
+        updateInv.mutate({ id: invoiceId, updates: { status: "Pending" } });
+      }
       setIsEmailSuccessDialogOpen(true);
     }
   };
@@ -166,6 +172,11 @@ export function InvoiceDetailPanel({
 
   const { items: lineItems, error: lineItemsError } = safeParseLineItems(invoice?.line_items);
   const subtotal = lineItems.reduce((s, i) => s + i.total, 0);
+  // Discount applies to the services subtotal only — negative adjustments like the
+  // "Deposit Paid" credit line are applied AFTER the discount, so they must be
+  // excluded from the percentage base (otherwise a $120 net subtotal would yield a
+  // 10% discount of $12 instead of the correct $20 on the $200 of services).
+  const discountBase = lineItems.reduce((s, i) => s + (i.total > 0 ? i.total : 0), 0);
   const hasCardOnFile = !!paymentClient?.stripe_default_payment_method_id;
   const cardLabel = hasCardOnFile
     ? `${paymentClient?.card_brand?.toUpperCase() ?? "CARD"} ending in ${paymentClient?.card_last4 ?? "••••"}`
@@ -477,7 +488,7 @@ export function InvoiceDetailPanel({
                     </span>
                     <span className="font-medium text-destructive">
                       -${invoice.discount_type === "percentage"
-                        ? ((lineItems.length > 0 ? subtotal : invoice.total) * ((invoice.discount_value ?? 0) / 100)).toFixed(2)
+                        ? ((lineItems.length > 0 ? discountBase : invoice.total) * ((invoice.discount_value ?? 0) / 100)).toFixed(2)
                         : (invoice.discount_value ?? 0).toFixed(2)}
                     </span>
                   </div>

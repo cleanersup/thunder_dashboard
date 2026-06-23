@@ -94,8 +94,11 @@ export function calculateInvoiceTotals(params: {
   const { lineItems, discountType, discountValue = 0, taxRate = 0 } = params;
 
   const subtotal       = lineItems.reduce((s, i) => s + i.total, 0);
+  // Percentage discount applies to the positive services subtotal only — negative
+  // adjustments (e.g. a "Deposit Paid" credit line) are applied AFTER the discount.
+  const discountBase   = lineItems.reduce((s, i) => s + (i.total > 0 ? i.total : 0), 0);
   const discountAmount = discountType === "percentage"
-    ? subtotal * ((discountValue ?? 0) / 100)
+    ? discountBase * ((discountValue ?? 0) / 100)
     : (discountValue ?? 0);
   const afterDiscount = subtotal - discountAmount;
   const taxAmount     = afterDiscount * ((taxRate ?? 0) / 100);

@@ -409,6 +409,46 @@ export async function resolveOrCreateContact(
   return persistContact({ type: "lead", id: newLead.id });
 }
 
+/**
+ * Resolves the client_property_id to attach to an estimate/walkthrough draft when
+ * converting a request.
+ *
+ * The booking's persisted `client_property_id` FK is NOT reliable: a backend trigger
+ * on `bookings` overwrites it (it gets normalized to the client's primary property,
+ * losing the user's selection). The booking's denormalized service address
+ * (street/city/zip), however, IS copied from the selected property at request time
+ * and is left untouched. So we resolve the property by matching that address against
+ * the client's active properties first — mirroring swift-slate's booking-address
+ * resolution and RequestDetailPanel's lookup — and only fall back to the FK when no
+ * address matches (e.g. a manually-typed address).
+ * @param clientId - The resolved client UUID
+ * @param booking - The booking with its FK + denormalized address
+ */
+export async function resolveClientPropertyId(
+  clientId: string,
+  booking: Pick<Booking, "client_property_id" | "street" | "city" | "zip_code">,
+): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return booking.client_property_id ?? null;
+
+  const { data } = await (supabase as any)
+    .from("client_properties")
+    .select("id, street, city, zip_code")
+    .eq("client_id", clientId)
+    .eq("user_id", user.id)
+    .eq("is_active", true);
+
+  const norm = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
+  const match = (data as Array<{ id: string; street: string; city: string; zip_code: string }> | null)?.find(
+    (p) =>
+      norm(p.street)   === norm(booking.street) &&
+      norm(p.city)     === norm(booking.city) &&
+      norm(p.zip_code) === norm(booking.zip_code),
+  );
+
+  return match?.id ?? booking.client_property_id ?? null;
+}
+
 // ─── Public (unauthenticated) ─────────────────────────────────────────────────
 
 /**
