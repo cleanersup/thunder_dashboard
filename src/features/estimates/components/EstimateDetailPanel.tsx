@@ -49,9 +49,22 @@ import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { PDFService } from "@/shared/services/pdf.service";
 import { SidePanel } from "@/shared/components/common/SidePanel";
 import { buildInvoicePrefillFromEstimate } from "../utils/buildInvoicePrefill";
+import { restoreDepositFromAdditionalData } from "../utils/estimateDeposit";
 import { useConvertEstimateToJob } from "@/features/jobs/hooks/useConvertEstimateToJob";
 
 // ─── Local helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Keys in `additional_data` that are NOT "additional item" counts and must be
+ * excluded from the generic Additional Items dump — deposit flags are rendered
+ * in their own Deposit section, and propertyId is internal metadata.
+ */
+const ADDITIONAL_ITEMS_EXCLUDED = new Set([
+  "deposit_required",
+  "deposit_type",
+  "deposit_value",
+  "propertyId",
+]);
 
 function formatPhone(phone: string) {
   const c = phone.replace(/\D/g, "");
@@ -709,6 +722,14 @@ export function EstimateDetailPanel({
     discountValue:  estimate.discount_value,
   } : null;
 
+  // Deposit (optional down-payment on the estimate). Does NOT reduce the total.
+  const deposit = f ? restoreDepositFromAdditionalData(f.additionalData) : null;
+  const depositAmount = f && deposit?.applyDeposit && deposit.depositValue
+    ? deposit.depositType === "percentage"
+      ? (f.total * parseFloat(deposit.depositValue)) / 100
+      : parseFloat(deposit.depositValue)
+    : 0;
+
   // Draft data helpers
   const draftData: DraftData | null = f?.status === "Draft" && estimate?.draft_data
     ? (estimate.draft_data as unknown as DraftData)
@@ -1211,24 +1232,26 @@ export function EstimateDetailPanel({
                 )}
 
                 {/* Additional Items */}
-                {Object.values(f.additionalData).some((v) => Number(v) > 0) && (
-                  <Card className="border border-border/50">
-                    <CardContent className="p-4">
-                      <h4 className="text-sm font-semibold mb-3">Additional Items</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {Object.entries(f.additionalData).map(([key, value], i) => {
-                          const n = Number(value);
-                          return n > 0 ? (
+                {(() => {
+                  const items = Object.entries(f.additionalData).filter(
+                    ([key, value]) => !ADDITIONAL_ITEMS_EXCLUDED.has(key) && Number(value) > 0,
+                  );
+                  return items.length > 0 ? (
+                    <Card className="border border-border/50">
+                      <CardContent className="p-4">
+                        <h4 className="text-sm font-semibold mb-3">Additional Items</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          {items.map(([key, value], i) => (
                             <div key={i} className="flex justify-between items-center p-2 bg-secondary/30 rounded-md">
-                              <span className="text-xs text-muted-foreground capitalize">{key}</span>
-                              <span className="text-sm font-semibold">{n}</span>
+                              <span className="text-xs text-muted-foreground capitalize">{key.replace(/([A-Z])/g, " $1")}</span>
+                              <span className="text-sm font-semibold">{Number(value)}</span>
                             </div>
-                          ) : null;
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : null;
+                })()}
 
                 {/* Pets & Laundry */}
                 {((f.pets && f.pets !== "No" && f.pets !== "No pets") || (f.laundry && f.laundry !== "No")) && (
@@ -1277,6 +1300,26 @@ export function EstimateDetailPanel({
                             </div>
                           ) : null
                         )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Deposit */}
+                {deposit?.applyDeposit && depositAmount > 0 && (
+                  <Card className="border border-border/50">
+                    <CardContent className="p-4">
+                      <h4 className="text-sm font-semibold mb-3">Deposit Required</h4>
+                      <div className="flex items-center justify-between p-3 bg-orange-500/10 rounded-md">
+                        <div>
+                          <span className="text-sm font-semibold">Deposit</span>
+                          <p className="text-xs text-muted-foreground mt-0.5">Required before job starts</p>
+                        </div>
+                        <span className="text-sm font-bold text-orange-600">
+                          {deposit.depositType === "percentage"
+                            ? `${deposit.depositValue}% ($${depositAmount.toFixed(2)})`
+                            : `$${depositAmount.toFixed(2)}`}
+                        </span>
                       </div>
                     </CardContent>
                   </Card>
