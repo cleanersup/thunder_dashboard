@@ -160,9 +160,12 @@ export function ConvertRequestDialog({
         });
 
         // Open form in EDIT mode — will UPDATE the draft, not INSERT a new row.
+        // isConversionDraft → the form is new to the user, so its copy reads
+        // "New/Create" even though it persists via the UPDATE (edit) path.
         onEstimateConvert?.(route, {
-          isEditing:  true,
-          estimateId: draft.id,
+          isEditing:        true,
+          isConversionDraft: true,
+          estimateId:       draft.id,
         });
         return;
       }

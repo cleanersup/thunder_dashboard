@@ -244,7 +244,7 @@ export function WalkthroughsPage() {
       const { estimateId, route } = await createEstimateDraftFromWalkthrough(w);
       qc.invalidateQueries({ queryKey: QK.walkthroughs });
       qc.invalidateQueries({ queryKey: QK.estimates });
-      navigate(route, { state: { isEditing: true, estimateId } });
+      navigate(route, { state: { isEditing: true, isConversionDraft: true, estimateId } });
     } catch {
       toast.error("Could not generate estimate from walkthrough");
     }
