@@ -54,11 +54,18 @@ export interface ContactInfo {
 /**
  * Fetches full contact info for a single walkthrough.
  * Resolution order: client → lead → booking (fallback).
+ *
+ * When `propertyId` is provided (client walkthroughs with a selected service
+ * property), the service address is overridden with the property's address —
+ * the property the user picked in the form is the source of truth for the
+ * whole flow (on-site form, PDF, estimate conversion), not the client's
+ * primary address.
  */
 export async function fetchContactInfo(
   walkthroughType: string,
   clientId: string | null,
   leadId: string | null,
+  propertyId?: string | null,
 ): Promise<ContactInfo | null> {
   if (walkthroughType === "client" && clientId) {
     const { data } = await supabase
@@ -66,15 +73,33 @@ export async function fetchContactInfo(
       .select("full_name, phone, email, service_street, service_city, service_state, service_zip")
       .eq("id", clientId)
       .maybeSingle();
-    if (data) return {
-      full_name: data.full_name,
-      email: data.email,
-      phone: data.phone,
-      service_street: data.service_street,
-      service_city: data.service_city,
-      service_state: data.service_state,
-      service_zip: data.service_zip,
-    };
+    if (data) {
+      const info: ContactInfo = {
+        full_name: data.full_name,
+        email: data.email,
+        phone: data.phone,
+        service_street: data.service_street,
+        service_city: data.service_city,
+        service_state: data.service_state,
+        service_zip: data.service_zip,
+      };
+      if (propertyId) {
+        // client_properties is not in the local Supabase types — cast required.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: property } = await (supabase as any)
+          .from("client_properties")
+          .select("street, city, state, zip_code")
+          .eq("id", propertyId)
+          .maybeSingle();
+        if (property) {
+          info.service_street = property.street;
+          info.service_city = property.city;
+          info.service_state = property.state;
+          info.service_zip = property.zip_code;
+        }
+      }
+      return info;
+    }
   } else if (leadId) {
     const { data: lead } = await supabase
       .from("leads")
