@@ -44,6 +44,7 @@ import {
   useChargeInvoiceSavedCard,
   useCancelInvoice,
   useDeleteInvoice,
+  useUpdateInvoice,
 } from "../hooks/useInvoices";
 import { useSendInvoiceEmail }      from "../hooks/useSendInvoiceEmail";
 import { useInvoicesListRealtime }  from "../hooks/useInvoiceRealtime";
@@ -64,6 +65,7 @@ export function InvoicesPage() {
   const markPaid   = useMarkInvoiceAsPaid();
   const chargeSavedCard = useChargeInvoiceSavedCard();
   const cancelInv  = useCancelInvoice();
+  const updateInv  = useUpdateInvoice();
   const deleteInv  = useDeleteInvoice();
 
   useInvoicesListRealtime();
@@ -480,7 +482,11 @@ export function InvoicesPage() {
                           <DropdownMenuItem
                             onClick={async (e) => {
                               e.stopPropagation();
-                              await sendInvoiceEmail(invoice.id);
+                              const result = await sendInvoiceEmail(invoice.id);
+                              // A sent Draft moves to Pending (awaiting payment).
+                              if (result.success) {
+                                updateInv.mutate({ id: invoice.id, updates: { status: "Pending" } });
+                              }
                             }}
                             disabled={isSending}
                           >

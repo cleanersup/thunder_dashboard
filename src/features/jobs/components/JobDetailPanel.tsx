@@ -8,7 +8,7 @@ import { formatDisplayDate, formatDisplayTime, formatDisplayDateTime } from "@/s
 import {
   Briefcase, Calendar, Clock, User, Mail, Phone, MapPin,
   Edit, CheckCircle, XCircle, Trash2, Download, Play,
-  CalendarClock, FileText, MoreHorizontal, Receipt, ChevronRight,
+  CalendarClock, FileText, MoreHorizontal, Receipt, ChevronRight, AlertTriangle,
 } from "lucide-react";
 import { Button }       from "@/shared/components/ui/button";
 import { SidePanel }    from "@/shared/components/common/SidePanel";
@@ -25,6 +25,10 @@ import { JobStatusBadge }     from "./JobStatusBadge";
 import { JobCompleteDialog }  from "./JobCompleteDialog";
 import { AddJobPage }         from "../pages/AddJobPage";
 import { useJob }             from "../hooks/useJobs";
+import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
+import { useInvoice } from "@/features/invoices/hooks/useInvoices";
+import { INVOICE_STATUS_BADGE } from "@/features/invoices/utils/invoiceStatusHelpers";
+import type { InvoiceStatus } from "@/features/invoices/types/invoice.types";
 import { useDeleteJob, useUpdateJobStatus } from "../hooks/useJobMutations";
 import { jobsService } from "../services/jobsService";
 import { QK } from "@/shared/config/queryKeys";
@@ -66,6 +70,26 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
   const navigate = useNavigate();
   const { data: job, isLoading }    = useJob(jobId ?? undefined);
   const { data: profile }           = useProfile();
+  const { data: clientProperties = [] } = useClientProperties(job?.clientId ?? undefined);
+
+  // Deposit invoice is auto-created (as a Draft) by a backend trigger when a job
+  // with a deposit is published. Surface a reminder while it's still unsent (Draft)
+  // so the user doesn't forget to send it.
+  const { data: depositInvoice } = useInvoice(job?.depositInvoiceId ?? undefined);
+  const depositInvoicePending =
+    job?.applyDeposit && depositInvoice?.status?.toLowerCase() === "draft";
+
+  // Jobs only store the denormalized service address (no property_id/title), so we
+  // resolve the property name by matching that address against the client's properties.
+  const norm = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
+  const matchedPropertyTitle = job
+    ? clientProperties.find(
+        (p) =>
+          norm(p.street)   === norm(job.propertyStreet) &&
+          norm(p.city)     === norm(job.propertyCity) &&
+          norm(p.zip_code) === norm(job.propertyZip),
+      )?.title ?? null
+    : null;
   const { data: allEmployees = [] } = useAllEmployees();
   const { mutate: deleteJob,    isPending: deleting }  = useDeleteJob();
   const { mutate: updateStatus, isPending: updating }  = useUpdateJobStatus();
@@ -339,7 +363,14 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
                 <InfoRow
                   icon={MapPin}
                   label="Service Address"
-                  value={[job.propertyStreet, job.propertyApt, job.propertyCity, job.propertyState, job.propertyZip].filter(Boolean).join(", ")}
+                  value={
+                    <>
+                      {matchedPropertyTitle && (
+                        <span className="block font-semibold">{matchedPropertyTitle}</span>
+                      )}
+                      {[job.propertyStreet, job.propertyApt, job.propertyCity, job.propertyState, job.propertyZip].filter(Boolean).join(", ")}
+                    </>
+                  }
                 />
               )}
             </section>
@@ -364,6 +395,41 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
                     </div>
                     <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                   </button>
+                </section>
+              </>
+            )}
+
+            {/* ── Deposit invoice ───────────────────────────────────────── */}
+            {job.applyDeposit && job.depositInvoiceId && depositInvoice && (
+              <>
+                <Divider />
+                <section className="space-y-2">
+                  <SectionTitle>Deposit Invoice</SectionTitle>
+                  <button
+                    type="button"
+                    onClick={() => { onClose(); navigate("/invoices", { state: { openId: job.depositInvoiceId } }); }}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-secondary/50 transition-colors text-left"
+                  >
+                    <div className="p-2 rounded bg-blue-500/10 flex-shrink-0">
+                      <Receipt className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{depositInvoice.invoice_number ?? "Invoice"}</p>
+                      <p className="text-xs text-muted-foreground">${job.depositAmount.toFixed(2)}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full border ${INVOICE_STATUS_BADGE[(depositInvoice.status as InvoiceStatus) ?? "Draft"]}`}>
+                      {depositInvoice.status}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                  </button>
+                  {depositInvoicePending && (
+                    <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                      <p className="text-xs text-amber-700 dark:text-amber-400">
+                        This deposit invoice hasn't been sent yet — open it to send so the client can pay.
+                      </p>
+                    </div>
+                  )}
                 </section>
               </>
             )}

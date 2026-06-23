@@ -115,6 +115,8 @@ export function InvoiceDetailsModal({
 
   const { items: lineItems, error: lineItemsError } = safeParseLineItems(invoice?.line_items);
   const subtotal = lineItems.reduce((s, i) => s + i.total, 0);
+  // Percentage discount applies to positive services only (excludes deposit-credit lines).
+  const discountBase = lineItems.reduce((s, i) => s + (i.total > 0 ? i.total : 0), 0);
 
   return (
     <>
@@ -520,7 +522,7 @@ export function InvoiceDetailsModal({
                                 </span>
                                 <span className="text-sm font-semibold text-destructive">
                                   -${invoice.discount_type === "percentage"
-                                    ? ((lineItems.length > 0 ? subtotal : invoice.total) * ((invoice.discount_value ?? 0) / 100)).toFixed(2)
+                                    ? ((lineItems.length > 0 ? discountBase : invoice.total) * ((invoice.discount_value ?? 0) / 100)).toFixed(2)
                                     : (invoice.discount_value ?? 0).toFixed(2)}
                                 </span>
                               </div>

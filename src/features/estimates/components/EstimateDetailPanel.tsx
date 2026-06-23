@@ -50,6 +50,7 @@ import { PDFService } from "@/shared/services/pdf.service";
 import { SidePanel } from "@/shared/components/common/SidePanel";
 import { buildInvoicePrefillFromEstimate } from "../utils/buildInvoicePrefill";
 import { restoreDepositFromAdditionalData } from "../utils/estimateDeposit";
+import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
 import { useConvertEstimateToJob } from "@/features/jobs/hooks/useConvertEstimateToJob";
 
 // ─── Local helpers ────────────────────────────────────────────────────────────
@@ -315,6 +316,7 @@ export function EstimateDetailPanel({
   const updateStatus                              = useUpdateEstimateStatus();
 
   const [estimate,              setEstimate]              = useState<any>(null);
+  const { data: clientProperties = [] }                   = useClientProperties(estimate?.client_id ?? undefined);
   const [loading,               setLoading]               = useState(true);
   const [isDownloadingPDF,      setIsDownloadingPDF]      = useState(false);
   const [isAcceptDialogOpen,    setIsAcceptDialogOpen]    = useState(false);
@@ -722,6 +724,18 @@ export function EstimateDetailPanel({
     discountValue:  estimate.discount_value,
   } : null;
 
+  // Estimates store the denormalized service address (no property_id/title), so we
+  // resolve the property name by matching that address against the client's properties.
+  const normAddr = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
+  const matchedPropertyTitle = f
+    ? clientProperties.find(
+        (p) =>
+          normAddr(p.street)   === normAddr(f.address) &&
+          normAddr(p.city)     === normAddr(f.city) &&
+          normAddr(p.zip_code) === normAddr(f.zip),
+      )?.title ?? null
+    : null;
+
   // Deposit (optional down-payment on the estimate). Does NOT reduce the total.
   const deposit = f ? restoreDepositFromAdditionalData(f.additionalData) : null;
   const depositAmount = f && deposit?.applyDeposit && deposit.depositValue
@@ -1070,6 +1084,9 @@ export function EstimateDetailPanel({
                       <div className="flex items-start gap-3">
                         <MapPin className="w-4 h-4 shrink-0 text-muted-foreground mt-0.5" />
                         <span className="text-sm">
+                          {matchedPropertyTitle && (
+                            <span className="block font-semibold">{matchedPropertyTitle}</span>
+                          )}
                           {f.address}{f.apt && `, ${f.apt}`}<br />
                           {f.city}, {f.state} {f.zip}
                         </span>
