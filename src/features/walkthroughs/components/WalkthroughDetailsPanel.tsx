@@ -143,6 +143,15 @@ export function WalkthroughDetailsPanel({
     } catch { toast.error("Failed to send start notification"); }
   }
 
+  function handleReschedule() {
+    if (!walkthrough) return;
+    // Mirrors swift-slate: revert to Draft, then open the edit form so the user
+    // can pick a new date and re-schedule (which re-notifies the client).
+    updateStatus({ id: walkthrough.id, status: "Draft" }, {
+      onSuccess: () => { onUpdated(); setEditOpen(true); },
+    });
+  }
+
   function handleNavigateToForm() {
     if (!walkthrough) return;
     setQrOpen(false);
@@ -224,8 +233,8 @@ export function WalkthroughDetailsPanel({
               <DropdownMenuItem onClick={() => setEditOpen(true)}>
                 <Edit className="h-4 w-4 mr-2" /> Edit
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => void handleDownloadPDF()}>
-                <Download className="h-4 w-4 mr-2" /> Download PDF
+              <DropdownMenuItem onClick={() => handleReschedule()} disabled={isUpdating}>
+                <CalendarClock className="h-4 w-4 mr-2" /> Reschedule
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setCancelOpen(true)}>

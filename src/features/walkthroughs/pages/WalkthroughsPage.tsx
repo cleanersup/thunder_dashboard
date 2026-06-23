@@ -211,6 +211,14 @@ export function WalkthroughsPage() {
     setDetailOpen(true);
   }
 
+  function handleReschedule(w: WalkthroughWithContact) {
+    // Mirrors swift-slate: revert to Draft, then open the edit form so the user
+    // can pick a new date and re-schedule (which re-notifies the client).
+    updateStatus({ id: w.id, status: "Draft" }, {
+      onSuccess: () => openEdit(w.id),
+    });
+  }
+
   async function handleStartWalkthrough(w: WalkthroughWithContact) {
     setQrTarget(w);
     try {
@@ -510,6 +518,9 @@ export function WalkthroughsPage() {
                             <DropdownMenuItem onClick={() => openEdit(w.id)}>
                               <Edit className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleReschedule(w)}>
+                              <CalendarClock className="mr-2 h-4 w-4" /> Reschedule
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-green-600 focus:text-green-600"
                               disabled={isStarting && qrTarget?.id === w.id}
@@ -519,9 +530,6 @@ export function WalkthroughsPage() {
                                 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 : <Play className="mr-2 h-4 w-4" />}
                               Start Walkthrough
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => void handleDownloadPDF(w)}>
-                              <Download className="mr-2 h-4 w-4" /> Download PDF
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmCancel(w)}>
