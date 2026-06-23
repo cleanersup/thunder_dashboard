@@ -4,41 +4,102 @@
  */
 import jsPDF from "jspdf";
 import { FileService } from "@/shared/services/file.service";
+import { supabase } from "@/integrations/supabase/client";
+
+const STORAGE_BUCKET = "route-files";
+
+type PdfPhoto = { dataUrl: string; width: number; height: number };
+
+function parseRouteFilesStoragePath(urlOrPath: string): string | null {
+  const clean = urlOrPath.trim();
+  if (!clean) return null;
+  if (!clean.startsWith("http")) return clean.replace(/^\/+/, "");
+
+  const match = clean.match(
+    /\/storage\/v1\/object\/(?:public|sign|authenticated)\/route-files\/([^?]+)/,
+  );
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+async function blobToJpegForPdf(blob: Blob): Promise<PdfPhoto | null> {
+  const objUrl = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = objUrl;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    return {
+      dataUrl: canvas.toDataURL("image/jpeg", 0.8),
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+    };
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(objUrl);
+  }
+}
+
+async function dataUrlToJpegForPdf(dataUrl: string): Promise<PdfPhoto | null> {
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = dataUrl;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    return {
+      dataUrl: canvas.toDataURL("image/jpeg", 0.8),
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+    };
+  } catch {
+    return null;
+  }
+}
 
 /**
- * Fetches a photo URL and normalizes it to a JPEG data URL (via canvas) so jsPDF
- * can embed it regardless of the source format (png/webp/jpg). Returns null on failure
- * so a single broken image never aborts the whole PDF.
+ * Loads a walkthrough photo (data URL or Storage URL) for PDF embedding.
+ * Uses authenticated Storage download when needed so private bucket RLS still works.
  */
-async function loadPhotoForPdf(
-  url: string,
-): Promise<{ dataUrl: string; width: number; height: number } | null> {
+async function loadPhotoForPdf(url: string): Promise<PdfPhoto | null> {
   try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    const objUrl = URL.createObjectURL(blob);
-    try {
-      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const i = new Image();
-        i.onload = () => resolve(i);
-        i.onerror = reject;
-        i.src = objUrl;
-      });
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return null;
-      ctx.drawImage(img, 0, 0);
-      return {
-        dataUrl: canvas.toDataURL("image/jpeg", 0.8),
-        width: img.naturalWidth,
-        height: img.naturalHeight,
-      };
-    } finally {
-      URL.revokeObjectURL(objUrl);
+    if (url.startsWith("data:")) {
+      return dataUrlToJpegForPdf(url);
     }
+
+    let blob: Blob | null = null;
+    const storagePath = parseRouteFilesStoragePath(url);
+
+    if (storagePath) {
+      const { data, error } = await supabase.storage.from(STORAGE_BUCKET).download(storagePath);
+      if (!error && data) blob = data;
+    }
+
+    if (!blob) {
+      const fetchUrl = url.startsWith("http")
+        ? url
+        : supabase.storage.from(STORAGE_BUCKET).getPublicUrl(storagePath ?? url).data.publicUrl;
+      const res = await fetch(fetchUrl);
+      if (!res.ok) return null;
+      blob = await res.blob();
+    }
+
+    return blobToJpegForPdf(blob);
   } catch {
     return null;
   }
