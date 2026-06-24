@@ -252,7 +252,7 @@ export function InvoiceDetailPanel({
                 <Mail className="w-4 h-4 mr-2" /> {isSendingReminder ? "Sending…" : "Send Reminder"}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSendEmail} disabled={isSending}>
-                <Share className="w-4 h-4 mr-2" /> Send Invoice
+                <Share className="w-4 h-4 mr-2" /> Share
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => invoice && downloadPDF(invoice)}>
                 <Download className="w-4 h-4 mr-2" /> Download PDF
