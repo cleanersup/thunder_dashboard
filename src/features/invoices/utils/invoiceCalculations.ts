@@ -85,13 +85,22 @@ export function safeParseLineItems(raw: unknown): { items: LineItem[]; error: st
   }
 }
 
+function normalizeDiscountType(type: string | null | undefined): string | null {
+  if (!type) return null;
+  const t = type.toLowerCase();
+  if (t === "percent" || t === "percentage") return "percentage";
+  if (t === "fixed" || t === "amount") return "fixed";
+  return type;
+}
+
 export function calculateInvoiceTotals(params: {
   lineItems:      { total: number }[];
   discountType?:  string | null;
   discountValue?: number | null;
   taxRate?:       number | null;
 }): InvoiceTotalsResult {
-  const { lineItems, discountType, discountValue = 0, taxRate = 0 } = params;
+  const { lineItems, discountType: rawType, discountValue = 0, taxRate = 0 } = params;
+  const discountType = normalizeDiscountType(rawType);
 
   const subtotal       = lineItems.reduce((s, i) => s + i.total, 0);
   // Percentage discount applies to the positive services subtotal only — negative
