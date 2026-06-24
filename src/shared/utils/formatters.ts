@@ -28,6 +28,11 @@ export function formatDateOnly(dateStr: string, fmt: string = "MMMM d, yyyy"): s
   return format(parseDateOnly(dateStr), fmt);
 }
 
+/** Today's date as YYYY-MM-DD in the user's local timezone. */
+export function todayDateOnly(): string {
+  return format(new Date(), "yyyy-MM-dd");
+}
+
 // ─── Unified display formats ────────────────────────────────────────────────
 // Single source of truth for how dates and times appear across the dashboard.
 // Date: "Wednesday, 06/24/2026"  ·  Time: "09:00 AM"

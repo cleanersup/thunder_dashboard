@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Invoice, InvoiceFilters, InvoiceFormData } from "../types/invoice.types";
 import { logInvoiceActivity } from "@/shared/services/activityLog";
 import { createNotification } from "@/features/notifications/services/notificationsService";
+import { todayDateOnly } from "@/shared/utils/formatters";
 
 // ─── Activity / notification side-effects (best-effort, never throw) ──────────
 
@@ -266,7 +267,7 @@ export async function markInvoiceAsPaid(
     status:         "Paid",
     payment_method: paymentMethod,
     cheque_number:  chequeNumber ?? null,
-    paid_date:      new Date().toISOString().split("T")[0],
+    paid_date:      todayDateOnly(),
   });
   queueInvoicePaidConfirmationEmails(id);
   await notifyInvoicePaid(updated);

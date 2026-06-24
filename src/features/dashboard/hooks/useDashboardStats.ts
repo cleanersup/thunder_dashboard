@@ -8,6 +8,7 @@ import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { format as formatDate, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek, isWithinInterval, subMonths } from "date-fns";
+import { parseDateOnly } from "@/shared/utils/formatters";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchClientsCount,
@@ -117,7 +118,7 @@ export function useDashboardStats() {
     return allInvoices
       .filter((inv) => {
         if (inv.status !== "Paid" || !inv.paid_date) return false;
-        const d = new Date(inv.paid_date);
+        const d = parseDateOnly(inv.paid_date);
         return d.getMonth() === m && d.getFullYear() === y;
       })
       .reduce((s, inv) => s + (Number(inv.total) || 0), 0);
@@ -156,7 +157,7 @@ export function useDashboardStats() {
       const weekSales = allInvoices
         .filter((inv) => {
           if (inv.status !== "Paid" || !inv.paid_date) return false;
-          return isWithinInterval(new Date(inv.paid_date), { start: weekStart, end: weekEnd });
+          return isWithinInterval(parseDateOnly(inv.paid_date), { start: weekStart, end: weekEnd });
         })
         .reduce((s, inv) => s + (Number(inv.total) || 0), 0);
       cumulative += weekSales;
@@ -180,7 +181,7 @@ export function useDashboardStats() {
       const sales = allInvoices
         .filter((inv) => {
           if (inv.status !== "Paid" || !inv.paid_date) return false;
-          return isWithinInterval(new Date(inv.paid_date), { start: weekStart, end: weekEnd });
+          return isWithinInterval(parseDateOnly(inv.paid_date), { start: weekStart, end: weekEnd });
         })
         .reduce((s, inv) => s + (Number(inv.total) || 0), 0);
       return {
@@ -200,7 +201,7 @@ export function useDashboardStats() {
       const monthEnd = endOfMonth(monthDate);
       const pending = allInvoices.filter((inv) => {
         if (inv.status !== "Pending") return false;
-        const d = new Date(inv.invoice_date);
+        const d = parseDateOnly(inv.invoice_date);
         return d >= monthStart && d <= monthEnd;
       });
       return {
