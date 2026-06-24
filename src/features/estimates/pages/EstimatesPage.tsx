@@ -29,12 +29,10 @@ import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { EstimateDetailPanel } from "../components/EstimateDetailPanel";
 import { CreateResidentialEstimatePage } from "./CreateResidentialEstimatePage";
 import { CreateCommercialEstimatePage } from "./CreateCommercialEstimatePage";
-import { CreateInvoicePage, type InvoicePrefill } from "@/features/invoices/pages/CreateInvoicePage";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { PDFService } from "@/shared/services/pdf.service";
 import { deleteDraftEstimate } from "../services/estimatesService";
-import { buildInvoicePrefillFromEstimate } from "../utils/buildInvoicePrefill";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -106,7 +104,6 @@ export function EstimatesPage() {
     continueDraft?: boolean;
   }>({ type: null });
 
-  const [invoiceModal, setInvoiceModal] = useState<{ open: boolean; prefill?: InvoicePrefill }>({ open: false });
 
   // ── Format rows ───────────────────────────────────────────────────────────
   const formattedEstimates = rawEstimates.map((e) => ({
@@ -118,6 +115,7 @@ export function EstimatesPage() {
     serviceSubType: e.service_sub_type ?? "",
     total:          e.total,
     status:         e.status,
+    job_id:         (e as any).job_id as string | null,
     phone:          (e as any).phone as string | null,
     // Autosave drafts (created by useDraftEstimate) store form state in draft_data.
     // Request-converted drafts don't have draft_data — they use main_data instead.
@@ -304,12 +302,6 @@ export function EstimatesPage() {
       setIsDeleteDraftDialogOpen(false);
       setActionEstimate(null);
     }
-  }
-
-  async function handleConvertToInvoice(estimate: any) {
-    const { data } = await supabase.from("estimates").select("*").eq("id", estimate.id).single();
-    if (!data) return;
-    setInvoiceModal({ open: true, prefill: buildInvoicePrefillFromEstimate(data) });
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -508,23 +500,25 @@ export function EstimatesPage() {
                               </>
                             )}
 
-                            {/* Accepted */}
+                            {/* Accepted — mirrors the detail panel; complex actions open the panel */}
                             {estimate.status === "Accepted" && (
                               <>
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(estimate.id); }}>
-                                  <Briefcase className="w-4 h-4 mr-2" /> Convert to Job
-                                </DropdownMenuItem>
+                                {!estimate.job_id && (
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(estimate.id); }}>
+                                    <Briefcase className="w-4 h-4 mr-2" /> Convert to Job
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditEstimate(estimate); }}>
                                   <Edit className="w-4 h-4 mr-2" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(estimate.id); }}>
+                                  <FileText className="w-4 h-4 mr-2" /> Generate Contract
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadPDF(estimate); }}>
                                   <Download className="w-4 h-4 mr-2" /> Download PDF
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); generateShareLink(estimate.id); }} disabled={isGeneratingLink}>
                                   <Share className="w-4 h-4 mr-2" /> Share
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleConvertToInvoice(estimate); }}>
-                                  <FileText className="w-4 h-4 mr-2" /> Convert to Invoice
                                 </DropdownMenuItem>
                               </>
                             )}
@@ -596,7 +590,6 @@ export function EstimatesPage() {
           })
         }
         onOpenEstimateWizard={(serviceType, continueDraft) => openEstimateForm(serviceType, undefined, continueDraft)}
-        onConvertToInvoice={(prefill) => setInvoiceModal({ open: true, prefill })}
       />
 
       <AlertDialog open={isAcceptDialogOpen} onOpenChange={setIsAcceptDialogOpen}>
@@ -661,12 +654,6 @@ export function EstimatesPage() {
       </AlertDialog>
 
       {/* ── Estimate form modals ──────────────────────────────────────────── */}
-      {/* ── Invoice modal (Convert to Invoice) ───────────────────────────── */}
-      <CreateInvoicePage
-        open={invoiceModal.open}
-        onClose={() => setInvoiceModal({ open: false })}
-        prefill={invoiceModal.prefill}
-      />
 
       {formModal.type === "residential" && (
         <CreateResidentialEstimatePage

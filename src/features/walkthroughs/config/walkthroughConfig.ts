@@ -32,15 +32,15 @@ export const COMMERCIAL_GROUP_A_TYPES: readonly string[] = [
 ];
 
 export const COMMERCIAL_SERVICE_SCHEDULE_OPTIONS = [
-  "Day", "Evening", "Night", "After Hours",
+  "Day Shift", "Night Shift",
 ] as const;
 
 export const COMMERCIAL_GREASE_LEVEL_OPTIONS = [
-  "Low", "Medium", "High", "Extreme",
+  "Low", "Medium", "High",
 ] as const;
 
 export const COMMERCIAL_CONDITION_OPTIONS = [
-  "Clean", "Moderate", "Dirty", "Very Dirty",
+  "Well Maintained", "Dirty", "Very Dirty",
 ] as const;
 
 export const WEEK_DAYS = [

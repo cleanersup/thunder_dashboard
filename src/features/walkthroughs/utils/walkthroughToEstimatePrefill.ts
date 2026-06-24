@@ -44,6 +44,41 @@ const COMMERCIAL_PROPERTY_WALKTHROUGH_TO_ESTIMATE: Record<string, string> = {
   "Auto Dealership": "auto-dealership",
 };
 
+/**
+ * Commercial walkthrough stores display labels (e.g. "Night Shift"), but the
+ * dashboard estimate form/pricing use internal slugs (e.g. "nocturno"). These
+ * maps translate walkthrough labels → estimate slugs during prefill.
+ */
+const COMMERCIAL_SCHEDULE_LABEL_TO_SLUG: Record<string, string> = {
+  "Day Shift": "diurno",
+  "Night Shift": "nocturno",
+};
+
+const COMMERCIAL_LEVEL_LABEL_TO_SLUG: Record<string, string> = {
+  Low: "bajo",
+  Medium: "medio",
+  High: "alto",
+};
+
+const COMMERCIAL_CONDITION_LABEL_TO_SLUG: Record<string, string> = {
+  "Well Maintained": "bien-mantenido",
+  Dirty: "sucio",
+  "Very Dirty": "muy-sucio",
+};
+
+/** Extra services: walkthrough labels (both groups) → estimate slugs. */
+const COMMERCIAL_EXTRA_LABEL_TO_SLUG: Record<string, string> = {
+  // Group B (restaurant / food-truck)
+  Hoods: "hoods",
+  Windows: "windows",
+  Refrigerators: "refrigerators",
+  // Group A (office-style)
+  "Inside Windows": "inside-windows",
+  "Outside Windows": "outside-windows",
+  Sidewalks: "sidewalks",
+  Store: "store",
+};
+
 function parseIntSafe(v: string | null | undefined): number {
   if (v == null || String(v).trim() === "") return 0;
   const n = parseInt(String(v), 10);
@@ -210,17 +245,34 @@ export function mapCommercialWalkthroughRowToPrefillFields(row: CommercialWalkth
     out.clientProvidesSupplies = row.client_provides_supplies;
   }
 
-  if (row.service_schedule != null && String(row.service_schedule).trim() !== "") {
-    out.serviceSchedule = String(row.service_schedule).trim();
+  if (hasTrimmed(row.service_schedule)) {
+    const label = String(row.service_schedule).trim();
+    const slug = COMMERCIAL_SCHEDULE_LABEL_TO_SLUG[label];
+    if (slug) out.serviceSchedule = slug;
   }
-  if (row.grease_level != null && String(row.grease_level).trim() !== "") {
-    out.greaseLevel = String(row.grease_level).trim();
+  if (hasTrimmed(row.grease_level)) {
+    const label = String(row.grease_level).trim();
+    const slug = COMMERCIAL_LEVEL_LABEL_TO_SLUG[label];
+    if (slug) {
+      // Estimate uses `greaseLevel` (restaurants) and `dustLevel` (Group A) for
+      // the same on-site measurement; populate both so either layout prefills.
+      out.greaseLevel = slug;
+      out.dustLevel = slug;
+    }
   }
-  if (row.restaurant_condition != null && String(row.restaurant_condition).trim() !== "") {
-    out.restaurantCondition = String(row.restaurant_condition).trim();
+  if (hasTrimmed(row.restaurant_condition)) {
+    const label = String(row.restaurant_condition).trim();
+    const slug = COMMERCIAL_CONDITION_LABEL_TO_SLUG[label];
+    if (slug) {
+      // Group A renders this as "Property Condition" (`propertyCondition`).
+      out.restaurantCondition = slug;
+      out.propertyCondition = slug;
+    }
   }
 
-  const extras = asStringArray(row.extra_services);
+  const extras = asStringArray(row.extra_services)
+    .map((label) => COMMERCIAL_EXTRA_LABEL_TO_SLUG[label.trim()])
+    .filter((slug): slug is string => Boolean(slug));
   if (extras.length > 0) out.extraServices = extras;
 
   const ec = parseIntSafe(row.employee_count);

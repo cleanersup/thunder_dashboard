@@ -523,7 +523,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       // Send email when delivery method includes email
       if ((deliveryMethod === "email" || deliveryMethod === "both") && entity.email) {
         await sendEstimateEmail({
-          estimateData: { id: finalId, client_name: entity.full_name, total, email: entity.email },
+          estimateData: { ...payload, id: finalId, company_logo: profile?.company_logo, company_name: profile?.company_name, company_email: profile?.company_email, company_phone: profile?.company_phone },
           recipientEmail: entity.email,
           estimateType: "commercial",
         });
@@ -644,17 +644,28 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
         />
       );
       case 6: {
+        // When a service property is selected, its address overrides the client's
+        // default address — mirror the save path so preview/PDF stay consistent.
+        const previewAddr = selectedProperty
+          ? propertyToEstimateAddress(selectedProperty)
+          : {
+              address: selectedClient?.service_street ?? "",
+              apt:     selectedClient?.service_apt    ?? "",
+              city:    selectedClient?.service_city   ?? "",
+              state:   selectedClient?.service_state  ?? "",
+              zip:     selectedClient?.service_zip    ?? "",
+            };
         const previewClient = selectedEntity ? {
           name:    selectedEntity.full_name,
           company: estimateType === "client" ? (selectedClient?.company ?? undefined) : (selectedLead?.company_name ?? undefined),
           email:   selectedEntity.email ?? "",
           phone:   selectedEntity.phone ?? "",
           address: estimateType === "client"
-            ? [selectedClient?.service_street, selectedClient?.service_apt].filter(Boolean).join(" ")
+            ? [previewAddr.address, previewAddr.apt].filter(Boolean).join(" ")
             : (selectedLead?.address ?? undefined),
-          city:    estimateType === "client" ? (selectedClient?.service_city  ?? undefined) : (selectedLead?.city      ?? undefined),
-          state:   estimateType === "client" ? (selectedClient?.service_state ?? undefined) : (selectedLead?.state     ?? undefined),
-          zip:     estimateType === "client" ? (selectedClient?.service_zip   ?? undefined) : (selectedLead?.zip_code  ?? undefined),
+          city:    estimateType === "client" ? (previewAddr.city  || undefined) : (selectedLead?.city      ?? undefined),
+          state:   estimateType === "client" ? (previewAddr.state || undefined) : (selectedLead?.state     ?? undefined),
+          zip:     estimateType === "client" ? (previewAddr.zip   || undefined) : (selectedLead?.zip_code  ?? undefined),
         } : null;
         return (
           <CommPreviewStep
