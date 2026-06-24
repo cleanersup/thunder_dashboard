@@ -345,6 +345,9 @@ export function JobsPage() {
                             <DropdownMenuItem onClick={() => { setEditJobId(job.id); setJobModalOpen(true); }}>
                               <Edit className="w-4 h-4 mr-2" /> Edit
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setEditJobId(job.id); setJobModalOpen(true); }}>
+                              <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => { setActionJob(job); setShowCancel(true); }}>
                               <XCircle className="w-4 h-4 mr-2" /> Cancel

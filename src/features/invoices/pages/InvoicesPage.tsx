@@ -3,7 +3,7 @@
  * Main invoices listing page with KPI cards, table, search, and filters.
  * Adapted from thunder-web-version/src/pages/Invoices.tsx.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { formatDisplayDate, formatDisplayDateShort } from "@/shared/utils/formatters";
 import {
@@ -47,12 +47,13 @@ import {
   useUpdateInvoice,
 } from "../hooks/useInvoices";
 import { useSendInvoiceEmail }      from "../hooks/useSendInvoiceEmail";
+import { useSendInvoiceReminder }   from "../hooks/useSendInvoiceReminder";
 import { useInvoicesListRealtime }  from "../hooks/useInvoiceRealtime";
 import { useInvoicePDFDownload }    from "../hooks/useInvoicePDFDownload";
 import { InvoiceDetailPanel }       from "../components/InvoiceDetailPanel";
 import { CreateInvoicePage }        from "./CreateInvoicePage";
 import { INVOICE_STATUS_BADGE, INVOICE_STATUS_BORDER } from "../utils/invoiceStatusHelpers";
-import { useClientByEmail } from "@/features/crm/clients/hooks/useClients";
+import { useClientByEmail, useClients } from "@/features/crm/clients/hooks/useClients";
 import type { Invoice, InvoiceStatus } from "../types/invoice.types";
 
 const ITEMS_PER_PAGE = 10;
@@ -61,7 +62,22 @@ const ITEMS_PER_PAGE = 10;
 
 export function InvoicesPage() {
   const { sendInvoiceEmail, isSending } = useSendInvoiceEmail();
+  const { sendReminder, isSending: isSendingReminder } = useSendInvoiceReminder();
   const { downloadPDF } = useInvoicePDFDownload();
+  const { data: clients } = useClients();
+
+  // Emails of clients that have a saved card — used to gate "Take a Payment"
+  // per row, mirroring the detail panel's hasCardOnFile check.
+  const cardEmailSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of clients ?? []) {
+      const rec = c as { stripe_default_payment_method_id?: string | null; email?: string | null };
+      if (rec.stripe_default_payment_method_id && rec.email) set.add(rec.email.toLowerCase());
+    }
+    return set;
+  }, [clients]);
+  const invoiceHasCardOnFile = (email?: string | null) =>
+    !!email && cardEmailSet.has(email.toLowerCase());
   const markPaid   = useMarkInvoiceAsPaid();
   const chargeSavedCard = useChargeInvoiceSavedCard();
   const cancelInv  = useCancelInvoice();
@@ -459,18 +475,20 @@ export function InvoicesPage() {
                               <CheckCircle className="w-4 h-4 mr-2" style={{ color: "hsl(var(--green-vibrant))" }} />
                               Mark as Paid
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-green-700 focus:text-green-700"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActionInvoice(invoice);
-                                setIsTakePaymentDialogOpen(true);
-                              }}
-                              disabled={chargeSavedCard.isPending}
-                            >
-                              <CreditCard className="w-4 h-4 mr-2" />
-                              Take a Payment
-                            </DropdownMenuItem>
+                            {invoiceHasCardOnFile(invoice.email) && (
+                              <DropdownMenuItem
+                                className="text-green-700 focus:text-green-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActionInvoice(invoice);
+                                  setIsTakePaymentDialogOpen(true);
+                                }}
+                                disabled={chargeSavedCard.isPending}
+                              >
+                                <CreditCard className="w-4 h-4 mr-2" />
+                                Take a Payment
+                              </DropdownMenuItem>
+                            )}
                           </>
                         )}
 
@@ -500,9 +518,9 @@ export function InvoicesPage() {
                             <DropdownMenuItem
                               onClick={async (e) => {
                                 e.stopPropagation();
-                                await sendInvoiceEmail(invoice.id);
+                                await sendReminder(invoice.id);
                               }}
-                              disabled={isSending}
+                              disabled={isSendingReminder}
                             >
                               <Mail className="w-4 h-4 mr-2" />
                               Send Reminder
@@ -515,7 +533,7 @@ export function InvoicesPage() {
                               disabled={isSending}
                             >
                               <Share className="w-4 h-4 mr-2" />
-                              Send Invoice
+                              Share
                             </DropdownMenuItem>
                           </>
                         )}
