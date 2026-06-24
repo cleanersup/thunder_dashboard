@@ -75,7 +75,7 @@ function calcDetailedCosts(input: CommercialPricingInput): CommercialCostBreakdo
   const {
     propertyType, propertySize, serviceType, recurringFrequency, selectedWeekDays,
     employeeCount, hourlyRate, cleaningDuration,
-    serviceSchedule, greaseLevel, restaurantCondition, extraServices, clientProvidesSupplies,
+    serviceSchedule, greaseLevel, restaurantCondition, clientProvidesSupplies,
     companyState,
   } = input;
 
@@ -88,23 +88,28 @@ function calcDetailedCosts(input: CommercialPricingInput): CommercialCostBreakdo
   const adjustPrice = (p: number) => companyState ? calculateAdjustedPrice(p, companyState) : p;
 
   if (serviceType === "one-time") {
-    if (groupB) {
-      let fp = sqft * 0.70;
-      if (serviceSchedule === "nocturno") fp *= 1.25;
-      if (greaseLevel === "medio") fp *= 1.15;
-      else if (greaseLevel === "alto") fp *= 1.30;
-      if (restaurantCondition === "sucio") fp *= 1.20;
-      else if (restaurantCondition === "muy-sucio") fp *= 1.40;
-      extraServices.forEach((s) => {
-        if (s.includes("windows"))      fp += 150;
-        if (s.includes("hoods"))        fp += 200;
-        if (s.includes("refrigerators")) fp += 100;
-      });
-      if (clientProvidesSupplies) fp *= 0.97;
-      return deriveCosts(adjustPrice(fp));
+    // Primary path (mirrors swift-slate calculateFinalPrice): labor-based,
+    // identical for both groups, with NO schedule/level/condition/extra modifiers.
+    if (employees > 0 && rate > 0 && duration > 0) {
+      const laborCost          = employees * duration * rate;
+      const suppliesCost       = laborCost * 0.25;
+      const overheadCost       = laborCost * 0.10;
+      const totalOperationCost = laborCost + suppliesCost + overheadCost;
+      return {
+        finalPrice: adjustPrice(totalOperationCost * 1.67),
+        laborCost, suppliesCost, overheadCost, totalOperationCost,
+      };
     }
+    // Fallback when labor data is missing: square-footage + modifiers (no extras).
     const ratePerSqft = getBaseRatePerSqft(propertyType, sqft);
-    return deriveCosts(adjustPrice(sqft * ratePerSqft));
+    let fp = sqft * ratePerSqft;
+    if (clientProvidesSupplies)                   fp *= 0.97;
+    if (serviceSchedule === "nocturno")           fp *= 1.10;
+    if (greaseLevel === "medio")                  fp *= 1.05;
+    else if (greaseLevel === "alto")              fp *= 1.08;
+    if (restaurantCondition === "sucio")          fp *= 1.05;
+    else if (restaurantCondition === "muy-sucio") fp *= 1.07;
+    return deriveCosts(adjustPrice(fp));
   }
 
   if (employees === 0 || rate === 0 || duration === 0) return deriveCosts(0);

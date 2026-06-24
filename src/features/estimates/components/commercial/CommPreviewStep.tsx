@@ -16,6 +16,8 @@ const tr = (v: string): string => {
     "bien-mantenido": "Well Maintained", sucio: "Dirty", "muy-sucio": "Very Dirty",
     "one-time": "One Time", recurrent: "Recurring",
     hoods: "Hoods", windows: "Windows", refrigerators: "Refrigerators",
+    "inside-windows": "Inside Windows", "outside-windows": "Outside Windows",
+    sidewalks: "Sidewalks", store: "Store",
   };
   if (v.includes(",")) return v.split(",").map((x) => m[x.trim()] ?? x.trim()).join(", ");
   return m[v] ?? v;

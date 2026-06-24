@@ -9,10 +9,19 @@ import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { Switch } from "@/shared/components/ui/switch";
 import { cn } from "@/shared/utils/cn";
 
-const EXTRA_SERVICE_OPTIONS = [
+// Group B (restaurant / food-truck) extras.
+const EXTRA_SERVICE_OPTIONS_GROUP_B = [
   { value: "hoods",         label: "Hoods" },
   { value: "windows",       label: "Windows" },
   { value: "refrigerators", label: "Refrigerators" },
+];
+
+// Group A (office-style properties) extras.
+const EXTRA_SERVICE_OPTIONS_GROUP_A = [
+  { value: "inside-windows",  label: "Inside Windows" },
+  { value: "outside-windows", label: "Outside Windows" },
+  { value: "sidewalks",       label: "Sidewalks" },
+  { value: "store",           label: "Store" },
 ];
 
 export interface CommDetailsStepProps {
@@ -232,7 +241,7 @@ export function CommDetailsStep({
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-3">
-            {EXTRA_SERVICE_OPTIONS.map(({ value, label }) => (
+            {(groupB ? EXTRA_SERVICE_OPTIONS_GROUP_B : EXTRA_SERVICE_OPTIONS_GROUP_A).map(({ value, label }) => (
               <Button key={value} variant="outline"
                 onClick={() => onExtraServiceToggle(value)}
                 className={cn("h-12 text-xs justify-start gap-2", extraServices.includes(value) && "bg-primary/10 border-primary/20 text-primary")}

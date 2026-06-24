@@ -5,10 +5,10 @@
  *
  * CON-3: Step 1 (Details) — CON-4: Step 2 (Policies) — CON-5: Step 3 (Preview + Send)
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import {
@@ -73,9 +73,12 @@ export function CreateContractStep1Page({
   editId: editIdProp,
 }: CreateContractPageProps = {}) {
   const navigate             = useNavigate();
+  const location             = useLocation();
   const queryClient          = useQueryClient();
   const { id: editIdParam }  = useParams<{ id: string }>();
   const editId               = editIdProp ?? editIdParam;
+  // Optional prefill passed via navigation state (e.g. Generate Contract from an estimate).
+  const prefill              = (location.state as { prefill?: Partial<ContractFormData> } | null)?.prefill;
   const isEditing            = !!editId;
   const isModal              = onClose !== undefined;
   const goBack               = () => { if (isModal) onClose!(); else navigate("/contracts"); };
@@ -95,7 +98,9 @@ export function CreateContractStep1Page({
 
   // ── Edit-mode: pre-load client entity for ContractDetailsStep ───────────────
   // Derived reactively from the existing contract so no manual fetch is needed.
-  const { data: initialClientData } = useClient(existingContract?.recipient_id ?? undefined);
+  const { data: initialClientData } = useClient(
+    existingContract?.recipient_id ?? prefill?.recipient_id ?? undefined,
+  );
   const initialClient = initialClientData ?? null;
 
   // ── Mutations ────────────────────────────────────────────────────────────────
@@ -115,6 +120,14 @@ export function CreateContractStep1Page({
       service_coverage: (p.service_coverage    as string) ?? "",
     });
   }, [profile, isEditing]);
+
+  // ── Prefill from navigation state (e.g. estimate → contract) on new contract ──
+  const prefillApplied = useRef(false);
+  useEffect(() => {
+    if (isEditing || !prefill || prefillApplied.current) return;
+    prefillApplied.current = true;
+    patch(prefill);
+  }, [isEditing, prefill]);
 
   // ── Prefill from existing contract on edit ───────────────────────────────────
   useEffect(() => {

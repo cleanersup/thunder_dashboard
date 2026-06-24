@@ -48,10 +48,11 @@ import { useSendEstimateEmail } from "../hooks/useSendEstimateEmail";
 import { useSendEstimateSMS }   from "../hooks/useSendEstimateSMS";
 import { PDFService } from "@/shared/services/pdf.service";
 import { SidePanel } from "@/shared/components/common/SidePanel";
-import { buildInvoicePrefillFromEstimate } from "../utils/buildInvoicePrefill";
+import { buildContractPrefillFromEstimate } from "../utils/buildContractPrefillFromEstimate";
 import { restoreDepositFromAdditionalData } from "../utils/estimateDeposit";
 import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
 import { useConvertEstimateToJob } from "@/features/jobs/hooks/useConvertEstimateToJob";
+import { fetchLead, updateLead, convertLeadToClient, checkClientDuplicate } from "@/features/crm/leads/services/leadsService";
 
 // ─── Local helpers ────────────────────────────────────────────────────────────
 
@@ -109,7 +110,6 @@ interface EstimateDetailPanelProps {
   /** Called after Continue / Start Fresh — parent opens the estimate wizard */
   onOpenEstimateWizard?: (serviceType: string, continueDraft?: boolean) => void;
   /** Called when user clicks Convert to Invoice — parent opens invoice modal with prefill */
-  onConvertToInvoice?: (prefill: import("@/features/invoices/pages/CreateInvoicePage").InvoicePrefill) => void;
 }
 
 // ─── Footer component ─────────────────────────────────────────────────────────
@@ -120,8 +120,6 @@ interface FooterProps {
   isSendingSMS:        boolean;
   isGeneratingLink:    boolean;
   isDownloadingPDF:    boolean;
-  isAlreadyInRoute:    boolean;
-  isAddingToRoute:     boolean;
   hasPhone:            boolean;
   hasJobConversion:    boolean;
   isConvertingToJob:   boolean;
@@ -132,9 +130,8 @@ interface FooterProps {
   onEdit:              () => void;
   onShare:             () => void;
   onDownloadPDF:       () => void;
-  onConvert:           () => void;
   onConvertToJob:      () => void;
-  onAddToRoute:        () => void;
+  onGenerateContract:  () => void;
   onCancel:            () => void;
   onDelete:            () => void;
   onDeleteDraft:       () => void;
@@ -143,9 +140,9 @@ interface FooterProps {
 }
 
 function PanelFooter({
-  status, isSending, isSendingSMS, isGeneratingLink, isDownloadingPDF, isAlreadyInRoute, isAddingToRoute, hasPhone,
+  status, isSending, isSendingSMS, isGeneratingLink, isDownloadingPDF, hasPhone,
   hasJobConversion, isConvertingToJob,
-  onAccept, onDecline, onSendEmail, onSendSMS, onEdit, onShare, onDownloadPDF, onConvert, onConvertToJob, onAddToRoute, onCancel,
+  onAccept, onDecline, onSendEmail, onSendSMS, onEdit, onShare, onDownloadPDF, onConvertToJob, onGenerateContract, onCancel,
   onDelete, onDeleteDraft, onContinueDraft, onEditAndSend,
 }: FooterProps) {
   // Draft: Continue + More (Delete Draft)
@@ -215,7 +212,8 @@ function PanelFooter({
     );
   }
 
-  // Accepted: Convert to Job (primary, if no job) / Convert to Invoice + More (Edit, PDF, Share)
+  // Accepted: Convert to Job (primary, hidden once a job exists, mirrors swift-slate)
+  //           + More (Edit, Generate Contract, Download PDF, Share)
   if (status === "Accepted") {
     return (
       <div className="flex items-center gap-2">
@@ -225,8 +223,8 @@ function PanelFooter({
             {isConvertingToJob ? "Converting…" : "Convert to Job"}
           </Button>
         ) : (
-          <Button size="sm" className="flex-1" onClick={onConvert}>
-            <FileText className="w-4 h-4 mr-1.5" /> Convert to Invoice
+          <Button size="sm" className="flex-1" onClick={onEdit}>
+            <Edit className="w-4 h-4 mr-1.5" /> Edit
           </Button>
         )}
         <DropdownMenu>
@@ -236,8 +234,13 @@ function PanelFooter({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={onEdit}>
-              <Edit className="w-4 h-4 mr-2" /> Edit
+            {!hasJobConversion && (
+              <DropdownMenuItem onClick={onEdit}>
+                <Edit className="w-4 h-4 mr-2" /> Edit
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={onGenerateContract}>
+              <FileText className="w-4 h-4 mr-2" /> Generate Contract
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onDownloadPDF} disabled={isDownloadingPDF}>
               <Download className="w-4 h-4 mr-2" /> {isDownloadingPDF ? "Downloading…" : "Download PDF"}
@@ -245,15 +248,6 @@ function PanelFooter({
             <DropdownMenuItem onClick={onShare} disabled={isGeneratingLink}>
               <Share className="w-4 h-4 mr-2" /> {isGeneratingLink ? "Generating…" : "Share"}
             </DropdownMenuItem>
-            {isAlreadyInRoute ? (
-              <DropdownMenuItem disabled>
-                <MapPin className="w-4 h-4 mr-2" /> Already in Route
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem onClick={onAddToRoute} disabled={isAddingToRoute}>
-                <MapPin className="w-4 h-4 mr-2" /> {isAddingToRoute ? "Adding…" : "Add to Route"}
-              </DropdownMenuItem>
-            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -305,7 +299,7 @@ function PanelFooter({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function EstimateDetailPanel({
-  open, onClose, estimateId, onEdit, onOpenEstimateWizard, onConvertToInvoice,
+  open, onClose, estimateId, onEdit, onOpenEstimateWizard,
 }: EstimateDetailPanelProps) {
   const navigate = useNavigate();
   const qc       = useQueryClient();
@@ -326,9 +320,10 @@ export function EstimateDetailPanel({
   const [isDeletingDraft,       setIsDeletingDraft]       = useState(false);
   const [isDeleteOpen,          setIsDeleteOpen]          = useState(false);
   const [isDeleting,            setIsDeleting]            = useState(false);
-  const [isAlreadyInRoute,      setIsAlreadyInRoute]      = useState(false);
-  const [isAddingToRoute,       setIsAddingToRoute]       = useState(false);
   const [isConvertingToJob,     setIsConvertingToJob]     = useState(false);
+  const [showLeadConvert,       setShowLeadConvert]       = useState(false);
+  const [leadDuplicateName,     setLeadDuplicateName]     = useState<string | null>(null);
+  const [isConvertingLead,      setIsConvertingLead]      = useState(false);
   const convertEstimateToJob = useConvertEstimateToJob();
   const [draftClientInfo, setDraftClientInfo] = useState<{
     name: string; email: string; phone: string;
@@ -340,9 +335,7 @@ export function EstimateDetailPanel({
   useEffect(() => {
     if (open && estimateId) {
       setDraftClientInfo(null);
-      setIsAlreadyInRoute(false);
       loadEstimate();
-      checkIfInRoute();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, estimateId]);
@@ -406,16 +399,6 @@ export function EstimateDetailPanel({
         city: l.city, state: l.state, zip: l.zip_code,
       });
     }
-  }
-
-  async function checkIfInRoute() {
-    if (!estimateId) return;
-    const { data } = await supabase
-      .from("route_appointments")
-      .select("id")
-      .eq("estimate_id", estimateId)
-      .maybeSingle();
-    setIsAlreadyInRoute(!!data);
   }
 
   // ── Action handlers ───────────────────────────────────────────────────────────
@@ -561,96 +544,6 @@ export function EstimateDetailPanel({
     navigate(route, { state: { isEditing: true, estimateId: estimate.id, estimateData: estimate } });
   }
 
-  async function handleAddToRoute() {
-    if (!estimate) return;
-    setIsAddingToRoute(true);
-    try {
-      // 1. Try to reuse the FK client from the estimate (only set on drafts)
-      let clientId: string | null = estimate.client_id ?? null;
-      let clientRow: any = null;
-
-      if (clientId) {
-        const { data } = await supabase.from("clients").select("*").eq("id", clientId).maybeSingle();
-        clientRow = data ?? null;
-        if (!clientRow) clientId = null; // FK dangling — fall through
-      }
-
-      // 2. Search by email (same account).
-      // Use .limit(1) instead of .maybeSingle() so that if duplicates already
-      // exist (PGRST116 would make maybeSingle return null and trigger step 3,
-      // creating yet another duplicate).
-      if (!clientId) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: rows } = await supabase.from("clients").select("*")
-            .eq("user_id", user.id).ilike("email", estimate.email).limit(1);
-          const found = rows?.[0] ?? null;
-          if (found) { clientId = found.id; clientRow = found; }
-        }
-      }
-
-      // 3. Create a new client from the denormalized estimate fields
-      if (!clientId) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { toast.error("Not authenticated"); return; }
-        const { data: newClient, error } = await supabase.from("clients").insert({
-          user_id: user.id,
-          full_name: estimate.client_name,
-          company: estimate.company_name ?? null,
-          email: estimate.email,
-          phone: estimate.phone,
-          service_street: estimate.address,
-          service_apt: estimate.apt ?? null,
-          service_city: estimate.city,
-          service_state: estimate.state,
-          service_zip: estimate.zip,
-          billing_street: estimate.address,
-          billing_apt: estimate.apt ?? null,
-          billing_city: estimate.city,
-          billing_state: estimate.state,
-          billing_zip: estimate.zip,
-          client_type: estimate.service_type ?? "Residential",
-          contact_preference: "Email",
-          status: "active",
-        }).select().maybeSingle();
-        if (error || !newClient) { toast.error("Failed to set up client for route"); return; }
-        clientId = newClient.id;
-        clientRow = newClient;
-        // Ensure the new client appears in the appointment wizard's client list
-        await qc.invalidateQueries({ queryKey: QK.clients });
-      }
-
-      onClose();
-      navigate("/create-route", {
-        state: {
-          fromEstimate: {
-            clientId,
-            clientObject: {
-              id: clientRow.id,
-              full_name: clientRow.full_name,
-              company: clientRow.company ?? null,
-              phone: clientRow.phone,
-              email: clientRow.email,
-              service_street: clientRow.service_street,
-              service_apt: clientRow.service_apt ?? null,
-              service_city: clientRow.service_city,
-              service_state: clientRow.service_state,
-              service_zip: clientRow.service_zip,
-            },
-            // Route appointments use "One time" / "Recurring" for service_type.
-            // Estimates are always single jobs, so we default to "One time".
-            // The cleaning_type maps from the estimate's service_sub_type.
-            serviceType: "One time",
-            cleaningType: estimate.service_sub_type ?? null,
-            estimateId: estimate.id,
-          },
-        },
-      });
-    } finally {
-      setIsAddingToRoute(false);
-    }
-  }
-
   async function handleConvertToJob() {
     if (!estimate) return;
     await convertEstimateToJob({
@@ -661,14 +554,64 @@ export function EstimateDetailPanel({
     });
   }
 
-  function handleConvertToInvoice() {
-    if (!estimate) return;
-    const prefill = buildInvoicePrefillFromEstimate(estimate);
+  function openContractWizard(est: any, clientIdOverride?: string) {
+    const prefill = buildContractPrefillFromEstimate(est);
+    if (clientIdOverride) prefill.recipient_id = clientIdOverride;
     onClose();
-    if (onConvertToInvoice) {
-      onConvertToInvoice(prefill);
-    } else {
-      navigate("/invoices/new", { state: prefill });
+    navigate("/contracts/new", { state: { prefill } });
+  }
+
+  async function handleGenerateContract() {
+    if (!estimate) return;
+    // Contracts require a client. If the estimate already belongs to a client,
+    // open the wizard directly; if it's a lead, confirm promotion first.
+    if (estimate.client_id) {
+      openContractWizard(estimate);
+      return;
+    }
+    if (estimate.lead_id) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const dup = user ? await checkClientDuplicate(estimate.email, user.id) : null;
+        setLeadDuplicateName(dup?.full_name ?? null);
+      } catch {
+        setLeadDuplicateName(null);
+      }
+      setShowLeadConvert(true);
+      return;
+    }
+    openContractWizard(estimate);
+  }
+
+  // Promote the estimate's lead to a client (reusing an existing client on email
+  // match), relink the estimate, then open the contract wizard for that client.
+  async function handleConfirmLeadConvert() {
+    if (!estimate?.lead_id) return;
+    setIsConvertingLead(true);
+    try {
+      const lead = await fetchLead(estimate.lead_id);
+      if (!lead) { toast.error("Lead not found"); return; }
+
+      // Reuse an existing client on email match, otherwise create one.
+      const dup = await checkClientDuplicate(lead.email, lead.user_id);
+      const clientId = dup ? dup.id : (await convertLeadToClient(lead)).id;
+
+      // Mark the lead as won in both cases so it isn't left orphaned.
+      await updateLead(lead.id, { status: "decision", decision_result: "won" });
+
+      // Relink the estimate to the resolved client.
+      await supabase.from("estimates").update({ client_id: clientId, lead_id: null }).eq("id", estimate.id);
+
+      qc.invalidateQueries({ queryKey: QK.clients });
+      qc.invalidateQueries({ queryKey: QK.leads });
+      qc.invalidateQueries({ queryKey: QK.estimates });
+
+      setShowLeadConvert(false);
+      openContractWizard({ ...estimate, client_id: clientId, lead_id: null }, clientId);
+    } catch {
+      toast.error("Failed to convert lead to client");
+    } finally {
+      setIsConvertingLead(false);
     }
   }
 
@@ -821,8 +764,6 @@ export function EstimateDetailPanel({
       isSendingSMS={isSendingSMS}
       isGeneratingLink={isGeneratingLink}
       isDownloadingPDF={isDownloadingPDF}
-      isAlreadyInRoute={isAlreadyInRoute}
-      isAddingToRoute={isAddingToRoute}
       hasPhone={!!estimate?.phone}
       hasJobConversion={!!estimate?.job_id}
       isConvertingToJob={isConvertingToJob}
@@ -833,9 +774,8 @@ export function EstimateDetailPanel({
       onEdit={handleEdit}
       onShare={handleShare}
       onDownloadPDF={handleDownloadPDF}
-      onConvert={handleConvertToInvoice}
       onConvertToJob={handleConvertToJob}
-      onAddToRoute={handleAddToRoute}
+      onGenerateContract={handleGenerateContract}
       onCancel={() => setIsCancelDialogOpen(true)}
       onDelete={() => setIsDeleteOpen(true)}
       onDeleteDraft={() => setIsDeleteDraftOpen(true)}
@@ -1395,6 +1335,26 @@ export function EstimateDetailPanel({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleAccept} style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }}>
               Accept
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Lead → Client conversion (Generate Contract) ─────────────────────── */}
+      <AlertDialog open={showLeadConvert} onOpenChange={setShowLeadConvert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Convert lead to client?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {leadDuplicateName
+                ? `A client with this email already exists (${leadDuplicateName}). It will be used to generate the contract, and this estimate will be linked to that client.`
+                : `${estimate?.client_name ?? "This lead"} will be converted to a client to generate the contract. The estimate will be linked to the new client.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isConvertingLead}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); handleConfirmLeadConvert(); }} disabled={isConvertingLead}>
+              {isConvertingLead ? "Converting…" : "Continue"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
