@@ -22,9 +22,6 @@ import type { Database } from "@/integrations/supabase/types";
 
 type Notification = Database["public"]["Tables"]["notifications"]["Row"];
 
-const PROMO_TEXT =
-  "The new Thunder Pro version with smarter features is on the way to help you look more professional and deliver an even better experience for your clients.";
-
 /** Returns an icon component for a notification type. */
 function NotificationIcon({ type }: { type: string }) {
   switch (type) {
@@ -135,20 +132,6 @@ export function DesktopHeader() {
   return (
     <>
     <header className="border-b border-border bg-card">
-      <div className="w-full bg-gradient-to-r from-[#0B2E63] to-[#EB6A2A] text-white border-b border-white/20">
-        <div className="py-2 px-3 sm:px-4 flex flex-wrap items-center justify-center gap-2 text-center">
-          <p className="text-sm sm:text-base font-medium leading-snug">
-            {PROMO_TEXT}{" "}
-            <span
-              className="inline-block ml-1 bg-[#EB6A2A] text-white font-semibold px-2.5 py-0.5 text-sm sm:text-base"
-              style={{ clipPath: "polygon(1% 8%, 99% 0%, 100% 86%, 95% 100%, 6% 95%, 0% 82%)" }}
-            >
-              Coming soon
-            </span>
-          </p>
-        </div>
-      </div>
-
       <div className="flex items-center justify-between gap-4 px-4 lg:px-6 py-3">
       <div className="flex items-center gap-3">
         {/* Hamburger — only visible on mobile/tablet when sidebar is a Sheet */}
