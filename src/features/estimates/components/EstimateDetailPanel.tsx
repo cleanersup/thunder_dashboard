@@ -65,6 +65,8 @@ const ADDITIONAL_ITEMS_EXCLUDED = new Set([
   "deposit_required",
   "deposit_type",
   "deposit_value",
+  "use_custom_price",
+  "custom_price",
   "propertyId",
 ]);
 
