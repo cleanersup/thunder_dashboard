@@ -3,7 +3,7 @@ import { formatDisplayDate, formatDisplayDateShort } from "@/shared/utils/format
 import {
   User, Phone, Mail, MessageSquare, Briefcase, Calendar,
   DollarSign, Edit, Trash2, Clock, UserCheck, UserX,
-  FileDown, Download, FileText, MapPin,
+  FileDown, Download, FileText, MapPin, Send,
 } from "lucide-react";
 import { Badge }   from "@/shared/components/ui/badge";
 import { Button }  from "@/shared/components/ui/button";
@@ -14,9 +14,14 @@ import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { SidePanel }     from "@/shared/components/common/SidePanel";
 import { toast }         from "sonner";
 import { useProfile }    from "@/shared/hooks/useProfile";
-import { useUpdateEmployeeStatus, useDeleteEmployee } from "../hooks/useEmployees";
+import { useUpdateEmployeeStatus, useDeleteEmployee, useResendEmployeeInvite } from "../hooks/useEmployees";
 import { generateEmployeeSheetPDF } from "../services/generateEmployeeSheetPDF";
 import { downloadEmployeeDocument } from "../services/employeesService";
+import {
+  getOnboardingStatus,
+  ONBOARDING_STATUS_LABEL,
+  ONBOARDING_STATUS_BADGE,
+} from "../config/onboardingStatus";
 import { EmployeeForm } from "./EmployeeForm";
 import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import type { Employee } from "../services/employeesService";
@@ -97,6 +102,7 @@ export function EmployeeDetailsPanel({
   const { data: profile } = useProfile();
   const { mutate: updateStatus } = useUpdateEmployeeStatus();
   const { mutate: deleteEmployee, isPending: isDeleting } = useDeleteEmployee();
+  const { mutate: resendInvite, isPending: isResending } = useResendEmployeeInvite();
 
   const [editOpen, setEditOpen]     = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -105,6 +111,7 @@ export function EmployeeDetailsPanel({
 
   const avail = (employee.available_days ?? {}) as AvailabilityMap;
   const badge = statusBadge(employee.status);
+  const onboarding = getOnboardingStatus(employee.activated_at);
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
@@ -159,6 +166,10 @@ export function EmployeeDetailsPanel({
     }
   }
 
+  function handleResendInvite() {
+    resendInvite(employee!.id);
+  }
+
   function handleDelete() {
     deleteEmployee(employee!.id, {
       onSuccess: () => { setDeleteOpen(false); onClose(); onEmployeeUpdated?.(); },
@@ -180,6 +191,11 @@ export function EmployeeDetailsPanel({
       {employee.status === "active" && (
         <Button size="sm" variant="outline" onClick={handleSuspend} className="flex-1 text-orange-500 border-orange-500/30 hover:bg-orange-500/10">
           <UserX className="h-3.5 w-3.5 mr-1.5" /> Suspend
+        </Button>
+      )}
+      {onboarding === "invited" && (
+        <Button size="sm" variant="outline" onClick={handleResendInvite} disabled={isResending} className="flex-1">
+          <Send className="h-3.5 w-3.5 mr-1.5" /> Resend Invitation
         </Button>
       )}
       <Button size="sm" variant="outline" onClick={handleDownloadPDF} className="px-2.5">
@@ -354,6 +370,18 @@ export function EmployeeDetailsPanel({
           {/* Timeline */}
           <section className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timeline</h3>
+            <InfoRow
+              icon={UserCheck}
+              label="Onboarding"
+              value={
+                <Badge variant="outline" className={`font-medium ${ONBOARDING_STATUS_BADGE[onboarding]}`}>
+                  {ONBOARDING_STATUS_LABEL[onboarding]}
+                </Badge>
+              }
+            />
+            {employee.activated_at && (
+              <InfoRow icon={Calendar} label="Activated" value={formatDisplayDate(employee.activated_at)} />
+            )}
             <InfoRow icon={Calendar} label="Created" value={formatDisplayDate(employee.created_at)} />
             {employee.updated_at && (
               <InfoRow icon={Clock} label="Last Updated" value={formatDisplayDate(employee.updated_at)} />

@@ -20,6 +20,11 @@ import { EmployeeDetailsPanel } from "../components/EmployeeDetailsPanel";
 import { generateEmployeeSheetPDF } from "../services/generateEmployeeSheetPDF";
 import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import { useProfile } from "@/shared/hooks/useProfile";
+import {
+  getOnboardingStatus,
+  ONBOARDING_STATUS_LABEL,
+  ONBOARDING_STATUS_BADGE,
+} from "../config/onboardingStatus";
 import type { Employee } from "../services/employeesService";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -210,13 +215,14 @@ export function EmployeesPage() {
               <TableHead className="font-bold">Email</TableHead>
               <TableHead className="font-bold">Phone</TableHead>
               <TableHead className="font-bold">Status</TableHead>
+              <TableHead className="font-bold">Onboarding</TableHead>
               <TableHead className="font-bold text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-8">
+                <TableCell colSpan={7} className="py-8">
                   <div className="flex justify-center">
                     <LoadingSpinner />
                   </div>
@@ -224,7 +230,7 @@ export function EmployeesPage() {
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   {employees.length === 0 ? "No employees yet. Add your first employee." : "No employees found."}
                 </TableCell>
               </TableRow>
@@ -277,6 +283,18 @@ export function EmployeesPage() {
                     <Badge variant="outline" className={`font-medium text-[13px] ${statusBadgeClass(employee.status)}`}>
                       {employee.status}
                     </Badge>
+                  </TableCell>
+
+                  {/* Onboarding badge (read-only) */}
+                  <TableCell className="py-2 px-4">
+                    {(() => {
+                      const onboarding = getOnboardingStatus(employee.activated_at);
+                      return (
+                        <Badge variant="outline" className={`font-medium text-[13px] ${ONBOARDING_STATUS_BADGE[onboarding]}`}>
+                          {ONBOARDING_STATUS_LABEL[onboarding]}
+                        </Badge>
+                      );
+                    })()}
                   </TableCell>
 
                   {/* Actions */}

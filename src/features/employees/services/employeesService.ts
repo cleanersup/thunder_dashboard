@@ -24,6 +24,12 @@ export interface Employee {
   additional_notes: string | null;
   documents: string[] | null;
   avatar_url: string | null;
+  /**
+   * Onboarding timestamp set by the backend on the employee's first OTP login.
+   * `null` → still "Invited" (app not activated); a date → "Activated".
+   * Independent from `status` (employment: active/suspended/inactive).
+   */
+  activated_at: string | null;
   created_at: string;
   updated_at: string | null;
   user_id: string;
@@ -198,6 +204,24 @@ export async function updateEmployeeStatus(id: string, status: string): Promise<
     .from("employees")
     .update({ status })
     .eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Re-sends the app invitation to an employee who has not activated yet
+ * (`activated_at == null`). Delegates to the backend edge function, which
+ * re-triggers the OTP/invite flow.
+ *
+ * @param employeeId - The employee UUID to re-invite
+ * @returns `void`
+ * @throws Error if the edge function invocation fails
+ */
+export async function resendEmployeeInvite(employeeId: string): Promise<void> {
+  // TODO(backend): confirm the deployed edge function name/casing.
+  // Single point of change if it differs from "resend-employee-invite".
+  const { error } = await supabase.functions.invoke("resend-employee-invite", {
+    body: { employeeId },
+  });
   if (error) throw error;
 }
 

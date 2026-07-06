@@ -7,6 +7,7 @@ import {
   createEmployee,
   updateEmployee,
   updateEmployeeStatus,
+  resendEmployeeInvite,
   checkDeleteGuard,
   deleteEmployee,
 } from "../services/employeesService";
@@ -85,6 +86,14 @@ export function useUpdateEmployeeStatus() {
       qc.invalidateQueries({ queryKey: QK.employeesAll });
     },
     onError: () => toast.error("Failed to update employee status"),
+  });
+}
+
+export function useResendEmployeeInvite() {
+  return useMutation({
+    mutationFn: (employeeId: string) => resendEmployeeInvite(employeeId),
+    onSuccess: () => toast.success("Invitation sent successfully"),
+    onError: () => toast.error("Failed to send invitation"),
   });
 }
 

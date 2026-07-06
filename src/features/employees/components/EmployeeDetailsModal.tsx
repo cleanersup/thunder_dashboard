@@ -17,6 +17,7 @@ import {
   Download,
   FileText,
   MapPin,
+  Send,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { Card, CardContent } from "@/shared/components/ui/card";
@@ -26,9 +27,14 @@ import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { toast } from "sonner";
 import { useProfile } from "@/shared/hooks/useProfile";
-import { useUpdateEmployeeStatus, useDeleteEmployee } from "../hooks/useEmployees";
+import { useUpdateEmployeeStatus, useDeleteEmployee, useResendEmployeeInvite } from "../hooks/useEmployees";
 import { generateEmployeeSheetPDF } from "../services/generateEmployeeSheetPDF";
 import { downloadEmployeeDocument } from "../services/employeesService";
+import {
+  getOnboardingStatus,
+  ONBOARDING_STATUS_LABEL,
+  ONBOARDING_STATUS_BADGE,
+} from "../config/onboardingStatus";
 import { EmployeeForm } from "./EmployeeForm";
 import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import type { Employee } from "../services/employeesService";
@@ -96,6 +102,7 @@ export function EmployeeDetailsModal({
   const { data: profile } = useProfile();
   const { mutate: updateStatus } = useUpdateEmployeeStatus();
   const { mutate: deleteEmployee, isPending: isDeleting } = useDeleteEmployee();
+  const { mutate: resendInvite, isPending: isResending } = useResendEmployeeInvite();
 
   const [editOpen, setEditOpen]     = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -103,6 +110,7 @@ export function EmployeeDetailsModal({
   if (!employee) return null;
 
   const avail = (employee.available_days ?? {}) as AvailabilityMap;
+  const onboarding = getOnboardingStatus(employee.activated_at);
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
@@ -170,6 +178,10 @@ export function EmployeeDetailsModal({
     }
   }
 
+  function handleResendInvite() {
+    resendInvite(employee!.id);
+  }
+
   function handleDelete() {
     deleteEmployee(employee!.id, {
       onSuccess: () => {
@@ -193,6 +205,9 @@ export function EmployeeDetailsModal({
             </DialogTitle>
             <Badge variant="secondary" className={`${statusBadgeClass(employee.status)} capitalize`}>
               {employee.status}
+            </Badge>
+            <Badge variant="outline" className={`font-medium ${ONBOARDING_STATUS_BADGE[onboarding]}`}>
+              {ONBOARDING_STATUS_LABEL[onboarding]}
             </Badge>
           </DialogHeader>
 
@@ -511,6 +526,25 @@ export function EmployeeDetailsModal({
                               <div className="flex flex-col items-start">
                                 <span className="font-semibold text-foreground text-sm">Suspend</span>
                                 <span className="text-xs text-muted-foreground">Set employee as inactive</span>
+                              </div>
+                            </div>
+                          </Button>
+                        )}
+
+                        {onboarding === "invited" && (
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start rounded-lg h-12 border-border hover:bg-secondary/50"
+                            onClick={handleResendInvite}
+                            disabled={isResending}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 rounded-md bg-primary/10">
+                                <Send className="w-4 h-4 text-primary" />
+                              </div>
+                              <div className="flex flex-col items-start">
+                                <span className="font-semibold text-foreground text-sm">Resend Invitation</span>
+                                <span className="text-xs text-muted-foreground">Send the app invite again</span>
                               </div>
                             </div>
                           </Button>

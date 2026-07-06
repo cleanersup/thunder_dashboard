@@ -339,6 +339,7 @@ export type Database = {
       }
       employees: {
         Row: {
+          activated_at: string | null
           additional_notes: string | null
           address: string | null
           apt_suite: string | null
@@ -366,6 +367,7 @@ export type Database = {
           zip: string | null
         }
         Insert: {
+          activated_at?: string | null
           additional_notes?: string | null
           address?: string | null
           apt_suite?: string | null
@@ -393,6 +395,7 @@ export type Database = {
           zip?: string | null
         }
         Update: {
+          activated_at?: string | null
           additional_notes?: string | null
           address?: string | null
           apt_suite?: string | null
