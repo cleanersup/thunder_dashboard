@@ -92,7 +92,21 @@ export function useUpdateEmployeeStatus() {
 export function useResendEmployeeInvite() {
   return useMutation({
     mutationFn: (employeeId: string) => resendEmployeeInvite(employeeId),
-    onSuccess: () => toast.success("Invitation sent successfully"),
+    onSuccess: ({ sms, email }) => {
+      // The edge function returns 200 even when a single channel fails, so
+      // reflect the actual per-channel outcome instead of a blanket success.
+      const smsFailed   = sms   === "failed";
+      const emailFailed = email === "failed";
+      if (smsFailed && emailFailed) {
+        toast.error("Failed to send invitation");
+      } else if (smsFailed) {
+        toast.warning("Invitation email sent, but the SMS could not be delivered");
+      } else if (emailFailed) {
+        toast.warning("Invitation SMS sent, but the email could not be delivered");
+      } else {
+        toast.success("Invitation sent successfully");
+      }
+    },
     onError: () => toast.error("Failed to send invitation"),
   });
 }

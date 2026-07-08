@@ -375,6 +375,33 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
               )}
             </section>
 
+            {/* ── Assigned Employees ───────────────────────────────────── */}
+            {(() => {
+              const assigned = allEmployees.filter((e) => job.employeeIds.includes(e.id));
+              if (assigned.length === 0) return null;
+              return (
+                <>
+                  <Divider />
+                  <section className="space-y-3">
+                    <SectionTitle>Assigned Employees</SectionTitle>
+                    {assigned.map((emp) => (
+                      <div key={emp.id} className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <span className="text-xs font-semibold text-primary">
+                            {emp.first_name[0]}{emp.last_name[0]}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{emp.first_name} {emp.last_name}</p>
+                          {emp.position && <p className="text-xs text-muted-foreground capitalize">{emp.position}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                </>
+              );
+            })()}
+
             {/* ── Linked estimate ───────────────────────────────────────── */}
             {(job as any).estimate_id && (
               <>

@@ -23,7 +23,11 @@ export interface PhoneInputProps
 export const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
   ({ value = "", onChange, label, error, floatingLabel = false, className, id, ...props }, ref) => {
     const formatPhoneNumber = (raw: string): string => {
-      const digits = raw.replace(/[^\d]/g, "");
+      let digits = raw.replace(/[^\d]/g, "");
+      // Drop the US country code when a full +1 number is pasted (e.g. +12137945379).
+      // NANP area codes never start with 1, so a leading 1 on 11 digits is the country code.
+      if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+      digits = digits.slice(0, 10);
       if (digits.length <= 3) return digits;
       if (digits.length <= 6) return `(${digits.slice(0, 3)})${digits.slice(3)}`;
       return `(${digits.slice(0, 3)})${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
