@@ -207,6 +207,11 @@ export async function createEstimateDraftFromWalkthrough(
   const num = (v: unknown, d = 0): number => (typeof v === "number" ? v : d);
   const str = (v: unknown, d = ""): string => (typeof v === "string" ? v : d);
 
+  // Carry the walkthrough's assigned employees through the estimate so they can
+  // reach the job on conversion. `estimates` has no dedicated column, so we stash
+  // them in the `additional_data` JSONB (read back in useConvertEstimateToJob).
+  const assignedEmployees = Array.isArray(w.assigned_employees) ? w.assigned_employees : [];
+
   // ── Build estimate payload from the walkthrough prefill ───────────────────
   const base = {
     user_id:        user.id,
@@ -243,6 +248,7 @@ export async function createEstimateDraftFromWalkthrough(
         fans: num(p.fans), oven: num(p.oven), refrigerator: num(p.refrigerator),
         blinds: num(p.blinds), windowsInside: num(p.windowsInside), windowsOutside: num(p.windowsOutside),
         propertyId,
+        assignedEmployees,
       },
       extra_services: (p.extras as Record<string, boolean>) ?? {},
       pets:           p.pets === "yes" ? "Yes" : "No",
@@ -266,6 +272,7 @@ export async function createEstimateDraftFromWalkthrough(
         restaurantCondition: str(p.restaurantCondition), dustLevel: str(p.dustLevel),
         propertyCondition: str(p.propertyCondition), extraServices: Array.isArray(p.extraServices) ? p.extraServices : [],
         propertyId,
+        assignedEmployees,
       },
     };
   }

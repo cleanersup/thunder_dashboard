@@ -15,8 +15,3 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
-
-// Meta (Facebook) Pixel — base snippet injected in index.html.
-interface Window {
-  fbq?: (...args: unknown[]) => void;
-}

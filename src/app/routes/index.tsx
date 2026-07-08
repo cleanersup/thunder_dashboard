@@ -3,7 +3,6 @@ import { lazy, Suspense } from "react";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { PublicRoute } from "./PublicRoute";
 import { ScrollToTop } from "@/shared/components/layout/ScrollToTop";
-import { PixelPageView } from "@/shared/components/layout/PixelPageView";
 import { ErrorBoundary } from "@/shared/components/common/ErrorBoundary";
 
 // ─── Loading fallback ────────────────────────────────────────────────────────
@@ -101,7 +100,6 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <PixelPageView />
       <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
           <Routes>
