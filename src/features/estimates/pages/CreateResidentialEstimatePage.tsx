@@ -89,6 +89,9 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const [selectedLead,   setSelectedLead]   = useState<LeadEntity | null>(null);
   const [selectedProperty, setSelectedProperty] = useState<ClientProperty | null>(null);
   const [pendingPropertyId, setPendingPropertyId] = useState<string | null>(null);
+  // Employees assigned in the originating walkthrough — carried invisibly through
+  // additional_data so they can reach the job on conversion (estimates have no UI/column).
+  const [carriedEmployees, setCarriedEmployees] = useState<string[]>([]);
   const [stepErrors,     setStepErrors]     = useState<Record<string, boolean>>({});
 
   // Resolve pendingPropertyId (from edit/draft/conversion) once the client's properties load
@@ -185,6 +188,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         setFans(ad.fans ?? 0); setOven(ad.oven ?? 0); setRefrigerator(ad.refrigerator ?? 0);
         setBlinds(ad.blinds ?? 0); setWindowsInside(ad.windowsInside ?? 0); setWindowsOutside(ad.windowsOutside ?? 0);
         setPendingPropertyId(getEstimatePropertyId(d.additional_data));
+        setCarriedEmployees(Array.isArray(ad.assignedEmployees) ? ad.assignedEmployees : []);
         const dep = restoreDepositFromAdditionalData(d.additional_data);
         setApplyDeposit(dep.applyDeposit); setDepositType(dep.depositType); setDepositValue(dep.depositValue);
         if (d.extra_services) setExtras(d.extra_services as any);
@@ -425,7 +429,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       service_type: "Residential", service_sub_type: selectedService,
       service_scope: scope || null,
       main_data: { squareFootage, bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths } as any,
-      additional_data: { fans, oven, refrigerator, blinds, windowsInside, windowsOutside, propertyId: selectedProperty?.id ?? null, ...buildDepositAdditionalFields(applyDeposit, depositType, depositValue) } as any,
+      additional_data: { fans, oven, refrigerator, blinds, windowsInside, windowsOutside, propertyId: selectedProperty?.id ?? null, assignedEmployees: carriedEmployees, ...buildDepositAdditionalFields(applyDeposit, depositType, depositValue) } as any,
       extra_services: extras as any,
       pets: pets === "yes" ? "Yes" : "No",
       laundry: laundryService ? `${laundryService} - ${laundryPounds} pounds` : "No",

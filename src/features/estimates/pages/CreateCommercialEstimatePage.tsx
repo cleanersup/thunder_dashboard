@@ -80,6 +80,9 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
   const [selectedLead,   setSelectedLead]   = useState<LeadEntity | null>(null);
   const [selectedProperty,  setSelectedProperty]  = useState<ClientProperty | null>(null);
   const [pendingPropertyId, setPendingPropertyId] = useState<string | null>(null);
+  // Employees assigned in the originating walkthrough — carried invisibly through
+  // additional_data so they can reach the job on conversion (estimates have no UI/column).
+  const [carriedEmployees, setCarriedEmployees] = useState<string[]>([]);
 
   // Resolve pendingPropertyId (from edit/draft/conversion) once the client's properties load
   const { data: clientPropertiesList = [] } = useClientProperties(
@@ -186,6 +189,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
         setPropertyCondition(ad.propertyCondition ?? "");
         setExtraServices(Array.isArray(ad.extraServices) ? ad.extraServices : []);
         setPendingPropertyId(getEstimatePropertyId(d.additional_data));
+        setCarriedEmployees(Array.isArray(ad.assignedEmployees) ? ad.assignedEmployees : []);
         const dep = restoreDepositFromAdditionalData(d.additional_data);
         setApplyDeposit(dep.applyDeposit); setDepositType(dep.depositType); setDepositValue(dep.depositValue);
         setEmployeeCount(md.employees ?? 0);
@@ -491,7 +495,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
           clientProvidesSupplies, frequency: recurringFrequency,
           selectedWeekDays, contractDuration, contractTimeUnit,
         },
-        additional_data: { serviceSchedule, greaseLevel, restaurantCondition, dustLevel, propertyCondition, extraServices, propertyId: selectedProperty?.id ?? null, ...buildDepositAdditionalFields(applyDeposit, depositType, depositValue) },
+        additional_data: { serviceSchedule, greaseLevel, restaurantCondition, dustLevel, propertyCondition, extraServices, propertyId: selectedProperty?.id ?? null, assignedEmployees: carriedEmployees, ...buildDepositAdditionalFields(applyDeposit, depositType, depositValue) },
         labor_cost:           costs.laborCost,
         supplies_cost:        costs.suppliesCost,
         overhead_cost:        costs.overheadCost,

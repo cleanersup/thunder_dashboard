@@ -45,6 +45,10 @@ export function useConvertEstimateToJob() {
 
       const additionalData = (estimate.additional_data as Record<string, unknown>) || {};
       const propertyId = additionalData.propertyId as string | undefined;
+      // Employees carried through from the originating walkthrough (if any).
+      const assignedEmployees = Array.isArray(additionalData.assignedEmployees)
+        ? (additionalData.assignedEmployees as string[])
+        : [];
 
       let propertyStreet = (estimate.address as string) || null;
       let propertyApt    = (estimate.apt as string)     || null;
@@ -114,7 +118,7 @@ export function useConvertEstimateToJob() {
           service_type:       (estimate.service_type as string)?.toLowerCase(),
           job_type:           "one_time",
           selected_week_days: [],
-          assigned_employees: [],
+          assigned_employees: assignedEmployees,
           scheduled_date:     (estimate.estimate_date as string)?.slice(0, 10) || format(new Date(), "yyyy-MM-dd"),
           line_items:         lineItems,
           service_details:    (estimate.service_scope as string) || "",

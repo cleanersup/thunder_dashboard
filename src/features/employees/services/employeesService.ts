@@ -216,13 +216,27 @@ export async function updateEmployeeStatus(id: string, status: string): Promise<
  * @returns `void`
  * @throws Error if the edge function invocation fails
  */
-export async function resendEmployeeInvite(employeeId: string): Promise<void> {
-  // TODO(backend): confirm the deployed edge function name/casing.
-  // Single point of change if it differs from "resend-employee-invite".
-  const { error } = await supabase.functions.invoke("resend-employee-invite", {
+/** Per-channel delivery outcome returned by `resend-employee-invitation`. */
+export type InviteChannelStatus = "sent" | "failed" | "skipped";
+export interface ResendInviteResult {
+  sms: InviteChannelStatus;
+  email: InviteChannelStatus;
+}
+
+export async function resendEmployeeInvite(employeeId: string): Promise<ResendInviteResult> {
+  // Backend edge function `resend-employee-invitation` re-sends the app invite
+  // (SMS + email) via OTP. Runs authenticated: it validates the owner's session
+  // and rejects if the employee doesn't belong to the caller.
+  // Returns 200 with per-channel status even when a single channel fails, so the
+  // caller must inspect `sms`/`email` — not just the transport `error`.
+  const { data, error } = await supabase.functions.invoke("resend-employee-invitation", {
     body: { employeeId },
   });
   if (error) throw error;
+  return {
+    sms:   (data?.sms   ?? "skipped") as InviteChannelStatus,
+    email: (data?.email ?? "skipped") as InviteChannelStatus,
+  };
 }
 
 /**
