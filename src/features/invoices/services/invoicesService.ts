@@ -188,6 +188,7 @@ export async function createInvoice(
       company_name:   formData.companyName || null,
       email:          formData.email,
       phone:          formData.phone,
+      property_title: formData.propertyTitle || null,
       address:        formData.address,
       apt:            formData.apt || null,
       city:           formData.city,
@@ -328,12 +329,25 @@ export async function markReminderSent(id: string): Promise<Invoice> {
 // ─── Delete ───────────────────────────────────────────────────────────────────
 
 /**
- * Delete an invoice by ID (typically draft invoices only).
+ * Delete an invoice by ID. Only Draft or Cancelled invoices may be removed.
  *
  * @param id - Invoice UUID
  * @returns Promise<void>
  */
 export async function deleteInvoice(id: string): Promise<void> {
+  const { data, error: fetchError } = await supabase
+    .from("invoices")
+    .select("status")
+    .eq("id", id)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  const status = data?.status as string | undefined;
+  if (status !== "Draft" && status !== "Cancelled") {
+    throw new Error("Only draft or cancelled invoices can be deleted");
+  }
+
   const { error } = await supabase
     .from("invoices")
     .delete()

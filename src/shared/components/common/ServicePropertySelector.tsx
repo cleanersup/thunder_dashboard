@@ -48,7 +48,7 @@ export function ServicePropertySelector({
     <div className="space-y-3">
       <div className="space-y-1">
         <p className="text-sm font-medium text-foreground">Service Property</p>
-        <p className="text-xs text-muted-foreground">Select where the service will be performed</p>
+        <p className="text-xs text-muted-foreground">Select the property where the service will be performed</p>
       </div>
 
       <SearchableSelect

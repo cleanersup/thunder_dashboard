@@ -7,14 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/shared/components/ui/popover";
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
-import { useIsMobile } from "@/shared/hooks/useIsMobile";
 
 export interface SearchableSelectOption {
   value: string;
@@ -56,7 +50,6 @@ export const SearchableSelect = React.forwardRef<
   ) => {
     const [open, setOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState("");
-    const isMobile = useIsMobile();
 
     // Get selected option label
     const selectedOption = options.find((opt) => opt.value === value);
@@ -138,58 +131,9 @@ export const SearchableSelect = React.forwardRef<
       </div>
     );
 
-    // Web version: Dropdown with Popover
-    if (!isMobile) {
-      return (
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              ref={ref}
-              type="button"
-              variant="outline"
-              role="combobox"
-              aria-expanded={open}
-              disabled={disabled}
-              className={cn(
-                "w-full justify-between h-10 bg-background font-normal",
-                !value && "text-muted-foreground",
-                error && "border-destructive border-2",
-                className
-              )}
-            >
-              <span className="truncate">{displayValue}</span>
-              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent 
-            className="w-[var(--radix-popover-trigger-width)] p-0 bg-background border shadow-lg z-50" 
-            align="start"
-            sideOffset={4}
-          >
-            {/* Search Input */}
-            <div className="p-3 border-b">
-              <SearchInput autoFocus />
-            </div>
-
-            {/* Options List */}
-            <div className="max-h-[300px] overflow-y-auto p-2">
-              {filteredOptions.length === 0 ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">
-                  {emptyMessage}
-                </div>
-              ) : (
-                <OptionsList />
-              )}
-            </div>
-          </PopoverContent>
-        </Popover>
-      );
-    }
-
-    // Mobile/Tablet version: Modal Dialog
+    // Dialog picker (swift-slate parity) — works inside FullScreenModal; Popover scroll breaks there.
     return (
       <>
-        {/* Trigger Button */}
         <Button
           ref={ref}
           type="button"
@@ -209,20 +153,17 @@ export const SearchableSelect = React.forwardRef<
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
 
-        {/* Modal */}
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-md max-h-[80vh] flex flex-col p-0 gap-0">
+          <DialogContent className="z-[60] max-w-md max-h-[80vh] flex flex-col p-0 gap-0">
             <DialogHeader className="px-6 pt-6 pb-4 border-b">
               <DialogTitle>{title}</DialogTitle>
             </DialogHeader>
 
-            {/* Search Input */}
             <div className="px-6 py-4 border-b">
               <SearchInput autoFocus />
             </div>
 
-            {/* Options List */}
-            <div className="flex-1 overflow-y-auto px-2 py-2">
+            <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2 overscroll-contain">
               {filteredOptions.length === 0 ? (
                 <div className="py-8 text-center text-sm text-muted-foreground">
                   {emptyMessage}
@@ -232,7 +173,6 @@ export const SearchableSelect = React.forwardRef<
               )}
             </div>
 
-            {/* Footer */}
             <div className="px-6 py-4 border-t">
               <Button
                 type="button"
