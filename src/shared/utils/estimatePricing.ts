@@ -30,32 +30,10 @@ export const SERVICE_MODIFIERS: Record<string, number> = {
   "Deep Cleaning":  1.0,   // Base price
   "Once a week":    0.70,  // -30%
   "Bi-weekly":      0.80,  // -20%
+  "Once a month":   0.90,  // -10% (10% cheaper than Deep Cleaning)
   "Move In":        1.12,  // +12%
   "Move Out":       1.30,  // +30%
 };
-
-/** Commercial recurring once-per-month formula (Group A) — labor/supplies/overhead/markup. */
-export const ONCE_PER_MONTH_LABOR_FACTOR = 1.3;
-export const ONCE_PER_MONTH_SUPPLIES_RATE = 0.06;
-export const ONCE_PER_MONTH_OVERHEAD_RATE = 0.03;
-export const ONCE_PER_MONTH_MARKUP = 1.60;
-
-/**
- * Residential "Once a month" pricing — mirrors commercial `once-per-month` (Group A).
- * Room/add-on subtotal acts as the labor base before frequency markup.
- */
-export function calculateOncePerMonthResidentialPrice(
-  roomBaseTotal: number,
-  userState: string,
-): number {
-  if (roomBaseTotal <= 0) return 0;
-  const laborCost = roomBaseTotal * ONCE_PER_MONTH_LABOR_FACTOR;
-  const suppliesMaterials = laborCost * ONCE_PER_MONTH_SUPPLIES_RATE;
-  const overhead = laborCost * ONCE_PER_MONTH_OVERHEAD_RATE;
-  const operatingCost = laborCost + suppliesMaterials + overhead;
-  const finalPrice = operatingCost * ONCE_PER_MONTH_MARKUP;
-  return calculateAdjustedPrice(finalPrice, userState);
-}
 
 // ─── Residential room prices ─────────────────────────────────────────────────
 
