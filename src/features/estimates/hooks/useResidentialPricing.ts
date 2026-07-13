@@ -11,6 +11,7 @@ import {
   LAUNDRY_PRICES,
   SERVICE_MODIFIERS,
   calculateAdjustedPrice,
+  calculateOncePerMonthResidentialPrice,
 } from "@/shared/utils/estimatePricing";
 
 export interface ResidentialPricingInput {
@@ -104,6 +105,9 @@ export function useResidentialPricing(input: ResidentialPricingInput): Residenti
     if (pets === "yes")        t += PET_PRICES.pets;
     if (laundryService === "wash-dry")      t += laundryPounds * LAUNDRY_PRICES.washDry;
     if (laundryService === "wash-dry-fold") t += laundryPounds * LAUNDRY_PRICES.washDryFold;
+    if (selectedService === "Once a month") {
+      return calculateOncePerMonthResidentialPrice(t, userState);
+    }
     const mod = SERVICE_MODIFIERS[selectedService] ?? 1.0;
     t = t * mod;
     return calculateAdjustedPrice(t, userState);

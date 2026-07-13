@@ -10,6 +10,8 @@ const RESIDENTIAL_SERVICE_WALKTHROUGH_TO_ESTIMATE: Record<string, string> = {
   "Deep Cleaning": "Deep Cleaning",
   "Once a Week": "Once a week",
   "Bi-Weekly": "Bi-weekly",
+  "Once a Month": "Once a month",
+  "Once a month": "Once a month",
   "Move In": "Move In",
   "Move Out": "Move Out",
   "Post Construction": "Post Construction",

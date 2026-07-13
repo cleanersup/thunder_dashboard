@@ -18,6 +18,7 @@ const SERVICE_OPTIONS = [
   "Deep Cleaning",
   "Once a week",
   "Bi-weekly",
+  "Once a month",
   "Move In",
   "Move Out",
   "Post Construction",
