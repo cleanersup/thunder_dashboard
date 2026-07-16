@@ -13,6 +13,7 @@ import {
   type UpdateJobInput,
   dbToJob,
   jobStatusToDb,
+  normalizeJobEmployeeIds,
 } from "../types/job.types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -184,7 +185,7 @@ export const jobsService = {
       property_city:         contact.propertyCity || null,
       property_state:        contact.propertyState || null,
       property_zip:          contact.propertyZip || null,
-      assigned_employees:    input.employeeIds,
+      assigned_employees:    normalizeJobEmployeeIds(input.employeeIds),
       service_type:          input.serviceType,
       job_type:              input.isRecurring ? "recurring" : "one_time",
       recurring_frequency:   input.isRecurring ? input.recurrenceFrequency : null,
@@ -287,7 +288,7 @@ export const jobsService = {
     if (updates.services !== undefined)     partial.line_items      = lineItemsToDb(updates.services);
     if (updates.jobDetails !== undefined)   partial.service_details = updates.jobDetails ?? "";
     if (updates.notes !== undefined)        partial.internal_notes  = updates.notes;
-    if (updates.employeeIds !== undefined)  partial.assigned_employees = updates.employeeIds;
+    if (updates.employeeIds !== undefined)  partial.assigned_employees = normalizeJobEmployeeIds(updates.employeeIds);
     if (updates.subtotal !== undefined)     partial.subtotal        = updates.subtotal;
 
     if (updates.applyDiscount !== undefined || updates.discountType !== undefined || updates.discountValue !== undefined) {

@@ -154,6 +154,20 @@ export interface Job {
 export type CreateJobInput = Omit<Job, "id" | "jobNumber" | "userId" | "createdAt" | "updatedAt">;
 export type UpdateJobInput = Partial<Omit<Job, "id" | "jobNumber" | "userId" | "createdAt">>;
 
+/** Normalize jobs.assigned_employees JSONB (string ids or {id,name} objects) to UUID strings. */
+export function normalizeJobEmployeeIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const ids = raw.flatMap((item) => {
+    if (typeof item === "string" && item.length > 0) return [item];
+    if (typeof item === "object" && item !== null && "id" in item) {
+      const id = (item as { id?: unknown }).id;
+      if (typeof id === "string" && id.length > 0) return [id];
+    }
+    return [];
+  });
+  return [...new Set(ids)];
+}
+
 // ─── Pure helper functions ────────────────────────────────────────────────────
 
 export function recurringFrequencyFromDb(freq: string | null): RecurrenceFrequency | null {
@@ -232,7 +246,7 @@ export function dbToJob(row: DbJob): Job {
     clientEmail:          row.client_email ?? null,
     clientPhone:          row.client_phone ?? null,
     contactType:          (row.contact_type as JobContactType) ?? "client",
-    employeeIds:          Array.isArray(row.assigned_employees) ? row.assigned_employees : [],
+    employeeIds:          normalizeJobEmployeeIds(row.assigned_employees),
     serviceType:          (row.service_type as ServiceType) ?? "residential",
     isRecurring:          row.job_type === "recurring",
     recurrenceFrequency:  recurringFrequencyFromDb(row.recurring_frequency),
