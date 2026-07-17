@@ -44,6 +44,10 @@ export function useUpdateJob() {
       propertyId?: string | null;
     }) => jobsService.update(id, updates, propertyId),
     onSuccess: (job) => {
+      qc.setQueryData(QK.job(job.id), job);
+      qc.setQueryData<import("../types/job.types").Job[]>(QK.jobs, (old) =>
+        old?.map((j) => (j.id === job.id ? job : j)) ?? [job],
+      );
       qc.invalidateQueries({ queryKey: QK.jobs });
       qc.invalidateQueries({ queryKey: QK.job(job.id) });
       toast.success("Job updated successfully");

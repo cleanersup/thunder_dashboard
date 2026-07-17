@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- untyped Supabase rows (jobs extended fields not in generated types) */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { formatDisplayDate, formatDisplayTime, formatDisplayDateTime } from "@/shared/utils/formatters";
@@ -32,11 +32,11 @@ import type { InvoiceStatus } from "@/features/invoices/types/invoice.types";
 import { useDeleteJob, useUpdateJobStatus } from "../hooks/useJobMutations";
 import { jobsService } from "../services/jobsService";
 import { QK } from "@/shared/config/queryKeys";
-import { getEffectiveJobStatus } from "../types/job.types";
+import { getEffectiveJobStatus, normalizeJobEmployeeIds } from "../types/job.types";
 import { JOB_STATUS_BADGE }   from "../config/jobStatusConfig";
 import { generateJobPDF }     from "../services/generateJobPDF";
 import { useProfile }         from "@/shared/hooks/useProfile";
-import { useAllEmployees }    from "@/features/employees/hooks/useEmployees";
+import { supabase } from "@/integrations/supabase/client";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -90,7 +90,24 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
           norm(p.zip_code) === norm(job.propertyZip),
       )?.title ?? null
     : null;
-  const { data: allEmployees = [] } = useAllEmployees();
+  const assignedEmployeeIds = useMemo(
+    () => normalizeJobEmployeeIds(job?.employeeIds),
+    [job?.employeeIds],
+  );
+
+  const { data: assignedEmployees = [] } = useQuery({
+    queryKey: ["job-assigned-employees", jobId, assignedEmployeeIds],
+    queryFn: async () => {
+      if (assignedEmployeeIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id, first_name, last_name, position")
+        .in("id", assignedEmployeeIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!jobId && assignedEmployeeIds.length > 0,
+  });
   const { mutate: deleteJob,    isPending: deleting }  = useDeleteJob();
   const { mutate: updateStatus, isPending: updating }  = useUpdateJobStatus();
   const qc = useQueryClient();
@@ -110,7 +127,7 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
     if (!job) return;
     setDownloadingPDF(true);
     try {
-      const assigned = allEmployees.filter((e) => job.employeeIds.includes(e.id));
+      const assigned = assignedEmployees;
       await generateJobPDF(
         job,
         assigned.map((e) => ({ first_name: e.first_name, last_name: e.last_name })),
@@ -377,7 +394,7 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
 
             {/* ── Assigned Employees ───────────────────────────────────── */}
             {(() => {
-              const assigned = allEmployees.filter((e) => job.employeeIds.includes(e.id));
+              const assigned = assignedEmployees;
               if (assigned.length === 0) return null;
               return (
                 <>
