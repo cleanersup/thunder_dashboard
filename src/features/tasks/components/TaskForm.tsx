@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
+import { X } from "lucide-react";
+import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -25,16 +26,14 @@ export function TaskForm({ open, onClose, task }: TaskFormProps) {
   const isEdit = !!task;
   const { mutate: create, isPending: creating } = useCreateTask();
   const { mutate: update, isPending: updating } = useUpdateTask();
-  const { data: clients = [] }   = useClients();
+  const { data: clients = [] } = useClients();
   const { data: employees = [] } = useEmployees();
   const isPending = creating || updating;
 
-  // ── Entity picker state (managed outside RHF to avoid Json type conflicts) ──
   const [selectedEmployees, setSelectedEmployees] = useState<EntityOption[]>([]);
-  const [selectedClient,    setSelectedClient]    = useState<EntityOption | null>(null);
-  const [showAddEmployee,   setShowAddEmployee]   = useState(false);
+  const [selectedClient, setSelectedClient] = useState<EntityOption | null>(null);
+  const [showAddEmployee, setShowAddEmployee] = useState(false);
 
-  // Convert raw data to EntityOption format
   const employeeOptions: EntityOption[] = employees.map((e) => ({
     id: e.id,
     label: e.name,
@@ -55,24 +54,22 @@ export function TaskForm({ open, onClose, task }: TaskFormProps) {
     defaultValues: { priority: "medium", status: "to do" },
   });
 
-  // ── Initialise form when opening in edit mode ────────────────────────────
   useEffect(() => {
     if (!open) return;
 
     if (task) {
       reset({
-        title:       task.title,
+        title: task.title,
         description: task.description ?? undefined,
-        priority:    task.priority as TaskFormData["priority"],
-        status:      task.status   as TaskFormData["status"],
-        due_date:    task.due_date ?? undefined,
+        priority: task.priority as TaskFormData["priority"],
+        status: task.status as TaskFormData["status"],
+        due_date: task.due_date ?? undefined,
       });
 
-      // Restore assigned employees from the task's JSON field
       if (Array.isArray(task.assigned_employees)) {
         const parsed = (task.assigned_employees as unknown[]).flatMap((e) => {
           const emp = e as Record<string, unknown>;
-          const id  = String(emp.id ?? "");
+          const id = String(emp.id ?? "");
           const label = String(emp.name ?? emp.full_name ?? "");
           return id ? [{ id, label }] : [];
         });
@@ -81,7 +78,6 @@ export function TaskForm({ open, onClose, task }: TaskFormProps) {
         setSelectedEmployees([]);
       }
 
-      // Restore linked client
       if (task.client_id) {
         const match = clients.find((c) => c.id === task.client_id);
         setSelectedClient(match ? { id: match.id, label: match.full_name } : null);
@@ -98,7 +94,7 @@ export function TaskForm({ open, onClose, task }: TaskFormProps) {
   const onSubmit = (data: TaskFormData) => {
     const payload = {
       ...data,
-      client_id:          selectedClient?.id ?? null,
+      client_id: selectedClient?.id ?? null,
       assigned_employees: selectedEmployees.length > 0
         ? selectedEmployees.map((e) => ({ id: e.id, name: e.label }))
         : null,
@@ -112,110 +108,123 @@ export function TaskForm({ open, onClose, task }: TaskFormProps) {
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{isEdit ? "Edit Task" : "Add Task"}</DialogTitle>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
-            <div>
-              <Label>Task Title *</Label>
-              <Input {...register("title")} placeholder="Task title" />
-              {errors.title && (
-                <p className="text-xs text-destructive mt-1">{errors.title.message}</p>
-              )}
-            </div>
-
-            <div>
-              <Label>Description</Label>
-              <Textarea {...register("description")} rows={3} placeholder="Task description..." />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Priority *</Label>
-                <Controller
-                  control={control}
-                  name="priority"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
+      <FullScreenModal open={open} onClose={onClose}>
+        <div className="border-b flex-shrink-0 bg-white">
+          <div className="max-w-2xl mx-auto">
+            <div className="px-4 py-3 flex items-center justify-between gap-4">
+              <div className="w-1/3" />
+              <div className="w-1/3 text-center">
+                <h1 className="font-semibold text-base leading-tight">
+                  {isEdit ? "Edit Task" : "Add Task"}
+                </h1>
               </div>
-              <div>
-                <Label>Status *</Label>
-                <Controller
-                  control={control}
-                  name="status"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="to do">To Do</SelectItem>
-                        <SelectItem value="in progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
+              <div className="flex items-center w-1/3 justify-end">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             </div>
+          </div>
+        </div>
 
-            <div>
-              <Label>Due Date</Label>
-              <Input type="date" {...register("due_date")} />
-            </div>
+        <div className="flex-1 overflow-y-auto bg-background">
+          <div className="max-w-2xl mx-auto px-4 space-y-4 py-6 pb-8">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div>
+                <Label>Task Title *</Label>
+                <Input {...register("title")} placeholder="Task title" />
+                {errors.title && (
+                  <p className="text-xs text-destructive mt-1">{errors.title.message}</p>
+                )}
+              </div>
 
-            {/* ── Assigned To (multi-select with inline Add Employee) ── */}
-            <div>
-              <Label>Assigned To</Label>
-              <EntityPickerField
-                multiple
-                options={employeeOptions}
-                selected={selectedEmployees}
-                onChange={setSelectedEmployees}
-                placeholder="Select employees"
-                emptyMessage="No active employees"
-                onCreateNew={() => setShowAddEmployee(true)}
-                createNewLabel="Add Employee"
-              />
-            </div>
+              <div>
+                <Label>Description</Label>
+                <Textarea {...register("description")} rows={3} placeholder="Task description..." />
+              </div>
 
-            {/* ── Client (single-select, optional) ─────────────────── */}
-            <div>
-              <Label>Client</Label>
-              <EntityPickerField
-                options={clientOptions}
-                selected={selectedClient ? [selectedClient] : []}
-                onChange={([c]) => setSelectedClient(c ?? null)}
-                placeholder="Select a client"
-                emptyMessage="No clients found"
-                allowClear
-                clearLabel="No client"
-              />
-            </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Priority *</Label>
+                  <Controller
+                    control={control}
+                    name="priority"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div>
+                  <Label>Status *</Label>
+                  <Controller
+                    control={control}
+                    name="status"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="to do">To Do</SelectItem>
+                          <SelectItem value="in progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+              </div>
 
-            <div className="flex gap-2 pt-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" className="flex-1" disabled={isPending}>
-                {isPending ? "Saving..." : (isEdit ? "Save Changes" : "Add Task")}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+              <div>
+                <Label>Due Date</Label>
+                <Input type="date" {...register("due_date")} />
+              </div>
 
-      {/* Nested modal — opens without closing the TaskForm */}
+              <div>
+                <Label>Assigned To</Label>
+                <EntityPickerField
+                  multiple
+                  options={employeeOptions}
+                  selected={selectedEmployees}
+                  onChange={setSelectedEmployees}
+                  placeholder="Select employees"
+                  emptyMessage="No active employees"
+                  onCreateNew={() => setShowAddEmployee(true)}
+                  createNewLabel="Add Employee"
+                />
+              </div>
+
+              <div>
+                <Label>Client</Label>
+                <EntityPickerField
+                  options={clientOptions}
+                  selected={selectedClient ? [selectedClient] : []}
+                  onChange={([c]) => setSelectedClient(c ?? null)}
+                  placeholder="Select a client"
+                  emptyMessage="No clients found"
+                  allowClear
+                  clearLabel="No client"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1" disabled={isPending}>
+                  {isPending ? "Saving..." : (isEdit ? "Save Changes" : "Add Task")}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </FullScreenModal>
+
       <EmployeeForm
         open={showAddEmployee}
         onClose={() => setShowAddEmployee(false)}
