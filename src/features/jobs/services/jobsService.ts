@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from "@/integrations/supabase/client";
+import { geocodeAddress, type GeoCoords } from "@/shared/services/googleMaps.service";
 
 // jobs table is not in local Supabase types — use supabase as any for all jobs queries
 const db = supabase as any;
@@ -65,6 +66,32 @@ async function fetchPropertyAddress(propertyId: string) {
     propertyState:  data.state,
     propertyZip:    data.zip_code,
   };
+}
+
+interface SiteAddress {
+  propertyStreet?: string | null;
+  propertyCity?:   string | null;
+  propertyState?:  string | null;
+  propertyZip?:    string | null;
+}
+
+/**
+ * Resolves the job-site coordinates the employee app geofences against on clock-in.
+ * Without them the app has no site to fence and blocks clock-in ("Couldn't verify
+ * the job site location"), and the backend skips its own geofence check. The apt/
+ * suite is left out on purpose — unit numbers degrade geocoding accuracy.
+ *
+ * @param addr - Property address fields resolved for the job
+ * @returns Coordinates, or `null` when there is no address or it can't be resolved
+ */
+async function resolveSiteCoords(addr: SiteAddress): Promise<GeoCoords | null> {
+  const cityLine = [addr.propertyCity, addr.propertyState].filter(Boolean).join(", ");
+  const address  = [addr.propertyStreet, cityLine, addr.propertyZip].filter(Boolean).join(", ");
+  if (!address) return null;
+
+  const coords = await geocodeAddress(address);
+  if (!coords) console.warn(`Could not geocode job site address: "${address}"`);
+  return coords;
 }
 
 async function fetchContactForJob(
@@ -212,6 +239,12 @@ export const jobsService = {
     };
     mapDepositFieldsToDb(payload, input);
 
+    const coords = await resolveSiteCoords(contact);
+    if (coords) {
+      payload.site_latitude  = coords.lat;
+      payload.site_longitude = coords.lng;
+    }
+
     const { data, error } = await db
       .from("jobs")
       .insert(payload)
@@ -263,6 +296,7 @@ export const jobsService = {
    */
   async update(id: string, updates: UpdateJobInput, propertyId?: string | null): Promise<Job> {
     const partial: Record<string, unknown> = {};
+    let newSiteAddress: SiteAddress | null = null;
 
     if (propertyId) {
       const propAddr = await fetchPropertyAddress(propertyId);
@@ -271,6 +305,7 @@ export const jobsService = {
       if (propAddr.propertyCity !== undefined)   partial.property_city   = propAddr.propertyCity;
       if (propAddr.propertyState !== undefined)  partial.property_state  = propAddr.propertyState;
       if (propAddr.propertyZip !== undefined)    partial.property_zip    = propAddr.propertyZip;
+      newSiteAddress = propAddr;
     }
 
     if (updates.clientId !== undefined)    partial.client_id      = updates.clientId;
@@ -313,6 +348,33 @@ export const jobsService = {
         depositValue:  updates.depositValue,
         depositAmount: updates.depositAmount,
       });
+    }
+
+    if (newSiteAddress) {
+      // Address changed: re-geocode. On failure the old coordinates must go too,
+      // or the employee app would geofence against the previous property.
+      const coords = await resolveSiteCoords(newSiteAddress);
+      partial.site_latitude  = coords?.lat ?? null;
+      partial.site_longitude = coords?.lng ?? null;
+    } else {
+      // Same address: fill in coordinates for jobs saved before geocoding existed.
+      const { data: current } = await db
+        .from("jobs")
+        .select("property_street, property_city, property_state, property_zip, site_latitude")
+        .eq("id", id)
+        .single();
+      if (current && current.site_latitude == null) {
+        const coords = await resolveSiteCoords({
+          propertyStreet: current.property_street,
+          propertyCity:   current.property_city,
+          propertyState:  current.property_state,
+          propertyZip:    current.property_zip,
+        });
+        if (coords) {
+          partial.site_latitude  = coords.lat;
+          partial.site_longitude = coords.lng;
+        }
+      }
     }
 
     const { data, error } = await db
