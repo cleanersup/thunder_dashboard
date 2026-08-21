@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { STATES_BY_COUNTRY } from "@/shared/constants/countries";
 
 export const signupSchema = z
   .object({
@@ -7,7 +8,8 @@ export const signupSchema = z
     email: z.string().min(1, "Email is required").email("Enter a valid email address"),
     phoneNumber: z.string().min(1, "Phone number is required"),
     companyName: z.string().optional(),
-    companyState: z.string().min(1, "State is required"),
+    companyCountry: z.string().min(1, "This field is required"),
+    companyState: z.string().optional(),
     referralCode: z.string().optional(),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string().min(1, "Please confirm your password"),
@@ -18,6 +20,12 @@ export const signupSchema = z
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
+  })
+  .superRefine((data, ctx) => {
+    const states = STATES_BY_COUNTRY[data.companyCountry] ?? [];
+    if (states.length > 0 && !data.companyState) {
+      ctx.addIssue({ code: "custom", message: "This field is required", path: ["companyState"] });
+    }
   });
 
 export type SignupFormData = z.infer<typeof signupSchema>;

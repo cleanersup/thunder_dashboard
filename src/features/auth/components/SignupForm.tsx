@@ -17,17 +17,10 @@ import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { FloatingLabelInput } from "./FloatingLabelInput";
 import { signupSchema, type SignupFormData } from "../schemas/signupSchema";
 import { useSignup } from "../hooks/useSignup";
+import { COUNTRY_OPTIONS, STATES_BY_COUNTRY } from "@/shared/constants/countries";
 import thunderLogo from "@/assets/thunder-logo.png";
 
-const US_STATES = [
-  "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware",
-  "Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky",
-  "Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi",
-  "Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico",
-  "New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania",
-  "Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont",
-  "Virginia","Washington","West Virginia","Wisconsin","Wyoming",
-];
+const REGISTRATION_COUNTRIES = COUNTRY_OPTIONS.filter((c) => c.value !== "all");
 
 interface SignupFormProps {
   /** Pre-fill email from URL query param (e.g. from landing page redirect) */
@@ -54,12 +47,14 @@ export function SignupForm({ defaultEmail, onSwitchToLogin }: SignupFormProps) {
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { email: defaultEmail ?? "", agreeToTerms: false },
+    defaultValues: { email: defaultEmail ?? "", agreeToTerms: false, companyCountry: "", companyState: "" },
   });
 
   const phoneNumber = watch("phoneNumber") ?? "";
   const agreeToTerms = watch("agreeToTerms");
-  const companyState = watch("companyState");
+  const companyCountry = watch("companyCountry") ?? "";
+  const companyState = watch("companyState") ?? "";
+  const countryStates = STATES_BY_COUNTRY[companyCountry] ?? [];
 
   const onSubmit = (data: SignupFormData) => {
     doSignup({
@@ -69,6 +64,7 @@ export function SignupForm({ defaultEmail, onSwitchToLogin }: SignupFormProps) {
       lastName: data.lastName,
       phoneNumber: data.phoneNumber,
       companyName: data.companyName,
+      companyCountry: data.companyCountry,
       companyState: data.companyState,
       referralCode: data.referralCode,
     });
@@ -128,31 +124,61 @@ export function SignupForm({ defaultEmail, onSwitchToLogin }: SignupFormProps) {
               {...register("companyName")}
             />
 
-            {/* State selector */}
+            {/* Country + state — same behavior as swift-slate Auth.tsx */}
             <div>
               <Select
-                value={companyState}
-                onValueChange={(val) => setValue("companyState", val, { shouldValidate: true })}
+                value={companyCountry || undefined}
+                onValueChange={(val) => {
+                  setValue("companyCountry", val, { shouldValidate: true });
+                  setValue("companyState", "", { shouldValidate: true });
+                }}
               >
                 <SelectTrigger
                   className={`h-12 rounded-[5px] border ${
-                    errors.companyState ? "border-destructive" : "border-input"
+                    errors.companyCountry ? "border-destructive" : "border-input"
                   } focus:ring-0 focus:border-primary bg-white`}
                 >
-                  <SelectValue placeholder="State *" />
+                  <SelectValue placeholder="Country *" />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px] bg-white z-50">
-                  {US_STATES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
+                  {REGISTRATION_COUNTRIES.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.companyState && (
-                <p className="text-xs text-destructive mt-1">{errors.companyState.message}</p>
+              {errors.companyCountry && (
+                <p className="text-xs text-destructive mt-1">{errors.companyCountry.message}</p>
               )}
             </div>
+
+            {countryStates.length > 0 && (
+              <div>
+                <Select
+                  value={companyState || undefined}
+                  onValueChange={(val) => setValue("companyState", val, { shouldValidate: true })}
+                >
+                  <SelectTrigger
+                    className={`h-12 rounded-[5px] border ${
+                      errors.companyState ? "border-destructive" : "border-input"
+                    } focus:ring-0 focus:border-primary bg-white`}
+                  >
+                    <SelectValue placeholder="State / Province *" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px] bg-white z-50">
+                    {countryStates.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.companyState && (
+                  <p className="text-xs text-destructive mt-1">{errors.companyState.message}</p>
+                )}
+              </div>
+            )}
 
             <FloatingLabelInput
               id="referralCode"
