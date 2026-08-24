@@ -8,6 +8,7 @@ import type { Invoice, InvoiceFilters, InvoiceFormData } from "../types/invoice.
 import { logInvoiceActivity } from "@/shared/services/activityLog";
 import { createNotification } from "@/features/notifications/services/notificationsService";
 import { todayDateOnly } from "@/shared/utils/formatters";
+import { getPublicInvoice } from "@/shared/services/publicAccess";
 
 // ─── Activity / notification side-effects (best-effort, never throw) ──────────
 
@@ -133,16 +134,9 @@ export async function fetchInvoiceById(id: string): Promise<Invoice> {
  * @returns Promise<Invoice>
  */
 export async function fetchInvoiceByPaymentToken(token: string): Promise<Invoice> {
-  const { data: invoice, error } = await supabase
-    .from("invoices")
-    .select("*")
-    .eq("payment_token", token)
-    .single();
-
-  if (error) throw error;
+  const invoice = await getPublicInvoice(token);
   if (!invoice) throw new Error("Invoice not found");
-
-  return invoice as Invoice;
+  return invoice as unknown as Invoice;
 }
 
 // ─── Create ───────────────────────────────────────────────────────────────────

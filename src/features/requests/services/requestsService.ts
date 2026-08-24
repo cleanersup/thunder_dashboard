@@ -5,6 +5,7 @@ import type {
   BookingInsert, CustomQuestion, PublicCompanyProfile, Booking,
   BookingAttachmentMeta, RequestPayload,
 } from "../types/request.types";
+import { getPublicBookingForms, getPublicCompanyProfile } from "@/shared/services/publicAccess";
 
 const STORAGE_BUCKET = "route-files";
 
@@ -457,13 +458,13 @@ export async function resolveClientPropertyId(
  * @param userId - The business owner's user ID
  */
 export async function fetchPublicProfile(userId: string): Promise<PublicCompanyProfile> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("company_name, company_logo, company_email")
-    .eq("user_id", userId)
-    .single();
-  if (error) throw error;
-  return data;
+  const data = await getPublicCompanyProfile(userId);
+  if (!data) throw new Error("Company profile not found");
+  return {
+    company_name: data.company_name,
+    company_logo: data.company_logo,
+    company_email: data.company_email,
+  };
 }
 
 /**
@@ -471,12 +472,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicCompanyP
  * @param userId - The business owner's user ID
  */
 export async function fetchPublicBookingForms(userId: string) {
-  const { data, error } = await supabase
-    .from("booking_forms")
-    .select("form_type, custom_questions")
-    .eq("user_id", userId);
-  if (error) throw error;
-  return data ?? [];
+  return getPublicBookingForms(userId);
 }
 
 /**

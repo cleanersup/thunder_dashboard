@@ -17,6 +17,7 @@ import { supabase }          from "@/integrations/supabase/client";
 import { useQuery }          from "@tanstack/react-query";
 import { formatCurrency, formatDateOnly } from "@/shared/utils/formatters";
 import { fetchInvoiceByPaymentToken } from "../services/invoicesService";
+import { getInvoiceMerchantProfile } from "@/shared/services/publicAccess";
 import { QK } from "@/shared/config/queryKeys";
 
 /** Detects raw UUIDs — used to redirect legacy payment links to token-based URLs */
@@ -34,12 +35,8 @@ export function PublicInvoicePaymentPage() {
   const { data: legacyPaymentToken } = useQuery({
     queryKey: ["invoice-legacy-redirect", token],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("invoices")
-        .select("payment_token")
-        .eq("id", token!)
-        .single();
-      return (data as any)?.payment_token as string | null ?? null;
+      const invoice = await fetchInvoiceByPaymentToken(token!);
+      return (invoice as any)?.payment_token as string | null ?? null;
     },
     enabled: isLegacyUUID,
     staleTime: Infinity,
@@ -79,23 +76,10 @@ export function PublicInvoicePaymentPage() {
   const { data: profile } = useQuery({
     queryKey: QK.publicProfile(invoice?.user_id ?? ""),
     queryFn: async () => {
-      if (!invoice?.user_id) return null;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("company_name, company_logo, company_phone, stripe_account_id, stripe_onboarding_completed")
-        .eq("user_id", invoice.user_id)
-        .single();
-      if (error) throw error;
-      // Cast to any because stripe_* columns may not be in local type definitions yet
-      return data as any as {
-        company_name: string | null;
-        company_logo: string | null;
-        company_phone: string | null;
-        stripe_account_id: string | null;
-        stripe_onboarding_completed: boolean | null;
-      };
+      if (!token) return null;
+      return getInvoiceMerchantProfile(token);
     },
-    enabled: !!invoice?.user_id,
+    enabled: !!invoice?.user_id && !!token,
     staleTime: 5 * 60_000,
   });
 
