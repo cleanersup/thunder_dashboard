@@ -111,8 +111,8 @@ export function ContactCardPage() {
             className="w-full mt-2"
             onClick={() =>
               downloadVCard({
-                firstName: profile.first_name,
-                lastName: profile.last_name,
+                firstName: profile.first_name ?? "",
+                lastName: profile.last_name ?? "",
                 companyPhone: profile.company_phone,
                 companyEmail: profile.company_email,
                 companyName: profile.company_name,

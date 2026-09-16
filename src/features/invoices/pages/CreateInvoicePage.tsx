@@ -33,6 +33,7 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
 import { ClientPicker } from "@/shared/components/common/ClientPicker";
+import { ServicePropertySelector } from "@/shared/components/common/ServicePropertySelector";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { InvoicePreviewPage } from "./InvoicePreviewPage";
 import { Calendar } from "@/shared/components/ui/calendar";
@@ -41,6 +42,10 @@ import { toast }    from "sonner";
 import { useAuth }   from "@/shared/hooks/useAuth";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { useInvoice, useCreateInvoice, useUpdateInvoice } from "../hooks/useInvoices";
+import { useClients } from "@/features/crm/clients/hooks/useClients";
+import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
+import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
+import { labelFromClientProperty, matchClientProperty } from "@/shared/utils/bookingPropertyLabel";
 import { useInvoiceNumber } from "../hooks/useInvoiceNumber";
 import { useLineItems } from "../hooks/useLineItems";
 import type { InvoiceFormData, InvoiceAttachment } from "../types/invoice.types";
@@ -50,6 +55,45 @@ import { calculateInvoiceTotals } from "../utils/invoiceCalculations";
 import { toDecimalString, toIntegerString } from "@/shared/utils/numericInput";
 import { parseDateOnly } from "@/shared/utils/formatters";
 import { StripeCheckModal } from "../components/StripeCheckModal";
+
+function isSyntheticClientId(id: string): boolean {
+  return id.startsWith("invoice-client-");
+}
+
+function resolveInvoiceAddress(
+  selectedProperty: ClientProperty | null,
+  selectedClient: ClientEntity | null,
+) {
+  if (selectedProperty) {
+    const label = labelFromClientProperty(selectedProperty);
+    return {
+      address: selectedProperty.street,
+      apt: selectedProperty.apt_suite || "",
+      city: selectedProperty.city,
+      state: selectedProperty.state,
+      zip: selectedProperty.zip_code,
+      propertyTitle: label?.title ?? null,
+    };
+  }
+  if (selectedClient) {
+    return {
+      address: selectedClient.service_street,
+      apt: selectedClient.service_apt ?? "",
+      city: selectedClient.service_city,
+      state: selectedClient.service_state,
+      zip: selectedClient.service_zip,
+      propertyTitle: null as string | null,
+    };
+  }
+  return {
+    address: "",
+    apt: "",
+    city: "",
+    state: "",
+    zip: "",
+    propertyTitle: null as string | null,
+  };
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -99,6 +143,13 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
   const [dueDate,       setDueDate]       = useState<Date | undefined>();
   const [invoiceTitle,  setInvoiceTitle]  = useState("");
   const [selectedClient, setSelectedClient] = useState<ClientEntity | null>(null);
+  const [selectedProperty, setSelectedProperty] = useState<ClientProperty | null>(null);
+  const [invoicePropertyTitle, setInvoicePropertyTitle] = useState<string | null>(null);
+  const [pendingInvoiceAddress, setPendingInvoiceAddress] = useState<{
+    street: string;
+    city: string;
+    zip: string;
+  } | null>(null);
   const createMutation = useCreateInvoice();
   const updateMutation = useUpdateInvoice();
   const { lineItems, updateLineItem, addLineItem, removeLineItem, resetLineItems } = useLineItems();
@@ -123,6 +174,31 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
     selectedClient: false, lineItems: false,
   });
   const [isPrefilling, setIsPrefilling] = useState(!!isEditing);
+
+  const { data: clientsRaw = [] } = useClients();
+  const propertyClientId =
+    selectedClient && !isSyntheticClientId(selectedClient.id) ? selectedClient.id : undefined;
+  const { data: clientProperties = [] } = useClientProperties(propertyClientId);
+
+  const handleClientSelect = useCallback((client: ClientEntity) => {
+    setSelectedClient(client);
+    setSelectedProperty(null);
+    setInvoicePropertyTitle(null);
+  }, []);
+
+  useEffect(() => {
+    if (!pendingInvoiceAddress || clientProperties.length === 0) return;
+    const matched = matchClientProperty(clientProperties, {
+      street: pendingInvoiceAddress.street,
+      city: pendingInvoiceAddress.city,
+      zip: pendingInvoiceAddress.zip,
+    });
+    if (matched) {
+      setSelectedProperty(matched);
+      setInvoicePropertyTitle(null);
+    }
+    setPendingInvoiceAddress(null);
+  }, [pendingInvoiceAddress, clientProperties]);
 
   // ── Stripe check on mount (new invoices only) ─────────────────────────────
   useEffect(() => {
@@ -154,6 +230,8 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
       service_zip: state.selectedClient.service_zip,
     };
     setSelectedClient(client);
+    setSelectedProperty(null);
+    setInvoicePropertyTitle(null);
     setInvoiceType(state.invoiceType ?? "");
     setIssueDate(state.issueDate);
     setDueDate(state.dueDate);
@@ -204,23 +282,38 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
     if (invoiceData.attachments && Array.isArray(invoiceData.attachments)) {
       setExistingAttachments(invoiceData.attachments);
     }
-    const fakeClient: ClientEntity = {
-      // Synthetic (non-empty) id: the invoice stores denormalized client data, not a CRM id.
-      // Must not be "" — an empty SelectItem value crashes the picker's Select.
-      id: `invoice-client-${invoiceData.id}`,
-      full_name:      invoiceData.client_name,
-      company:        invoiceData.company_name ?? null,
-      email:          invoiceData.email,
-      phone:          invoiceData.phone,
-      service_street: invoiceData.address,
-      service_apt:    invoiceData.apt ?? null,
-      service_city:   invoiceData.city,
-      service_state:  invoiceData.state,
-      service_zip:    invoiceData.zip,
-    };
-    setSelectedClient(fakeClient);
+    setInvoicePropertyTitle(invoiceData.property_title ?? null);
+
+    const matchedClient = clientsRaw.find(
+      (c) =>
+        (invoiceData.email && c.email === invoiceData.email) ||
+        (invoiceData.phone && c.phone === invoiceData.phone),
+    );
+
+    if (matchedClient) {
+      setSelectedClient(matchedClient as unknown as ClientEntity);
+      setPendingInvoiceAddress({
+        street: invoiceData.address,
+        city: invoiceData.city,
+        zip: invoiceData.zip,
+      });
+    } else {
+      const fakeClient: ClientEntity = {
+        id: `invoice-client-${invoiceData.id}`,
+        full_name:      invoiceData.client_name,
+        company:        invoiceData.company_name ?? null,
+        email:          invoiceData.email,
+        phone:          invoiceData.phone,
+        service_street: invoiceData.address,
+        service_apt:    invoiceData.apt ?? null,
+        service_city:   invoiceData.city,
+        service_state:  invoiceData.state,
+        service_zip:    invoiceData.zip,
+      };
+      setSelectedClient(fakeClient);
+    }
     setIsPrefilling(false);
-  }, [invoiceData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [invoiceData, clientsRaw]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-generate invoice number (new only) ────────────────────────────────
   const { data: generatedNumber } = useInvoiceNumber(!isEditing);
@@ -284,6 +377,8 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
     try {
       const discV = parseFloat(discountValue) || 0;
       const taxR  = parseFloat(taxRate) || 0;
+      const addr = resolveInvoiceAddress(selectedProperty, selectedClient);
+      const propertyTitle = addr.propertyTitle ?? invoicePropertyTitle;
 
       // Once created (first Next), treat as editing so going Back→Next updates the
       // same invoice instead of creating a duplicate.
@@ -304,6 +399,16 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
               due_date:       format(dueDate, "yyyy-MM-dd"),
               service_type:   invoiceType,
               status,
+              client_name:    selectedClient.full_name,
+              company_name:   selectedClient.company ?? null,
+              email:          selectedClient.email,
+              phone:          selectedClient.phone,
+              property_title: propertyTitle,
+              address:        addr.address,
+              apt:            addr.apt || null,
+              city:           addr.city,
+              state:          addr.state,
+              zip:            addr.zip,
               line_items:     lineItems.map(({ description, price, qty, total }) => ({ description, price, qty, total })) as any,
               discount_type:  discV > 0 ? discountType : null,
               discount_value: discV > 0 ? discV : null,
@@ -334,11 +439,12 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
           companyName:   selectedClient.company ?? "",
           email:         selectedClient.email,
           phone:         selectedClient.phone,
-          address:       selectedClient.service_street,
-          apt:           selectedClient.service_apt ?? "",
-          city:          selectedClient.service_city,
-          state:         selectedClient.service_state,
-          zip:           selectedClient.service_zip,
+          propertyTitle,
+          address:       addr.address,
+          apt:           addr.apt,
+          city:          addr.city,
+          state:         addr.state,
+          zip:           addr.zip,
           lineItems:     lineItems.map(({ description, price, qty, total }) => ({ description, price, qty, total })),
           discountType,
           discountValue,
@@ -493,9 +599,25 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
       {/* ── Customer Information ────────────────────────────────────── */}
       <ClientPicker
         selectedClient={selectedClient}
-        onClientSelect={setSelectedClient}
+        onClientSelect={handleClientSelect}
         error={errors.selectedClient}
       />
+
+      {selectedClient && !isSyntheticClientId(selectedClient.id) && (
+        <Card>
+          <CardContent className="pt-6">
+            <ServicePropertySelector
+              clientId={selectedClient.id}
+              value={selectedProperty}
+              onChange={(property) => {
+                setSelectedProperty(property);
+                setInvoicePropertyTitle(null);
+              }}
+              preferredPropertyId={selectedProperty?.id}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Line Items ──────────────────────────────────────────────── */}
       <Card>

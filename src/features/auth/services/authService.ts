@@ -16,7 +16,8 @@ export interface SignUpData {
   lastName: string;
   phoneNumber: string;
   companyName?: string;
-  companyState: string;
+  companyCountry: string;
+  companyState?: string;
   referralCode?: string;
 }
 
@@ -89,10 +90,11 @@ export async function signUp(data: SignUpData): Promise<SignUpResult> {
       last_name: data.lastName,
       phone_number: data.phoneNumber,
       company_name: data.companyName ?? null,
-      company_state: data.companyState,
+      company_country: data.companyCountry,
+      company_state: data.companyState || null,
       referral_code: data.referralCode ?? null,
       trial_start_date: new Date().toISOString(),
-    })
+    } as never)
     .select()
     .single();
 

@@ -142,6 +142,7 @@ export function InvoicesPage() {
   const [isTakePaymentDialogOpen, setIsTakePaymentDialogOpen] = useState(false);
   const [isCancelDialogOpen,    setIsCancelDialogOpen]    = useState(false);
   const [isDeleteDraftOpen,     setIsDeleteDraftOpen]     = useState(false);
+  const [isDeleteCancelledOpen, setIsDeleteCancelledOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"Cash" | "Cheque" | null>(null);
   const [showChequeInput,       setShowChequeInput]       = useState(false);
   const [chequeNumber,          setChequeNumber]          = useState("");
@@ -578,6 +579,20 @@ export function InvoicesPage() {
                             Delete Draft
                           </DropdownMenuItem>
                         )}
+
+                        {invoice.status === "Cancelled" && (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActionInvoice(invoice);
+                              setIsDeleteCancelledOpen(true);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Invoice
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -764,6 +779,32 @@ export function InvoicesPage() {
               disabled={deleteInv.isPending}
             >
               {deleteInv.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Delete Cancelled Invoice Dialog ───────────────────────────────── */}
+      <AlertDialog open={isDeleteCancelledOpen} onOpenChange={setIsDeleteCancelledOpen}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+            <AlertDialogDescription>
+              This cancelled invoice will be permanently deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setActionInvoice(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={() => {
+                if (actionInvoice) deleteInv.mutate(actionInvoice.id);
+                setIsDeleteCancelledOpen(false);
+                setActionInvoice(null);
+              }}
+              disabled={deleteInv.isPending}
+            >
+              {deleteInv.isPending ? "Deleting..." : "Delete Invoice"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

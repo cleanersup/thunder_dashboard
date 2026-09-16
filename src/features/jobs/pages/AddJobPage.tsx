@@ -66,6 +66,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
   // ─── Schedule ─────────────────────────────────────────────────────────
   const [serviceType, setServiceType]   = useState<"residential" | "commercial">("residential");
   const [jobDate, setJobDate]           = useState<Date | undefined>(undefined);
+  const [dateOpen, setDateOpen]         = useState(false);
   const [startTime, setStartTime]       = useState("");
   const [endTime, setEndTime]           = useState("");
 
@@ -120,6 +121,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
       setShowAddEmployee(false);
       setServiceType("residential");
       setJobDate(undefined);
+      setDateOpen(false);
       setStartTime("");
       setEndTime("");
       setServices([newServiceItem()]);
@@ -320,7 +322,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                     </div>
                     <div>
                       <Label>Date *</Label>
-                      <Popover>
+                      <Popover open={dateOpen} onOpenChange={setDateOpen}>
                         <PopoverTrigger asChild>
                           <Button variant="outline" className={cn("w-full mt-1 justify-start text-left font-normal", !jobDate && "text-muted-foreground")}>
                             <CalendarIcon className="mr-2 h-4 w-4" />
@@ -328,7 +330,16 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar mode="single" selected={jobDate} onSelect={setJobDate} initialFocus className="pointer-events-auto" />
+                          <Calendar
+                            mode="single"
+                            selected={jobDate}
+                            onSelect={(d) => {
+                              setJobDate(d);
+                              if (d) setDateOpen(false);
+                            }}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
                         </PopoverContent>
                       </Popover>
                     </div>

@@ -8,6 +8,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { Contract, ContractFilters, ContractFormData, ContractKPIs } from "../types/contract.types";
+import { getPublicCompanyProfile, getPublicContract } from "@/shared/services/publicAccess";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -73,14 +74,9 @@ export async function fetchContractById(id: string): Promise<Contract> {
 }
 
 export async function fetchContractByToken(token: string): Promise<Contract> {
-  const { data, error } = await db
-    .from("contracts")
-    .select("*")
-    .eq("public_share_token", token)
-    .single();
-
-  if (error) throw error;
-  return data as Contract;
+  const data = await getPublicContract(token);
+  if (!data) throw new Error("Contract not found");
+  return data as unknown as Contract;
 }
 
 export async function fetchContractKPIs(): Promise<ContractKPIs> {
@@ -252,11 +248,16 @@ export interface ContractOwnerProfile {
 }
 
 export async function fetchContractOwnerProfile(userId: string): Promise<ContractOwnerProfile | null> {
-  const { data, error } = await db
-    .from("profiles")
-    .select("company_name, company_logo, company_email, company_phone, company_address, company_city, company_state, company_zip")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return data as ContractOwnerProfile | null;
+  const data = await getPublicCompanyProfile(userId);
+  if (!data) return null;
+  return {
+    company_name:    data.company_name,
+    company_logo:    data.company_logo,
+    company_email:   data.company_email,
+    company_phone:   data.company_phone ?? null,
+    company_address: data.company_address ?? null,
+    company_city:    data.company_city ?? null,
+    company_state:   data.company_state ?? null,
+    company_zip:     data.company_zip ?? null,
+  };
 }

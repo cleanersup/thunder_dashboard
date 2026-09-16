@@ -8,6 +8,7 @@ import type { Invoice, InvoiceFilters, InvoiceFormData } from "../types/invoice.
 import { logInvoiceActivity } from "@/shared/services/activityLog";
 import { createNotification } from "@/features/notifications/services/notificationsService";
 import { todayDateOnly } from "@/shared/utils/formatters";
+import { getPublicInvoice } from "@/shared/services/publicAccess";
 
 // ─── Activity / notification side-effects (best-effort, never throw) ──────────
 
@@ -133,16 +134,9 @@ export async function fetchInvoiceById(id: string): Promise<Invoice> {
  * @returns Promise<Invoice>
  */
 export async function fetchInvoiceByPaymentToken(token: string): Promise<Invoice> {
-  const { data: invoice, error } = await supabase
-    .from("invoices")
-    .select("*")
-    .eq("payment_token", token)
-    .single();
-
-  if (error) throw error;
+  const invoice = await getPublicInvoice(token);
   if (!invoice) throw new Error("Invoice not found");
-
-  return invoice as Invoice;
+  return invoice as unknown as Invoice;
 }
 
 // ─── Create ───────────────────────────────────────────────────────────────────
@@ -188,6 +182,7 @@ export async function createInvoice(
       company_name:   formData.companyName || null,
       email:          formData.email,
       phone:          formData.phone,
+      property_title: formData.propertyTitle || null,
       address:        formData.address,
       apt:            formData.apt || null,
       city:           formData.city,
@@ -328,12 +323,25 @@ export async function markReminderSent(id: string): Promise<Invoice> {
 // ─── Delete ───────────────────────────────────────────────────────────────────
 
 /**
- * Delete an invoice by ID (typically draft invoices only).
+ * Delete an invoice by ID. Only Draft or Cancelled invoices may be removed.
  *
  * @param id - Invoice UUID
  * @returns Promise<void>
  */
 export async function deleteInvoice(id: string): Promise<void> {
+  const { data, error: fetchError } = await supabase
+    .from("invoices")
+    .select("status")
+    .eq("id", id)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  const status = data?.status as string | undefined;
+  if (status !== "Draft" && status !== "Cancelled") {
+    throw new Error("Only draft or cancelled invoices can be deleted");
+  }
+
   const { error } = await supabase
     .from("invoices")
     .delete()

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from "@/integrations/supabase/client";
+import { geocodeAddress, type GeoCoords } from "@/shared/services/googleMaps.service";
 
 // jobs table is not in local Supabase types — use supabase as any for all jobs queries
 const db = supabase as any;
@@ -14,6 +15,7 @@ import {
   type RecurringScope,
   dbToJob,
   jobStatusToDb,
+  normalizeJobEmployeeIds,
 } from "../types/job.types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -65,6 +67,32 @@ async function fetchPropertyAddress(propertyId: string) {
     propertyState:  data.state,
     propertyZip:    data.zip_code,
   };
+}
+
+interface SiteAddress {
+  propertyStreet?: string | null;
+  propertyCity?:   string | null;
+  propertyState?:  string | null;
+  propertyZip?:    string | null;
+}
+
+/**
+ * Resolves the job-site coordinates the employee app geofences against on clock-in.
+ * Without them the app has no site to fence and blocks clock-in ("Couldn't verify
+ * the job site location"), and the backend skips its own geofence check. The apt/
+ * suite is left out on purpose — unit numbers degrade geocoding accuracy.
+ *
+ * @param addr - Property address fields resolved for the job
+ * @returns Coordinates, or `null` when there is no address or it can't be resolved
+ */
+async function resolveSiteCoords(addr: SiteAddress): Promise<GeoCoords | null> {
+  const cityLine = [addr.propertyCity, addr.propertyState].filter(Boolean).join(", ");
+  const address  = [addr.propertyStreet, cityLine, addr.propertyZip].filter(Boolean).join(", ");
+  if (!address) return null;
+
+  const coords = await geocodeAddress(address);
+  if (!coords) console.warn(`Could not geocode job site address: "${address}"`);
+  return coords;
 }
 
 async function fetchContactForJob(
@@ -120,12 +148,17 @@ async function fetchContactForJob(
 /**
  * Arma el payload DB (snake_case) con solo los campos presentes en `updates`.
  * Compartido por update() (job suelto) y updateRecurring() (serie vía RPC).
+ *
+ * Devuelve también `newSiteAddress` cuando la propiedad cambió, para que quien
+ * llame re-geocodifique: si la dirección se mueve y las coordenadas no, la app de
+ * empleados haría geofence contra la propiedad anterior.
  */
 async function buildJobUpdatePayload(
   updates: UpdateJobInput,
   propertyId?: string | null,
-): Promise<Record<string, unknown>> {
+): Promise<{ partial: Record<string, unknown>; newSiteAddress: SiteAddress | null }> {
   const partial: Record<string, unknown> = {};
+  let newSiteAddress: SiteAddress | null = null;
 
   if (propertyId) {
     const propAddr = await fetchPropertyAddress(propertyId);
@@ -134,6 +167,7 @@ async function buildJobUpdatePayload(
     if (propAddr.propertyCity !== undefined)   partial.property_city   = propAddr.propertyCity;
     if (propAddr.propertyState !== undefined)  partial.property_state  = propAddr.propertyState;
     if (propAddr.propertyZip !== undefined)    partial.property_zip    = propAddr.propertyZip;
+    newSiteAddress = propAddr;
   }
 
   if (updates.clientId !== undefined)    partial.client_id      = updates.clientId;
@@ -159,7 +193,7 @@ async function buildJobUpdatePayload(
   if (updates.services !== undefined)     partial.line_items      = lineItemsToDb(updates.services);
   if (updates.jobDetails !== undefined)   partial.service_details = updates.jobDetails ?? "";
   if (updates.notes !== undefined)        partial.internal_notes  = updates.notes;
-  if (updates.employeeIds !== undefined)  partial.assigned_employees = updates.employeeIds;
+  if (updates.employeeIds !== undefined)  partial.assigned_employees = normalizeJobEmployeeIds(updates.employeeIds);
   if (updates.subtotal !== undefined)     partial.subtotal        = updates.subtotal;
 
   if (updates.applyDiscount !== undefined || updates.discountType !== undefined || updates.discountValue !== undefined) {
@@ -186,7 +220,7 @@ async function buildJobUpdatePayload(
     });
   }
 
-  return partial;
+  return { partial, newSiteAddress };
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -257,7 +291,7 @@ export const jobsService = {
       property_city:         contact.propertyCity || null,
       property_state:        contact.propertyState || null,
       property_zip:          contact.propertyZip || null,
-      assigned_employees:    input.employeeIds,
+      assigned_employees:    normalizeJobEmployeeIds(input.employeeIds),
       service_type:          input.serviceType,
       job_type:              input.isRecurring ? "recurring" : "one_time",
       recurring_frequency:   input.isRecurring ? input.recurrenceFrequency : null,
@@ -289,6 +323,12 @@ export const jobsService = {
       walkthrough_id:        input.walkthroughId ?? null,
     };
     mapDepositFieldsToDb(payload, input);
+
+    const coords = await resolveSiteCoords(contact);
+    if (coords) {
+      payload.site_latitude  = coords.lat;
+      payload.site_longitude = coords.lng;
+    }
 
     const { data, error } = await db
       .from("jobs")
@@ -340,7 +380,35 @@ export const jobsService = {
    * @param propertyId - Optional property to override service address
    */
   async update(id: string, updates: UpdateJobInput, propertyId?: string | null): Promise<Job> {
-    const partial = await buildJobUpdatePayload(updates, propertyId);
+    const { partial, newSiteAddress } = await buildJobUpdatePayload(updates, propertyId);
+
+    if (newSiteAddress) {
+      // Address changed: re-geocode. On failure the old coordinates must go too,
+      // or the employee app would geofence against the previous property.
+      const coords = await resolveSiteCoords(newSiteAddress);
+      partial.site_latitude  = coords?.lat ?? null;
+      partial.site_longitude = coords?.lng ?? null;
+    } else {
+      // Same address: fill in coordinates for jobs saved before geocoding existed.
+      const { data: current } = await db
+        .from("jobs")
+        .select("property_street, property_city, property_state, property_zip, site_latitude")
+        .eq("id", id)
+        .single();
+      if (current && current.site_latitude == null) {
+        const coords = await resolveSiteCoords({
+          propertyStreet: current.property_street,
+          propertyCity:   current.property_city,
+          propertyState:  current.property_state,
+          propertyZip:    current.property_zip,
+        });
+        if (coords) {
+          partial.site_latitude  = coords.lat;
+          partial.site_longitude = coords.lng;
+        }
+      }
+    }
+
     const { data, error } = await db
       .from("jobs")
       .update(partial)
@@ -385,7 +453,14 @@ export const jobsService = {
     propertyId: string | null | undefined,
     scope: RecurringScope,
   ): Promise<void> {
-    const payload = await buildJobUpdatePayload(updates, propertyId);
+    const { partial: payload, newSiteAddress } = await buildJobUpdatePayload(updates, propertyId);
+    if (newSiteAddress) {
+      // Misma regla que update(): si la dirección cambia, las coordenadas viejas no
+      // pueden quedarse o el geofence de la app de empleados apuntaría a la anterior.
+      const coords = await resolveSiteCoords(newSiteAddress);
+      payload.site_latitude  = coords?.lat ?? null;
+      payload.site_longitude = coords?.lng ?? null;
+    }
     // Campos no soportados por el payload de la RPC (obsoletos / no editables por scope).
     delete payload.job_type;
     delete payload.recurring_duration;

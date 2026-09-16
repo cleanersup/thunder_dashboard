@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type { DraftData, EstimateInsert, EstimateUpdate } from "../types/estimate.types";
+import { getPublicCompanyProfile, getPublicEstimate } from "@/shared/services/publicAccess";
 
 // ─── Estimates CRUD ───────────────────────────────────────────────────────────
 
@@ -123,23 +124,9 @@ export async function generateEstimateShareToken(estimateId: string): Promise<st
  * @throws On Supabase query failure
  */
 export async function fetchEstimateByToken(token: string) {
-  const { data: estimate, error } = await supabase
-    .from("estimates")
-    .select("*")
-    .eq("public_share_token", token)
-    .maybeSingle();
-  if (error) throw error;
+  const estimate = await getPublicEstimate(token);
   if (!estimate) return null;
-
-  // Mark as viewed if not already
-  if (!estimate.viewed_at) {
-    await supabase
-      .from("estimates")
-      .update({ viewed_at: new Date().toISOString() })
-      .eq("id", estimate.id);
-  }
-
-  return estimate;
+  return estimate as Awaited<ReturnType<typeof fetchEstimates>>[number];
 }
 
 /**
@@ -148,13 +135,7 @@ export async function fetchEstimateByToken(token: string) {
  * @param userId - The business owner's user_id
  */
 export async function fetchEstimateProfile(userId: string) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("company_name, company_logo, company_email, company_phone, company_address, company_city, company_state, company_zip")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
+  return getPublicCompanyProfile(userId);
 }
 
 // ─── Draft CRUD ───────────────────────────────────────────────────────────────

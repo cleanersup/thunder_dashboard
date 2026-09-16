@@ -165,7 +165,7 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
+        className="sm:max-w-lg max-h-[90vh] overflow-y-auto pb-8"
         onPointerDownOutside={(e) => {
           if ((e.target as HTMLElement).closest?.(".pac-container")) e.preventDefault();
         }}
@@ -452,7 +452,7 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
           </div>
 
           {/* ── Actions ───────────────────────────────────────────────── */}
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-2 pt-2 pb-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
               Cancel
             </Button>

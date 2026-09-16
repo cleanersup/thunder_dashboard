@@ -16,7 +16,7 @@ import { useNavigate } from "react-router-dom";
 import {
   CheckCircle, Clock, Mail, Phone, MapPin, Building2, Calendar,
   FileText, Download, DollarSign, XCircle, Loader2, Pencil, MoreHorizontal,
-  CreditCard, Share,
+  CreditCard, Share, Trash2,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -38,6 +38,7 @@ import {
   useChargeInvoiceSavedCard,
   useCancelInvoice,
   useUpdateInvoice,
+  useDeleteInvoice,
 } from "../hooks/useInvoices";
 import { useSendInvoiceEmail }      from "../hooks/useSendInvoiceEmail";
 import { useSendInvoiceReminder }   from "../hooks/useSendInvoiceReminder";
@@ -72,6 +73,7 @@ export function InvoiceDetailPanel({
   const markPaid                           = useMarkInvoiceAsPaid();
   const chargeSavedCard                    = useChargeInvoiceSavedCard();
   const cancelInv                          = useCancelInvoice();
+  const deleteInv                          = useDeleteInvoice();
   const updateInv                          = useUpdateInvoice();
 
   const { data: invoice, isLoading } = useInvoice(open && invoiceId ? invoiceId : undefined);
@@ -82,6 +84,7 @@ export function InvoiceDetailPanel({
   const [isPaymentDialogOpen,      setIsPaymentDialogOpen]      = useState(false);
   const [isTakePaymentDialogOpen,  setIsTakePaymentDialogOpen]  = useState(false);
   const [isCancelDialogOpen,       setIsCancelDialogOpen]       = useState(false);
+  const [isDeleteDialogOpen,       setIsDeleteDialogOpen]       = useState(false);
   const [selectedPayment,          setSelectedPayment]          = useState<"Cash" | "Cheque" | null>(null);
   const [showChequeInput,          setShowChequeInput]          = useState(false);
   const [chequeNumber,             setChequeNumber]             = useState("");
@@ -135,6 +138,16 @@ export function InvoiceDetailPanel({
     if (!invoice) return;
     cancelInv.mutate(invoice.id, {
       onSuccess: () => setIsCancelDialogOpen(false),
+    });
+  };
+
+  const handleDeleteInvoice = () => {
+    if (!invoice) return;
+    deleteInv.mutate(invoice.id, {
+      onSuccess: () => {
+        setIsDeleteDialogOpen(false);
+        onClose();
+      },
     });
   };
 
@@ -267,26 +280,60 @@ export function InvoiceDetailPanel({
       );
     }
 
-    // Paid / Cancelled: Download PDF (primary) + More (Share)
-    return (
-      <div className="flex items-center gap-2">
-        <Button size="sm" variant="outline" className="flex-1" onClick={() => invoice && downloadPDF(invoice)}>
-          <Download className="w-4 h-4 mr-1.5" /> Download PDF
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline" className="px-2.5">
-              <MoreHorizontal className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onClick={handleSendEmail} disabled={isSending}>
-              <Share className="w-4 h-4 mr-2" /> {isSending ? "Sending…" : "Share"}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    );
+    // Paid: Download PDF (primary) + More (Share)
+    if (invoice.status === "Paid") {
+      return (
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="flex-1" onClick={() => invoice && downloadPDF(invoice)}>
+            <Download className="w-4 h-4 mr-1.5" /> Download PDF
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="px-2.5">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={handleSendEmail} disabled={isSending}>
+                <Share className="w-4 h-4 mr-2" /> {isSending ? "Sending…" : "Share"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    }
+
+    // Cancelled: Download PDF (primary) + More (Share, Delete)
+    if (invoice.status === "Cancelled") {
+      return (
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="flex-1" onClick={() => invoice && downloadPDF(invoice)}>
+            <Download className="w-4 h-4 mr-1.5" /> Download PDF
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="px-2.5">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleSendEmail} disabled={isSending}>
+                <Share className="w-4 h-4 mr-2" /> {isSending ? "Sending…" : "Share"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setIsDeleteDialogOpen(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" /> Delete Invoice
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    }
+
+    return undefined;
   }
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -392,6 +439,9 @@ export function InvoiceDetailPanel({
                 <div className="flex items-start gap-3">
                   <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                   <div className="min-w-0">
+                    {invoice.property_title && (
+                      <p className="text-sm font-semibold">{invoice.property_title}</p>
+                    )}
                     <p className="text-xs text-muted-foreground">Address</p>
                     <p className="text-sm font-medium">
                       {invoice.address}{invoice.apt && `, ${invoice.apt}`}
@@ -628,6 +678,28 @@ export function InvoiceDetailPanel({
               disabled={cancelInv.isPending}
             >
               {cancelInv.isPending ? "Cancelling..." : "Yes, cancel invoice"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Delete Cancelled Invoice Dialog ───────────────────────────────────── */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+            <AlertDialogDescription>
+              This cancelled invoice will be permanently deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDeleteInvoice}
+              disabled={deleteInv.isPending}
+            >
+              {deleteInv.isPending ? "Deleting..." : "Delete Invoice"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

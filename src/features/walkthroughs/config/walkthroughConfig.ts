@@ -5,7 +5,7 @@ export const RESIDENTIAL_PROPERTY_TYPES = [
 ] as const;
 
 export const RESIDENTIAL_SERVICE_TYPES = [
-  "Deep Cleaning", "Once a Week", "Bi-Weekly",
+  "Deep Cleaning", "Once a Week", "Bi-Weekly", "Once a Month",
   "Move In", "Move Out", "Post Construction",
 ] as const;
 

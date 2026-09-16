@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/
 import { Calendar } from "@/shared/components/ui/calendar";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
+import { COUNTRY_OPTIONS } from "@/shared/constants/countries";
 import { cn } from "@/shared/utils/cn";
 import { employeeSchema, type EmployeeFormData } from "../schemas/employeeSchema";
 import { toDecimalString } from "@/shared/utils/numericInput";
@@ -91,8 +92,11 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
   const [availableDays, setAvailableDays] = useState<AvailableDays>(makeDefaultDays());
   const [docFiles, setDocFiles]           = useState<File[]>([]);
   const [existingDocs, setExistingDocs]   = useState<string[]>([]);
+  const [country, setCountry]           = useState("us");
   const [dragOver, setDragOver]           = useState(false);
   const fileInputRef                      = useRef<HTMLInputElement>(null);
+
+  const autocompleteCountry = country === "all" ? "" : country;
 
   // Reset and prefill when the modal opens
   useEffect(() => {
@@ -137,12 +141,14 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
 
       setExistingDocs(existingEmployee.documents ?? []);
       setDocFiles([]);
+      setCountry("us");
     } else {
       reset();
       setBirthdayDate(undefined);
       setAvailableDays(makeDefaultDays());
       setDocFiles([]);
       setExistingDocs([]);
+      setCountry("us");
     }
   }, [open, isEdit, existingEmployee, reset]);
 
@@ -308,6 +314,23 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
               </div>
             </div>
 
+            {/* Country */}
+            <div>
+              <Label htmlFor="employee-country">Country</Label>
+              <Select value={country} onValueChange={setCountry}>
+                <SelectTrigger id="employee-country" className="mt-1">
+                  <SelectValue placeholder="Select country" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COUNTRY_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Street + Apt */}
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
@@ -321,6 +344,7 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
                     setValue("state", c.state);
                     setValue("zip", c.zip);
                   }}
+                  country={autocompleteCountry}
                   placeholder="123 Main St"
                   className="mt-1"
                 />

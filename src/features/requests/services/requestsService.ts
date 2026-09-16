@@ -2,9 +2,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type {
-  CustomQuestion, Booking,
+  CustomQuestion, PublicCompanyProfile, Booking,
   BookingAttachmentMeta, RequestPayload,
 } from "../types/request.types";
+import { getPublicBookingForms, getPublicCompanyProfile } from "@/shared/services/publicAccess";
 import { formatTimePreference } from "@/shared/utils/timePreference";
 
 /**
@@ -421,13 +422,13 @@ export async function resolveClientPropertyId(
  * @param userId - The business owner's user ID
  */
 export async function fetchPublicProfile(userId: string): Promise<PublicCompanyProfile> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("company_name, company_logo, company_email")
-    .eq("user_id", userId)
-    .single();
-  if (error) throw error;
-  return data;
+  const data = await getPublicCompanyProfile(userId);
+  if (!data) throw new Error("Company profile not found");
+  return {
+    company_name: data.company_name,
+    company_logo: data.company_logo,
+    company_email: data.company_email,
+  };
 }
 
 /**
@@ -435,25 +436,5 @@ export async function fetchPublicProfile(userId: string): Promise<PublicCompanyP
  * @param userId - The business owner's user ID
  */
 export async function fetchPublicBookingForms(userId: string) {
-  const { data, error } = await supabase
-    .from("booking_forms")
-    .select("form_type, custom_questions")
-    .eq("user_id", userId);
-  if (error) throw error;
-  return data ?? [];
-}
-
-/**
- * Submits a booking from the public form (no auth required).
- * @param userId - The business owner's user ID
- * @param payload - Booking data collected from the public form
- */
-export async function submitPublicBooking(
-  userId: string,
-  payload: Omit<BookingInsert, "business_owner_id" | "status">,
-) {
-  const { error } = await supabase
-    .from("bookings")
-    .insert({ ...payload, business_owner_id: userId, status: "new" });
-  if (error) throw error;
+  return getPublicBookingForms(userId);
 }

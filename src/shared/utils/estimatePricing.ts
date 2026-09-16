@@ -30,6 +30,7 @@ export const SERVICE_MODIFIERS: Record<string, number> = {
   "Deep Cleaning":  1.0,   // Base price
   "Once a week":    0.70,  // -30%
   "Bi-weekly":      0.80,  // -20%
+  "Once a month":   0.90,  // -10% (10% cheaper than Deep Cleaning)
   "Move In":        1.12,  // +12%
   "Move Out":       1.30,  // +30%
 };

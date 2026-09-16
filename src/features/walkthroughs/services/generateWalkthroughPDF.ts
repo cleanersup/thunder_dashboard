@@ -5,6 +5,7 @@
 import jsPDF from "jspdf";
 import { FileService } from "@/shared/services/file.service";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeLogo } from "@/shared/utils/pdfLogoHelper";
 
 const STORAGE_BUCKET = "route-files";
 
@@ -196,15 +197,25 @@ export async function generateWalkthroughPDF(data: WalkthroughPDFData): Promise<
     doc.text(rightText, lineX + separatorSpace, textY);
   };
 
+  const bottomLimit = pageHeight - 40;
+  const ensureSpace = (needed = 10) => {
+    if (yPosition + needed > bottomLimit) {
+      doc.addPage();
+      addFooter();
+      yPosition = margin;
+    }
+  };
+
   // Header with logo only
   if (data.companyLogo) {
     try {
       const imgWidth = 30;
       const imgHeight = 30;
-      doc.addImage(data.companyLogo, 'PNG', margin, yPosition, imgWidth, imgHeight);
+      const logo = await normalizeLogo(data.companyLogo);
+      if (logo) doc.addImage(logo.data, logo.format, margin, yPosition, imgWidth, imgHeight);
       yPosition += imgHeight + 10;
     } catch (error) {
-      console.error('Error adding logo:', error);
+      console.error("Error adding logo:", error);
       yPosition += 15;
     }
   } else {
@@ -258,12 +269,6 @@ export async function generateWalkthroughPDF(data: WalkthroughPDFData): Promise<
 
   // Column 1
   doc.setFont('helvetica', 'bold');
-  doc.text('Walkthrough ID:', col1X, col1Y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(data.walkthroughId.substring(0, 8), col1X + 32, col1Y);
-  col1Y += 6;
-
-  doc.setFont('helvetica', 'bold');
   doc.text('Type:', col1X, col1Y);
   doc.setFont('helvetica', 'normal');
   doc.text(data.walkthroughType === 'client' ? 'Client' : 'Lead', col1X + 32, col1Y);
@@ -275,11 +280,19 @@ export async function generateWalkthroughPDF(data: WalkthroughPDFData): Promise<
   doc.text(data.serviceType, col1X + 32, col1Y);
   col1Y += 6;
 
-  doc.setFont('helvetica', 'bold');
-  doc.text('Created:', col1X, col1Y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(data.createdAt, col1X + 32, col1Y);
-  col1Y += 6;
+  if (data.completedAt) {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Completed:', col1X, col1Y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.completedAt, col1X + 32, col1Y);
+    col1Y += 6;
+  } else {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Created:', col1X, col1Y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.createdAt, col1X + 32, col1Y);
+    col1Y += 6;
+  }
 
   // Column 2
   doc.setFont('helvetica', 'bold');
@@ -325,6 +338,49 @@ export async function generateWalkthroughPDF(data: WalkthroughPDFData): Promise<
   }
 
   yPosition = Math.max(col1Y, col2Y) + 10;
+
+  // Company contact (useful for client-facing report)
+  if (data.companyPhone || data.companyEmail || data.companyAddress) {
+    ensureSpace(25);
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(margin, yPosition, contentWidth, 7, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.text('COMPANY INFORMATION', margin + 3, yPosition + 5);
+    yPosition += 13;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+
+    if (data.companyPhone) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Phone:', margin + 3, yPosition);
+      doc.setFont('helvetica', 'normal');
+      doc.text(data.companyPhone, margin + 23, yPosition);
+      yPosition += 6;
+    }
+
+    if (data.companyEmail) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Email:', margin + 3, yPosition);
+      doc.setFont('helvetica', 'normal');
+      doc.text(data.companyEmail, margin + 23, yPosition);
+      yPosition += 6;
+    }
+
+    if (data.companyAddress) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Address:', margin + 3, yPosition);
+      doc.setFont('helvetica', 'normal');
+      const addressLines = doc.splitTextToSize(data.companyAddress, contentWidth - 26);
+      addressLines.forEach((line: string, index: number) => {
+        doc.text(line, margin + 23, yPosition + index * 5);
+      });
+      yPosition += addressLines.length * 5 + 2;
+    }
+
+    yPosition += 4;
+  }
 
   // Section 2: Client/Lead Information
   doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -487,6 +543,14 @@ export async function generateWalkthroughPDF(data: WalkthroughPDFData): Promise<
       col1Y += 6;
     }
 
+    if (data.residentialData.service_type) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Service Type:', col1X, col1Y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(data.residentialData.service_type, col1X + 30, col1Y);
+      col1Y += 6;
+    }
+
     if (data.residentialData.square_footage) {
       doc.setFont('helvetica', 'bold');
       doc.text('Square Footage:', col1X, col1Y);
@@ -629,6 +693,7 @@ export async function generateWalkthroughPDF(data: WalkthroughPDFData): Promise<
     yPosition = Math.max(col1Y, col2Y) + 10;
 
     if (Array.isArray(data.residentialData.extra_services) && data.residentialData.extra_services.length > 0) {
+      ensureSpace(20);
       doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       doc.rect(margin, yPosition, contentWidth, 7, 'F');
       doc.setTextColor(255, 255, 255);
@@ -640,12 +705,14 @@ export async function generateWalkthroughPDF(data: WalkthroughPDFData): Promise<
       doc.setFont('helvetica', 'normal');
 
       data.residentialData.extra_services.forEach((service: string) => {
+        ensureSpace(8);
         doc.text(`• ${service}`, margin + 6, yPosition);
         yPosition += 6;
       });
     }
 
     if (data.residentialData.notes) {
+      ensureSpace(20);
       yPosition += 6;
       doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       doc.rect(margin, yPosition, contentWidth, 7, 'F');
@@ -659,6 +726,7 @@ export async function generateWalkthroughPDF(data: WalkthroughPDFData): Promise<
 
       const noteLines = doc.splitTextToSize(data.residentialData.notes, contentWidth - 6);
       noteLines.forEach((line: string) => {
+        ensureSpace(6);
         doc.text(line, margin + 3, yPosition);
         yPosition += 5;
       });
@@ -828,6 +896,7 @@ export async function generateWalkthroughPDF(data: WalkthroughPDFData): Promise<
     }
 
     if (Array.isArray(data.commercialData.extra_services) && data.commercialData.extra_services.length > 0) {
+      ensureSpace(20);
       doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       doc.rect(margin, yPosition, contentWidth, 7, 'F');
       doc.setTextColor(255, 255, 255);
@@ -839,12 +908,14 @@ export async function generateWalkthroughPDF(data: WalkthroughPDFData): Promise<
       doc.setFont('helvetica', 'normal');
 
       data.commercialData.extra_services.forEach((service: string) => {
+        ensureSpace(8);
         doc.text(`• ${service}`, margin + 6, yPosition);
         yPosition += 6;
       });
     }
 
     if (data.commercialData.notes) {
+      ensureSpace(20);
       yPosition += 6;
       doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       doc.rect(margin, yPosition, contentWidth, 7, 'F');
@@ -858,6 +929,7 @@ export async function generateWalkthroughPDF(data: WalkthroughPDFData): Promise<
 
       const noteLines = doc.splitTextToSize(data.commercialData.notes, contentWidth - 6);
       noteLines.forEach((line: string) => {
+        ensureSpace(6);
         doc.text(line, margin + 3, yPosition);
         yPosition += 5;
       });

@@ -34,6 +34,7 @@ export interface Invoice {
   company_name: string | null;
   email: string;
   phone: string;
+  property_title: string | null;
   address: string;
   apt: string | null;
   city: string;
@@ -93,6 +94,7 @@ export interface InvoiceFormData {
   companyName: string;
   email: string;
   phone: string;
+  propertyTitle: string | null;
   address: string;
   apt: string;
   city: string;

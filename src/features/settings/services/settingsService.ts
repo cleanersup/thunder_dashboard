@@ -5,6 +5,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import type { EditProfileFormData, EditCompanyFormData } from "../schemas/settingsSchemas";
+import { getPublicCompanyProfile } from "@/shared/services/publicAccess";
 
 // ─── Personal Info ────────────────────────────────────────────────────────────
 
@@ -146,12 +147,5 @@ export async function uploadLogo(userId: string, file: File): Promise<string> {
 // ─── Public Profile ───────────────────────────────────────────────────────────
 
 export async function fetchPublicProfile(userId: string) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
+  return getPublicCompanyProfile(userId);
 }
