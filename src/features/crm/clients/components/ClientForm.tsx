@@ -7,8 +7,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/shared/components/ui/sheet";
-import { Button }   from "@/shared/components/ui/button";
+import { FormSheet } from "@/shared/components/forms";
 import { Input }    from "@/shared/components/ui/input";
 import { Label }    from "@/shared/components/ui/label";
 import {
@@ -135,25 +134,16 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-md overflow-y-auto"
-        onPointerDownOutside={(e) => {
-          if ((e.target as HTMLElement).closest?.(".pac-container")) e.preventDefault();
-        }}
-      >
-        <SheetHeader>
-          <SheetTitle>{isEdit ? "Edit Client" : "Add Client"}</SheetTitle>
-        </SheetHeader>
-
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.preventDefault();
-          }}
-          className="space-y-4 mt-4"
-        >
+    <FormSheet
+      open={open}
+      onClose={onClose}
+      title={isEdit ? "Edit Client" : "Add Client"}
+      submitLabel={isEdit ? "Save Changes" : "Add Client"}
+      submitPendingLabel={isEdit ? "Saving..." : "Adding..."}
+      onSubmit={handleSubmit(onSubmit)}
+      isPending={isPending}
+    >
+      <div className="space-y-4" onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}>
 
           {/* ── Personal Information ──────────────────────────────────── */}
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -368,19 +358,7 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
             </div>
           </div>
 
-          {/* ── Actions ───────────────────────────────────────────────── */}
-          <div className="flex gap-2 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" disabled={isPending}>
-              {isPending
-                ? (isEdit ? "Saving..." : "Adding...")
-                : (isEdit ? "Save Changes" : "Add Client")}
-            </Button>
-          </div>
-        </form>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </FormSheet>
   );
 }

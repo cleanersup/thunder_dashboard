@@ -10,7 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { formatDisplayDate } from "@/shared/utils/formatters";
 import { Calendar as CalendarIcon, Paperclip, X } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
+import { FormSheet } from "@/shared/components/forms";
 import { Button }   from "@/shared/components/ui/button";
 import { Input }    from "@/shared/components/ui/input";
 import { Label }    from "@/shared/components/ui/label";
@@ -163,18 +163,16 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent
-        className="sm:max-w-lg max-h-[90vh] overflow-y-auto pb-8"
-        onPointerDownOutside={(e) => {
-          if ((e.target as HTMLElement).closest?.(".pac-container")) e.preventDefault();
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Lead" : "Add Lead"}</DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
+    <FormSheet
+      open={open}
+      onClose={onClose}
+      title={isEdit ? "Edit Lead" : "Add Lead"}
+      submitLabel={isEdit ? "Save Changes" : "Add Lead"}
+      submitPendingLabel={isEdit ? "Saving..." : "Adding..."}
+      onSubmit={handleSubmit(onSubmit)}
+      isPending={isPending}
+    >
+      <div className="space-y-4">
 
           {/* ── Personal Information ──────────────────────────────────── */}
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -451,19 +449,7 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
             )}
           </div>
 
-          {/* ── Actions ───────────────────────────────────────────────── */}
-          <div className="flex gap-2 pt-2 pb-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" disabled={isPending}>
-              {isPending
-                ? (isEdit ? "Saving..." : "Adding...")
-                : (isEdit ? "Save Changes" : "Add Lead")}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </FormSheet>
   );
 }

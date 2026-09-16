@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
 import { formatDisplayDateShort } from "@/shared/utils/formatters";
 import { CalendarIcon, Download, Upload, X } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
+import { FormSheet } from "@/shared/components/forms";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -246,24 +246,16 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent
-        className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
-        onPointerDownOutside={(e) => {
-          if ((e.target as HTMLElement).closest?.(".pac-container")) e.preventDefault();
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Employee" : "Add Employee"}</DialogTitle>
-        </DialogHeader>
-
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.preventDefault();
-          }}
-          className="space-y-6 mt-2"
-        >
+    <FormSheet
+      open={open}
+      onClose={onClose}
+      title={isEdit ? "Edit Employee" : "Add Employee"}
+      submitLabel={isEdit ? "Save Changes" : "Add Employee"}
+      submitPendingLabel={isEdit ? "Saving..." : "Adding..."}
+      onSubmit={handleSubmit(onSubmit)}
+      isPending={isPending}
+    >
+      <div className="space-y-6" onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}>
 
           {/* ── Personal Information ─────────────────────────────────── */}
           <section className="space-y-3">
@@ -629,20 +621,7 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
             )}
           </section>
 
-          {/* ── Actions ──────────────────────────────────────────────── */}
-          <div className="flex gap-2 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" disabled={isPending}>
-              {isPending
-                ? isEdit ? "Saving..." : "Adding..."
-                : isEdit ? "Save Changes" : "Add Employee"}
-            </Button>
-          </div>
-
-        </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </FormSheet>
   );
 }

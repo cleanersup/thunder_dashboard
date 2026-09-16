@@ -13,6 +13,7 @@
  *
  * Referencia viva: `features/requests/components/RequestForm.tsx`.
  */
+export { FormSheet }     from "./FormSheet";
 export { FormSection }   from "./FormSection";
 export { FloatingInput } from "./FloatingInput";
 export { SelectField }   from "./SelectField";
@@ -20,6 +21,7 @@ export { DateField }     from "./DateField";
 export { TimeField }     from "./TimeField";
 export { OptionGrid }    from "./OptionGrid";
 
+export type { FormSheetProps }     from "./FormSheet";
 export type { FormSectionProps }   from "./FormSection";
 export type { FloatingInputProps, FloatingInputType } from "./FloatingInput";
 export type { SelectFieldProps, SelectFieldOption }   from "./SelectField";

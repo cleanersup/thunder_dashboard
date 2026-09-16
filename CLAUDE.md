@@ -80,12 +80,23 @@
 | Capa | Directorio | Qué contiene |
 |------|-----------|--------------|
 | Átomos | `src/shared/components/ui/` | Primitivos shadcn: `input`, `select`, `textarea`, `button`, `calendar`… |
-| Moléculas | `src/shared/components/forms/` | Campos completos: `FormSection`, `FloatingInput`, `SelectField`, `DateField`, `OptionGrid` |
+| Moléculas | `src/shared/components/forms/` | Contenedor `FormSheet` y campos completos: `FormSection`, `FloatingInput`, `SelectField`, `DateField`, `TimeField`, `OptionGrid` |
 | Organismos | `src/shared/components/common/` | `ClientSelect`, `ServicePropertySelector`, `DataTable`, `DetailModal`… |
 | Tokens | `src/shared/constants/formTokens.ts` | Alto, hover, foco y error de los controles |
 
 **Antes de crear un input, select, chip o encabezado de sección: buscar en esas tres carpetas.**
 Si no existe, se crea en `shared/`, no dentro de la feature.
+
+### Dónde se abre cada formulario (obligatorio)
+| Tipo de formulario | Contenedor | Ejemplos |
+|---|---|---|
+| **Registro puntual** que se crea/edita desde otro sitio | **`FormSheet`** — panel lateral derecho | Client, Employee, Property, Lead |
+| **Formulario principal** de una feature | `FullScreenModal` | Request, Walkthrough, Job, Invoice |
+| Confirmación / aviso corto | `Dialog` centrado o `ConfirmDialog` | Confirm Changes, Delete |
+
+- **Nunca** abrir un formulario de creación en un `Dialog` centrado: entra por el costado con `FormSheet`, que deja ver el contexto detrás y devuelve al usuario donde estaba.
+- El patrón nace del "+ Add New Client" de un selector: se abre el panel, se crea, se cierra y el nuevo registro queda seleccionado en el campo que lo pidió.
+- `FormSheet` ya trae cabecera, scroll del cuerpo y barra de acciones (Cancel + primario). No rehacerlas por formulario.
 
 ### Reglas de formularios (obligatorias)
 - **Toda sección es un `FormSection`**: ícono + título + subtítulo. Nunca escribir encabezados de sección a mano.
