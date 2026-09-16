@@ -2,6 +2,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/shared/components/ui/select";
 import { cn } from "@/shared/utils/cn";
+import { withRequiredMark } from "@/shared/utils/formLabel";
 import { FORM_CONTROL_ERROR, FORM_CONTROL_HEIGHT } from "@/shared/constants/formTokens";
 
 export interface SelectFieldOption {
@@ -10,11 +11,12 @@ export interface SelectFieldOption {
 }
 
 export interface SelectFieldProps {
-  /** Texto guía del control. Termina en " *" cuando el campo es obligatorio. */
+  /** Texto guía del control. El asterisco lo añade `required`, no se escribe aquí. */
   placeholder: string;
   value:       string;
   onChange:    (value: string) => void;
   options:     readonly SelectFieldOption[];
+  required?:   boolean;
   /** `true` marca el borde; un string además muestra el mensaje debajo. */
   error?:      boolean | string;
   disabled?:   boolean;
@@ -31,6 +33,7 @@ export function SelectField({
   value,
   onChange,
   options,
+  required = false,
   error,
   disabled = false,
   className,
@@ -41,7 +44,7 @@ export function SelectField({
     <div className={className}>
       <Select value={value} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger className={cn(FORM_CONTROL_HEIGHT, error && FORM_CONTROL_ERROR)}>
-          <SelectValue placeholder={placeholder} />
+          <SelectValue placeholder={withRequiredMark(placeholder, required)} />
         </SelectTrigger>
         <SelectContent>
           {options.map(({ value: v, label }) => (

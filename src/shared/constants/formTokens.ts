@@ -16,6 +16,10 @@
 /** Alto único de todo control de formulario. */
 export const FORM_CONTROL_HEIGHT = "h-12";
 
+/** Separación entre secciones (cards) de un formulario y entre los campos de una sección. */
+export const FORM_SECTION_GAP = "space-y-2.5";
+export const FORM_FIELD_GAP   = "space-y-3";
+
 /** Hover unificado — solo resalta el borde, y nunca en un control deshabilitado. */
 export const FORM_CONTROL_HOVER = "enabled:hover:border-primary/60";
 

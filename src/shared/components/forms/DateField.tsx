@@ -4,16 +4,18 @@ import { Button } from "@/shared/components/ui/button";
 import { Calendar } from "@/shared/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { formatDisplayDate } from "@/shared/utils/formatters";
+import { withRequiredMark } from "@/shared/utils/formLabel";
 import { cn } from "@/shared/utils/cn";
 import { FORM_CONTROL_ERROR, FORM_CONTROL_HEIGHT } from "@/shared/constants/formTokens";
 
 export interface DateFieldProps {
-  /** Texto guía cuando no hay fecha. Termina en " *" cuando el campo es obligatorio. */
+  /** Texto guía cuando no hay fecha. El asterisco lo añade `required`. */
   placeholder: string;
   value:       Date | undefined;
   onChange:    (date: Date | undefined) => void;
   /** Restringe el calendario (ej. no permitir fechas pasadas). */
   disabledDates?: (date: Date) => boolean;
+  required?:   boolean;
   error?:      boolean | string;
   disabled?:   boolean;
   className?:  string;
@@ -30,6 +32,7 @@ export function DateField({
   value,
   onChange,
   disabledDates,
+  required = false,
   error,
   disabled = false,
   className,
@@ -53,7 +56,7 @@ export function DateField({
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
-            {value ? formatDisplayDate(value) : placeholder}
+            {value ? formatDisplayDate(value) : withRequiredMark(placeholder, required)}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">

@@ -89,7 +89,9 @@ Si no existe, se crea en `shared/`, no dentro de la feature.
 
 ### Reglas de formularios (obligatorias)
 - **Toda sección es un `FormSection`**: ícono + título + subtítulo. Nunca escribir encabezados de sección a mano.
-- **Todo control lleva su placeholder**; si es obligatorio, el placeholder termina en `" *"` y la sección va con `required`.
+- **Todo control lleva su placeholder**, y es el propio texto guía del campo (no se duplica con un `<Label>` encima).
+- **Obligatorio se marca en el CAMPO, nunca en el título de la sección** — una sección mezcla campos obligatorios y opcionales. Se pasa `required` a la molécula y ella añade el asterisco vía `withRequiredMark`; nunca concatenar `" *"` a mano en un placeholder.
+- **Separación**: `FORM_SECTION_GAP` (2.5) entre cards y `FORM_FIELD_GAP` (3) entre campos — `FormSection` ya aplica el segundo. No inventar `space-y-*` por formulario.
 - **Hover y foco nunca se escriben a mano**: salen de `formTokens`. Jerarquía única: reposo `border-input` → hover `border-primary/60` → foco `border-primary`. Sin relleno (el relleno se reserva para el estado seleccionado de `OptionGrid`).
 - Un control que por dentro es un botón (date picker, picker con diálogo, subir archivos) usa **`<Button variant="field">`** — nunca `variant="outline"`, que lo rellena en hover y lo delata como botón dentro de una fila de campos. `outline` queda para acciones reales (Cancel, etc.).
 - **Formulario de referencia**: `src/features/requests/components/RequestForm.tsx` — copiar de ahí la estructura al crear o migrar cualquier otro.

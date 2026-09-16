@@ -69,7 +69,7 @@ export function AddRequestPage({ open, onClose }: AddRequestPageProps = {}) {
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto bg-background">
-          <div className="max-w-2xl mx-auto px-4 space-y-4 py-6 pb-4">
+          <div className="max-w-2xl mx-auto px-4 py-2.5">
             <RequestForm
               isModal
               title="New Request"

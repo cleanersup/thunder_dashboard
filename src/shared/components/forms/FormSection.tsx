@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { cn } from "@/shared/utils/cn";
+import { FORM_FIELD_GAP } from "@/shared/constants/formTokens";
 
 export interface FormSectionProps {
   /** Ícono de la sección — obligatorio: toda sección se identifica por ícono + título. */
@@ -9,8 +10,11 @@ export interface FormSectionProps {
   title:      string;
   /** Línea de apoyo bajo el título. Explica qué se espera de la sección. */
   subtitle?:  string;
-  /** Añade `*` al título y lo marca en rojo cuando `invalid`. */
-  required?:  boolean;
+  /**
+   * Marca el título en rojo. La sección NO lleva asterisco: lo obligatorio se señala
+   * en cada campo (`required` en la molécula), porque una sección suele mezclar
+   * campos obligatorios y opcionales.
+   */
   invalid?:   boolean;
   /** Slot a la derecha del encabezado (contadores, acciones cortas). */
   action?:    ReactNode;
@@ -31,7 +35,6 @@ export function FormSection({
   icon: Icon,
   title,
   subtitle,
-  required = false,
   invalid = false,
   action,
   flush = false,
@@ -40,7 +43,7 @@ export function FormSection({
 }: FormSectionProps) {
   return (
     <Card className={cn(flush && "rounded-none border-0", className)}>
-      <CardContent className="p-6 space-y-4">
+      <CardContent className="p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1 min-w-0">
             <h2 className={cn(
@@ -48,17 +51,14 @@ export function FormSection({
               invalid && "text-destructive",
             )}>
               <Icon className="w-5 h-5 shrink-0" />
-              <span className="truncate">
-                {title}
-                {required && <span className={cn("ml-0.5", invalid ? "text-destructive" : "text-muted-foreground")}>*</span>}
-              </span>
+              <span className="truncate">{title}</span>
             </h2>
             {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
           </div>
           {action && <div className="shrink-0">{action}</div>}
         </div>
 
-        {children}
+        <div className={FORM_FIELD_GAP}>{children}</div>
       </CardContent>
     </Card>
   );

@@ -10,6 +10,7 @@ import {
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
 import { FORM_CONTROL_ERROR } from "@/shared/constants/formTokens";
+import { withRequiredMark } from "@/shared/utils/formLabel";
 
 export interface SearchableSelectOption {
   value: string;
@@ -30,6 +31,8 @@ interface SearchableSelectProps {
   className?: string;
   disabled?: boolean;
   error?: boolean;
+  /** Añade el asterisco de obligatorio al placeholder (una sola convención en la app). */
+  required?: boolean;
   /** Optional footer action rendered below the list (e.g. "Add New Client"). */
   onAddNew?: () => void;
   addNewLabel?: string;
@@ -51,6 +54,7 @@ export const SearchableSelect = React.forwardRef<
       className,
       disabled = false,
       error = false,
+      required = false,
       onAddNew,
       addNewLabel = "Add New",
     },
@@ -61,7 +65,7 @@ export const SearchableSelect = React.forwardRef<
 
     // Get selected option label
     const selectedOption = options.find((opt) => opt.value === value);
-    const displayValue = selectedOption?.label || placeholder;
+    const displayValue = selectedOption?.label || withRequiredMark(placeholder, required);
 
     // Filter options based on search query
     const filteredOptions = React.useMemo(() => {

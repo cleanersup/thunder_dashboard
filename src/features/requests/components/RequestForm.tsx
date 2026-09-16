@@ -24,6 +24,7 @@ import { useClients }               from "@/features/crm/clients/hooks/useClient
 import { toast }    from "sonner";
 import { format }   from "date-fns";
 import { cn }       from "@/shared/utils/cn";
+import { FORM_SECTION_GAP } from "@/shared/constants/formTokens";
 import { TIME_PREFERENCE_OPTIONS, normalizeTimePreference } from "@/shared/utils/timePreference";
 import type { RequestPayload, BookingAttachmentMeta } from "../types/request.types";
 import type { CustomQuestion } from "../hooks/useCustomQuestions";
@@ -332,7 +333,7 @@ export function RequestForm({
         </div>
       )}
 
-      <div className={isModal ? "space-y-4" : "space-y-[5px] pt-[5px]"}>
+      <div className={cn(FORM_SECTION_GAP, !isModal && "pt-2.5")}>
 
         {/* ── Client + Service Property (requeridos) ───────────────── */}
         <FormSection
@@ -341,7 +342,6 @@ export function RequestForm({
           subtitle={mode === "edit"
             ? "Client this request belongs to and where the service happens"
             : "Who the request is for and where the service happens"}
-          required
           invalid={errors.client}
           flush={!isModal}
         >
@@ -350,6 +350,7 @@ export function RequestForm({
             selected={selectedClient as unknown as ClientEntity | null}
             onChange={(c) => handleClientSelect(c as unknown as Client | null)}
             error={errors.client}
+            required
           />
           {errors.client && (
             <p className="text-xs text-destructive">Please select a client.</p>
@@ -386,10 +387,11 @@ export function RequestForm({
           />
 
           <SelectField
-            placeholder="Select service type *"
+            placeholder="Select service type"
             value={serviceType}
             onChange={(v) => { setServiceType(v); setErrors((p) => ({ ...p, serviceType: false })); }}
             options={SERVICE_TYPE_OPTIONS}
+            required
             error={errors.serviceType && "Service type is required"}
           />
         </FormSection>

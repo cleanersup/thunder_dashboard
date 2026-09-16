@@ -1,6 +1,7 @@
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { cn } from "@/shared/utils/cn";
+import { withRequiredMark } from "@/shared/utils/formLabel";
 import { toIntegerString, toDecimalString } from "@/shared/utils/numericInput";
 import { FORM_CONTROL_ERROR, FORM_CONTROL_HEIGHT } from "@/shared/constants/formTokens";
 
@@ -17,6 +18,7 @@ export interface FloatingInputProps {
   value:     string;
   onChange:  (value: string) => void;
   type?:     FloatingInputType;
+  required?: boolean;
   /** `true` marca el borde; un string además muestra el mensaje debajo. */
   error?:    boolean | string;
   disabled?: boolean;
@@ -44,6 +46,7 @@ export function FloatingInput({
   value,
   onChange,
   type = "text",
+  required = false,
   error,
   disabled = false,
 }: FloatingInputProps) {
@@ -73,7 +76,7 @@ export function FloatingInput({
           peer-focus:top-0 peer-focus:text-xs peer-focus:text-primary
           peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-primary"
       >
-        {label}
+        {withRequiredMark(label, required)}
       </Label>
       {errorMessage && <p className="text-xs text-destructive mt-1">{errorMessage}</p>}
     </div>

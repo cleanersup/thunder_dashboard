@@ -30,6 +30,8 @@ export interface ClientSelectProps {
   selected?: ClientEntity | null;
   error?: boolean;
   disabled?: boolean;
+  /** Añade el asterisco de obligatorio al placeholder. */
+  required?: boolean;
   placeholder?: string;
 }
 
@@ -39,7 +41,8 @@ export function ClientSelect({
   selected = null,
   error = false,
   disabled = false,
-  placeholder = "Select client...",
+  required = false,
+  placeholder = "Select client",
 }: ClientSelectProps) {
   const [showNew, setShowNew] = useState(false);
   const { data: clientsRaw = [] } = useClients();
@@ -73,6 +76,7 @@ export function ClientSelect({
         emptyMessage="No clients found"
         error={error}
         disabled={disabled}
+        required={required}
         onAddNew={() => setShowNew(true)}
         addNewLabel="Add New Client"
       />
