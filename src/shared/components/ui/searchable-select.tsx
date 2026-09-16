@@ -9,6 +9,8 @@ import {
 } from "@/shared/components/ui/dialog";
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { FORM_CONTROL_ERROR } from "@/shared/constants/formTokens";
 import { withRequiredMark } from "@/shared/utils/formLabel";
 
@@ -39,8 +41,9 @@ interface SearchableSelectBaseProps {
 /**
  * Una sola opción o varias, discriminado en el tipo: `value` y `onValueChange` cambian
  * de forma con `multiple`, así que no hay manera de usarlo mal. Ambos modos comparten
- * diálogo, buscador y lista — elegir un cliente y elegir empleados se ven y se operan
- * igual porque son literalmente el mismo componente.
+ * trigger, buscador y lista — elegir un cliente y elegir empleados se ven y se operan
+ * igual porque son literalmente el mismo componente. La única diferencia: en múltiple
+ * el desplegable no se cierra al elegir, para marcar varios de una vez.
  */
 type SearchableSelectProps = SearchableSelectBaseProps & (
   | { multiple?: false; value?: string;   onValueChange: (value: string) => void }
@@ -67,6 +70,7 @@ export const SearchableSelect = React.forwardRef<
 
     const [open, setOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState("");
+    const isMobile = useIsMobile();
 
     const isMulti = props.multiple === true;
 
@@ -187,27 +191,74 @@ export const SearchableSelect = React.forwardRef<
       </div>
     );
 
-    // Dialog picker (swift-slate parity) — works inside FullScreenModal; Popover scroll breaks there.
+    const trigger = (
+      <Button
+        ref={ref}
+        type="button"
+        variant="field"
+        role="combobox"
+        aria-expanded={open}
+        disabled={disabled}
+        className={cn(
+          "w-full justify-between h-10",
+          !hasValue && "text-muted-foreground",
+          error && FORM_CONTROL_ERROR,
+          className
+        )}
+      >
+        <span className="truncate">{displayValue}</span>
+        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      </Button>
+    );
+
+    /**
+     * Desplegable anclado al campo — se comporta como un select, que es lo que el
+     * usuario espera de un campo con chevron.
+     *
+     * `modal` es obligatorio: dentro de un FullScreenModal (que es un Dialog de Radix)
+     * un Popover no-modal queda fuera del foco atrapado del diálogo y el scroll de la
+     * lista deja de responder. Con `modal` el Popover gestiona su propio foco y scroll
+     * y funciona igual suelto en la página que dentro del modal.
+     */
+    if (!isMobile) {
+      return (
+        <>
+          <Popover open={open} onOpenChange={setOpen} modal>
+            <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+            <PopoverContent
+              className="w-[var(--radix-popover-trigger-width)] p-0 z-[60]"
+              align="start"
+              sideOffset={4}
+            >
+              <div className="p-2 border-b">
+                <SearchInput autoFocus />
+              </div>
+
+              <div className="max-h-[300px] overflow-y-auto p-2 overscroll-contain">
+                {filteredOptions.length === 0 ? (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    {emptyMessage}
+                  </div>
+                ) : (
+                  <OptionsList />
+                )}
+              </div>
+
+              {onAddNew && (
+                <div className="border-t p-1">
+                  <AddNewButton />
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+        </>
+      );
+    }
+
+    // Móvil: el desplegable no cabe — diálogo a pantalla casi completa.
     return (
       <>
-        <Button
-          ref={ref}
-          type="button"
-          variant="field"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          onClick={() => setOpen(true)}
-          className={cn(
-            "w-full justify-between h-10",
-            !hasValue && "text-muted-foreground",
-            error && FORM_CONTROL_ERROR,
-            className
-          )}
-        >
-          <span className="truncate">{displayValue}</span>
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+        <span onClick={() => !disabled && setOpen(true)}>{trigger}</span>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent className="z-[60] max-w-md max-h-[80vh] flex flex-col p-0 gap-0">
