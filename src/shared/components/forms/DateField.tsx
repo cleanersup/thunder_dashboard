@@ -5,9 +5,7 @@ import { Calendar } from "@/shared/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { formatDisplayDate } from "@/shared/utils/formatters";
 import { cn } from "@/shared/utils/cn";
-import {
-  FORM_CONTROL_ERROR, FORM_CONTROL_FOCUS, FORM_CONTROL_HEIGHT, FORM_CONTROL_HOVER,
-} from "@/shared/constants/formTokens";
+import { FORM_CONTROL_ERROR, FORM_CONTROL_HEIGHT } from "@/shared/constants/formTokens";
 
 export interface DateFieldProps {
   /** Texto guía cuando no hay fecha. Termina en " *" cuando el campo es obligatorio. */
@@ -45,14 +43,11 @@ export function DateField({
         <PopoverTrigger asChild>
           <Button
             type="button"
-            variant="outline"
+            variant="field"
             disabled={disabled}
             className={cn(
-              // Campo, no botón: sin relleno en hover (ver SearchableSelect).
               FORM_CONTROL_HEIGHT,
-              "w-full justify-start text-left font-normal rounded-md bg-background hover:bg-background hover:text-foreground",
-              FORM_CONTROL_HOVER,
-              FORM_CONTROL_FOCUS,
+              "w-full justify-start text-left",
               !value && "text-muted-foreground",
               error && FORM_CONTROL_ERROR,
             )}

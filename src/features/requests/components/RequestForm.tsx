@@ -557,7 +557,7 @@ export function RequestForm({
 
             <Button
               type="button"
-              variant="outline"
+              variant="field"
               className="w-full h-12"
               disabled={isProcessingFiles || keptAttachments.length + attachmentFiles.length >= MAX_FILES}
               onClick={() => fileInputRef.current?.click()}

@@ -9,9 +9,7 @@ import {
 } from "@/shared/components/ui/dialog";
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
-import {
-  FORM_CONTROL_ERROR, FORM_CONTROL_FOCUS, FORM_CONTROL_HOVER,
-} from "@/shared/constants/formTokens";
+import { FORM_CONTROL_ERROR } from "@/shared/constants/formTokens";
 
 export interface SearchableSelectOption {
   value: string;
@@ -160,17 +158,13 @@ export const SearchableSelect = React.forwardRef<
         <Button
           ref={ref}
           type="button"
-          variant="outline"
+          variant="field"
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
           onClick={() => setOpen(true)}
           className={cn(
-            // Se comporta como un campo, no como un botón: mismo hover/foco de borde
-            // que Input/Select en lugar del relleno del variant "outline".
-            "w-full justify-between h-10 bg-background font-normal hover:bg-background hover:text-foreground",
-            FORM_CONTROL_HOVER,
-            FORM_CONTROL_FOCUS,
+            "w-full justify-between h-10",
             !value && "text-muted-foreground",
             error && FORM_CONTROL_ERROR,
             className

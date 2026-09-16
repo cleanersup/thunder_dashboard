@@ -91,7 +91,7 @@ Si no existe, se crea en `shared/`, no dentro de la feature.
 - **Toda sección es un `FormSection`**: ícono + título + subtítulo. Nunca escribir encabezados de sección a mano.
 - **Todo control lleva su placeholder**; si es obligatorio, el placeholder termina en `" *"` y la sección va con `required`.
 - **Hover y foco nunca se escriben a mano**: salen de `formTokens`. Jerarquía única: reposo `border-input` → hover `border-primary/60` → foco `border-primary`. Sin relleno (el relleno se reserva para el estado seleccionado de `OptionGrid`).
-- Un control que por dentro es un botón (date picker, picker con diálogo) debe verse y reaccionar como un campo: `hover:bg-background hover:text-foreground` + los tokens.
+- Un control que por dentro es un botón (date picker, picker con diálogo, subir archivos) usa **`<Button variant="field">`** — nunca `variant="outline"`, que lo rellena en hover y lo delata como botón dentro de una fila de campos. `outline` queda para acciones reales (Cancel, etc.).
 - **Formulario de referencia**: `src/features/requests/components/RequestForm.tsx` — copiar de ahí la estructura al crear o migrar cualquier otro.
 
 ### Componentes reutilizables disponibles
