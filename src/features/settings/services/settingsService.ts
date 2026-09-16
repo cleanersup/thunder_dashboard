@@ -42,7 +42,8 @@ export async function updateCompanyInfo(
       company_city: data.city,
       company_state: data.state,
       company_zip: data.zip,
-    })
+      company_country: data.companyCountry,
+    } as never)
     .eq("user_id", userId);
 
   if (error) throw error;

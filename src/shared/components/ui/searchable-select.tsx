@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Check, ChevronDown, Search, X } from "lucide-react";
+import { Check, ChevronDown, Plus, Search, X } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import {
   Dialog,
@@ -27,6 +27,8 @@ interface SearchableSelectProps {
   className?: string;
   disabled?: boolean;
   error?: boolean;
+  onCreateNew?: () => void;
+  createNewLabel?: string;
 }
 
 export const SearchableSelect = React.forwardRef<
@@ -45,6 +47,8 @@ export const SearchableSelect = React.forwardRef<
       className,
       disabled = false,
       error = false,
+      onCreateNew,
+      createNewLabel = "Create new",
     },
     ref
   ) => {
@@ -173,7 +177,21 @@ export const SearchableSelect = React.forwardRef<
               )}
             </div>
 
-            <div className="px-6 py-4 border-t">
+            <div className="px-6 py-4 border-t space-y-2">
+              {onCreateNew && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setOpen(false);
+                    onCreateNew();
+                  }}
+                  className="w-full justify-start text-primary"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  {createNewLabel}
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"

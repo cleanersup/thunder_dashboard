@@ -9,10 +9,20 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import { toast } from "@/shared/components/ui/use-toast";
 import { useProfile } from "@/shared/hooks/useProfile";
+import { COUNTRY_OPTIONS } from "@/shared/constants/countries";
 import { useUpdateCompanyInfo } from "../hooks/useSettings";
 import { editCompanySchema, type EditCompanyFormData } from "../schemas/settingsSchemas";
+
+const REGISTRATION_COUNTRIES = COUNTRY_OPTIONS.filter((c) => c.value !== "all");
 
 export function EditCompanyInfoPage() {
   const navigate = useNavigate();
@@ -37,12 +47,16 @@ export function EditCompanyInfoPage() {
       city: "",
       state: "",
       zip: "",
+      companyCountry: "",
     },
   });
+
+  const companyCountry = watch("companyCountry") ?? "";
 
   // Pre-fill form when profile loads
   useEffect(() => {
     if (profile) {
+      const savedCountry = (profile as { company_country?: string | null }).company_country ?? "";
       reset({
         companyName: profile.company_name ?? "",
         companyEmail: profile.company_email ?? "",
@@ -52,6 +66,7 @@ export function EditCompanyInfoPage() {
         city: profile.company_city ?? "",
         state: profile.company_state ?? "",
         zip: profile.company_zip ?? "",
+        companyCountry: savedCountry,
       });
     }
   }, [profile, reset]);
@@ -102,6 +117,34 @@ export function EditCompanyInfoPage() {
               )}
             </div>
 
+            {/* Country — same options as the register form */}
+            <div className="space-y-1.5">
+              <Label htmlFor="companyCountry">Country</Label>
+              <Select
+                value={companyCountry || undefined}
+                onValueChange={(val) => {
+                  setValue("companyCountry", val, { shouldValidate: true, shouldDirty: true });
+                }}
+              >
+                <SelectTrigger
+                  id="companyCountry"
+                  className={errors.companyCountry ? "border-destructive" : ""}
+                >
+                  <SelectValue placeholder="Country *" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px] bg-white z-50">
+                  {REGISTRATION_COUNTRIES.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.companyCountry && (
+                <p className="text-xs text-destructive">{errors.companyCountry.message}</p>
+              )}
+            </div>
+
             {/* Company Email */}
             <div className="space-y-1.5">
               <Label htmlFor="companyEmail">Company Email</Label>
@@ -141,6 +184,7 @@ export function EditCompanyInfoPage() {
                   setValue("state", components.state, { shouldDirty: true });
                   setValue("zip", components.zip, { shouldDirty: true });
                 }}
+                country={companyCountry}
                 error={!!errors.address}
               />
               {errors.address && (

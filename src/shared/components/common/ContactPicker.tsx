@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { User, Briefcase } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/components/ui/button";
@@ -7,6 +7,7 @@ import { SearchableSelect } from "@/shared/components/ui/searchable-select";
 import { ServicePropertySelector } from "./ServicePropertySelector";
 import { useClients } from "@/features/crm/clients/hooks/useClients";
 import { useLeads } from "@/features/crm/leads/hooks/useLeads";
+import { ClientForm } from "@/features/crm/clients/components/ClientForm";
 import { QK } from "@/shared/config/queryKeys";
 import type { Client } from "@/features/crm/types/crm.types";
 import type { Lead } from "@/features/crm/types/crm.types";
@@ -39,6 +40,7 @@ interface ContactPickerProps {
   clientIdFromUrl?: string | null;
   leadIdFromUrl?: string | null;
   onUrlParamConsumed?: () => void;
+  allowCreateClient?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -52,7 +54,9 @@ export function ContactPicker({
   clientIdFromUrl,
   leadIdFromUrl,
   onUrlParamConsumed,
+  allowCreateClient = false,
 }: ContactPickerProps) {
+  const [showNewClient, setShowNewClient] = useState(false);
   const queryClient = useQueryClient();
   const { data: allClients = [] } = useClients();
   const { data: leads = [] } = useLeads();
@@ -146,6 +150,8 @@ export function ContactPicker({
           searchPlaceholder="Search clients..."
           emptyMessage="No active clients found"
           error={error}
+          onCreateNew={allowCreateClient ? () => setShowNewClient(true) : undefined}
+          createNewLabel="Add New Client"
         />
       )}
 
@@ -176,6 +182,20 @@ export function ContactPicker({
           preferredPropertyId={preferredPropertyId}
         />
       )}
+
+      <ClientForm
+        open={showNewClient}
+        onClose={() => setShowNewClient(false)}
+        onSuccess={(client) => {
+          onChange({
+            contactType: "client",
+            client: client as Client,
+            lead: null,
+            property: null,
+          });
+          setShowNewClient(false);
+        }}
+      />
     </div>
   );
 }

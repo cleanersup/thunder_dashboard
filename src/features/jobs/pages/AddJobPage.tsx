@@ -248,7 +248,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
     <FullScreenModal open={open} onClose={onClose}>
       {/* Header */}
       <div className="border-b flex-shrink-0 bg-white">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-2xl mx-auto">
           <div className="px-4 py-3 flex items-center justify-between gap-4">
             <div className="w-1/3" />
             <div className="w-1/3 text-center">
@@ -270,8 +270,8 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
         {isEdit && isLoading ? (
           <div className="flex justify-center py-16"><LoadingSpinner /></div>
         ) : (
-          <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-            <div className="grid lg:grid-cols-2 gap-4">
+          <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+            <div className="space-y-4">
               {/* Left column */}
               <div className="space-y-4">
 
@@ -284,6 +284,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                       onChange={(v) => { setContact(v); setSelectedProperty(v.property); }}
                       clientIdFromUrl={isEdit && existingJob?.contactType === "client" ? existingJob.clientId : undefined}
                       leadIdFromUrl={isEdit && existingJob?.contactType === "lead" ? existingJob.leadId : undefined}
+                      allowCreateClient
                     />
                   </CardContent>
                 </Card>
@@ -485,9 +486,9 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={handleSubmit} disabled={creating || updating}>
+            <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
+              <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+              <Button size="sm" onClick={handleSubmit} disabled={creating || updating}>
                 {creating || updating ? "Saving..." : isEdit ? "Save Changes" : "Create Job"}
               </Button>
             </div>

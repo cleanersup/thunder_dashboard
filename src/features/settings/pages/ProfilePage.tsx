@@ -23,6 +23,13 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import { toast } from "@/shared/components/ui/use-toast";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Progress } from "@/shared/components/ui/progress";
@@ -46,9 +53,12 @@ import {
   type SecurityFormData,
 } from "../schemas/settingsSchemas";
 import { cn } from "@/shared/utils/cn";
+import { COUNTRY_OPTIONS } from "@/shared/constants/countries";
 import type { Database } from "@/integrations/supabase/types";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+
+const REGISTRATION_COUNTRIES = COUNTRY_OPTIONS.filter((c) => c.value !== "all");
 type SettingsSection =
   | "edit-profile"
   | "company-info"
@@ -153,8 +163,10 @@ function CompanyInfoSection({ profile }: { profile: Profile }) {
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isDirty } } =
     useForm<EditCompanyFormData>({
       resolver: zodResolver(editCompanySchema),
-      defaultValues: { companyName: "", companyEmail: "", companyPhone: "", address: "", aptSuite: "", city: "", state: "", zip: "" },
+      defaultValues: { companyName: "", companyEmail: "", companyPhone: "", address: "", aptSuite: "", city: "", state: "", zip: "", companyCountry: "" },
     });
+
+  const companyCountry = watch("companyCountry") ?? "";
 
   useEffect(() => {
     reset({
@@ -166,6 +178,7 @@ function CompanyInfoSection({ profile }: { profile: Profile }) {
       city: profile.company_city ?? "",
       state: profile.company_state ?? "",
       zip: profile.company_zip ?? "",
+      companyCountry: (profile as { company_country?: string | null }).company_country ?? "",
     });
   }, [profile.id, reset]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -195,6 +208,31 @@ function CompanyInfoSection({ profile }: { profile: Profile }) {
         </div>
 
         <div className="space-y-1.5">
+          <Label htmlFor="ci-country">Country <span className="text-destructive">*</span></Label>
+          <Select
+            value={companyCountry || undefined}
+            onValueChange={(val) => {
+              setValue("companyCountry", val, { shouldValidate: true, shouldDirty: true });
+            }}
+          >
+            <SelectTrigger
+              id="ci-country"
+              className={errors.companyCountry ? "border-destructive" : ""}
+            >
+              <SelectValue placeholder="Country *" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px] bg-white z-50">
+              {REGISTRATION_COUNTRIES.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.companyCountry && <p className="text-xs text-destructive">{errors.companyCountry.message}</p>}
+        </div>
+
+        <div className="space-y-1.5">
           <Label htmlFor="ci-email">Company Email <span className="text-destructive">*</span></Label>
           <Input id="ci-email" type="email" placeholder="info@company.com" {...register("companyEmail")}
             className={errors.companyEmail ? "border-destructive" : ""} />
@@ -219,6 +257,7 @@ function CompanyInfoSection({ profile }: { profile: Profile }) {
               setValue("state", c.state, { shouldDirty: true });
               setValue("zip", c.zip, { shouldDirty: true });
             }}
+            country={companyCountry}
             error={!!errors.address}
           />
           {errors.address && <p className="text-xs text-destructive">{errors.address.message}</p>}

@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { X } from "lucide-react";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { Button } from "@/shared/components/ui/button";
+import { Card, CardContent } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
@@ -130,93 +131,109 @@ export function TaskForm({ open, onClose, task }: TaskFormProps) {
         <div className="flex-1 overflow-y-auto bg-background">
           <div className="max-w-2xl mx-auto px-4 space-y-4 py-6 pb-8">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <Label>Task Title *</Label>
-                <Input {...register("title")} placeholder="Task title" />
-                {errors.title && (
-                  <p className="text-xs text-destructive mt-1">{errors.title.message}</p>
-                )}
-              </div>
-
-              <div>
-                <Label>Description</Label>
-                <Textarea {...register("description")} rows={3} placeholder="Task description..." />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Priority *</Label>
-                  <Controller
-                    control={control}
-                    name="priority"
-                    render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                        </SelectContent>
-                      </Select>
+              <Card>
+                <CardContent className="p-6 space-y-4">
+                  <div>
+                    <Label>Task Title *</Label>
+                    <Input {...register("title")} placeholder="Task title" className="mt-1" />
+                    {errors.title && (
+                      <p className="text-xs text-destructive mt-1">{errors.title.message}</p>
                     )}
-                  />
-                </div>
-                <div>
-                  <Label>Status *</Label>
-                  <Controller
-                    control={control}
-                    name="status"
-                    render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="to do">To Do</SelectItem>
-                          <SelectItem value="in progress">In Progress</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
-              </div>
+                  </div>
 
-              <div>
-                <Label>Due Date</Label>
-                <Input type="date" {...register("due_date")} />
-              </div>
+                  <div>
+                    <Label>Description</Label>
+                    <Textarea {...register("description")} rows={3} placeholder="Task description..." className="mt-1" />
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div>
-                <Label>Assigned To</Label>
-                <EntityPickerField
-                  multiple
-                  options={employeeOptions}
-                  selected={selectedEmployees}
-                  onChange={setSelectedEmployees}
-                  placeholder="Select employees"
-                  emptyMessage="No active employees"
-                  onCreateNew={() => setShowAddEmployee(true)}
-                  createNewLabel="Add Employee"
-                />
-              </div>
+              <Card>
+                <CardContent className="p-6 space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Priority *</Label>
+                      <Controller
+                        control={control}
+                        name="priority"
+                        render={({ field }) => (
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="low">Low</SelectItem>
+                              <SelectItem value="medium">Medium</SelectItem>
+                              <SelectItem value="high">High</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <Label>Status *</Label>
+                      <Controller
+                        control={control}
+                        name="status"
+                        render={({ field }) => (
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="to do">To Do</SelectItem>
+                              <SelectItem value="in progress">In Progress</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <Label>Client</Label>
-                <EntityPickerField
-                  options={clientOptions}
-                  selected={selectedClient ? [selectedClient] : []}
-                  onChange={([c]) => setSelectedClient(c ?? null)}
-                  placeholder="Select a client"
-                  emptyMessage="No clients found"
-                  allowClear
-                  clearLabel="No client"
-                />
-              </div>
+                  <div>
+                    <Label>Due Date</Label>
+                    <Input type="date" {...register("due_date")} className="mt-1" />
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div className="flex gap-2 pt-2">
-                <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+              <Card>
+                <CardContent className="p-6 space-y-4">
+                  <div>
+                    <Label>Assigned To</Label>
+                    <div className="mt-1">
+                      <EntityPickerField
+                        multiple
+                        options={employeeOptions}
+                        selected={selectedEmployees}
+                        onChange={setSelectedEmployees}
+                        placeholder="Select employees"
+                        emptyMessage="No active employees"
+                        onCreateNew={() => setShowAddEmployee(true)}
+                        createNewLabel="Add Employee"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Client</Label>
+                    <div className="mt-1">
+                      <EntityPickerField
+                        options={clientOptions}
+                        selected={selectedClient ? [selectedClient] : []}
+                        onChange={([c]) => setSelectedClient(c ?? null)}
+                        placeholder="Select a client"
+                        emptyMessage="No clients found"
+                        allowClear
+                        clearLabel="No client"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
+                <Button type="button" variant="outline" size="sm" onClick={onClose}>
                   Cancel
                 </Button>
-                <Button type="submit" className="flex-1" disabled={isPending}>
+                <Button type="submit" size="sm" disabled={isPending}>
                   {isPending ? "Saving..." : (isEdit ? "Save Changes" : "Add Task")}
                 </Button>
               </div>
