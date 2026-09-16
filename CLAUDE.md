@@ -76,6 +76,24 @@
 - NO navegan a una ruta nueva — el estado vive en la página orchestradora
 - Excepción: estimates sí usan rutas propias (`/estimates/new/residential`, `/estimates/new/commercial`)
 
+### Diseño atómico — dónde vive cada cosa
+| Capa | Directorio | Qué contiene |
+|------|-----------|--------------|
+| Átomos | `src/shared/components/ui/` | Primitivos shadcn: `input`, `select`, `textarea`, `button`, `calendar`… |
+| Moléculas | `src/shared/components/forms/` | Campos completos: `FormSection`, `FloatingInput`, `SelectField`, `DateField`, `OptionGrid` |
+| Organismos | `src/shared/components/common/` | `ClientSelect`, `ServicePropertySelector`, `DataTable`, `DetailModal`… |
+| Tokens | `src/shared/constants/formTokens.ts` | Alto, hover, foco y error de los controles |
+
+**Antes de crear un input, select, chip o encabezado de sección: buscar en esas tres carpetas.**
+Si no existe, se crea en `shared/`, no dentro de la feature.
+
+### Reglas de formularios (obligatorias)
+- **Toda sección es un `FormSection`**: ícono + título + subtítulo. Nunca escribir encabezados de sección a mano.
+- **Todo control lleva su placeholder**; si es obligatorio, el placeholder termina en `" *"` y la sección va con `required`.
+- **Hover y foco nunca se escriben a mano**: salen de `formTokens`. Jerarquía única: reposo `border-input` → hover `border-primary/60` → foco `border-primary`. Sin relleno (el relleno se reserva para el estado seleccionado de `OptionGrid`).
+- Un control que por dentro es un botón (date picker, picker con diálogo) debe verse y reaccionar como un campo: `hover:bg-background hover:text-foreground` + los tokens.
+- **Formulario de referencia**: `src/features/requests/components/RequestForm.tsx` — copiar de ahí la estructura al crear o migrar cualquier otro.
+
 ### Componentes reutilizables disponibles
 - `DetailModal` + `InfoRow` → `src/shared/components/common/DetailModal.tsx`
 - `ConfirmDialog` → `src/shared/components/common/ConfirmDialog.tsx`
@@ -139,7 +157,9 @@ Al hacer submit del form público (`/booking/:userId`):
 - `attachments` (JSONB array de BookingAttachmentMeta)
 
 ### Verificación obligatoria antes de terminar cada fase
-1. `npx tsc --noEmit` → 0 errores
+1. `npx tsc --noEmit -p tsconfig.app.json` → 0 errores
+   ⚠️ `npx tsc --noEmit` a secas **no chequea nada**: el tsconfig raíz usa project references
+   con `"files": []`, así que siempre sale 0 aunque haya errores reales.
 2. `npm run build` → 0 errores
 3. Actualizar `PLAN.md`: marcar fase como ✅, añadir entrada al log de sesiones
 4. Actualizar `MEMORY.md` con patrones nuevos descubiertos

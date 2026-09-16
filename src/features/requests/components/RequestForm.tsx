@@ -1,28 +1,29 @@
+/**
+ * Formulario de Request — **referencia del kit de formularios** (`shared/components/forms`).
+ *
+ * Al construir o migrar otro formulario, copiar de aquí la estructura:
+ *   · cada bloque es un `FormSection` (ícono + título + subtítulo);
+ *   · cada control es una molécula del kit con su placeholder;
+ *   · hover/foco/alto vienen de los tokens, nunca se escriben a mano.
+ */
 import { useState, useRef, useEffect } from "react";
 import {
-  ChevronLeft, CalendarIcon, Upload, X, FileText, Image as ImageIcon,
-  Loader2, MapPin, User, Mail, Phone,
+  ChevronLeft, Upload, X, FileText, Image as ImageIcon,
+  Loader2, MapPin, User, Mail, Phone, CalendarClock, Home, Building2, Paperclip,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button }    from "@/shared/components/ui/button";
-import { Input }     from "@/shared/components/ui/input";
 import { Label }     from "@/shared/components/ui/label";
 import { Textarea }  from "@/shared/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/shared/components/ui/select";
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from "@/shared/components/ui/popover";
-import { Calendar }         from "@/shared/components/ui/calendar";
+  FormSection, FloatingInput, SelectField, DateField, OptionGrid,
+} from "@/shared/components/forms";
 import { ClientSelect }             from "@/shared/components/common/ClientSelect";
 import { ServicePropertySelector }  from "@/shared/components/common/ServicePropertySelector";
 import { useClients }               from "@/features/crm/clients/hooks/useClients";
 import { toast }    from "sonner";
 import { format }   from "date-fns";
-import { formatDisplayDate } from "@/shared/utils/formatters";
 import { cn }       from "@/shared/utils/cn";
-import { toIntegerString } from "@/shared/utils/numericInput";
 import { TIME_PREFERENCE_OPTIONS, normalizeTimePreference } from "@/shared/utils/timePreference";
 import type { RequestPayload, BookingAttachmentMeta } from "../types/request.types";
 import type { CustomQuestion } from "../hooks/useCustomQuestions";
@@ -43,6 +44,11 @@ const ADDITIONAL_SERVICES = [
 
 const COMMERCIAL_TYPES = [
   "School", "Church", "Office", "Warehouse", "Restaurant", "Other",
+] as const;
+
+const SERVICE_TYPE_OPTIONS = [
+  { value: "residential", label: "Residential" },
+  { value: "commercial",  label: "Commercial"  },
 ] as const;
 
 // ─── Image compression ───────────────────────────────────────────────────────
@@ -88,47 +94,6 @@ async function compressImage(file: File): Promise<File> {
     img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Failed to load image")); };
     img.src = objectUrl;
   });
-}
-
-// ─── Floating label input ────────────────────────────────────────────────────
-
-interface FloatInputProps {
-  id:       string;
-  label:    string;
-  value:    string;
-  onChange: (v: string) => void;
-  type?:    string;
-  error?:   string;
-}
-
-function FloatInput({ id, label, value, onChange, type = "text", error }: FloatInputProps) {
-  const isNumeric = type === "number";
-  return (
-    <div className="relative">
-      <Input
-        id={id}
-        type={isNumeric ? "text" : type}
-        inputMode={isNumeric ? "numeric" : undefined}
-        placeholder=" "
-        value={value}
-        onChange={(e) => {
-          const v = isNumeric ? toIntegerString(e.target.value) : e.target.value;
-          onChange(v);
-        }}
-        className={cn(
-          "h-12 rounded-md border focus-visible:ring-0 focus-visible:border-primary px-3 bg-background peer",
-          error ? "border-destructive" : "border-border",
-        )}
-      />
-      <Label
-        htmlFor={id}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground bg-background px-1 transition-all pointer-events-none peer-focus:top-0 peer-focus:text-xs peer-focus:text-primary peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-primary"
-      >
-        {label}
-      </Label>
-      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
-    </div>
-  );
 }
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -178,7 +143,6 @@ export function RequestForm({
   // ── Form fields ───────────────────────────────────────────────────────────
   const [serviceType,         setServiceType]         = useState(initialValues?.serviceType         ?? "");
   const [selectedDate,        setSelectedDate]        = useState<Date | undefined>(initialValues?.selectedDate);
-  const [datePickerOpen,      setDatePickerOpen]      = useState(false);
   const [timePreference,      setTimePreference]      = useState(normalizeTimePreference(initialValues?.timePreference));
   const [bedrooms,            setBedrooms]            = useState(initialValues?.bedrooms            ?? "");
   const [bathrooms,           setBathrooms]           = useState(initialValues?.bathrooms           ?? "");
@@ -218,11 +182,6 @@ export function RequestForm({
     setSelectedProperty(null);
     if (client) setErrors((p) => ({ ...p, client: false }));
   };
-
-  const toggleAdditionalService = (svc: string) =>
-    setAdditionalServices((prev) =>
-      prev.includes(svc) ? prev.filter((s) => s !== svc) : [...prev, svc]
-    );
 
   const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
@@ -314,42 +273,42 @@ export function RequestForm({
     });
   };
 
-  // ── Selected-client summary card ─────────────────────────────────────────
+  // ── Selected-client summary ──────────────────────────────────────────────
+  // Vive DENTRO de la sección Client: es el detalle de lo que se acaba de elegir,
+  // no una sección aparte (si lo fuera necesitaría su propio ícono y título).
 
-  const renderContactCard = (client: Client) => {
+  const renderContactSummary = (client: Client) => {
     const addrLine1 = [client.service_street, client.service_apt].filter(Boolean).join(" ");
     const addrLine2 = [client.service_city, `${client.service_state ?? ""} ${client.service_zip ?? ""}`.trim()]
       .filter(Boolean).join(", ");
 
     return (
-      <Card className={cn(!isModal && "rounded-none border-0")}>
-        <CardContent className="space-y-3 p-6">
-          {[
-            { icon: User,  label: "Full Name", value: client.full_name },
-            { icon: Mail,  label: "Email",     value: client.email },
-            { icon: Phone, label: "Phone",     value: client.phone },
-          ].map(({ icon: Icon, label, value }) => value && (
-            <div key={label} className="flex items-start gap-3">
-              <Icon className="w-4 h-4 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <p className="text-sm font-medium">{value}</p>
-              </div>
+      <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4">
+        {[
+          { icon: User,  label: "Full Name", value: client.full_name },
+          { icon: Mail,  label: "Email",     value: client.email },
+          { icon: Phone, label: "Phone",     value: client.phone },
+        ].map(({ icon: Icon, label, value }) => value && (
+          <div key={label} className="flex items-start gap-3">
+            <Icon className="w-4 h-4 text-muted-foreground mt-0.5" />
+            <div>
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-sm font-medium">{value}</p>
             </div>
-          ))}
-          {(addrLine1 || addrLine2) && (
-            <div className="flex items-start gap-3">
-              <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-xs text-muted-foreground">Address</p>
-                <p className="text-sm font-medium">
-                  {addrLine1}{addrLine1 && addrLine2 && <br />}{addrLine2}
-                </p>
-              </div>
+          </div>
+        ))}
+        {(addrLine1 || addrLine2) && (
+          <div className="flex items-start gap-3">
+            <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+            <div>
+              <p className="text-xs text-muted-foreground">Address</p>
+              <p className="text-sm font-medium">
+                {addrLine1}{addrLine1 && addrLine2 && <br />}{addrLine2}
+              </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -376,213 +335,163 @@ export function RequestForm({
       <div className={isModal ? "space-y-4" : "space-y-[5px] pt-[5px]"}>
 
         {/* ── Client + Service Property (requeridos) ───────────────── */}
-        <Card className={cn(!isModal && "rounded-none border-0")}>
-          <CardContent className="p-6 space-y-4">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Client *
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {mode === "edit"
-                  ? "Client this request belongs to"
-                  : "Select the client this request is for"}
-              </p>
-            </div>
-            <ClientSelect
-              value={selectedClient?.id}
-              selected={selectedClient as unknown as ClientEntity | null}
-              onChange={(c) => handleClientSelect(c as unknown as Client | null)}
-              error={errors.client}
-            />
-            {errors.client && (
-              <p className="text-xs text-destructive">Please select a client.</p>
-            )}
+        <FormSection
+          icon={User}
+          title="Client"
+          subtitle={mode === "edit"
+            ? "Client this request belongs to and where the service happens"
+            : "Who the request is for and where the service happens"}
+          required
+          invalid={errors.client}
+          flush={!isModal}
+        >
+          <ClientSelect
+            value={selectedClient?.id}
+            selected={selectedClient as unknown as ClientEntity | null}
+            onChange={(c) => handleClientSelect(c as unknown as Client | null)}
+            error={errors.client}
+          />
+          {errors.client && (
+            <p className="text-xs text-destructive">Please select a client.</p>
+          )}
 
-            <ServicePropertySelector
-              clientId={selectedClient?.id}
-              value={selectedProperty}
-              onChange={setSelectedProperty}
-              preferredPropertyId={initialValues?.initialClientPropertyId}
-            />
-          </CardContent>
-        </Card>
+          <ServicePropertySelector
+            clientId={selectedClient?.id}
+            value={selectedProperty}
+            onChange={setSelectedProperty}
+            preferredPropertyId={initialValues?.initialClientPropertyId}
+          />
 
-        {/* Selected contact summary */}
-        {selectedClient && renderContactCard(selectedClient)}
+          {selectedClient && renderContactSummary(selectedClient)}
+        </FormSection>
 
         {/* ── Preferred Date & Service ─────────────────────────────── */}
-        <Card className={cn(!isModal && "rounded-none border-x-0")}>
-          <CardContent className="p-4 space-y-5">
-            <h3 className="text-base font-semibold">Preferred Date & Service</h3>
+        <FormSection
+          icon={CalendarClock}
+          title="Preferred Date & Service"
+          subtitle="When the client wants the service and what kind it is"
+          flush={!isModal}
+        >
+          <DateField
+            placeholder="Select preferred date"
+            value={selectedDate}
+            onChange={setSelectedDate}
+          />
 
-            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full h-12 justify-start text-left font-normal rounded-md bg-background hover:bg-primary/10 hover:text-primary hover:border-primary",
-                    !selectedDate && "text-muted-foreground",
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? formatDisplayDate(selectedDate) : "Select Preferred Date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(d) => { setSelectedDate(d); if (d) setDatePickerOpen(false); }}
-                  initialFocus
-                  className="pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
+          <SelectField
+            placeholder="Select time preference"
+            value={timePreference}
+            onChange={setTimePreference}
+            options={TIME_PREFERENCE_OPTIONS}
+          />
 
-            <Select value={timePreference} onValueChange={setTimePreference}>
-              <SelectTrigger className="h-12 rounded-md border border-border bg-background">
-                <SelectValue placeholder="Time Preference" />
-              </SelectTrigger>
-              <SelectContent>
-                {TIME_PREFERENCE_OPTIONS.map(({ value, label }) => (
-                  <SelectItem key={value} value={value}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <div>
-              <Select
-                value={serviceType}
-                onValueChange={(v) => { setServiceType(v); setErrors((p) => ({ ...p, serviceType: false })); }}
-              >
-                <SelectTrigger className={cn(
-                  "h-12 rounded-md border bg-background",
-                  errors.serviceType ? "border-destructive" : "border-border",
-                )}>
-                  <SelectValue placeholder="Service Type *" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="residential">Residential</SelectItem>
-                  <SelectItem value="commercial">Commercial</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.serviceType && <p className="text-xs text-destructive mt-1">Service type is required</p>}
-            </div>
-          </CardContent>
-        </Card>
+          <SelectField
+            placeholder="Select service type *"
+            value={serviceType}
+            onChange={(v) => { setServiceType(v); setErrors((p) => ({ ...p, serviceType: false })); }}
+            options={SERVICE_TYPE_OPTIONS}
+            error={errors.serviceType && "Service type is required"}
+          />
+        </FormSection>
 
         {/* ── Residential Details ──────────────────────────────────── */}
         {serviceType === "residential" && (
-          <Card className={cn(!isModal && "rounded-none border-x-0")}>
-            <CardContent className="p-4 space-y-5">
-              <h3 className="text-base font-semibold">Residential Service Details</h3>
-              <FloatInput id="bedrooms"  label="How many bedrooms"  type="number" value={bedrooms}  onChange={setBedrooms} />
-              <FloatInput id="bathrooms" label="How many bathrooms" type="number" value={bathrooms} onChange={setBathrooms} />
-              <div>
-                <Label className="text-sm font-medium mb-3 block">Additional Services</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {ADDITIONAL_SERVICES.map((svc) => (
-                    <div
-                      key={svc}
-                      onClick={() => toggleAdditionalService(svc)}
-                      className={cn(
-                        "flex items-center justify-center p-3 rounded-lg border cursor-pointer transition-all text-sm",
-                        additionalServices.includes(svc)
-                          ? "border-primary bg-primary/10 text-primary font-medium"
-                          : "border-border bg-background hover:border-primary/50",
-                      )}
-                    >
-                      {svc}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Service Details</Label>
-                <Textarea
-                  placeholder="Service details..."
-                  value={serviceDetails}
-                  onChange={(e) => setServiceDetails(e.target.value)}
-                  className="min-h-[100px] rounded-md"
+          <FormSection
+            icon={Home}
+            title="Residential Service Details"
+            subtitle="Size of the home and any extra areas to cover"
+            flush={!isModal}
+          >
+            <FloatingInput id="bedrooms"  label="How many bedrooms"  type="integer" value={bedrooms}  onChange={setBedrooms} />
+            <FloatingInput id="bathrooms" label="How many bathrooms" type="integer" value={bathrooms} onChange={setBathrooms} />
+
+            <OptionGrid
+              multiple
+              label="Additional Services"
+              options={ADDITIONAL_SERVICES}
+              value={additionalServices}
+              onChange={setAdditionalServices}
+            />
+
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Service Details</Label>
+              <Textarea
+                placeholder="Anything the crew should know before the visit..."
+                value={serviceDetails}
+                onChange={(e) => setServiceDetails(e.target.value)}
+                className="min-h-[100px] rounded-md"
+              />
+            </div>
+
+            {customQuestions
+              .filter((q) => q.formType === "residential")
+              .map((q) => (
+                <FloatingInput
+                  key={q.id}
+                  id={q.id}
+                  label={q.question}
+                  value={customAnswers[q.id] || ""}
+                  onChange={(v) => setCustomAnswers((p) => ({ ...p, [q.id]: v }))}
                 />
-              </div>
-              {customQuestions
-                .filter((q) => q.formType === "residential")
-                .map((q) => (
-                  <FloatInput
-                    key={q.id}
-                    id={q.id}
-                    label={q.question}
-                    value={customAnswers[q.id] || ""}
-                    onChange={(v) => setCustomAnswers((p) => ({ ...p, [q.id]: v }))}
-                  />
-                ))}
-            </CardContent>
-          </Card>
+              ))}
+          </FormSection>
         )}
 
         {/* ── Commercial Details ───────────────────────────────────── */}
         {serviceType === "commercial" && (
-          <Card className={cn(!isModal && "rounded-none border-x-0")}>
-            <CardContent className="p-4 space-y-5">
-              <h3 className="text-base font-semibold">Commercial Service Details</h3>
-              <div>
-                <Label className="text-sm font-medium mb-3 block">Property Type</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {COMMERCIAL_TYPES.map((type) => (
-                    <div
-                      key={type}
-                      onClick={() => setCommercialType(type)}
-                      className={cn(
-                        "flex items-center justify-center p-3 rounded-lg border cursor-pointer transition-all text-sm",
-                        commercialType === type
-                          ? "border-primary bg-primary/10 text-primary font-medium"
-                          : "border-border bg-background hover:border-primary/50",
-                      )}
-                    >
-                      {type}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {commercialType === "Other" && (
-                <FloatInput id="otherType" label="Please specify" value={otherCommercialType} onChange={setOtherCommercialType} />
-              )}
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Service Details</Label>
-                <Textarea
-                  placeholder="Service details..."
-                  value={serviceDetails}
-                  onChange={(e) => setServiceDetails(e.target.value)}
-                  className="min-h-[100px] rounded-md"
+          <FormSection
+            icon={Building2}
+            title="Commercial Service Details"
+            subtitle="Type of property and scope of the service"
+            flush={!isModal}
+          >
+            <OptionGrid
+              label="Property Type"
+              options={COMMERCIAL_TYPES}
+              value={commercialType || null}
+              onChange={setCommercialType}
+            />
+
+            {commercialType === "Other" && (
+              <FloatingInput id="otherType" label="Please specify" value={otherCommercialType} onChange={setOtherCommercialType} />
+            )}
+
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Service Details</Label>
+              <Textarea
+                placeholder="Anything the crew should know before the visit..."
+                value={serviceDetails}
+                onChange={(e) => setServiceDetails(e.target.value)}
+                className="min-h-[100px] rounded-md"
+              />
+            </div>
+
+            {customQuestions
+              .filter((q) => q.formType === "commercial")
+              .map((q) => (
+                <FloatingInput
+                  key={q.id}
+                  id={q.id}
+                  label={q.question}
+                  value={customAnswers[q.id] || ""}
+                  onChange={(v) => setCustomAnswers((p) => ({ ...p, [q.id]: v }))}
                 />
-              </div>
-              {customQuestions
-                .filter((q) => q.formType === "commercial")
-                .map((q) => (
-                  <FloatInput
-                    key={q.id}
-                    id={q.id}
-                    label={q.question}
-                    value={customAnswers[q.id] || ""}
-                    onChange={(v) => setCustomAnswers((p) => ({ ...p, [q.id]: v }))}
-                  />
-                ))}
-            </CardContent>
-          </Card>
+              ))}
+          </FormSection>
         )}
 
         {/* ── Attachments ──────────────────────────────────────────── */}
-        <Card className={cn(!isModal && "rounded-none border-x-0")}>
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold">Attachments</h3>
-              <span className="text-xs text-muted-foreground">
-                {keptAttachments.length + attachmentFiles.length}/{MAX_FILES}
-              </span>
-            </div>
-
+        <FormSection
+          icon={Paperclip}
+          title="Attachments"
+          subtitle="Photos or PDFs that help explain the job"
+          flush={!isModal}
+          action={
+            <span className="text-xs text-muted-foreground">
+              {keptAttachments.length + attachmentFiles.length}/{MAX_FILES}
+            </span>
+          }
+        >
             {keptAttachments.length > 0 && (
               <div className="grid grid-cols-2 gap-2">
                 {keptAttachments.map((att, idx) =>
@@ -669,8 +578,7 @@ export function RequestForm({
               className="hidden"
               onChange={handleFilesSelected}
             />
-          </CardContent>
-        </Card>
+        </FormSection>
 
         {/* ── Actions ──────────────────────────────────────────────── */}
         {isModal ? (

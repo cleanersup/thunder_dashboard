@@ -19,7 +19,7 @@ import {
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { toast } from "sonner";
 import { cn } from "@/shared/utils/cn";
-import { FloatInput } from "../components/FloatInput";
+import { FloatingInput } from "@/shared/components/forms";
 import { PickerDialog } from "../components/PickerDialog";
 import { WalkthroughContactCard } from "../components/WalkthroughContactCard";
 import {
@@ -167,7 +167,7 @@ export function ResidentialWalkthroughFormPage() {
               <Button variant="outline" className="w-full justify-start h-10" onClick={() => setShowServiceTypeDialog(true)}>
                 {serviceType || "Service Type"}
               </Button>
-              <FloatInput id="sqft" label="Enter Square Footage" value={squareFootage} onChange={setSquareFootage} />
+              <FloatingInput type="integer" id="sqft" label="Enter Square Footage" value={squareFootage} onChange={setSquareFootage} />
             </CardContent>
           </Card>
 
@@ -178,13 +178,13 @@ export function ResidentialWalkthroughFormPage() {
                 <Bed className="w-4 h-4" /> Main Data
               </h2>
               <div className="grid grid-cols-2 gap-3">
-                <FloatInput id="bedrooms"   label="Bedrooms"    value={bedrooms}   onChange={setBedrooms} />
-                <FloatInput id="kitchen"    label="Kitchen"     value={kitchen}    onChange={setKitchen} />
-                <FloatInput id="livingRoom" label="Living Room" value={livingRoom} onChange={setLivingRoom} />
-                <FloatInput id="diningRoom" label="Dining Room" value={diningRoom} onChange={setDiningRoom} />
-                <FloatInput id="office"     label="Office"      value={office}     onChange={setOffice} />
-                <FloatInput id="fullBath"   label="Full Bath"   value={fullBath}   onChange={setFullBath} />
-                <FloatInput id="halfBath"   label="Half Bath"   value={halfBath}   onChange={setHalfBath} />
+                <FloatingInput type="integer" id="bedrooms"   label="Bedrooms"    value={bedrooms}   onChange={setBedrooms} />
+                <FloatingInput type="integer" id="kitchen"    label="Kitchen"     value={kitchen}    onChange={setKitchen} />
+                <FloatingInput type="integer" id="livingRoom" label="Living Room" value={livingRoom} onChange={setLivingRoom} />
+                <FloatingInput type="integer" id="diningRoom" label="Dining Room" value={diningRoom} onChange={setDiningRoom} />
+                <FloatingInput type="integer" id="office"     label="Office"      value={office}     onChange={setOffice} />
+                <FloatingInput type="integer" id="fullBath"   label="Full Bath"   value={fullBath}   onChange={setFullBath} />
+                <FloatingInput type="integer" id="halfBath"   label="Half Bath"   value={halfBath}   onChange={setHalfBath} />
               </div>
             </CardContent>
           </Card>
@@ -196,12 +196,12 @@ export function ResidentialWalkthroughFormPage() {
                 <Plus className="w-4 h-4" /> Additional
               </h2>
               <div className="grid grid-cols-2 gap-3">
-                <FloatInput id="fans"           label="Fans"            value={fans}           onChange={setFans} />
-                <FloatInput id="oven"           label="Oven"            value={oven}           onChange={setOven} />
-                <FloatInput id="refrigerator"   label="Refrigerator"    value={refrigerator}   onChange={setRefrigerator} />
-                <FloatInput id="blinds"         label="Blinds"          value={blinds}         onChange={setBlinds} />
-                <FloatInput id="windowsInside"  label="Windows Inside"  value={windowsInside}  onChange={setWindowsInside} />
-                <FloatInput id="windowsOutside" label="Windows Outside" value={windowsOutside} onChange={setWindowsOutside} />
+                <FloatingInput type="integer" id="fans"           label="Fans"            value={fans}           onChange={setFans} />
+                <FloatingInput type="integer" id="oven"           label="Oven"            value={oven}           onChange={setOven} />
+                <FloatingInput type="integer" id="refrigerator"   label="Refrigerator"    value={refrigerator}   onChange={setRefrigerator} />
+                <FloatingInput type="integer" id="blinds"         label="Blinds"          value={blinds}         onChange={setBlinds} />
+                <FloatingInput type="integer" id="windowsInside"  label="Windows Inside"  value={windowsInside}  onChange={setWindowsInside} />
+                <FloatingInput type="integer" id="windowsOutside" label="Windows Outside" value={windowsOutside} onChange={setWindowsOutside} />
               </div>
             </CardContent>
           </Card>
