@@ -48,7 +48,9 @@ export function useWalkthrough(id: string | undefined, options?: { staleTime?: n
 export function useCreateWalkthrough() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: WalkthroughFormData) => createWalkthrough(data),
+    /** `bookingId` llega cuando el walkthrough nace de convertir un request. */
+    mutationFn: ({ data, bookingId }: { data: WalkthroughFormData; bookingId?: string | null }) =>
+      createWalkthrough(data, bookingId),
     onSuccess: (result) => {
       // Fire-and-forget confirmation notifications (email + SMS), matching swift-slate
       void supabase.functions.invoke("send-walkthrough-confirmation", {

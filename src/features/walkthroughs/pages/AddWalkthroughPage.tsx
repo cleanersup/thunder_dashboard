@@ -1,80 +1,93 @@
+/**
+ * Formulario de Walkthrough — **crear y editar** (misma pieza, como el hub de swift-slate).
+ *
+ * Los dos caminos comparten estado, validación y secciones; solo cambian el prefill y
+ * el guardado: insert (+ finalizar conversión de request) vs update (+ promover status).
+ * Al tocar este archivo hay que probar SIEMPRE los dos.
+ *
+ * Sigue el kit de formularios (`shared/components/forms`) — ver `RequestForm` como referencia.
+ */
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/shared/config/queryKeys";
 import { format } from "date-fns";
 import { formatDisplayDate } from "@/shared/utils/formatters";
-import {
-  ChevronLeft,
-  CalendarIcon,
-  Clock,
-  Briefcase,
-  Users,
-  FileText,
-  Check,
-  X,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { ChevronLeft, Briefcase, Users, FileText, Check, X } from "lucide-react";
 import { Button }   from "@/shared/components/ui/button";
-import { Input }    from "@/shared/components/ui/input";
-import { Label }    from "@/shared/components/ui/label";
 import { Textarea } from "@/shared/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/shared/components/ui/select";
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from "@/shared/components/ui/popover";
-import { Calendar } from "@/shared/components/ui/calendar";
+  FormSection, SelectField, DateField, TimeField,
+} from "@/shared/components/forms";
+import { ClientPropertyField } from "@/shared/components/common/ClientPropertyField";
 import { EntityPickerField } from "@/shared/components/common/EntityPickerField";
 import type { EntityOption } from "@/shared/components/common/EntityPickerField";
 import { EmployeeForm } from "@/features/employees/components/EmployeeForm";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { cn } from "@/shared/utils/cn";
-import { walkthroughSchema } from "../schemas/walkthroughSchema";
+import { FORM_SECTION_GAP } from "@/shared/constants/formTokens";
 import type { WalkthroughFormData } from "../schemas/walkthroughSchema";
 import { useCreateWalkthrough, useUpdateWalkthrough, useWalkthrough } from "../hooks/useWalkthroughs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAllEmployees } from "@/features/employees/hooks/useEmployees";
-import { EstimateClientStep } from "@/features/estimates/components/EstimateClientStep";
 import { useClients } from "@/features/crm/clients/hooks/useClients";
-import { useLeads } from "@/features/crm/leads/hooks/useLeads";
-import type { ClientEntity, LeadEntity } from "@/shared/types/entities";
+import type { ClientEntity } from "@/shared/types/entities";
 import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
-type WalkthroughEntityType = "client" | "lead";
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const SERVICE_TYPE_OPTIONS = [
+  { value: "residential", label: "Residential" },
+  { value: "commercial",  label: "Commercial"  },
+] as const;
+
+const DURATION_OPTIONS = [
+  { value: "30",  label: "30 minutes" },
+  { value: "60",  label: "1 hour"     },
+  { value: "90",  label: "1.5 hours"  },
+  { value: "120", label: "2 hours"    },
+] as const;
+
+/** yyyy-MM-dd → Date local (evita el corrimiento de zona horaria de `new Date(str)`). */
+function parseDateOnly(value: string): Date | undefined {
+  if (!value) return undefined;
+  const [y, m, d] = value.split("-").map(Number);
+  if (!y || !m || !d) return undefined;
+  return new Date(y, m - 1, d);
+}
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface AddWalkthroughPageProps {
   open?: boolean;
   onClose?: () => void;
   // Conversion-from-request prefill
-  fromRequestId?:      string;          // booking ID → calls finalize after save (no-date case)
-  walkthroughEditId?:  string;          // draft ID  → UPDATE instead of INSERT (date case)
-  prefillContactType?: "client" | "lead";
+  fromRequestId?:      string;          // booking ID → finaliza la conversión tras guardar
+  walkthroughEditId?:  string;          // draft ID  → UPDATE en vez de INSERT
+  prefillContactType?: "client";
   prefillContactId?:   string;
   prefillServiceType?: "residential" | "commercial";
   prefillDate?:        string;          // yyyy-MM-dd
   prefillTime?:        string;          // HH:mm
   prefillNotes?:       string;
-  prefillPropertyId?:  string | null;   // client_property_id from request (clients only)
+  prefillPropertyId?:  string | null;
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function AddWalkthroughPage({
   open, onClose,
   fromRequestId:      fromRequestIdProp,
   walkthroughEditId,
-  prefillContactType, prefillContactId,
+  prefillContactId,
   prefillServiceType, prefillDate, prefillTime, prefillNotes, prefillPropertyId,
 }: AddWalkthroughPageProps = {}) {
   const navigate  = useNavigate();
   const location  = useLocation();
   const qc        = useQueryClient();
   const { id: urlWalkthroughId } = useParams<{ id: string }>();
-  // walkthroughEditId prop (modal conversion) takes precedence over URL param
+  // El prop (conversión en modal) manda sobre el param de la URL
   const walkthroughId = walkthroughEditId ?? urlWalkthroughId;
   const locationState = (location.state as Record<string, unknown>) || {};
   const fromRequestId = fromRequestIdProp ?? (locationState.fromRequestId as string | undefined);
@@ -89,122 +102,64 @@ export function AddWalkthroughPage({
   const { data: existing }                                     = useWalkthrough(walkthroughId);
   const { data: employees = [], isLoading: isLoadingEmployees } = useAllEmployees();
   const { data: allClients = [] } = useClients();
-  const { data: allLeads   = [] } = useLeads();
 
   const { mutate: create, isPending: isCreating } = useCreateWalkthrough();
   const { mutate: update, isPending: isUpdating } = useUpdateWalkthrough();
   const isPending = isCreating || isUpdating;
 
-  // ── Client/Lead picker state ──────────────────────────────────────────────
-  // Use prefillContactType as initial value so the picker shows the right type immediately
-  const [walkthroughType, setWalkthroughType] = useState<WalkthroughEntityType | null>(
-    prefillContactType ?? "client"
-  );
-  const [selectedClient,  setSelectedClient]  = useState<ClientEntity | null>(null);
-  const [selectedLead,    setSelectedLead]    = useState<LeadEntity | null>(null);
+  // ── Form state ────────────────────────────────────────────────────────────
+  const [selectedClient,   setSelectedClient]   = useState<ClientEntity | null>(null);
   const [selectedProperty, setSelectedProperty] = useState<ClientProperty | null>(null);
-  const [pickerErrors,    setPickerErrors]    = useState<{ type?: string; entity?: string }>({});
+  const [serviceType,      setServiceType]      = useState<string>(prefillServiceType ?? "residential");
+  const [selectedDate,     setSelectedDate]     = useState<Date | undefined>(
+    prefillDate ? parseDateOnly(prefillDate) : undefined,
+  );
+  const [scheduledTime,    setScheduledTime]    = useState(prefillTime ?? "");
+  const [duration,         setDuration]         = useState("");
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [notes,            setNotes]            = useState(prefillNotes ?? "");
+
+  const [errors, setErrors] = useState({ client: false, serviceType: false, date: false, time: false });
 
   // ── Local UI state ────────────────────────────────────────────────────────
-  const [datePickerOpen,     setDatePickerOpen]     = useState(false);
-  const [selectedDate,       setSelectedDate]       = useState<Date | undefined>();
-  const [selectedEmployees,  setSelectedEmployees]  = useState<string[]>([]);
   const [showCreateEmployee, setShowCreateEmployee] = useState(false);
   const [confirmOpen, setConfirmOpen]               = useState(false);
-  const [pendingPayload, setPendingPayload]          = useState<WalkthroughFormData | null>(null);
+  const [pendingPayload, setPendingPayload]         = useState<WalkthroughFormData | null>(null);
 
-  // ── Form ──────────────────────────────────────────────────────────────────
-  const {
-    register, handleSubmit, watch, setValue, reset,
-    formState: { errors },
-  } = useForm<WalkthroughFormData>({
-    resolver: zodResolver(walkthroughSchema),
-    defaultValues: {
-      walkthrough_type:   "client",
-      service_type:       "residential",
-      scheduled_date:     "",
-      scheduled_time:     "",
-      duration:           "",
-      assigned_employees: [],
-      notes:              "",
-    },
-  });
-
-  // ── Prefill on edit ────────────────────────────────────────────────────────
+  // ── Prefill en modo EDIT (incluye el draft creado al convertir un request) ─
+  const [editPrefillDone, setEditPrefillDone] = useState(false);
   useEffect(() => {
-    if (isEdit && existing) {
-      const type = existing.walkthrough_type as WalkthroughEntityType;
-      setWalkthroughType(type);
-      reset({
-        walkthrough_type:   type,
-        client_id:          existing.client_id  ?? undefined,
-        lead_id:            existing.lead_id    ?? undefined,
-        property_id:        existing.property_id ?? undefined,
-        service_type:       existing.service_type as "residential" | "commercial",
-        scheduled_date:     existing.scheduled_date,
-        scheduled_time:     existing.scheduled_time,
-        duration:           existing.duration ? String(existing.duration) : "",
-        assigned_employees: existing.assigned_employees ?? [],
-        notes:              existing.notes ?? "",
-      });
-      if (existing.scheduled_date) {
-        const [y, m, d] = existing.scheduled_date.split("-").map(Number);
-        setSelectedDate(new Date(y, m - 1, d));
-      }
-      setSelectedEmployees(existing.assigned_employees ?? []);
-    }
-  }, [isEdit, existing, reset]);
+    if (!isEdit || editPrefillDone || !existing) return;
+    setServiceType(existing.service_type ?? "residential");
+    setSelectedDate(parseDateOnly(existing.scheduled_date ?? ""));
+    setScheduledTime(existing.scheduled_time ?? "");
+    setDuration(existing.duration != null ? String(existing.duration) : "");
+    setSelectedEmployees(existing.assigned_employees ?? []);
+    setNotes(existing.notes ?? "");
+    setEditPrefillDone(true);
+  }, [isEdit, editPrefillDone, existing]);
 
-  // ── Auto-select contact from existing walkthrough (edit mode) ────────────
-  const [editContactDone, setEditContactDone] = useState(false);
+  // ── Cliente: se resuelve cuando carga la lista (edit y conversión) ────────
+  const [clientPrefillDone, setClientPrefillDone] = useState(false);
   useEffect(() => {
-    if (!isEdit || editContactDone || !existing) return;
-    if (existing.client_id && allClients.length > 0) {
-      const c = allClients.find((x) => x.id === existing.client_id);
-      if (c) { handleClientSelect(c as ClientEntity); setEditContactDone(true); }
-    } else if (existing.lead_id && allLeads.length > 0) {
-      const l = allLeads.find((x) => x.id === existing.lead_id);
-      if (l) { handleLeadSelect(l as LeadEntity); setEditContactDone(true); }
+    if (clientPrefillDone || allClients.length === 0) return;
+    const clientId = isEdit ? existing?.client_id : prefillContactId;
+    if (!clientId) return;
+    const found = allClients.find((c) => c.id === clientId);
+    if (found) {
+      setSelectedClient(found as unknown as ClientEntity);
+      setClientPrefillDone(true);
     }
-  }, [isEdit, editContactDone, existing, allClients, allLeads]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [clientPrefillDone, allClients, isEdit, existing?.client_id, prefillContactId]);
 
-  // ── Prefill from request conversion (create mode) ─────────────────────────
-  const [conversionPrefillDone, setConversionPrefillDone] = useState(false);
-  useEffect(() => {
-    if (isEdit || conversionPrefillDone || !prefillContactId) return;
-    if (prefillServiceType) {
-      setValue("service_type", prefillServiceType, { shouldValidate: true });
-    }
-    if (prefillNotes) setValue("notes", prefillNotes);
-    if (prefillDate) {
-      const [y, m, d] = prefillDate.split("-").map(Number);
-      const date = new Date(y, m - 1, d);
-      setSelectedDate(date);
-      setValue("scheduled_date", prefillDate, { shouldValidate: true });
-    }
-    if (prefillTime) setValue("scheduled_time", prefillTime);
-    setConversionPrefillDone(true);
-  }, [isEdit, conversionPrefillDone, prefillContactId, prefillServiceType, prefillDate, prefillTime, prefillNotes, setValue]);
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
-  // ── Auto-select contact from prefill props (when clients/leads list loads) ─
-  const [contactPrefillDone, setContactPrefillDone] = useState(false);
-  useEffect(() => {
-    if (isEdit || contactPrefillDone || !prefillContactId) return;
-    if (prefillContactType === "client" && allClients.length > 0) {
-      const c = allClients.find((x) => x.id === prefillContactId);
-      if (c) { handleClientSelect(c as ClientEntity); setContactPrefillDone(true); }
-    } else if (prefillContactType === "lead" && allLeads.length > 0) {
-      const l = allLeads.find((x) => x.id === prefillContactId);
-      if (l) { handleLeadSelect(l as LeadEntity); setContactPrefillDone(true); }
-    }
-  }, [isEdit, contactPrefillDone, prefillContactId, prefillContactType, allClients, allLeads]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Sync employees → form ──────────────────────────────────────────────────
-  useEffect(() => {
-    setValue("assigned_employees", selectedEmployees);
-  }, [selectedEmployees, setValue]);
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  const handleClientChange = (client: ClientEntity | null) => {
+    setSelectedClient(client);
+    // La propiedad depende del cliente: ServicePropertySelector re-resuelve la primary.
+    setSelectedProperty(null);
+    if (client) setErrors((p) => ({ ...p, client: false }));
+  };
 
   function toggleEmployee(empId: string) {
     setSelectedEmployees((prev) =>
@@ -212,44 +167,6 @@ export function AddWalkthroughPage({
     );
   }
 
-  function onDateSelect(date: Date | undefined) {
-    setSelectedDate(date);
-    setValue("scheduled_date", date ? format(date, "yyyy-MM-dd") : "", { shouldValidate: true });
-    setDatePickerOpen(false);
-  }
-
-  function handleTypeChange(type: WalkthroughEntityType) {
-    setWalkthroughType(type);
-    setValue("walkthrough_type", type);
-    if (type === "client") { setSelectedLead(null);   setValue("lead_id",   null); }
-    else {
-      setSelectedClient(null);   setValue("client_id", null);
-      setSelectedProperty(null); setValue("property_id", null);
-    }
-    setPickerErrors({});
-  }
-
-  function handleClientSelect(client: ClientEntity) {
-    setSelectedClient(client);
-    setValue("client_id", client.id, { shouldValidate: true });
-    // Reset property — ServicePropertySelector re-resolves the primary for the new client
-    setSelectedProperty(null);
-    setValue("property_id", null);
-    setPickerErrors({});
-  }
-
-  function handlePropertyChange(property: ClientProperty | null) {
-    setSelectedProperty(property);
-    setValue("property_id", property?.id ?? null);
-  }
-
-  function handleLeadSelect(lead: LeadEntity) {
-    setSelectedLead(lead);
-    setValue("lead_id", lead.id, { shouldValidate: true });
-    setPickerErrors({});
-  }
-
-  // Employee picker helpers
   const employeeOptions: EntityOption[] = employees.map((e) => ({
     id: e.id,
     label: `${e.first_name} ${e.last_name}`,
@@ -260,45 +177,43 @@ export function AddWalkthroughPage({
   );
 
   function handleEmployeeSelectionChange(next: EntityOption[]) {
-    const nextIds    = new Set(next.map((o) => o.id));
-    const currentIds = new Set(selectedEmployees);
-    [...nextIds].filter((id) => !currentIds.has(id)).forEach(toggleEmployee);
-    [...currentIds].filter((id) => !nextIds.has(id)).forEach(toggleEmployee);
+    setSelectedEmployees(next.map((o) => o.id));
   }
 
   const assignedEmployeeDetails = employees.filter((e) => selectedEmployees.includes(e.id));
 
   // ── Submit ─────────────────────────────────────────────────────────────────
-  function onSubmit(data: WalkthroughFormData) {
-    if (!walkthroughType) {
-      setPickerErrors({ type: "Please select a client" });
-      return;
-    }
-    const hasEntity = walkthroughType === "client" ? Boolean(data.client_id) : Boolean(data.lead_id);
-    if (!hasEntity) {
-      setPickerErrors({ entity: `Please select a ${walkthroughType}` });
-      return;
-    }
-
-    const payload: WalkthroughFormData = {
-      ...data,
-      client_id:   data.walkthrough_type === "client" ? data.client_id   : null,
-      lead_id:     data.walkthrough_type === "lead"   ? data.lead_id     : null,
-      property_id: data.walkthrough_type === "client" ? data.property_id : null,
+  function handleSubmit() {
+    const nextErrors = {
+      client:      !selectedClient,
+      serviceType: !serviceType,
+      date:        !selectedDate,
+      time:        !scheduledTime,
     };
+    setErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) return;
 
-    // Both create and edit show Confirm dialog before saving
-    setPendingPayload(payload);
+    setPendingPayload({
+      walkthrough_type:   "client",
+      client_id:          selectedClient!.id,
+      property_id:        selectedProperty?.id ?? null,
+      service_type:       serviceType as "residential" | "commercial",
+      scheduled_date:     format(selectedDate!, "yyyy-MM-dd"),
+      scheduled_time:     scheduledTime,
+      duration:           duration || undefined,
+      assigned_employees: selectedEmployees,
+      notes:              notes || undefined,
+    });
     setConfirmOpen(true);
   }
 
-  // ── Confirm save (create and edit) ────────────────────────────────────────
+  // ── Confirm save (create y edit) ──────────────────────────────────────────
 
   function handleConfirm() {
     if (!pendingPayload) return;
 
     if (isEdit && walkthroughId) {
-      // Edit: Draft or Cancelled → promote to Scheduled
+      // Edit: Draft o Cancelled vuelven a Scheduled; el resto conserva su status.
       const currentStatus = existing?.status ?? "";
       const newStatus = (currentStatus === "Draft" || currentStatus === "Cancelled")
         ? "Scheduled"
@@ -308,23 +223,18 @@ export function AddWalkthroughPage({
         onSuccess: () => { setConfirmOpen(false); setPendingPayload(null); handleClose(); },
       });
     } else {
-      // Create: always Scheduled (all required fields were filled)
-      create(pendingPayload, {
+      create({ data: pendingPayload, bookingId: fromRequestId }, {
         onSuccess: async (newWalkthrough) => {
           setConfirmOpen(false);
           setPendingPayload(null);
           if (fromRequestId && newWalkthrough?.id) {
-            const contactType = pendingPayload.walkthrough_type as "client" | "lead";
-            const contactId   = contactType === "client" ? pendingPayload.client_id : pendingPayload.lead_id;
-            if (contactId) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              await (supabase as any).rpc("finalize_booking_conversion", {
-                p_booking_id:     fromRequestId,
-                p_estimate_id:    null,
-                p_walkthrough_id: newWalkthrough.id,
-              });
-              qc.invalidateQueries({ queryKey: QK.requests });
-            }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase as any).rpc("finalize_booking_conversion", {
+              p_booking_id:     fromRequestId,
+              p_estimate_id:    null,
+              p_walkthrough_id: newWalkthrough.id,
+            });
+            qc.invalidateQueries({ queryKey: QK.requests });
           }
           handleClose();
         },
@@ -338,179 +248,117 @@ export function AddWalkthroughPage({
     ? (isEdit ? "Saving..." : "Scheduling...")
     : (isEdit ? "Save Changes" : "Schedule now");
 
-  // Form cards — shared between modal and page layouts
   const formCards = (
     <>
-      {/* ── Client ───────────────────────────────────────────────── */}
-      <EstimateClientStep
-        estimateType={walkthroughType}
-        onEstimateTypeChange={handleTypeChange}
-        selectedClient={selectedClient}
-        selectedLead={selectedLead}
-        onClientSelect={handleClientSelect}
-        onLeadSelect={handleLeadSelect}
-        errors={pickerErrors}
-        infoText="Verify the email and phone number — they will be used to send the walkthrough confirmation."
-        showPropertySelector
-        selectedProperty={selectedProperty}
-        onPropertyChange={handlePropertyChange}
+      <ClientPropertyField
+        client={selectedClient}
+        onClientChange={handleClientChange}
+        property={selectedProperty}
+        onPropertyChange={setSelectedProperty}
         preferredPropertyId={existing?.property_id ?? prefillPropertyId}
+        invalid={errors.client}
+        subtitle="Who the walkthrough is for and where it takes place"
       />
 
-      {/* ── Service Type ──────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Briefcase className="h-4 w-4" />
-            Service Type
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>Service Type <span className="text-destructive">*</span></Label>
-              <Select
-                value={watch("service_type")}
-                onValueChange={(v) => setValue("service_type", v as "residential" | "commercial", { shouldValidate: true })}
-              >
-                <SelectTrigger className={cn(errors.service_type && "border-destructive")}>
-                  <SelectValue placeholder="Select service type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="residential">Residential</SelectItem>
-                  <SelectItem value="commercial">Commercial</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.service_type && <p className="text-xs text-destructive">Required</p>}
-            </div>
-
-            <div className="space-y-1">
-              <Label>Walkthrough Duration</Label>
-              <Select
-                value={watch("duration") ?? ""}
-                onValueChange={(v) => setValue("duration", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select duration" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="30">30 minutes</SelectItem>
-                  <SelectItem value="60">1 hour</SelectItem>
-                  <SelectItem value="90">1.5 hours</SelectItem>
-                  <SelectItem value="120">2 hours</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* ── Service ───────────────────────────────────────────────── */}
+      <FormSection
+        icon={Briefcase}
+        title="Service"
+        subtitle="Type of service and how long the visit should take"
+        invalid={errors.serviceType}
+      >
+        <SelectField
+          placeholder="Select service type"
+          value={serviceType}
+          onChange={(v) => { setServiceType(v); setErrors((p) => ({ ...p, serviceType: false })); }}
+          options={SERVICE_TYPE_OPTIONS}
+          required
+          error={errors.serviceType && "Service type is required"}
+        />
+        <SelectField
+          placeholder="Select duration"
+          value={duration}
+          onChange={setDuration}
+          options={DURATION_OPTIONS}
+        />
+      </FormSection>
 
       {/* ── Schedule ──────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Schedule
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>Date <span className="text-destructive">*</span></Label>
-              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !selectedDate && "text-muted-foreground",
-                      errors.scheduled_date && "border-destructive"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? formatDisplayDate(selectedDate) : "Pick date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={selectedDate} onSelect={onDateSelect} initialFocus />
-                </PopoverContent>
-              </Popover>
-              {errors.scheduled_date && <p className="text-xs text-destructive">Required</p>}
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="scheduled_time">Time <span className="text-destructive">*</span></Label>
-              <Input
-                id="scheduled_time"
-                type="time"
-                {...register("scheduled_time")}
-                className={cn(errors.scheduled_time && "border-destructive")}
-              />
-              {errors.scheduled_time && <p className="text-xs text-destructive">Required</p>}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <FormSection
+        icon={FileText}
+        title="Schedule"
+        subtitle="When the crew visits the property"
+        invalid={errors.date || errors.time}
+      >
+        <DateField
+          placeholder="Select date"
+          value={selectedDate}
+          onChange={(d) => { setSelectedDate(d); setErrors((p) => ({ ...p, date: false })); }}
+          required
+          error={errors.date && "Date is required"}
+        />
+        <TimeField
+          id="scheduled_time"
+          label="Time"
+          value={scheduledTime}
+          onChange={(v) => { setScheduledTime(v); setErrors((p) => ({ ...p, time: false })); }}
+          required
+          error={errors.time && "Time is required"}
+        />
+      </FormSection>
 
       {/* ── Crew ──────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Crew
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <EntityPickerField
-            multiple
-            options={employeeOptions}
-            selected={selectedEmployeeOptions}
-            onChange={handleEmployeeSelectionChange}
-            onCreateNew={() => setShowCreateEmployee(true)}
-            createNewLabel="Add New Employee"
-            placeholder="Select employees"
-            emptyMessage="No employee found."
-            isLoading={isLoadingEmployees}
-          />
+      <FormSection
+        icon={Users}
+        title="Crew"
+        subtitle="Employees assigned to this walkthrough"
+      >
+        <EntityPickerField
+          multiple
+          options={employeeOptions}
+          selected={selectedEmployeeOptions}
+          onChange={handleEmployeeSelectionChange}
+          onCreateNew={() => setShowCreateEmployee(true)}
+          createNewLabel="Add New Employee"
+          placeholder="Select employees"
+          emptyMessage="No employee found."
+          isLoading={isLoadingEmployees}
+        />
 
-          {assignedEmployeeDetails.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3 dark:bg-blue-950/30 dark:border-blue-800">
-              <p className="text-sm font-medium text-foreground">
-                {assignedEmployeeDetails.length} employee{assignedEmployeeDetails.length > 1 ? "s" : ""} selected
-              </p>
-              <div className="space-y-2">
-                {assignedEmployeeDetails.map((emp) => (
-                  <div key={emp.id} className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-primary shrink-0" />
-                    <span className="font-medium">{emp.first_name} {emp.last_name}</span>
-                    {emp.position && (
-                      <span className="text-muted-foreground">— {emp.position}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
+        {assignedEmployeeDetails.length > 0 && (
+          <div className="rounded-md border border-border bg-muted/30 p-4 space-y-3">
+            <p className="text-sm font-medium text-foreground">
+              {assignedEmployeeDetails.length} employee{assignedEmployeeDetails.length > 1 ? "s" : ""} selected
+            </p>
+            <div className="space-y-2">
+              {assignedEmployeeDetails.map((emp) => (
+                <div key={emp.id} className="flex items-center gap-2 text-sm">
+                  <Check className="h-4 w-4 text-primary shrink-0" />
+                  <span className="font-medium">{emp.first_name} {emp.last_name}</span>
+                  {emp.position && (
+                    <span className="text-muted-foreground">— {emp.position}</span>
+                  )}
+                </div>
+              ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </FormSection>
 
       {/* ── Notes ─────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Notes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            {...register("notes")}
-            rows={3}
-            placeholder="Enter notes here..."
-          />
-        </CardContent>
-      </Card>
+      <FormSection
+        icon={FileText}
+        title="Notes"
+        subtitle="Anything the crew should know before the visit"
+      >
+        <Textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={3}
+          placeholder="Enter notes here..."
+          className="min-h-[100px] rounded-md"
+        />
+      </FormSection>
     </>
   );
 
@@ -526,10 +374,9 @@ export function AddWalkthroughPage({
     />
   );
 
-  // ── Confirm Changes dialog (edit mode) ────────────────────────────────────
-  const currentStatus  = existing?.status ?? "";
-  const willSchedule   = currentStatus === "Draft" || currentStatus === "Cancelled";
-  const contactName    = selectedClient?.full_name ?? selectedLead?.full_name ?? "—";
+  // ── Confirm dialog ────────────────────────────────────────────────────────
+  const currentStatus = existing?.status ?? "";
+  const willSchedule  = currentStatus === "Draft" || currentStatus === "Cancelled";
   const confirmDialog = (
     <Dialog open={confirmOpen} onOpenChange={(v) => { if (!v) { setConfirmOpen(false); setPendingPayload(null); } }}>
       <DialogContent className="sm:max-w-md p-0 gap-0">
@@ -541,8 +388,8 @@ export function AddWalkthroughPage({
         </DialogHeader>
         <div className="px-6 py-6 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Client / Lead</span>
-            <span className="text-sm font-semibold">{contactName}</span>
+            <span className="text-sm text-muted-foreground">Client</span>
+            <span className="text-sm font-semibold">{selectedClient?.full_name ?? "—"}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Date</span>
@@ -552,7 +399,7 @@ export function AddWalkthroughPage({
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Time</span>
-            <span className="text-sm font-semibold">{watch("scheduled_time") || "—"}</span>
+            <span className="text-sm font-semibold">{scheduledTime || "—"}</span>
           </div>
           {isEdit && willSchedule && (
             <div className="mt-2 rounded-lg bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-700">
@@ -572,11 +419,10 @@ export function AddWalkthroughPage({
     </Dialog>
   );
 
-  // ── Modal mode — invoice-style layout ─────────────────────────────────────
+  // ── Modal mode ────────────────────────────────────────────────────────────
   if (isModal) {
     return (
       <FullScreenModal open={open ?? false} onClose={handleClose}>
-        {/* Header — 3-col: empty | centered title | X */}
         <div className="border-b flex-shrink-0 bg-white">
           <div className="max-w-2xl mx-auto">
             <div className="px-4 py-3 flex items-center justify-between gap-4">
@@ -595,20 +441,18 @@ export function AddWalkthroughPage({
           </div>
         </div>
 
-        {/* Scrollable body — form + footer buttons inside */}
         <div className="flex-1 overflow-y-auto bg-background">
-          <div className="max-w-2xl mx-auto px-4 space-y-4 py-6 pb-4">
-            <form id="walkthrough-form" onSubmit={handleSubmit(onSubmit)}>
-              <div className="space-y-4">{formCards}</div>
-            </form>
-            {/* Footer buttons — same card style as invoice */}
-            <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
-              <Button variant="outline" size="sm" type="button" onClick={handleClose}>
-                Cancel
-              </Button>
-              <Button size="sm" type="submit" form="walkthrough-form" disabled={isPending}>
-                {submitLabel}
-              </Button>
+          <div className="max-w-2xl mx-auto px-4 py-2.5">
+            <div className={FORM_SECTION_GAP}>
+              {formCards}
+              <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
+                <Button variant="outline" size="sm" type="button" onClick={handleClose}>
+                  Cancel
+                </Button>
+                <Button size="sm" type="button" onClick={handleSubmit} disabled={isPending}>
+                  {submitLabel}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -622,7 +466,6 @@ export function AddWalkthroughPage({
   // ── Page mode ─────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background">
-      {/* Sticky header */}
       <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-border/50 bg-background">
         <Button variant="ghost" size="icon" type="button" onClick={handleClose}>
           <ChevronLeft className="h-5 w-5" />
@@ -632,19 +475,16 @@ export function AddWalkthroughPage({
         </h1>
       </div>
 
-      <form id="walkthrough-form" onSubmit={handleSubmit(onSubmit)}>
-        <div className="max-w-2xl mx-auto p-4 space-y-4 pb-6">
-          {formCards}
-        </div>
-      </form>
+      <div className={cn("max-w-2xl mx-auto p-2.5 pb-6", FORM_SECTION_GAP)}>
+        {formCards}
+      </div>
 
-      {/* Sticky footer */}
       <div className="sticky bottom-0 bg-background border-t px-4 py-3">
         <div className="max-w-2xl mx-auto grid grid-cols-2 gap-3">
           <Button variant="outline" type="button" className="h-12" onClick={handleClose}>
             Cancel
           </Button>
-          <Button type="submit" form="walkthrough-form" className="h-12" disabled={isPending}>
+          <Button type="button" className="h-12" onClick={handleSubmit} disabled={isPending}>
             {submitLabel}
           </Button>
         </div>

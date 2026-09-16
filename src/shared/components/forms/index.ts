@@ -17,10 +17,12 @@ export { FormSection }   from "./FormSection";
 export { FloatingInput } from "./FloatingInput";
 export { SelectField }   from "./SelectField";
 export { DateField }     from "./DateField";
+export { TimeField }     from "./TimeField";
 export { OptionGrid }    from "./OptionGrid";
 
 export type { FormSectionProps }   from "./FormSection";
 export type { FloatingInputProps, FloatingInputType } from "./FloatingInput";
 export type { SelectFieldProps, SelectFieldOption }   from "./SelectField";
 export type { DateFieldProps }     from "./DateField";
+export type { TimeFieldProps }     from "./TimeField";
 export type { OptionGridItem }     from "./OptionGrid";

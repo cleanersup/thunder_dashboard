@@ -9,7 +9,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   ChevronLeft, Upload, X, FileText, Image as ImageIcon,
-  Loader2, MapPin, User, Mail, Phone, CalendarClock, Home, Building2, Paperclip,
+  Loader2, CalendarClock, Home, Building2, Paperclip,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button }    from "@/shared/components/ui/button";
@@ -18,8 +18,7 @@ import { Textarea }  from "@/shared/components/ui/textarea";
 import {
   FormSection, FloatingInput, SelectField, DateField, OptionGrid,
 } from "@/shared/components/forms";
-import { ClientSelect }             from "@/shared/components/common/ClientSelect";
-import { ServicePropertySelector }  from "@/shared/components/common/ServicePropertySelector";
+import { ClientPropertyField }      from "@/shared/components/common/ClientPropertyField";
 import { useClients }               from "@/features/crm/clients/hooks/useClients";
 import { toast }    from "sonner";
 import { format }   from "date-fns";
@@ -274,45 +273,6 @@ export function RequestForm({
     });
   };
 
-  // ── Selected-client summary ──────────────────────────────────────────────
-  // Vive DENTRO de la sección Client: es el detalle de lo que se acaba de elegir,
-  // no una sección aparte (si lo fuera necesitaría su propio ícono y título).
-
-  const renderContactSummary = (client: Client) => {
-    const addrLine1 = [client.service_street, client.service_apt].filter(Boolean).join(" ");
-    const addrLine2 = [client.service_city, `${client.service_state ?? ""} ${client.service_zip ?? ""}`.trim()]
-      .filter(Boolean).join(", ");
-
-    return (
-      <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4">
-        {[
-          { icon: User,  label: "Full Name", value: client.full_name },
-          { icon: Mail,  label: "Email",     value: client.email },
-          { icon: Phone, label: "Phone",     value: client.phone },
-        ].map(({ icon: Icon, label, value }) => value && (
-          <div key={label} className="flex items-start gap-3">
-            <Icon className="w-4 h-4 text-muted-foreground mt-0.5" />
-            <div>
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="text-sm font-medium">{value}</p>
-            </div>
-          </div>
-        ))}
-        {(addrLine1 || addrLine2) && (
-          <div className="flex items-start gap-3">
-            <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-            <div>
-              <p className="text-xs text-muted-foreground">Address</p>
-              <p className="text-sm font-medium">
-                {addrLine1}{addrLine1 && addrLine2 && <br />}{addrLine2}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -336,35 +296,18 @@ export function RequestForm({
       <div className={cn(FORM_SECTION_GAP, !isModal && "pt-2.5")}>
 
         {/* ── Client + Service Property (requeridos) ───────────────── */}
-        <FormSection
-          icon={User}
-          title="Client"
+        <ClientPropertyField
+          client={selectedClient as unknown as ClientEntity | null}
+          onClientChange={(c) => handleClientSelect(c as unknown as Client | null)}
+          property={selectedProperty}
+          onPropertyChange={setSelectedProperty}
+          preferredPropertyId={initialValues?.initialClientPropertyId}
+          invalid={errors.client}
           subtitle={mode === "edit"
             ? "Client this request belongs to and where the service happens"
             : "Who the request is for and where the service happens"}
-          invalid={errors.client}
           flush={!isModal}
-        >
-          <ClientSelect
-            value={selectedClient?.id}
-            selected={selectedClient as unknown as ClientEntity | null}
-            onChange={(c) => handleClientSelect(c as unknown as Client | null)}
-            error={errors.client}
-            required
-          />
-          {errors.client && (
-            <p className="text-xs text-destructive">Please select a client.</p>
-          )}
-
-          <ServicePropertySelector
-            clientId={selectedClient?.id}
-            value={selectedProperty}
-            onChange={setSelectedProperty}
-            preferredPropertyId={initialValues?.initialClientPropertyId}
-          />
-
-          {selectedClient && renderContactSummary(selectedClient)}
-        </FormSection>
+        />
 
         {/* ── Preferred Date & Service ─────────────────────────────── */}
         <FormSection
