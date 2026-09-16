@@ -1,11 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  fetchRequests, fetchRequest,
-  updateRequestStatus, updateRequest, deleteRequest,
-  convertRequestToLead, convertRequestToClient,
+  fetchRequests, fetchRequest, updateRequest, deleteRequest,
+  archiveRequest, cancelRequest, restoreRequest,
   fetchRequestForms, saveRequestForms,
-  fetchPublicProfile, fetchPublicBookingForms,
 } from "../services/requestsService";
 import type { RequestPayload } from "../types/request.types";
 import type { CustomQuestion } from "../types/request.types";
@@ -41,7 +39,7 @@ export function useUpdateRequest() {
 export function useCancelRequest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => updateRequestStatus(id, "cancelled"),
+    mutationFn: cancelRequest,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.requests });
       toast.success("Request cancelled");
@@ -53,7 +51,7 @@ export function useCancelRequest() {
 export function useArchiveRequest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => updateRequestStatus(id, "archived"),
+    mutationFn: archiveRequest,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.requests });
       toast.success("Request archived");
@@ -65,7 +63,7 @@ export function useArchiveRequest() {
 export function useRestoreRequest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => updateRequestStatus(id, "new"),
+    mutationFn: restoreRequest,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.requests });
       toast.success("Request reactivated");
@@ -86,32 +84,6 @@ export function useDeleteRequest() {
   });
 }
 
-export function useConvertToLead() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: convertRequestToLead,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.requests });
-      qc.invalidateQueries({ queryKey: QK.leads });
-      toast.success("Request moved to CRM as a lead");
-    },
-    onError: () => toast.error("Failed to convert request to lead"),
-  });
-}
-
-export function useConvertToClient() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: convertRequestToClient,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.requests });
-      qc.invalidateQueries({ queryKey: QK.clients });
-      toast.success("Request converted to client");
-    },
-    onError: () => toast.error("Failed to convert request to client"),
-  });
-}
-
 // ─── Request form editor hooks ────────────────────────────────────────────────
 
 export function useRequestForms() {
@@ -127,25 +99,5 @@ export function useSaveRequestForms() {
       toast.success("Request form saved");
     },
     onError: () => toast.error("Failed to save request form"),
-  });
-}
-
-// ─── Public hooks (no auth) ───────────────────────────────────────────────────
-
-export function usePublicProfile(userId: string | undefined) {
-  return useQuery({
-    queryKey:  QK.publicProfile(userId!),
-    queryFn:   () => fetchPublicProfile(userId!),
-    enabled:   !!userId,
-    staleTime: 10 * 60 * 1000,
-  });
-}
-
-export function usePublicBookingForms(userId: string | undefined) {
-  return useQuery({
-    queryKey:  QK.publicBooking(userId!),
-    queryFn:   () => fetchPublicBookingForms(userId!),
-    enabled:   !!userId,
-    staleTime: 10 * 60 * 1000,
   });
 }

@@ -9,19 +9,8 @@ import { resolveOrCreateContact, resolveClientPropertyId } from "../services/req
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { QK } from "@/shared/config/queryKeys";
+import { timePreferenceToTime } from "@/shared/utils/timePreference";
 import type { Booking, WalkthroughConvertConfig } from "../types/request.types";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function mapTimePreference(pref: string | null | undefined): string {
-  if (!pref) return "09:00";
-  const t = pref.trim().toLowerCase();
-  if (/^\d{1,2}:\d{2}$/.test(t)) return t.padStart(5, "0");
-  if (t === "am" || t.includes("morning"))              return "09:00";
-  if (t === "pm" || t.includes("afternoon"))            return "14:00";
-  if (t.includes("evening") || t.includes("night"))     return "18:00";
-  return "09:00";
-}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -56,20 +45,21 @@ export function ConvertRequestDialog({
     qc.invalidateQueries({ queryKey: QK.estimates });
     qc.invalidateQueries({ queryKey: QK.requests });
     qc.invalidateQueries({ queryKey: QK.request(request.id) });
-    qc.invalidateQueries({ queryKey: QK.leads });
+    // La conversión puede crear un client nuevo desde un request anónimo.
+    qc.invalidateQueries({ queryKey: QK.clients });
   };
 
   const handleConvert = async (target: "estimate" | "walkthrough") => {
     setLoading(target);
     try {
+      // El contacto siempre termina siendo un Client (el flujo de leads se retiró):
+      // un request anónimo del form público se resuelve o se crea como client aquí.
       const contact = await resolveOrCreateContact(request);
 
       // Resolve the service property the request was created for. Prefers the
       // persisted FK; falls back to matching the booking address against the
       // client's active properties so the draft never defaults to the primary.
-      const resolvedPropertyId = contact.type === "client"
-        ? await resolveClientPropertyId(contact.id, request)
-        : null;
+      const resolvedPropertyId = await resolveClientPropertyId(contact.id, request);
 
       if (target === "estimate") {
         const { data: { user } } = await supabase.auth.getUser();
@@ -129,8 +119,8 @@ export function ConvertRequestDialog({
             subtotal:         0,
             total:            0,
             status:           "Draft",
-            client_id:        contact.type === "client" ? contact.id : null,
-            lead_id:          contact.type === "lead"   ? contact.id : null,
+            client_id:        contact.id,
+            lead_id:          null,
           })
           .select("id")
           .single();
@@ -188,13 +178,13 @@ export function ConvertRequestDialog({
           .from("walkthroughs")
           .insert({
             user_id:            user.id,
-            client_id:          contact.type === "client" ? contact.id : null,
-            lead_id:            contact.type === "lead"   ? contact.id : null,
+            client_id:          contact.id,
+            lead_id:            null,
             property_id:        resolvedPropertyId,
-            walkthrough_type:   contact.type,
+            walkthrough_type:   "client",
             service_type:       serviceType,
             scheduled_date:     request.preferred_date,
-            scheduled_time:     mapTimePreference(request.time_preference),
+            scheduled_time:     timePreferenceToTime(request.time_preference),
             assigned_employees: [],
             notes:              request.service_details || null,
             status:             "Draft",
@@ -219,7 +209,7 @@ export function ConvertRequestDialog({
           ...prefillBase,
           walkthroughEditId: draft.id,   // ← tells form to UPDATE
           prefillDate: request.preferred_date,
-          prefillTime: mapTimePreference(request.time_preference),
+          prefillTime: timePreferenceToTime(request.time_preference),
           // fromRequestId omitted — finalize already done
         });
         toast.success("Draft walkthrough created — complete the details");

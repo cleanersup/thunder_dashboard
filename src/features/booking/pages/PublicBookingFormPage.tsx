@@ -17,6 +17,7 @@ import { submitPublicBooking } from "../services/bookingService";
 import { toast } from "sonner";
 import { cn } from "@/shared/utils/cn";
 import { toIntegerString } from "@/shared/utils/numericInput";
+import { TIME_PREFERENCE_OPTIONS } from "@/shared/utils/timePreference";
 import { format } from "date-fns";
 import { formatDisplayDate } from "@/shared/utils/formatters";
 import type { CustomQuestion } from "../types/booking.types";
@@ -244,8 +245,9 @@ export function PublicBookingFormPage() {
                   <SelectValue placeholder="Time Preference" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="am">AM</SelectItem>
-                  <SelectItem value="pm">PM</SelectItem>
+                  {TIME_PREFERENCE_OPTIONS.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 

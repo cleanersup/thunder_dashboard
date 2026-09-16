@@ -32,6 +32,7 @@ import {
 import type { Booking, BookingAttachmentMeta, WalkthroughConvertConfig } from "../types/request.types";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/shared/utils/cn";
+import { formatTimePreference } from "@/shared/utils/timePreference";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -205,7 +206,8 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
   if (!booking) return null;
 
   // ── Derived data ───────────────────────────────────────────────────────────
-  const isAnonymous        = !booking.client_id && !booking.lead_id;
+  // Sin client enlazado = request suelto del form público, pendiente de vincular.
+  const isAnonymous        = !booking.client_id;
   const additionalServices = Array.isArray(booking.additional_services)
     ? (booking.additional_services as string[]) : [];
   const customAnswers      = booking.custom_answers as Record<string, string> | null;
@@ -396,7 +398,7 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
               <InfoRow
                 icon={Clock}
                 label="Time Preference"
-                value={<span className="uppercase">{booking.time_preference}</span>}
+                value={formatTimePreference(booking.time_preference)}
               />
             )}
           </section>
