@@ -20,9 +20,7 @@ import {
   FormSection, SelectField, DateField, TimeField,
 } from "@/shared/components/forms";
 import { ClientPropertyField } from "@/shared/components/common/ClientPropertyField";
-import { EntityPickerField } from "@/shared/components/common/EntityPickerField";
-import type { EntityOption } from "@/shared/components/common/EntityPickerField";
-import { EmployeeForm } from "@/features/employees/components/EmployeeForm";
+import { EmployeeSelect } from "@/shared/components/common/EmployeeSelect";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { cn } from "@/shared/utils/cn";
@@ -100,7 +98,7 @@ export function AddWalkthroughPage({
   }, [isModal, onClose, navigate]);
 
   const { data: existing }                                     = useWalkthrough(walkthroughId);
-  const { data: employees = [], isLoading: isLoadingEmployees } = useAllEmployees();
+  const { data: employees = [] } = useAllEmployees();
   const { data: allClients = [] } = useClients();
 
   const { mutate: create, isPending: isCreating } = useCreateWalkthrough();
@@ -122,7 +120,6 @@ export function AddWalkthroughPage({
   const [errors, setErrors] = useState({ client: false, serviceType: false, date: false, time: false });
 
   // ── Local UI state ────────────────────────────────────────────────────────
-  const [showCreateEmployee, setShowCreateEmployee] = useState(false);
   const [confirmOpen, setConfirmOpen]               = useState(false);
   const [pendingPayload, setPendingPayload]         = useState<WalkthroughFormData | null>(null);
 
@@ -160,25 +157,6 @@ export function AddWalkthroughPage({
     setSelectedProperty(null);
     if (client) setErrors((p) => ({ ...p, client: false }));
   };
-
-  function toggleEmployee(empId: string) {
-    setSelectedEmployees((prev) =>
-      prev.includes(empId) ? prev.filter((id) => id !== empId) : [...prev, empId]
-    );
-  }
-
-  const employeeOptions: EntityOption[] = employees.map((e) => ({
-    id: e.id,
-    label: `${e.first_name} ${e.last_name}`,
-  }));
-
-  const selectedEmployeeOptions: EntityOption[] = employeeOptions.filter((o) =>
-    selectedEmployees.includes(o.id)
-  );
-
-  function handleEmployeeSelectionChange(next: EntityOption[]) {
-    setSelectedEmployees(next.map((o) => o.id));
-  }
 
   const assignedEmployeeDetails = employees.filter((e) => selectedEmployees.includes(e.id));
 
@@ -313,16 +291,9 @@ export function AddWalkthroughPage({
         title="Crew"
         subtitle="Employees assigned to this walkthrough"
       >
-        <EntityPickerField
-          multiple
-          options={employeeOptions}
-          selected={selectedEmployeeOptions}
-          onChange={handleEmployeeSelectionChange}
-          onCreateNew={() => setShowCreateEmployee(true)}
-          createNewLabel="Add New Employee"
-          placeholder="Select employees"
-          emptyMessage="No employee found."
-          isLoading={isLoadingEmployees}
+        <EmployeeSelect
+          value={selectedEmployees}
+          onChange={setSelectedEmployees}
         />
 
         {assignedEmployeeDetails.length > 0 && (
@@ -360,18 +331,6 @@ export function AddWalkthroughPage({
         />
       </FormSection>
     </>
-  );
-
-  const employeeModal = (
-    <EmployeeForm
-      open={showCreateEmployee}
-      onClose={() => setShowCreateEmployee(false)}
-      onCreated={(emp) => {
-        toggleEmployee(emp.id);
-        qc.invalidateQueries({ queryKey: QK.employeesAll });
-        setShowCreateEmployee(false);
-      }}
-    />
   );
 
   // ── Confirm dialog ────────────────────────────────────────────────────────
@@ -457,7 +416,6 @@ export function AddWalkthroughPage({
           </div>
         </div>
 
-        {employeeModal}
         {confirmDialog}
       </FullScreenModal>
     );
@@ -490,7 +448,6 @@ export function AddWalkthroughPage({
         </div>
       </div>
 
-      {employeeModal}
       {confirmDialog}
     </div>
   );

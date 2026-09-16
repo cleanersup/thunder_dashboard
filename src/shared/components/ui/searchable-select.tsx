@@ -20,9 +20,7 @@ export interface SearchableSelectOption {
   searchText?: string;
 }
 
-interface SearchableSelectProps {
-  value?: string;
-  onValueChange: (value: string) => void;
+interface SearchableSelectBaseProps {
   options: SearchableSelectOption[];
   placeholder?: string;
   title?: string;
@@ -38,14 +36,22 @@ interface SearchableSelectProps {
   addNewLabel?: string;
 }
 
+/**
+ * Una sola opción o varias, discriminado en el tipo: `value` y `onValueChange` cambian
+ * de forma con `multiple`, así que no hay manera de usarlo mal. Ambos modos comparten
+ * diálogo, buscador y lista — elegir un cliente y elegir empleados se ven y se operan
+ * igual porque son literalmente el mismo componente.
+ */
+type SearchableSelectProps = SearchableSelectBaseProps & (
+  | { multiple?: false; value?: string;   onValueChange: (value: string) => void }
+  | { multiple: true;   value?: string[]; onValueChange: (value: string[]) => void }
+);
+
 export const SearchableSelect = React.forwardRef<
   HTMLButtonElement,
   SearchableSelectProps
->(
-  (
-    {
-      value,
-      onValueChange,
+>((props, ref) => {
+    const {
       options,
       placeholder = "Select an option",
       title = "Select Option",
@@ -57,15 +63,30 @@ export const SearchableSelect = React.forwardRef<
       required = false,
       onAddNew,
       addNewLabel = "Add New",
-    },
-    ref
-  ) => {
+    } = props;
+
     const [open, setOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState("");
 
-    // Get selected option label
-    const selectedOption = options.find((opt) => opt.value === value);
-    const displayValue = selectedOption?.label || withRequiredMark(placeholder, required);
+    const isMulti = props.multiple === true;
+
+    // Selección normalizada a array — el resto del componente no distingue modos.
+    const selectedValues = React.useMemo<string[]>(() => {
+      if (props.multiple) return props.value ?? [];
+      return props.value ? [props.value] : [];
+    }, [props.multiple, props.value]);
+
+    // Etiqueta del trigger: vacío → placeholder; uno → su nombre; varios → "N selected".
+    const displayValue = (() => {
+      if (selectedValues.length === 0) return withRequiredMark(placeholder, required);
+      if (selectedValues.length === 1) {
+        return options.find((o) => o.value === selectedValues[0])?.label
+          ?? withRequiredMark(placeholder, required);
+      }
+      return `${selectedValues.length} selected`;
+    })();
+
+    const hasValue = selectedValues.length > 0;
 
     // Filter options based on search query
     const filteredOptions = React.useMemo(() => {
@@ -98,38 +119,48 @@ export const SearchableSelect = React.forwardRef<
       }
     }, [open]);
 
+    // Multi: alterna y deja el diálogo abierto (se eligen varios de una vez).
+    // Single: elige y cierra.
     const handleSelect = (optionValue: string) => {
-      onValueChange(optionValue);
+      if (props.multiple) {
+        const next = selectedValues.includes(optionValue)
+          ? selectedValues.filter((v) => v !== optionValue)
+          : [...selectedValues, optionValue];
+        props.onValueChange(next);
+        return;
+      }
+      props.onValueChange(optionValue);
       setOpen(false);
     };
 
     // Shared options list component
     const OptionsList = () => (
       <div className="space-y-1">
-        {filteredOptions.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => handleSelect(option.value)}
-            className={cn(
-              "w-full flex items-center justify-between px-4 py-3 rounded-md text-left transition-colors text-sm",
-              "hover:bg-accent hover:text-accent-foreground",
-              value === option.value && "bg-primary/10 text-primary"
-            )}
-          >
-            <div className="flex-1 min-w-0">
-              <div className="font-medium truncate">{option.label}</div>
-              {option.subtitle && (
-                <div className="text-xs text-muted-foreground truncate mt-0.5">
-                  {option.subtitle}
-                </div>
+        {filteredOptions.map((option) => {
+          const isSelected = selectedValues.includes(option.value);
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => handleSelect(option.value)}
+              className={cn(
+                "w-full flex items-center justify-between px-4 py-3 rounded-md text-left transition-colors text-sm",
+                "hover:bg-accent hover:text-accent-foreground",
+                isSelected && "bg-primary/10 text-primary"
               )}
-            </div>
-            {value === option.value && (
-              <Check className="ml-2 h-4 w-4 shrink-0" />
-            )}
-          </button>
-        ))}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="font-medium truncate">{option.label}</div>
+                {option.subtitle && (
+                  <div className="text-xs text-muted-foreground truncate mt-0.5">
+                    {option.subtitle}
+                  </div>
+                )}
+              </div>
+              {isSelected && <Check className="ml-2 h-4 w-4 shrink-0" />}
+            </button>
+          );
+        })}
       </div>
     );
 
@@ -169,7 +200,7 @@ export const SearchableSelect = React.forwardRef<
           onClick={() => setOpen(true)}
           className={cn(
             "w-full justify-between h-10",
-            !value && "text-muted-foreground",
+            !hasValue && "text-muted-foreground",
             error && FORM_CONTROL_ERROR,
             className
           )}
@@ -205,13 +236,14 @@ export const SearchableSelect = React.forwardRef<
                   <AddNewButton />
                 </div>
               )}
+              {/* Multi: el diálogo no se cierra al elegir, así que el botón confirma. */}
               <Button
                 type="button"
-                variant="ghost"
+                variant={isMulti ? "default" : "ghost"}
                 onClick={() => setOpen(false)}
                 className="w-full"
               >
-                Cancel
+                {isMulti ? "Done" : "Cancel"}
               </Button>
             </div>
           </DialogContent>

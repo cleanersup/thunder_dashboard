@@ -136,7 +136,8 @@ export function AddAppointmentPage({ open, onClose, onUpdated, defaultRouteId, d
   // ─── Data ──────────────────────────────────────────────────────────────────
 
   const { data: routes = [],   isLoading: routesLoading   } = useRoutes();
-  const { data: employees = [], isLoading: empLoading     } = useEmployeesForScheduling();
+  // Lista solo para el resumen y el costo de labor; el selector trae la suya (EmployeeSelect).
+  const { data: employees = [] } = useEmployeesForScheduling();
   const { data: clients  = [], isLoading: clientsLoading  } = useClients();
   const { data: existing,       isLoading: existingLoading } = useAppointment(id);
 
@@ -459,7 +460,6 @@ export function AddAppointmentPage({ open, onClose, onUpdated, defaultRouteId, d
                   : [...current, empId],
               );
             }}
-            isLoading={empLoading}
             error={errors.assigned_employees}
           />
         );
