@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   ChevronLeft, CalendarIcon, Upload, X, FileText, Image as ImageIcon,
-  Loader2, MapPin, User, Mail, Phone, Plus, UserPlus,
+  Loader2, MapPin, User, Mail, Phone, UserPlus,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button }    from "@/shared/components/ui/button";
@@ -30,7 +30,9 @@ import { cn }       from "@/shared/utils/cn";
 import { toIntegerString } from "@/shared/utils/numericInput";
 import type { RequestPayload, BookingAttachmentMeta } from "../types/request.types";
 import type { CustomQuestion } from "../hooks/useCustomQuestions";
+import { ClientSelect } from "@/shared/components/common/ClientSelect";
 import type { Client, Lead } from "@/features/crm/types/crm.types";
+import type { ClientEntity } from "@/shared/types/entities";
 import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -589,7 +591,7 @@ export function RequestForm({
                   <p className="text-sm text-muted-foreground">Select the type of contact for this service request</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  {(["client", "lead"] as const).map((type) => (
+                  {(["client"] as const).map((type) => (
                     <Button
                       key={type}
                       variant="outline"
@@ -627,68 +629,32 @@ export function RequestForm({
                   )}
                 >
                   <UserPlus className="w-5 h-5" />
-                  <span className="font-semibold">New Contact (not in CRM)</span>
+                  <span className="font-semibold">New Contact</span>
                 </Button>
                 {errors.contact && (
-                  <p className="text-xs text-destructive">Please select a client or lead.</p>
+                  <p className="text-xs text-destructive">Please select a client.</p>
                 )}
               </CardContent>
             </Card>
 
-            {/* Step 2: pick the contact */}
-            {contactType && contactType !== "anonymous" && (
+            {/* Step 2: pick the client — canonical ClientSelect (search + Add New Client) */}
+            {contactType === "client" && (
               <Card className={cn(!isModal && "rounded-none border-0")}>
                 <CardContent className="p-6 space-y-4">
                   <div className="space-y-1">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
                       <User className="w-5 h-5" />
-                      {contactType === "client" ? "Client" : "Lead"}
+                      Client
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      Select a {contactType} to generate the service request
+                      Select a client to generate the service request
                     </p>
                   </div>
-                  <SearchableSelect
-                    value={contactType === "client" ? selectedClient?.id : selectedLead?.id}
-                    onValueChange={(id) => {
-                      if (contactType === "client") {
-                        const c = activeClients.find((x) => x.id === id);
-                        if (c) handleClientSelect(c);
-                      } else {
-                        const l = allLeads.find((x) => x.id === id);
-                        if (l) handleLeadSelect(l);
-                      }
-                    }}
-                    options={
-                      contactType === "client"
-                        ? activeClients.map((c) => ({ value: c.id, label: c.full_name, subtitle: c.company || undefined }))
-                        : allLeads.map((l) => ({ value: l.id, label: l.full_name, subtitle: l.company_name || undefined }))
-                    }
-                    placeholder={`Select ${contactType}...`}
-                    title={`Select ${contactType === "client" ? "Client" : "Lead"}`}
-                    searchPlaceholder={`Search ${contactType}s...`}
-                    emptyMessage={`No ${contactType}s found.`}
+                  <ClientSelect
+                    value={selectedClient?.id}
+                    selected={selectedClient as unknown as ClientEntity | null}
+                    onChange={(c) => { if (c) handleClientSelect(c as unknown as Client); }}
                   />
-                  {contactType === "client" && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full justify-start gap-2"
-                      onClick={() => setShowAddClient(true)}
-                    >
-                      <Plus className="w-4 h-4" /> Add New Client
-                    </Button>
-                  )}
-                  {contactType === "lead" && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full justify-start gap-2"
-                      onClick={() => setShowAddLead(true)}
-                    >
-                      <Plus className="w-4 h-4" /> Add New Lead
-                    </Button>
-                  )}
                 </CardContent>
               </Card>
             )}
@@ -744,10 +710,10 @@ export function RequestForm({
               <CardContent className="p-6 space-y-4">
                 <div className="space-y-1">
                   <h2 className="text-lg font-semibold">Contact</h2>
-                  <p className="text-sm text-muted-foreground">Optionally link or change the associated client or lead</p>
+                  <p className="text-sm text-muted-foreground">Optionally link or change the associated client</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  {(["client", "lead"] as const).map((type) => (
+                  {(["client"] as const).map((type) => (
                     <Button
                       key={type}
                       variant="outline"

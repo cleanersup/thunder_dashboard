@@ -4,7 +4,7 @@ import {
   FileText,
   Receipt,
   CalendarClock,
-  Users,
+  CalendarDays,
   Settings,
   LogOut,
   FileSignature,
@@ -51,9 +51,17 @@ type NavItem = {
 };
 
 const SCHEDULE_ITEM: NavItem = {
+  path: "/schedule",
+  icon: CalendarDays,
+  label: "Schedule",
+  feature: "routes",
+};
+
+// Routes queda accesible pero deprecado: Schedule (jobs+tasks) lo reemplaza.
+const ROUTES_ITEM: NavItem = {
   path: "/create-route",
   icon: CalendarRange,
-  label: "Schedule",
+  label: "Routes",
   feature: "routes",
 };
 
@@ -66,7 +74,7 @@ const WORKFLOW_NAV: NavItem[] = [
 ];
 
 const OPERATIONS_NAV: NavItem[] = [
-  { path: "/leads", icon: Users, label: "CRM", feature: "crm" },
+  // CRM/Leads retired from the UI (matches swift-slate) — lead stays a backend-only concept.
   // Clients is always accessible (no feature gate) — matches swift-slate navConfig.
   { path: "/clients", icon: UserCheck, label: "Clients" },
   { path: "/tasks", icon: ListTodo, label: "Tasks", feature: "crm" },
@@ -230,6 +238,7 @@ export function DesktopSidebar() {
                 <SidebarMenu>
                   {renderItem({ path: "/home", icon: Home, label: "Home" })}
                   {renderItem(SCHEDULE_ITEM)}
+                  {renderItem(ROUTES_ITEM)}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

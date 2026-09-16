@@ -25,7 +25,6 @@ const VerifyEmailPage = lazy(() => import("@/features/auth/pages/VerifyEmailPage
 const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
 
 // Phase 5 — CRM ✅ (now split into Leads / Clients / Tasks)
-const LeadsPage   = lazy(() => import("@/features/crm/leads/pages/LeadsPage").then((m) => ({ default: m.LeadsPage })));
 const ClientsPage = lazy(() => import("@/features/crm/clients/pages/ClientsPage").then((m) => ({ default: m.ClientsPage })));
 const TasksPage   = lazy(() => import("@/features/tasks/pages/TasksPage").then((m) => ({ default: m.TasksPage })));
 const ClientWalletPage = lazy(() => import("@/features/crm/clients/pages/ClientWalletPage").then((m) => ({ default: m.ClientWalletPage })));
@@ -56,6 +55,7 @@ const StripeReturnPage         = lazy(() => import("@/features/invoices/pages/St
 
 // Phase 9 — Scheduling ✅
 const RoutesPage          = lazy(() => import("@/features/scheduling/pages/RoutesPage").then((m) => ({ default: m.RoutesPage })));
+const SchedulePage        = lazy(() => import("@/features/scheduling/pages/SchedulePage").then((m) => ({ default: m.SchedulePage })));
 const AddAppointmentPage  = lazy(() => import("@/features/scheduling/pages/AddAppointmentPage").then((m) => ({ default: m.AddAppointmentPage })));
 const SmartMapPage        = lazy(() => import("@/features/scheduling/pages/SmartMapPage").then((m) => ({ default: m.SmartMapPage })));
 
@@ -122,8 +122,9 @@ export function AppRouter() {
           <Route path="/jobs/:id" element={<ProtectedRoute requireFeature="jobs"><JobDetailPage /></ProtectedRoute>} />
 
           {/* Phase 5 ✅ — CRM split into separate pages */}
-          <Route path="/crm"     element={<Navigate to="/leads" replace />} />
-          <Route path="/leads"   element={<ProtectedRoute requireFeature="crm"><LeadsPage /></ProtectedRoute>} />
+          {/* CRM/Leads retired from the UI — both redirect to Clients (matches swift-slate). */}
+          <Route path="/crm"     element={<Navigate to="/clients" replace />} />
+          <Route path="/leads"   element={<Navigate to="/clients" replace />} />
           <Route path="/clients" element={<ProtectedRoute><ClientsPage /></ProtectedRoute>} />
           <Route path="/tasks"   element={<ProtectedRoute requireFeature="crm"><TasksPage /></ProtectedRoute>} />
           <Route path="/client/wallet/:token" element={<ClientWalletPage />} />
@@ -156,6 +157,7 @@ export function AppRouter() {
           <Route path="/stripe/return" element={<ProtectedRoute requireSubscription={false}><StripeReturnPage /></ProtectedRoute>} />
 
           {/* Phase 9 ✅ */}
+          <Route path="/schedule"               element={<ProtectedRoute requireFeature="routes"><SchedulePage /></ProtectedRoute>} />
           <Route path="/create-route"           element={<ProtectedRoute requireFeature="routes"><RoutesPage /></ProtectedRoute>} />
           <Route path="/create-route/:id/edit"  element={<ProtectedRoute requireFeature="routes"><AddAppointmentPage /></ProtectedRoute>} />
           <Route path="/smart-map"              element={<ProtectedRoute requireFeature="smart_map"><SmartMapPage /></ProtectedRoute>} />

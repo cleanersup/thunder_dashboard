@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/shared/components/ui/sheet";
 import { Button }   from "@/shared/components/ui/button";
 import { Input }    from "@/shared/components/ui/input";
 import { Label }    from "@/shared/components/ui/label";
@@ -135,16 +135,17 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent
-        className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-md overflow-y-auto"
         onPointerDownOutside={(e) => {
           if ((e.target as HTMLElement).closest?.(".pac-container")) e.preventDefault();
         }}
       >
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Client" : "Add Client"}</DialogTitle>
-        </DialogHeader>
+        <SheetHeader>
+          <SheetTitle>{isEdit ? "Edit Client" : "Add Client"}</SheetTitle>
+        </SheetHeader>
 
         <form
           onSubmit={handleSubmit(onSubmit)}
@@ -379,7 +380,7 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

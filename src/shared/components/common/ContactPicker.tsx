@@ -1,15 +1,15 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useEffect } from "react";
-import { User, Briefcase } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/shared/components/ui/button";
 import { SearchableSelect } from "@/shared/components/ui/searchable-select";
+import { ClientSelect } from "./ClientSelect";
 import { ServicePropertySelector } from "./ServicePropertySelector";
 import { useClients } from "@/features/crm/clients/hooks/useClients";
 import { useLeads } from "@/features/crm/leads/hooks/useLeads";
 import { QK } from "@/shared/config/queryKeys";
 import type { Client } from "@/features/crm/types/crm.types";
 import type { Lead } from "@/features/crm/types/crm.types";
+import type { ClientEntity } from "@/shared/types/entities";
 import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
 
 // ── Public types ───────────────────────────────────────────────────────────────
@@ -57,8 +57,6 @@ export function ContactPicker({
   const { data: allClients = [] } = useClients();
   const { data: leads = [] } = useLeads();
 
-  const activeClients = allClients.filter((c) => c.status === "active");
-
   // Bust cache on mount when returning from add-client/add-lead
   useEffect(() => {
     if (clientIdFromUrl) queryClient.invalidateQueries({ queryKey: QK.clients });
@@ -87,16 +85,15 @@ export function ContactPicker({
     }
   }, [leads, leadIdFromUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Lead flow retired from the UI (matches swift-slate): default new pickers to
+  // "client". Skip when a lead is being restored from URL (edit) so it's preserved.
+  useEffect(() => {
+    if (value.contactType == null && !leadIdFromUrl) {
+      onChange({ contactType: "client", client: null, lead: null, property: null });
+    }
+  }, [value.contactType, leadIdFromUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Handlers ─────────────────────────────────────────────────────────────
-
-  const handleTypeChange = (type: "client" | "lead") => {
-    onChange({ contactType: type, client: null, lead: null, property: null });
-  };
-
-  const handleClientChange = (id: string) => {
-    const found = activeClients.find((c) => c.id === id) ?? null;
-    onChange({ contactType: "client", client: found, lead: null, property: null });
-  };
 
   const handleLeadChange = (id: string) => {
     const found = leads.find((l) => l.id === id) ?? null;
@@ -111,40 +108,14 @@ export function ContactPicker({
 
   return (
     <div className="space-y-3">
-      {/* Contact type toggle */}
-      <div className="grid grid-cols-2 gap-2">
-        <Button
-          type="button"
-          variant={value.contactType === "client" ? "default" : "outline"}
-          onClick={() => handleTypeChange("client")}
-        >
-          <User className="w-4 h-4 mr-2" />
-          Client
-        </Button>
-        <Button
-          type="button"
-          variant={value.contactType === "lead" ? "default" : "outline"}
-          onClick={() => handleTypeChange("lead")}
-        >
-          <Briefcase className="w-4 h-4 mr-2" />
-          Lead
-        </Button>
-      </div>
-
-      {/* Client picker */}
+      {/* Client picker — canonical ClientSelect (search + Add New Client) */}
       {value.contactType === "client" && (
-        <SearchableSelect
+        <ClientSelect
           value={value.client?.id}
-          onValueChange={handleClientChange}
-          options={activeClients.map((c) => ({
-            value:    c.id,
-            label:    c.full_name,
-            subtitle: c.company || c.email || undefined,
-          }))}
-          placeholder="Select client..."
-          title="Select Client"
-          searchPlaceholder="Search clients..."
-          emptyMessage="No active clients found"
+          selected={value.client as unknown as ClientEntity | null}
+          onChange={(client) =>
+            onChange({ contactType: "client", client: client as unknown as Client | null, lead: null, property: null })
+          }
           error={error}
         />
       )}

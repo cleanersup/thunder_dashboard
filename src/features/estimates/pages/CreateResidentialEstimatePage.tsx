@@ -416,7 +416,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   // ── Submit ────────────────────────────────────────────────────────────────
   async function handleSubmit() {
     const client = getClientInfo();
-    if (!client) { toast.error("Please select a client or lead"); return; }
+    if (!client) { toast.error("Please select a client"); return; }
     const { subtotal, total, laborCost, suppliesCost, overheadCost, totalOpCost } = pricing;
 
     const payload = {
@@ -527,7 +527,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
           companyAddress={companyAddress || undefined}
           errors={{
             type:   stepErrors.estimateType   ? "Please select a client type" : undefined,
-            entity: stepErrors.selectedEntity ? `Please select a ${estimateType ?? "client or lead"}` : undefined,
+            entity: stepErrors.selectedEntity ? `Please select a ${estimateType ?? "client"}` : undefined,
           }}
           showPropertySelector
           selectedProperty={selectedProperty}

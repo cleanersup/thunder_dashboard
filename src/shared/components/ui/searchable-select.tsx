@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Check, ChevronDown, Search, X } from "lucide-react";
+import { Check, ChevronDown, Plus, Search, X } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import {
   Dialog,
@@ -20,6 +20,8 @@ export interface SearchableSelectOption {
   value: string;
   label: string;
   subtitle?: string;
+  /** Extra text matched by the search box (e.g. email + company). Falls back to label + subtitle. */
+  searchText?: string;
 }
 
 interface SearchableSelectProps {
@@ -33,6 +35,9 @@ interface SearchableSelectProps {
   className?: string;
   disabled?: boolean;
   error?: boolean;
+  /** Optional footer action rendered below the list (e.g. "Add New Client"). */
+  onAddNew?: () => void;
+  addNewLabel?: string;
 }
 
 export const SearchableSelect = React.forwardRef<
@@ -51,6 +56,8 @@ export const SearchableSelect = React.forwardRef<
       className,
       disabled = false,
       error = false,
+      onAddNew,
+      addNewLabel = "Add New",
     },
     ref
   ) => {
@@ -66,12 +73,25 @@ export const SearchableSelect = React.forwardRef<
     const filteredOptions = React.useMemo(() => {
       if (!searchQuery) return options;
       const query = searchQuery.toLowerCase();
-      return options.filter(
-        (option) =>
-          option.label.toLowerCase().includes(query) ||
-          option.subtitle?.toLowerCase().includes(query)
+      return options.filter((option) =>
+        (option.searchText ?? `${option.label} ${option.subtitle ?? ""}`)
+          .toLowerCase()
+          .includes(query),
       );
     }, [options, searchQuery]);
+
+    // Footer action (e.g. "Add New Client") — closes the select, then fires.
+    const AddNewButton = () =>
+      onAddNew ? (
+        <button
+          type="button"
+          onClick={() => { setOpen(false); onAddNew(); }}
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-semibold text-primary hover:bg-accent transition-colors"
+        >
+          <Plus className="h-4 w-4 shrink-0" />
+          {addNewLabel}
+        </button>
+      ) : null;
 
     // Reset search when modal/popover closes
     React.useEffect(() => {
@@ -181,6 +201,13 @@ export const SearchableSelect = React.forwardRef<
                 <OptionsList />
               )}
             </div>
+
+            {/* Footer action */}
+            {onAddNew && (
+              <div className="border-t p-1">
+                <AddNewButton />
+              </div>
+            )}
           </PopoverContent>
         </Popover>
       );
@@ -233,10 +260,15 @@ export const SearchableSelect = React.forwardRef<
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t">
+            <div className="px-6 py-4 border-t space-y-2">
+              {onAddNew && (
+                <div className="rounded-md border">
+                  <AddNewButton />
+                </div>
+              )}
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={() => setOpen(false)}
                 className="w-full"
               >

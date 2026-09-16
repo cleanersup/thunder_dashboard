@@ -25,6 +25,9 @@ export type PaymentStatus =
   | "balance_due"
   | "payment_completed";
 
+/** Alcance de una operación (editar/eliminar/cancelar) sobre un job recurrente. */
+export type RecurringScope = "this_only" | "this_and_following" | "all";
+
 export type JobContactType = "client" | "lead";
 export type ServiceType = "residential" | "commercial";
 export type RecurrenceFrequency = "daily" | "weekly" | "every_two_weeks" | "monthly";
@@ -66,7 +69,9 @@ export interface DbJob {
   recurring_frequency: string | null;
   recurring_duration: string | null;
   recurring_duration_unit: string | null;
-  selected_week_days: string[];
+  selected_week_days: (string | number)[];
+  recurring_interval: number | null;
+  recurring_end_date: string | null;
   scheduled_date: string;
   start_time: string | null;
   end_time: string | null;
@@ -115,6 +120,12 @@ export interface Job {
   recurrenceFrequency: RecurrenceFrequency | null;
   serviceDuration: number | null;
   serviceDurationUnit: ServiceDurationUnit | null;
+  /** Modelo nuevo de recurrencia: "repeat every N". */
+  repeatEvery?: number | null;
+  /** Recurrencia weekly: días 0=Domingo … 6=Sábado. */
+  weekDays?: number[];
+  /** Recurrencia: "end repeat on" (yyyy-MM-dd). */
+  recurringEndDate?: string | null;
   jobDate: string;
   propertyStreet?: string | null;
   propertyApt?: string | null;
@@ -238,6 +249,11 @@ export function dbToJob(row: DbJob): Job {
     recurrenceFrequency:  recurringFrequencyFromDb(row.recurring_frequency),
     serviceDuration:      row.recurring_duration ? parseInt(row.recurring_duration) : null,
     serviceDurationUnit:  (row.recurring_duration_unit as ServiceDurationUnit) ?? null,
+    repeatEvery:          row.recurring_interval ?? null,
+    weekDays:             Array.isArray(row.selected_week_days)
+                            ? row.selected_week_days.map((d) => Number(d)).filter((n) => Number.isFinite(n))
+                            : [],
+    recurringEndDate:     row.recurring_end_date ?? null,
     jobDate:              row.scheduled_date,
     propertyStreet:       row.property_street,
     propertyApt:          row.property_apt,

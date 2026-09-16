@@ -23,13 +23,15 @@ import {
 } from "@/shared/components/ui/dropdown-menu";
 import { JobStatusBadge }     from "./JobStatusBadge";
 import { JobCompleteDialog }  from "./JobCompleteDialog";
+import { RecurringScopeDialog } from "./RecurringScopeDialog";
 import { AddJobPage }         from "../pages/AddJobPage";
 import { useJob }             from "../hooks/useJobs";
 import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
 import { useInvoice } from "@/features/invoices/hooks/useInvoices";
 import { INVOICE_STATUS_BADGE } from "@/features/invoices/utils/invoiceStatusHelpers";
 import type { InvoiceStatus } from "@/features/invoices/types/invoice.types";
-import { useDeleteJob, useUpdateJobStatus } from "../hooks/useJobMutations";
+import { useDeleteJob, useUpdateJobStatus, useDeleteRecurringJob, useCancelRecurringJob } from "../hooks/useJobMutations";
+import type { RecurringScope } from "../types/job.types";
 import { jobsService } from "../services/jobsService";
 import { QK } from "@/shared/config/queryKeys";
 import { getEffectiveJobStatus } from "../types/job.types";
@@ -93,11 +95,15 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
   const { data: allEmployees = [] } = useAllEmployees();
   const { mutate: deleteJob,    isPending: deleting }  = useDeleteJob();
   const { mutate: updateStatus, isPending: updating }  = useUpdateJobStatus();
+  const { mutate: deleteRecurring } = useDeleteRecurringJob();
+  const { mutate: cancelRecurring } = useCancelRecurringJob();
   const qc = useQueryClient();
 
   const [showComplete,     setShowComplete]     = useState(false);
   const [showDelete,       setShowDelete]       = useState(false);
   const [showCancel,       setShowCancel]       = useState(false);
+  // Alcance para operaciones sobre series recurrentes ('cancel' | 'delete').
+  const [recurringOp,      setRecurringOp]      = useState<"cancel" | "delete" | null>(null);
   const [showPublish,      setShowPublish]      = useState(false);
   const [showEditModal,    setShowEditModal]    = useState(false);
   const [showReschedule,   setShowReschedule]   = useState(false);
@@ -157,6 +163,18 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
     }
   };
 
+  // Series recurrentes → elegir alcance; jobs sueltos → confirmación directa.
+  const openCancel = () => { if (job?.isRecurring) setRecurringOp("cancel"); else setShowCancel(true); };
+  const openDelete = () => { if (job?.isRecurring) setRecurringOp("delete"); else setShowDelete(true); };
+
+  const runRecurringScope = (scope: RecurringScope) => {
+    if (!job) return;
+    const onDone = { onSuccess: () => { onClose(); onUpdated(); } };
+    if (recurringOp === "delete") deleteRecurring({ jobId: job.id, scope }, onDone);
+    else if (recurringOp === "cancel") cancelRecurring({ jobId: job.id, scope }, onDone);
+    setRecurringOp(null);
+  };
+
   if (!open) return null;
 
   const effectiveStatus = job ? getEffectiveJobStatus(job) : null;
@@ -194,7 +212,7 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
               <Edit className="h-4 w-4 mr-2" /> Edit Job
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setShowCancel(true)}>
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={openCancel}>
               <XCircle className="h-4 w-4 mr-2" /> Cancel Job
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -203,7 +221,7 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
     );
 
     if (effectiveStatus === "Scheduled") return (
-      <Button size="sm" variant="outline" className="flex-1 gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => setShowCancel(true)}>
+      <Button size="sm" variant="outline" className="flex-1 gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={openCancel}>
         <XCircle className="h-3.5 w-3.5" /> Cancel Job
       </Button>
     );
@@ -233,7 +251,7 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
               <CalendarClock className="h-4 w-4 mr-2" /> Reschedule
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setShowCancel(true)}>
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={openCancel}>
               <XCircle className="h-4 w-4 mr-2" /> Cancel Job
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -257,7 +275,7 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setShowDelete(true)}>
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={openDelete}>
               <Trash2 className="h-4 w-4 mr-2" /> Delete Permanently
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -287,7 +305,7 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
               <CalendarClock className="h-4 w-4 mr-2" /> Reschedule
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setShowCancel(true)}>
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={openCancel}>
               <XCircle className="h-4 w-4 mr-2" /> Cancel Job
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -313,7 +331,7 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
             <Button size="sm" variant="outline" className="px-2.5"><MoreHorizontal className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setShowDelete(true)}>
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={openDelete}>
               <Trash2 className="h-4 w-4 mr-2" /> Delete Permanently
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -551,6 +569,20 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
 
       {/* Dialogs */}
       {job && <JobCompleteDialog job={job} open={showComplete} onOpenChange={setShowComplete} />}
+
+      {/* Alcance para series recurrentes (cancel / delete) */}
+      <RecurringScopeDialog
+        open={recurringOp !== null}
+        onOpenChange={(o) => { if (!o) setRecurringOp(null); }}
+        title={recurringOp === "delete" ? "Delete recurring job" : "Cancel recurring job"}
+        description={
+          recurringOp === "delete"
+            ? "Choose which occurrences to delete."
+            : "Choose which occurrences to cancel."
+        }
+        destructive
+        onSelect={runRecurringScope}
+      />
 
       <ConfirmDialog
         open={showPublish}

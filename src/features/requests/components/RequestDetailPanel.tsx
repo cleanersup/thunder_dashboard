@@ -347,7 +347,7 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
                 onClick={() => setLinkContactOpen(true)}
               >
                 <Link2 className="h-4 w-4" />
-                Link to existing Client or Lead
+                Link to existing client
               </Button>
             )}
           </section>

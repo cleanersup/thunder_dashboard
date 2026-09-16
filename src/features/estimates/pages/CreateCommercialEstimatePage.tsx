@@ -567,7 +567,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
           companyAddress={companyAddress || undefined}
           errors={{
             type:   errors.estimateType   ? "Please select a client type" : undefined,
-            entity: errors.selectedEntity ? `Please select a ${estimateType ?? "client or lead"}` : undefined,
+            entity: errors.selectedEntity ? `Please select a ${estimateType ?? "client"}` : undefined,
           }}
           showPropertySelector
           selectedProperty={selectedProperty}

@@ -11,6 +11,7 @@ import {
   type JobStatus,
   type CreateJobInput,
   type UpdateJobInput,
+  type RecurringScope,
   dbToJob,
   jobStatusToDb,
 } from "../types/job.types";
@@ -116,6 +117,78 @@ async function fetchContactForJob(
   };
 }
 
+/**
+ * Arma el payload DB (snake_case) con solo los campos presentes en `updates`.
+ * Compartido por update() (job suelto) y updateRecurring() (serie vía RPC).
+ */
+async function buildJobUpdatePayload(
+  updates: UpdateJobInput,
+  propertyId?: string | null,
+): Promise<Record<string, unknown>> {
+  const partial: Record<string, unknown> = {};
+
+  if (propertyId) {
+    const propAddr = await fetchPropertyAddress(propertyId);
+    if (propAddr.propertyStreet !== undefined) partial.property_street = propAddr.propertyStreet;
+    if (propAddr.propertyApt !== undefined)    partial.property_apt    = propAddr.propertyApt;
+    if (propAddr.propertyCity !== undefined)   partial.property_city   = propAddr.propertyCity;
+    if (propAddr.propertyState !== undefined)  partial.property_state  = propAddr.propertyState;
+    if (propAddr.propertyZip !== undefined)    partial.property_zip    = propAddr.propertyZip;
+  }
+
+  if (updates.clientId !== undefined)    partial.client_id      = updates.clientId;
+  if (updates.leadId !== undefined)      partial.lead_id        = updates.leadId;
+  if (updates.contactType !== undefined) partial.contact_type   = updates.contactType;
+  if (updates.serviceType !== undefined) partial.service_type   = updates.serviceType;
+  if (updates.isRecurring !== undefined) {
+    partial.job_type = updates.isRecurring ? "recurring" : "one_time";
+    partial.selected_week_days =
+      updates.isRecurring && updates.recurrenceFrequency === "weekly" ? (updates.weekDays ?? []) : [];
+    if (updates.isRecurring) {
+      partial.recurring_interval = updates.repeatEvery ?? null;
+      partial.recurring_end_date = updates.recurringEndDate ?? null;
+    }
+  }
+  if (updates.recurrenceFrequency !== undefined) partial.recurring_frequency = updates.recurrenceFrequency;
+  if (updates.serviceDuration !== undefined)
+    partial.recurring_duration = updates.serviceDuration != null ? String(updates.serviceDuration) : null;
+  if (updates.serviceDurationUnit !== undefined) partial.recurring_duration_unit = updates.serviceDurationUnit;
+  if (updates.jobDate !== undefined)      partial.scheduled_date  = updates.jobDate;
+  if (updates.startTime !== undefined)    partial.start_time      = updates.startTime || null;
+  if (updates.endTime !== undefined)      partial.end_time        = updates.endTime || null;
+  if (updates.services !== undefined)     partial.line_items      = lineItemsToDb(updates.services);
+  if (updates.jobDetails !== undefined)   partial.service_details = updates.jobDetails ?? "";
+  if (updates.notes !== undefined)        partial.internal_notes  = updates.notes;
+  if (updates.employeeIds !== undefined)  partial.assigned_employees = updates.employeeIds;
+  if (updates.subtotal !== undefined)     partial.subtotal        = updates.subtotal;
+
+  if (updates.applyDiscount !== undefined || updates.discountType !== undefined || updates.discountValue !== undefined) {
+    const apply = updates.applyDiscount ?? false;
+    partial.discount_type  = discountTypeToDb(apply ? (updates.discountType ?? null) : null);
+    partial.discount_value = apply ? (updates.discountValue ?? 0) : 0;
+  }
+  if (updates.applyTax !== undefined || updates.taxRate !== undefined) {
+    partial.tax_type  = "percent";
+    partial.tax_value = (updates.applyTax ?? false) ? (updates.taxRate ?? 0) : 0;
+  }
+
+  const depositTouched =
+    updates.applyDeposit !== undefined ||
+    updates.depositType !== undefined ||
+    updates.depositValue !== undefined ||
+    updates.depositAmount !== undefined;
+  if (depositTouched) {
+    mapDepositFieldsToDb(partial, {
+      applyDeposit:  updates.applyDeposit,
+      depositType:   updates.depositType,
+      depositValue:  updates.depositValue,
+      depositAmount: updates.depositAmount,
+    });
+  }
+
+  return partial;
+}
+
 // ─── Service ─────────────────────────────────────────────────────────────────
 
 export const jobsService = {
@@ -192,7 +265,13 @@ export const jobsService = {
                                ? String(input.serviceDuration)
                                : null,
       recurring_duration_unit: input.isRecurring ? input.serviceDurationUnit : null,
-      selected_week_days:    [],
+      selected_week_days:    input.isRecurring && input.recurrenceFrequency === "weekly"
+                               ? (input.weekDays ?? [])
+                               : [],
+      // Columnas del modelo nuevo — solo se envían en recurrentes (evita romper one-time antes de la migración).
+      ...(input.isRecurring
+        ? { recurring_interval: input.repeatEvery ?? null, recurring_end_date: input.recurringEndDate ?? null }
+        : {}),
       scheduled_date:        input.jobDate,
       start_time:            input.startTime || null,
       end_time:              input.endTime || null,
@@ -261,59 +340,7 @@ export const jobsService = {
    * @param propertyId - Optional property to override service address
    */
   async update(id: string, updates: UpdateJobInput, propertyId?: string | null): Promise<Job> {
-    const partial: Record<string, unknown> = {};
-
-    if (propertyId) {
-      const propAddr = await fetchPropertyAddress(propertyId);
-      if (propAddr.propertyStreet !== undefined) partial.property_street = propAddr.propertyStreet;
-      if (propAddr.propertyApt !== undefined)    partial.property_apt    = propAddr.propertyApt;
-      if (propAddr.propertyCity !== undefined)   partial.property_city   = propAddr.propertyCity;
-      if (propAddr.propertyState !== undefined)  partial.property_state  = propAddr.propertyState;
-      if (propAddr.propertyZip !== undefined)    partial.property_zip    = propAddr.propertyZip;
-    }
-
-    if (updates.clientId !== undefined)    partial.client_id      = updates.clientId;
-    if (updates.leadId !== undefined)      partial.lead_id        = updates.leadId;
-    if (updates.contactType !== undefined) partial.contact_type   = updates.contactType;
-    if (updates.serviceType !== undefined) partial.service_type   = updates.serviceType;
-    if (updates.isRecurring !== undefined) partial.job_type       = updates.isRecurring ? "recurring" : "one_time";
-    if (updates.recurrenceFrequency !== undefined) partial.recurring_frequency = updates.recurrenceFrequency;
-    if (updates.serviceDuration !== undefined)
-      partial.recurring_duration = updates.serviceDuration != null ? String(updates.serviceDuration) : null;
-    if (updates.serviceDurationUnit !== undefined) partial.recurring_duration_unit = updates.serviceDurationUnit;
-    if (updates.jobDate !== undefined)      partial.scheduled_date  = updates.jobDate;
-    if (updates.startTime !== undefined)    partial.start_time      = updates.startTime || null;
-    if (updates.endTime !== undefined)      partial.end_time        = updates.endTime || null;
-    if (updates.services !== undefined)     partial.line_items      = lineItemsToDb(updates.services);
-    if (updates.jobDetails !== undefined)   partial.service_details = updates.jobDetails ?? "";
-    if (updates.notes !== undefined)        partial.internal_notes  = updates.notes;
-    if (updates.employeeIds !== undefined)  partial.assigned_employees = updates.employeeIds;
-    if (updates.subtotal !== undefined)     partial.subtotal        = updates.subtotal;
-
-    if (updates.applyDiscount !== undefined || updates.discountType !== undefined || updates.discountValue !== undefined) {
-      const apply = updates.applyDiscount ?? false;
-      partial.discount_type  = discountTypeToDb(apply ? (updates.discountType ?? null) : null);
-      partial.discount_value = apply ? (updates.discountValue ?? 0) : 0;
-    }
-    if (updates.applyTax !== undefined || updates.taxRate !== undefined) {
-      partial.tax_type  = "percent";
-      partial.tax_value = (updates.applyTax ?? false) ? (updates.taxRate ?? 0) : 0;
-    }
-
-    const depositTouched =
-      updates.applyDeposit !== undefined ||
-      updates.depositType !== undefined ||
-      updates.depositValue !== undefined ||
-      updates.depositAmount !== undefined;
-    if (depositTouched) {
-      mapDepositFieldsToDb(partial, {
-        applyDeposit:  updates.applyDeposit,
-        depositType:   updates.depositType,
-        depositValue:  updates.depositValue,
-        depositAmount: updates.depositAmount,
-      });
-    }
-
+    const partial = await buildJobUpdatePayload(updates, propertyId);
     const { data, error } = await db
       .from("jobs")
       .update(partial)
@@ -345,5 +372,52 @@ export const jobsService = {
       body: { jobId, newStatus: "cancelled", previousStatus: "upcoming", clientChannel: "email" },
     });
     if (emailErr) console.error("send-job-status-emails failed:", emailErr);
+  },
+
+  // ─── Recurrentes por alcance — RPC única `manage_recurring_job` ──────────────
+  // Nunca hacer update/delete directo sobre una serie: siempre vía esta RPC, que
+  // el backend usa para editar/borrar/cancelar según el scope y regenerar futuras.
+
+  /** Edita una serie recurrente según el alcance (backend regenera futuras si cambia el patrón). */
+  async updateRecurring(
+    id: string,
+    updates: UpdateJobInput,
+    propertyId: string | null | undefined,
+    scope: RecurringScope,
+  ): Promise<void> {
+    const payload = await buildJobUpdatePayload(updates, propertyId);
+    // Campos no soportados por el payload de la RPC (obsoletos / no editables por scope).
+    delete payload.job_type;
+    delete payload.recurring_duration;
+    delete payload.recurring_duration_unit;
+    const { error } = await db.rpc("manage_recurring_job", {
+      p_job_id: id,
+      p_action: "update",
+      p_scope:  scope,
+      p_payload: payload,
+    });
+    if (error) throw error;
+  },
+
+  /** Elimina una serie recurrente según el alcance. */
+  async deleteRecurring(jobId: string, scope: RecurringScope): Promise<void> {
+    const { error } = await db.rpc("manage_recurring_job", {
+      p_job_id: jobId,
+      p_action: "delete",
+      p_scope:  scope,
+      p_payload: {},
+    });
+    if (error) throw error;
+  },
+
+  /** Cancela una serie recurrente según el alcance. */
+  async cancelRecurring(jobId: string, scope: RecurringScope): Promise<void> {
+    const { error } = await db.rpc("manage_recurring_job", {
+      p_job_id: jobId,
+      p_action: "cancel",
+      p_scope:  scope,
+      p_payload: {},
+    });
+    if (error) throw error;
   },
 };

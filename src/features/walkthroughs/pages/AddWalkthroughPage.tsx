@@ -40,7 +40,6 @@ import { useCreateWalkthrough, useUpdateWalkthrough, useWalkthrough } from "../h
 import { supabase } from "@/integrations/supabase/client";
 import { useAllEmployees } from "@/features/employees/hooks/useEmployees";
 import { EstimateClientStep } from "@/features/estimates/components/EstimateClientStep";
-import { ServicePropertySelector } from "@/shared/components/common/ServicePropertySelector";
 import { useClients } from "@/features/crm/clients/hooks/useClients";
 import { useLeads } from "@/features/crm/leads/hooks/useLeads";
 import type { ClientEntity, LeadEntity } from "@/shared/types/entities";
@@ -272,7 +271,7 @@ export function AddWalkthroughPage({
   // ── Submit ─────────────────────────────────────────────────────────────────
   function onSubmit(data: WalkthroughFormData) {
     if (!walkthroughType) {
-      setPickerErrors({ type: "Please select Client or Lead" });
+      setPickerErrors({ type: "Please select a client" });
       return;
     }
     const hasEntity = walkthroughType === "client" ? Boolean(data.client_id) : Boolean(data.lead_id);
@@ -342,33 +341,21 @@ export function AddWalkthroughPage({
   // Form cards — shared between modal and page layouts
   const formCards = (
     <>
-      {/* ── Client / Lead ────────────────────────────────────────── */}
-      <Card>
-        <CardContent className="p-5">
-          <EstimateClientStep
-            estimateType={walkthroughType}
-            onEstimateTypeChange={handleTypeChange}
-            selectedClient={selectedClient}
-            selectedLead={selectedLead}
-            onClientSelect={handleClientSelect}
-            onLeadSelect={handleLeadSelect}
-            errors={pickerErrors}
-            infoText="Verify the email and phone number — they will be used to send the walkthrough confirmation."
-          />
-
-          {/* Service property — clients only */}
-          {walkthroughType === "client" && selectedClient && (
-            <div className="mt-4">
-              <ServicePropertySelector
-                clientId={selectedClient.id}
-                value={selectedProperty}
-                onChange={handlePropertyChange}
-                preferredPropertyId={existing?.property_id ?? prefillPropertyId}
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* ── Client ───────────────────────────────────────────────── */}
+      <EstimateClientStep
+        estimateType={walkthroughType}
+        onEstimateTypeChange={handleTypeChange}
+        selectedClient={selectedClient}
+        selectedLead={selectedLead}
+        onClientSelect={handleClientSelect}
+        onLeadSelect={handleLeadSelect}
+        errors={pickerErrors}
+        infoText="Verify the email and phone number — they will be used to send the walkthrough confirmation."
+        showPropertySelector
+        selectedProperty={selectedProperty}
+        onPropertyChange={handlePropertyChange}
+        preferredPropertyId={existing?.property_id ?? prefillPropertyId}
+      />
 
       {/* ── Service Type ──────────────────────────────────────────── */}
       <Card>

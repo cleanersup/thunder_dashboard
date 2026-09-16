@@ -171,7 +171,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
   // ─── Submit ───────────────────────────────────────────────────────────
   const handleSubmit = () => {
     if (!jobDate) { toast.error("Please select a date"); return; }
-    if (!contact.contactType) { toast.error("Please select a client or lead"); return; }
+    if (!contact.contactType) { toast.error("Please select a client"); return; }
     const clientNameResolved = contact.client?.full_name || contact.lead?.full_name || "";
     if (!clientNameResolved) { toast.error("Please select a contact"); return; }
 
