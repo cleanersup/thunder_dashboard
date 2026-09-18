@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui
 import { AuthBackground } from "../components/AuthBackground";
 import { FloatingLabelInput } from "../components/FloatingLabelInput";
 import { useSendPasswordReset } from "../hooks/usePasswordReset";
+import { getErrorMessage } from "@/shared/utils/errorHandler";
 import thunderLogo from "@/assets/thunder-logo.png";
 
 const schema = z.object({
@@ -26,10 +27,15 @@ export default function ForgotPasswordPage() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
-  const onSubmit = (data: FormData) => sendReset({ email: data.email });
+  const onSubmit = (data: FormData) =>
+    sendReset(
+      { email: data.email },
+      { onError: (error) => setError("email", { message: getErrorMessage(error) }) },
+    );
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">

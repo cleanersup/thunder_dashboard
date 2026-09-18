@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Check, ChevronsUpDown, X, Plus, Search } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
@@ -63,6 +63,19 @@ export function EntityPickerField({
 }: EntityPickerFieldProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+
+  // Inside a modal the list must live in the dialog subtree, otherwise the
+  // dialog's scroll lock cancels every scroll event over the options.
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      setPortalContainer(triggerRef.current?.closest<HTMLElement>('[role="dialog"]') ?? null);
+    } else {
+      setSearch("");
+    }
+    setOpen(next);
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -102,9 +115,10 @@ export function EntityPickerField({
 
   return (
     <div className="space-y-2">
-      <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(""); }}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
+            ref={triggerRef}
             type="button"
             variant="outline"
             role="combobox"
@@ -121,6 +135,7 @@ export function EntityPickerField({
         <PopoverContent
           className="w-[var(--radix-popover-trigger-width)] p-0"
           align="start"
+          container={portalContainer}
         >
           {/* Search */}
           {showSearch && (
@@ -136,7 +151,7 @@ export function EntityPickerField({
           )}
 
           {/* Options list */}
-          <div className="max-h-52 overflow-y-auto py-1">
+          <div className="max-h-52 overflow-y-auto overscroll-contain py-1">
             {isLoading ? (
               <p className="text-sm text-muted-foreground text-center py-4">Loading...</p>
             ) : filtered.length === 0 && !allowClear ? (
