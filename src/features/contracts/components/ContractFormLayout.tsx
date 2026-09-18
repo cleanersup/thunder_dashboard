@@ -1,7 +1,7 @@
 /**
  * @module ContractFormLayout
  * Sticky-header layout shell for the contract creation wizard.
- * Header style matches CreateInvoicePage / EstimateFormLayout for visual consistency.
+ * Header style matches CreateInvoicePage for visual consistency.
  */
 import type { ReactNode } from "react";
 import { ChevronLeft, X, FileSignature } from "lucide-react";

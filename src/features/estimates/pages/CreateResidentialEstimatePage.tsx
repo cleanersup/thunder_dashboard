@@ -1,24 +1,30 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { FileText, Building2 } from "lucide-react";
-import { RESIDENTIAL_STEPS } from "../config/steps.config";
-import { EstimateClientStep, type ClientEntity, type LeadEntity, type EstimateEntityType } from "../components/EstimateClientStep";
+import {
+  FileText, Building2, X, Briefcase, Sparkles, Home, Package, Box,
+  PawPrint, Shirt,
+} from "lucide-react";
+import type { ClientEntity, LeadEntity, EstimateEntityType } from "@/shared/types/entities";
+import { Button } from "@/shared/components/ui/button";
+import {
+  FormSection, SectionModal, SummaryRow, SelectorRow,
+} from "@/shared/components/forms";
+import { ClientPropertyField } from "@/shared/components/common/ClientPropertyField";
+import { FORM_SECTION_GAP } from "@/shared/constants/formTokens";
 import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
 import { getEstimatePropertyId, propertyToEstimateAddress } from "../utils/estimateProperty";
 import { buildDepositAdditionalFields, restoreDepositFromAdditionalData } from "../utils/estimateDeposit";
 import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
-import { EstimateFormLayout }    from "../components/EstimateFormLayout";
 import { DraftStatusIndicator }  from "../components/DraftStatusIndicator";
-import { ExitConfirmationDialog } from "../components/ExitConfirmationDialog";
+import { ExitConfirmDialog } from "@/shared/components/common/ExitConfirmDialog";
 import { ResServiceStep }  from "../components/residential/ResServiceStep";
 import { ResRoomsStep }    from "../components/residential/ResRoomsStep";
 import { ResAdditionalStep } from "../components/residential/ResAdditionalStep";
 import { ResExtrasStep, type ExtrasState } from "../components/residential/ResExtrasStep";
 import { ResPetsStep }     from "../components/residential/ResPetsStep";
 import { ResLaundryStep }  from "../components/residential/ResLaundryStep";
-import { ResScopeStep }    from "../components/residential/ResScopeStep";
 import { ResSummaryStep }  from "../components/residential/ResSummaryStep";
 import { ResPreviewStep } from "../components/residential/ResPreviewStep";
 import { ResSendStep, type DeliveryMethod } from "../components/residential/ResSendStep";
@@ -33,12 +39,35 @@ import { fetchEstimate } from "../services/estimatesService";
 import { fetchClient } from "@/features/crm/clients/services/clientsService";
 import { fetchLead } from "@/features/crm/leads/services/leadsService";
 import { useResidentialPricing } from "../hooks/useResidentialPricing";
-import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
+import { useProfile } from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { QK } from "@/shared/config/queryKeys";
 import type { DraftData } from "../types/estimate.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+/** Secciones del hub que se editan en su propio modal. */
+type SectionId = "service" | "project" | "additional" | "extra" | "pets" | "laundry";
+
+/** Las tres pantallas encadenadas del review. */
+type ReviewStep = "summary" | "preview" | "send";
+
+/** Estado restaurable al cancelar un modal de sección. */
+interface SectionSnapshot {
+  selectedService: string;
+  squareFootage: string;
+  postConstructionType: string | null;
+  bedrooms: number; kitchens: number; livingRooms: number; diningRooms: number;
+  offices: number; fullBaths: number; halfBaths: number;
+  fans: number; oven: number; refrigerator: number;
+  blinds: number; windowsInside: number; windowsOutside: number;
+  extras: ExtrasState;
+  pets: "yes" | "no" | null;
+  laundryService: "wash-dry" | "wash-dry-fold" | null;
+  laundryPounds: number;
+  scope: string;
+}
+
 interface Props {
   open?: boolean;
   onClose?: () => void;
@@ -66,17 +95,19 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const { sendEstimateEmail, isSending } = useSendEstimateEmail();
   const { sendEstimateSMS }              = useSendEstimateSMS();
   const { data: profile }                = useProfile();
-  const companyAddress                   = getCompanyAddress(profile);
 
-  // ── Step ──────────────────────────────────────────────────────────────────
-  const [step, setStep] = useState(0);
+  // ── Hub: sección abierta + pantalla de review ─────────────────────────────
+  // Un solo formulario: cada sección se edita en su modal y el review encadena
+  // Summary → Preview → Send (paridad swift-slate).
+  const [openSection, setOpenSection] = useState<SectionId | null>(null);
+  const [reviewStep, setReviewStep]   = useState<ReviewStep | null>(null);
   const [isPrefilling,         setIsPrefilling]         = useState(!!isEditing);
   const [showExitDialog,       setShowExitDialog]       = useState(false);
   const [showCompanyInfoAlert, setShowCompanyInfoAlert] = useState(false);
 
   // ── Company info check on mount ───────────────────────────────────────────
   useEffect(() => {
-    if (!profile || step !== 0 || isEditing) return;
+    if (!profile || isEditing) return;
     if (isModal && !open) return; // skip when modal is mounted but not yet opened
     const complete = profile.company_address && profile.company_city &&
                      profile.company_state   && profile.company_zip;
@@ -140,6 +171,9 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const [laundryPounds,  setLaundryPounds]  = useState(0);
 
   // ── Step 7: Scope ─────────────────────────────────────────────────────────
+  // `scope` (service_scope) ya no se edita en el formulario, pero el dato sigue vivo:
+  // llega desde la conversión de un request y viaja al job al convertir el estimate.
+  // Se conserva en el estado para que editar un estimate no lo borre.
   const [scope, setScope] = useState("");
 
   // ── Step 8: Summary pricing ───────────────────────────────────────────────
@@ -214,12 +248,27 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
             return;
           } catch { /* fall through to synthetic */ }
         }
+        // Estimate legacy enlazado a un lead. El flujo de leads se retiró de la UI,
+        // pero el registro existe: se muestra como contacto de solo lectura (id
+        // sintético, no seleccionable) para que editarlo no borre el vínculo. Si el
+        // usuario elige otro cliente, `estimateType` pasa a "client" y el lead se suelta.
         if (d.lead_id) {
           try {
             const lead = await fetchLead(d.lead_id);
             setEstimateType("lead");
             setSelectedLead(lead as LeadEntity);
-            setSelectedClient(null);
+            setSelectedClient({
+              id: `estimate-lead-${d.lead_id}`,
+              full_name: lead.full_name,
+              company: lead.company_name ?? null,
+              phone: lead.phone,
+              email: lead.email,
+              service_street: lead.address,
+              service_apt: lead.apt_suite ?? null,
+              service_city: lead.city,
+              service_state: lead.state,
+              service_zip: lead.zip_code,
+            } as ClientEntity);
             return;
           } catch { /* fall through to synthetic */ }
         }
@@ -300,7 +349,6 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     const { draftData } = loadedDraft;
     const fd = draftData.formData as any;
 
-    setStep(draftData.currentStep ?? 0);
     if (draftData.estimateType) setEstimateType(draftData.estimateType);
 
     if (fd.selectedService       !== undefined) setSelectedService(fd.selectedService);
@@ -357,7 +405,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   }, [loadedDraft]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const collectDraftData = useCallback((): DraftData => ({
-    currentStep: step, estimateType,
+    currentStep: 0, estimateType,
     clientId: selectedClient?.id ?? null, leadId: selectedLead?.id ?? null,
     formData: {
       selectedService, squareFootage, postConstructionType,
@@ -370,7 +418,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [
-    step, estimateType, selectedClient, selectedLead, selectedService, squareFootage,
+    estimateType, selectedClient, selectedLead, selectedService, squareFootage,
     bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths,
     fans, oven, refrigerator, blinds, windowsInside, windowsOutside,
     extras, pets, laundryService, laundryPounds, scope,
@@ -482,30 +530,26 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     }
   }
 
-  // ── Validation ────────────────────────────────────────────────────────────
-  function validate(s: number): boolean {
+  // ── Validación del hub ────────────────────────────────────────────────────
+  // Todas las secciones requeridas se validan juntas al pulsar "Review", no una
+  // por una: el usuario ve de golpe qué le falta en vez de descubrirlo paso a paso.
+  const roomsComplete = (bedrooms + kitchens + livingRooms + diningRooms + offices + fullBaths + halfBaths) > 0;
+
+  function validateAll(): boolean {
     const errs: Record<string, boolean> = {};
-    if (s === 0) {
-      if (!estimateType) errs.estimateType = true;
-      if (estimateType === "client" && !selectedClient) errs.selectedEntity = true;
-      if (estimateType === "lead"   && !selectedLead)   errs.selectedEntity = true;
-    }
-    if (s === 1 && !selectedService) errs.selectedService = true;
-    if (s === 2 && (bedrooms + kitchens + livingRooms + diningRooms + offices + fullBaths + halfBaths) === 0) errs.rooms = true;
-    if (s === 5  && !pets)           errs.pets           = true;
-    if (s === 10 && !deliveryMethod) errs.deliveryMethod = true;
+    if (!selectedClient && !selectedLead) errs.selectedEntity = true;
+    if (!selectedService) errs.selectedService = true;
+    if (!roomsComplete)   errs.rooms           = true;
     setStepErrors(errs);
     return Object.keys(errs).length === 0;
   }
 
-  function handleNext() {
-    if (!validate(step)) return;
-    if (step === RESIDENTIAL_STEPS.length - 1) { handleSubmit(); return; }
-    setStep((s) => s + 1);
-  }
-
-  function handleBack() {
-    setStep((s) => s - 1);
+  function handleReview() {
+    if (!validateAll()) {
+      toast.error("Please complete the required sections");
+      return;
+    }
+    setReviewStep("summary");
   }
 
   function handleExit() {
@@ -515,40 +559,226 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   // ── Step renderer ─────────────────────────────────────────────────────────
   const client = getClientInfo();
 
-  function renderStep() {
-    switch (step) {
-      case 0: return (
-        <EstimateClientStep
-          estimateType={estimateType}
-          onEstimateTypeChange={(type) => { setEstimateType(type); setSelectedClient(null); setSelectedLead(null); setSelectedProperty(null); }}
-          selectedClient={selectedClient} selectedLead={selectedLead}
-          onClientSelect={(c) => { setSelectedClient(c); setSelectedLead(null); setSelectedProperty(null); }}
-          onLeadSelect={(l) => { setSelectedLead(l); setSelectedClient(null); setSelectedProperty(null); }}
-          companyAddress={companyAddress || undefined}
-          errors={{
-            type:   stepErrors.estimateType   ? "Please select a client type" : undefined,
-            entity: stepErrors.selectedEntity ? `Please select a ${estimateType ?? "client"}` : undefined,
-          }}
-          showPropertySelector
-          selectedProperty={selectedProperty}
-          onPropertyChange={setSelectedProperty}
-          preferredPropertyId={selectedProperty?.id ?? pendingPropertyId}
-        />
-      );
-      case 1: return (
+  // ── Snapshot por sección: "Save" confirma, X/Cancel descarta ──────────────
+  // Los cambios se aplican en vivo sobre el estado del hub, así que cancelar
+  // significa restaurar lo que había al abrir el modal.
+  const sectionSnapshot = useRef<SectionSnapshot | null>(null);
+
+  function openSectionModal(id: SectionId) {
+    sectionSnapshot.current = {
+      selectedService, squareFootage, postConstructionType,
+      bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths,
+      fans, oven, refrigerator, blinds, windowsInside, windowsOutside,
+      extras, pets, laundryService, laundryPounds, scope,
+    };
+    setOpenSection(id);
+  }
+
+  function cancelSection() {
+    const snap = sectionSnapshot.current;
+    if (snap) {
+      setSelectedService(snap.selectedService);
+      setSquareFootage(snap.squareFootage);
+      setPostConstructionType(snap.postConstructionType);
+      setBedrooms(snap.bedrooms); setKitchens(snap.kitchens); setLivingRooms(snap.livingRooms);
+      setDiningRooms(snap.diningRooms); setOffices(snap.offices);
+      setFullBaths(snap.fullBaths); setHalfBaths(snap.halfBaths);
+      setFans(snap.fans); setOven(snap.oven); setRefrigerator(snap.refrigerator);
+      setBlinds(snap.blinds); setWindowsInside(snap.windowsInside); setWindowsOutside(snap.windowsOutside);
+      setExtras(snap.extras); setPets(snap.pets);
+      setLaundryService(snap.laundryService); setLaundryPounds(snap.laundryPounds);
+      setScope(snap.scope);
+    }
+    setOpenSection(null);
+  }
+
+  // ── Resúmenes de sección ──────────────────────────────────────────────────
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+  const projectSummary = [
+    bedrooms    > 0 && plural(bedrooms, "bedroom"),
+    fullBaths   > 0 && plural(fullBaths, "full bath"),
+    halfBaths   > 0 && plural(halfBaths, "half bath"),
+    kitchens    > 0 && plural(kitchens, "kitchen"),
+    livingRooms > 0 && plural(livingRooms, "living room"),
+    diningRooms > 0 && plural(diningRooms, "dining room"),
+    offices     > 0 && plural(offices, "office"),
+    squareFootage && `${squareFootage} sqft`,
+  ].filter(Boolean).join(" · ");
+
+  const additionalSummary = [
+    fans           > 0 && plural(fans, "fan"),
+    oven           > 0 && `${oven} oven`,
+    refrigerator   > 0 && `${refrigerator} refrigerator`,
+    blinds         > 0 && plural(blinds, "blind"),
+    windowsInside  > 0 && `${windowsInside} windows inside`,
+    windowsOutside > 0 && `${windowsOutside} windows outside`,
+  ].filter(Boolean).join(" · ");
+
+  const extrasSummary = Object.entries(extras)
+    .filter(([, v]) => v)
+    .map(([k]) => k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()))
+    .join(" · ");
+
+  const laundrySummary = laundryService
+    ? `${laundryService === "wash-dry-fold" ? "Wash, dry and fold" : "Wash and dry"}${laundryPounds > 0 ? ` · ${plural(laundryPounds, "pound")}` : ""}`
+    : "";
+
+  // ── Secciones del hub ─────────────────────────────────────────────────────
+  const hubSections = (
+    <>
+      <ClientPropertyField
+        client={selectedClient}
+        onClientChange={(c) => {
+          setSelectedClient(c);
+          setEstimateType("client");
+          setSelectedLead(null);
+          setSelectedProperty(null);
+          if (c) setStepErrors((e) => ({ ...e, selectedEntity: false }));
+        }}
+        property={selectedProperty}
+        onPropertyChange={setSelectedProperty}
+        preferredPropertyId={selectedProperty?.id ?? pendingPropertyId}
+        invalid={stepErrors.selectedEntity}
+        subtitle="Who the estimate is for and where the service happens"
+      />
+
+      {/* Service (requerido) */}
+      <FormSection
+        icon={Briefcase}
+        title="Service"
+        subtitle="Type of cleaning being quoted"
+        invalid={stepErrors.selectedService}
+        onEdit={selectedService ? () => openSectionModal("service") : undefined}
+      >
+        {selectedService ? (
+          <SummaryRow
+            icon={Sparkles}
+            subtitle={[
+              postConstructionType,
+              squareFootage && `${squareFootage} sqft`,
+            ].filter(Boolean).join(" · ") || undefined}
+          >
+            {selectedService}
+          </SummaryRow>
+        ) : (
+          <SelectorRow
+            label="+ Select Service"
+            required
+            error={stepErrors.selectedService}
+            onClick={() => openSectionModal("service")}
+          />
+        )}
+      </FormSection>
+
+      {/* Project (requerido) */}
+      <FormSection
+        icon={Home}
+        title="Project"
+        subtitle="Rooms and areas included in the service"
+        invalid={stepErrors.rooms}
+        onEdit={roomsComplete ? () => openSectionModal("project") : undefined}
+      >
+        {roomsComplete ? (
+          <SummaryRow icon={Home}>{projectSummary}</SummaryRow>
+        ) : (
+          <SelectorRow
+            label="+ Add Project Details"
+            required
+            error={stepErrors.rooms}
+            onClick={() => openSectionModal("project")}
+          />
+        )}
+      </FormSection>
+
+      {/* Additional */}
+      <FormSection
+        icon={Package}
+        title="Additional"
+        subtitle="Extra items priced per unit"
+        onEdit={additionalSummary ? () => openSectionModal("additional") : undefined}
+      >
+        {additionalSummary ? (
+          <SummaryRow icon={Package}>{additionalSummary}</SummaryRow>
+        ) : (
+          <SelectorRow label="+ Add Additional" onClick={() => openSectionModal("additional")} />
+        )}
+      </FormSection>
+
+      {/* Extra */}
+      <FormSection
+        icon={Box}
+        title="Extra"
+        subtitle="Areas that add labor to the service"
+        onEdit={extrasSummary ? () => openSectionModal("extra") : undefined}
+      >
+        {extrasSummary ? (
+          <SummaryRow icon={Box}>{extrasSummary}</SummaryRow>
+        ) : (
+          <SelectorRow label="+ Add Extra" onClick={() => openSectionModal("extra")} />
+        )}
+      </FormSection>
+
+      {/* Pets */}
+      <FormSection
+        icon={PawPrint}
+        title="Pets"
+        subtitle="Pets at the property affect the estimate"
+        onEdit={pets ? () => openSectionModal("pets") : undefined}
+      >
+        {pets ? (
+          <SummaryRow icon={PawPrint}>{pets === "yes" ? "Yes, there are pets" : "No pets"}</SummaryRow>
+        ) : (
+          <SelectorRow label="+ Set Pets" onClick={() => openSectionModal("pets")} />
+        )}
+      </FormSection>
+
+      {/* Laundry */}
+      <FormSection
+        icon={Shirt}
+        title="Laundry"
+        subtitle="Optional laundry service"
+        onEdit={laundrySummary ? () => openSectionModal("laundry") : undefined}
+      >
+        {laundrySummary ? (
+          <SummaryRow icon={Shirt}>{laundrySummary}</SummaryRow>
+        ) : (
+          <SelectorRow label="+ Add Laundry" onClick={() => openSectionModal("laundry")} />
+        )}
+      </FormSection>
+
+    </>
+  );
+
+  // ── Modales de sección ────────────────────────────────────────────────────
+  const sectionModals = (
+    <>
+      <SectionModal
+        open={openSection === "service"}
+        onCancel={cancelSection}
+        title="Service"
+        onSave={() => setOpenSection(null)}
+        saveDisabled={!selectedService}
+      >
         <ResServiceStep
           service={selectedService} squareFootage={squareFootage}
           postConstructionType={postConstructionType}
           onServiceChange={(svc) => {
             setSelectedService(svc);
             if (svc !== "Post Construction") setPostConstructionType(null);
+            setStepErrors((e) => ({ ...e, selectedService: false }));
           }}
           onSqftChange={setSquareFootage}
           onPostConstructionTypeChange={setPostConstructionType}
-          error={stepErrors.selectedService}
         />
-      );
-      case 2: return (
+      </SectionModal>
+
+      <SectionModal
+        open={openSection === "project"}
+        onCancel={cancelSection}
+        title="Project"
+        onSave={() => setOpenSection(null)}
+      >
         <ResRoomsStep
           bedrooms={bedrooms} kitchens={kitchens} livingRooms={livingRooms}
           diningRooms={diningRooms} offices={offices} fullBaths={fullBaths} halfBaths={halfBaths}
@@ -558,11 +788,17 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
               diningRooms: setDiningRooms, offices: setOffices, fullBaths: setFullBaths, halfBaths: setHalfBaths,
             };
             map[field]?.(val);
+            setStepErrors((e) => ({ ...e, rooms: false }));
           }}
-          error={stepErrors.rooms}
         />
-      );
-      case 3: return (
+      </SectionModal>
+
+      <SectionModal
+        open={openSection === "additional"}
+        onCancel={cancelSection}
+        title="Additional"
+        onSave={() => setOpenSection(null)}
+      >
         <ResAdditionalStep
           fans={fans} oven={oven} refrigerator={refrigerator}
           blinds={blinds} windowsInside={windowsInside} windowsOutside={windowsOutside}
@@ -574,22 +810,56 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
             map[field]?.(val);
           }}
         />
-      );
-      case 4: return (
+      </SectionModal>
+
+      <SectionModal
+        open={openSection === "extra"}
+        onCancel={cancelSection}
+        title="Extra"
+        onSave={() => setOpenSection(null)}
+      >
         <ResExtrasStep
           extras={extras}
           onChange={(key, val) => setExtras((e) => ({ ...e, [key]: val }))}
         />
-      );
-      case 5: return <ResPetsStep pets={pets} onChange={setPets} error={stepErrors.pets} />;
-      case 6: return (
+      </SectionModal>
+
+      <SectionModal
+        open={openSection === "pets"}
+        onCancel={cancelSection}
+        title="Pets"
+        onSave={() => setOpenSection(null)}
+        saveDisabled={!pets}
+      >
+        <ResPetsStep pets={pets} onChange={setPets} />
+      </SectionModal>
+
+      <SectionModal
+        open={openSection === "laundry"}
+        onCancel={cancelSection}
+        title="Laundry"
+        onSave={() => setOpenSection(null)}
+      >
         <ResLaundryStep
           laundryService={laundryService} laundryPounds={laundryPounds}
           onServiceChange={setLaundryService} onPoundsChange={setLaundryPounds}
         />
-      );
-      case 7: return <ResScopeStep scope={scope} onChange={setScope} />;
-      case 8: return (
+      </SectionModal>
+
+    </>
+  );
+
+  // ── Review: Summary → Preview → Send ──────────────────────────────────────
+  const reviewModals = (
+    <>
+      <SectionModal
+        open={reviewStep === "summary"}
+        onCancel={() => setReviewStep(null)}
+        title="Summary"
+        variant="fullscreen"
+        onSave={() => setReviewStep("preview")}
+        saveLabel="Preview"
+      >
         <ResSummaryStep
           pricing={pricing} selectedService={selectedService}
           client={client ? { name: client.name, email: client.email, phone: client.phone, address: client.address, city: client.city, state: client.state, zip: client.zip } : null}
@@ -600,8 +870,18 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
           onApplyDiscountChange={setApplyDiscount} onDiscountTypeChange={setDiscountType} onDiscountValueChange={setDiscountValue}
           onApplyDepositChange={setApplyDeposit} onDepositTypeChange={setDepositType} onDepositValueChange={setDepositValue}
         />
-      );
-      case 9: return (
+      </SectionModal>
+
+      <SectionModal
+        open={reviewStep === "preview"}
+        onCancel={() => setReviewStep(null)}
+        title="Preview"
+        variant="fullscreen"
+        onSave={() => setReviewStep("send")}
+        saveLabel="Continue"
+        secondaryLabel="Back"
+        onSecondary={() => setReviewStep("summary")}
+      >
         <ResPreviewStep
           client={client}
           selectedService={selectedService}
@@ -615,41 +895,99 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
           applyDiscount={applyDiscount} discountType={discountType} discountValue={discountValue}
           applyDeposit={applyDeposit} depositType={depositType} depositValue={depositValue}
         />
-      );
-      case 10: return (
+      </SectionModal>
+
+      <SectionModal
+        open={reviewStep === "send"}
+        onCancel={() => setReviewStep(null)}
+        title="Send"
+        variant="fullscreen"
+        onSave={handleSubmit}
+        saveLabel={displayEditing ? "Update Estimate" : "Send Estimate"}
+        saveDisabled={!deliveryMethod}
+        secondaryLabel="Back"
+        onSecondary={() => setReviewStep("preview")}
+        isPending={createEst.isPending || updateEst.isPending || isSending}
+      >
         <ResSendStep
           client={client ? { name: client.name, email: client.email, phone: client.phone } : null}
           total={pricing.total}
           deliveryMethod={deliveryMethod}
           onChange={setDeliveryMethod}
-          error={stepErrors.deliveryMethod}
         />
-      );
-      default: return null;
-    }
-  }
+      </SectionModal>
+    </>
+  );
 
-  const isLoading = createEst.isPending || updateEst.isPending || isSending || isPrefilling;
-
-  const stepContent = isPrefilling ? (
+  // ── Cuerpo del formulario (mismo en modal y en página) ────────────────────
+  const formBody = isPrefilling ? (
     <div className="flex items-center justify-center py-20">
       <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
-  ) : renderStep();
+  ) : (
+    <div className={FORM_SECTION_GAP}>
+      {hubSections}
+      <div className="bg-card p-4 flex items-center justify-between gap-3">
+        <Button variant="outline" size="sm" type="button" onClick={handleExit}>
+          Cancel
+        </Button>
+        <div className="flex items-center gap-3">
+          {!isEditing && <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} />}
+          <Button size="sm" type="button" onClick={handleReview}>
+            Review
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const formShell = (
+    <>
+      <div className="flex-shrink-0 bg-card">
+        <div className="max-w-2xl mx-auto">
+          <div className="px-4 py-3 flex items-center justify-between gap-4">
+            <div className="w-1/3" />
+            <div className="w-1/3 text-center">
+              <h1 className="font-semibold text-base leading-tight">
+                {displayEditing ? "Edit Residential Estimate" : "Residential Estimate"}
+              </h1>
+            </div>
+            <div className="flex items-center w-1/3 justify-end">
+              <Button variant="ghost" size="icon" className="h-8 w-8" type="button" onClick={handleExit}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto bg-muted/40">
+        <div className="max-w-2xl mx-auto px-4 py-2.5">
+          {formBody}
+        </div>
+      </div>
+    </>
+  );
 
   // ── Shared dialogs (outside any modal) ───────────────────────────────────
   const formDialogs = (
     <>
-      <ExitConfirmationDialog
+      <ExitConfirmDialog
         open={showExitDialog}
-        isEditing={isEditing}
-        onSave={async () => { await saveDraft(collectDraftData()); setShowExitDialog(false); goBack(); }}
+        entityLabel="estimate"
+        // Editar un estimate ya existente no ofrece borrador: la fila ya está guardada
+        // y "guardar como draft" lo devolvería a un estado anterior.
+        onSaveDraft={isEditing ? undefined : async () => {
+          await saveDraft(collectDraftData());
+          setShowExitDialog(false);
+          goBack();
+        }}
         onDiscard={async () => {
           if (!isEditing) await deleteDraft();
           setShowExitDialog(false);
           goBack();
         }}
-        onCancel={() => setShowExitDialog(false)}
+        onKeepEditing={() => setShowExitDialog(false)}
       />
 
       {/* ── Company info alert ────────────────────────────────────────── */}
@@ -700,78 +1038,34 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     </>
   );
 
-  // ── Modal mode ───────────────────────────────────────────────────────────
-  if (isModal) {
-    return (
-      <>
-        <FullScreenModal open={open ?? false} onClose={handleExit}>
-          <EstimateFormLayout
-            title="Residential Estimate"
-            steps={RESIDENTIAL_STEPS}
-            currentStep={step}
-            onBack={handleBack}
-            onNext={handleNext}
-            onExit={handleExit}
-            isLastStep={step === RESIDENTIAL_STEPS.length - 1}
-            isLoading={isLoading}
-            isEditing={displayEditing}
-            isModal
-            draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
-          >
-            {stepContent}
-          </EstimateFormLayout>
-        </FullScreenModal>
-        {formDialogs}
-      </>
-    );
-  }
+  // ── Render ───────────────────────────────────────────────────────────────
+  // Un solo formulario con sus modales. En modal (desde la lista o una conversión)
+  // y en página se ve igual: cambia solo el contenedor.
+  const modals = (
+    <>
+      {sectionModals}
+      {reviewModals}
+      {formDialogs}
+    </>
+  );
 
-  // ── Page mode ────────────────────────────────────────────────────────────
-  // Walkthrough "Generate Estimate" navigates with `prefill`.
-  // Request conversion navigates with `isEditing: true`.
-  // Both must render as FullScreenModal to match the modal-based UX.
-  if (prefill || isEditing) {
+  if (isModal || prefill || isEditing) {
     return (
       <>
-        {formDialogs}
-        <FullScreenModal open onClose={handleExit}>
-          <EstimateFormLayout
-            title="Residential Estimate"
-            steps={RESIDENTIAL_STEPS}
-            currentStep={step}
-            onBack={handleBack}
-            onNext={handleNext}
-            onExit={handleExit}
-            isLastStep={step === RESIDENTIAL_STEPS.length - 1}
-            isLoading={isLoading}
-            isEditing={displayEditing}
-            isModal
-            draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
-          >
-            {stepContent}
-          </EstimateFormLayout>
+        <FullScreenModal open={isModal ? (open ?? false) : true} onClose={handleExit}>
+          {formShell}
         </FullScreenModal>
+        {modals}
       </>
     );
   }
 
   return (
     <>
-      {formDialogs}
-      <EstimateFormLayout
-        title="Residential Estimate"
-        steps={RESIDENTIAL_STEPS}
-        currentStep={step}
-        onBack={handleBack}
-        onNext={handleNext}
-        onExit={handleExit}
-        isLastStep={step === RESIDENTIAL_STEPS.length - 1}
-        isLoading={isLoading}
-        isEditing={displayEditing}
-        draftIndicator={!isEditing ? <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} /> : undefined}
-      >
-        {renderStep()}
-      </EstimateFormLayout>
+      <div className="fixed inset-0 z-40 flex flex-col bg-background">
+        {formShell}
+      </div>
+      {modals}
     </>
   );
 }

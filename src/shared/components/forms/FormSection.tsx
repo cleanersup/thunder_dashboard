@@ -1,5 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { Pencil } from "lucide-react";
+import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { cn } from "@/shared/utils/cn";
 import { FORM_FIELD_GAP } from "@/shared/constants/formTokens";
@@ -18,6 +20,8 @@ export interface FormSectionProps {
   invalid?:   boolean;
   /** Slot a la derecha del encabezado (contadores, acciones cortas). */
   action?:    ReactNode;
+  /** Muestra un botón "Edit" en el encabezado — secciones que se editan en su modal. */
+  onEdit?:    () => void;
   /** Sin bordes ni esquinas redondeadas — modo página, donde las cards van a sangre. */
   flush?:     boolean;
   className?: string;
@@ -37,12 +41,14 @@ export function FormSection({
   subtitle,
   invalid = false,
   action,
+  onEdit,
   flush = false,
   className,
   children,
 }: FormSectionProps) {
   return (
-    <Card className={cn(flush && "rounded-none border-0", className)}>
+    // Sin borde: el fondo gris del formulario separa una sección de otra.
+    <Card className={cn("border-0", flush && "rounded-none", className)}>
       <CardContent className="p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1 min-w-0">
@@ -55,7 +61,15 @@ export function FormSection({
             </h2>
             {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
           </div>
-          {action && <div className="shrink-0">{action}</div>}
+          <div className="flex shrink-0 items-center gap-2">
+            {action}
+            {onEdit && (
+              <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={onEdit}>
+                <Pencil className="h-3.5 w-3.5 mr-1" />
+                Edit
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className={FORM_FIELD_GAP}>{children}</div>

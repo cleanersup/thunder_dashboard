@@ -2,8 +2,10 @@ import * as React from "react";
 
 import { cn } from "@/shared/utils/cn";
 
+// `data-slot` permite que un contenedor (p. ej. el panel lateral de SectionModal)
+// neutralice el marco de las Cards que anida, sin que cada Card sepa dónde vive.
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("rounded-lg border bg-card text-card-foreground", className)} {...props} />
+  <div ref={ref} data-slot="card" className={cn("rounded-lg border bg-card text-card-foreground", className)} {...props} />
 ));
 Card.displayName = "Card";
 

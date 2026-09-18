@@ -29,7 +29,7 @@ export function EditRequestPage({ bookingId, open, onClose }: EditRequestPagePro
   return (
     <FullScreenModal open={open} onClose={onClose}>
       {/* Header */}
-      <div className="border-b flex-shrink-0 bg-white">
+      <div className="flex-shrink-0 bg-card">
         <div className="max-w-2xl mx-auto">
           <div className="px-4 py-3 flex items-center justify-between gap-4">
             <div className="w-1/3" />
@@ -46,7 +46,7 @@ export function EditRequestPage({ bookingId, open, onClose }: EditRequestPagePro
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto bg-background">
+      <div className="flex-1 overflow-y-auto bg-muted/40">
         {isLoading || !request ? (
           <div className="flex justify-center py-16">
             <LoadingSpinner />

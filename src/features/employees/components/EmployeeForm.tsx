@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
 import { formatDisplayDateShort } from "@/shared/utils/formatters";
 import { CalendarIcon, Download, Upload, X } from "lucide-react";
-import { FormSheet } from "@/shared/components/forms";
+import { FormSheet, FormBand } from "@/shared/components/forms";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -255,13 +255,10 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
       onSubmit={handleSubmit(onSubmit)}
       isPending={isPending}
     >
-      <div className="space-y-6" onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}>
+      <div className="contents" onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}>
 
           {/* ── Personal Information ─────────────────────────────────── */}
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Personal Information
-            </h3>
+          <FormBand title="Personal Information">
 
             {/* Full Name */}
             <div>
@@ -362,15 +359,10 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
                 <Input {...register("zip")} placeholder="33101" className="mt-1" />
               </div>
             </div>
-          </section>
-
-          <hr className="border-border" />
+          </FormBand>
 
           {/* ── Employment Details ───────────────────────────────────── */}
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Employment Details
-            </h3>
+          <FormBand title="Employment Details">
 
             {/* Gender + Date of Birth */}
             <div className="grid grid-cols-2 gap-3">
@@ -465,15 +457,10 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
                 )}
               </div>
             </div>
-          </section>
-
-          <hr className="border-border" />
+          </FormBand>
 
           {/* ── Available Days ───────────────────────────────────────── */}
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Available Days
-            </h3>
+          <FormBand title="Available Days">
 
             <div className="rounded-lg border border-border overflow-hidden">
               {/* Header row */}
@@ -504,27 +491,19 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
                 </div>
               ))}
             </div>
-          </section>
+          </FormBand>
 
-          <hr className="border-border" />
-
-          {/* ── Additional Notes ─────────────────────────────────────── */}
-          <section className="space-y-2">
+          <FormBand title="Additional Notes">
             <Label>Notes</Label>
             <Textarea
               {...register("additional_notes")}
               rows={3}
               placeholder="Any additional information..."
             />
-          </section>
-
-          <hr className="border-border" />
+          </FormBand>
 
           {/* ── Upload Documents (ID, W-9, Non-compete) ──────────────── */}
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Upload Documents (ID, W-9, Non-compete)
-            </h3>
+          <FormBand title="Upload Documents (ID, W-9, Non-compete)">
 
             {/* Existing documents (edit mode) */}
             {existingDocs.length > 0 && (
@@ -619,7 +598,7 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
                 ))}
               </ul>
             )}
-          </section>
+          </FormBand>
 
       </div>
     </FormSheet>

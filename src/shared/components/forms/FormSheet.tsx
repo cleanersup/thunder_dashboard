@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/shared/components/ui/sheet";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/utils/cn";
-import { FORM_FIELD_GAP } from "@/shared/constants/formTokens";
 
 export interface FormSheetProps {
   open:     boolean;
@@ -54,14 +53,14 @@ export function FormSheet({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="right"
-        className={cn("w-full sm:max-w-md p-0 flex flex-col gap-0", className)}
+        className={cn("w-full sm:max-w-md p-0 flex flex-col gap-0 bg-card", className)}
         // Las sugerencias de Google Places se montan fuera del panel: sin esto,
         // elegir una dirección cerraría el formulario.
         onPointerDownOutside={(e) => {
           if ((e.target as HTMLElement).closest?.(".pac-container")) e.preventDefault();
         }}
       >
-        <SheetHeader className="shrink-0 space-y-1 border-b px-6 py-4 text-left">
+        <SheetHeader className="shrink-0 space-y-1 bg-card px-6 py-4 text-left">
           <SheetTitle>{title}</SheetTitle>
           {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
         </SheetHeader>
@@ -70,23 +69,27 @@ export function FormSheet({
           onSubmit={(e) => { e.preventDefault(); onSubmit(); }}
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className={cn("flex-1 overflow-y-auto px-6 py-4", FORM_FIELD_GAP)}>
+          {/* Fondo gris: cada `FormBand` del contenido es blanca a todo el ancho y el
+              gris entre ellas hace de separador — también contra la cabecera.
+              Los botones van DENTRO del scroll, al final del formulario: no se pegan
+              abajo (regla del proyecto, igual que en los hubs). */}
+          <div className="flex flex-1 flex-col gap-2 overflow-y-auto bg-muted/40 py-2">
             {children}
-          </div>
 
-          <div className="shrink-0 border-t bg-background px-6 py-4 flex gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={onClose}
-              disabled={isPending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" disabled={isPending || submitDisabled}>
-              {isPending ? submitPendingLabel : submitLabel}
-            </Button>
+            <div className="bg-card px-6 py-4 flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={onClose}
+                disabled={isPending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="flex-1" disabled={isPending || submitDisabled}>
+                {isPending ? submitPendingLabel : submitLabel}
+              </Button>
+            </div>
           </div>
         </form>
       </SheetContent>

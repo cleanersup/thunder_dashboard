@@ -14,7 +14,11 @@
  * Referencia viva: `features/requests/components/RequestForm.tsx`.
  */
 export { FormSheet }     from "./FormSheet";
+export { FormBand }      from "./FormBand";
 export { FormSection }   from "./FormSection";
+export { SectionModal }  from "./SectionModal";
+export { SummaryRow }    from "./SummaryRow";
+export { SelectorRow }   from "./SelectorRow";
 export { FloatingInput } from "./FloatingInput";
 export { SelectField }   from "./SelectField";
 export { DateField }     from "./DateField";
@@ -22,7 +26,11 @@ export { TimeField }     from "./TimeField";
 export { OptionGrid }    from "./OptionGrid";
 
 export type { FormSheetProps }     from "./FormSheet";
+export type { FormBandProps }      from "./FormBand";
 export type { FormSectionProps }   from "./FormSection";
+export type { SectionModalProps }  from "./SectionModal";
+export type { SummaryRowProps }    from "./SummaryRow";
+export type { SelectorRowProps }   from "./SelectorRow";
 export type { FloatingInputProps, FloatingInputType } from "./FloatingInput";
 export type { SelectFieldProps, SelectFieldOption }   from "./SelectField";
 export type { DateFieldProps }     from "./DateField";

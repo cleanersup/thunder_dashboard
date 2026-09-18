@@ -882,7 +882,7 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
     </div>
   );
 
-  /* Match EstimateFormLayout: primary actions grouped on the right. Page route (/invoices/new
+  /* Primary actions grouped on the right. Page route (/invoices/new
      from estimate conversion) previously rendered footer full-bleed + justify-between →
      Cancel/Next on opposite screen edges; constrain width and group like modal + estimates. */
   const footerButtons = (

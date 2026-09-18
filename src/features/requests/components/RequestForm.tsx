@@ -527,7 +527,7 @@ export function RequestForm({
 
         {/* ── Actions ──────────────────────────────────────────────── */}
         {isModal ? (
-          <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
+          <div className="bg-card p-4 flex items-center justify-between gap-3">
             <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
             <Button size="sm" onClick={handleSave} disabled={isSaving}>
               {isSaving ? "Saving..." : "Save"}

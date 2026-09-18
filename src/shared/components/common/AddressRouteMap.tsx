@@ -10,7 +10,7 @@
  * - companyAddress missing   → Shows a "Company address missing" overlay
  * - targetAddress empty      → Renders nothing
  *
- * Used in: EstimateClientStep (client / lead selection), and any future feature
+ * Used in: ClientLeadPicker (client / lead selection), and any future feature
  * that needs to display an address on a map.
  */
 import { useEffect, useRef, useState } from "react";

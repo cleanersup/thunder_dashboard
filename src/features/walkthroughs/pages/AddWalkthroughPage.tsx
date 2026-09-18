@@ -20,6 +20,7 @@ import {
   FormSection, SelectField, DateField, TimeField,
 } from "@/shared/components/forms";
 import { ClientPropertyField } from "@/shared/components/common/ClientPropertyField";
+import { ExitConfirmDialog } from "@/shared/components/common/ExitConfirmDialog";
 import { EmployeeSelect } from "@/shared/components/common/EmployeeSelect";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
@@ -97,6 +98,9 @@ export function AddWalkthroughPage({
     else navigate("/walkthroughs");
   }, [isModal, onClose, navigate]);
 
+  // Salir con cambios pide confirmación: cerrar no puede tirar el trabajo en silencio.
+  const [showExitDialog, setShowExitDialog] = useState(false);
+
   const { data: existing }                                     = useWalkthrough(walkthroughId);
   const { data: employees = [] } = useAllEmployees();
   const { data: allClients = [] } = useClients();
@@ -118,6 +122,15 @@ export function AddWalkthroughPage({
   const [notes,            setNotes]            = useState(prefillNotes ?? "");
 
   const [errors, setErrors] = useState({ client: false, serviceType: false, date: false, time: false });
+
+  const isDirty =
+    !!selectedClient || !!selectedDate || !!scheduledTime ||
+    !!duration || !!notes || selectedEmployees.length > 0;
+
+  function attemptClose() {
+    if (isDirty) setShowExitDialog(true);
+    else handleClose();
+  }
 
   // ── Local UI state ────────────────────────────────────────────────────────
   const [confirmOpen, setConfirmOpen]               = useState(false);
@@ -378,11 +391,20 @@ export function AddWalkthroughPage({
     </Dialog>
   );
 
+  const exitDialog = (
+    <ExitConfirmDialog
+      open={showExitDialog}
+      entityLabel="walkthrough"
+      onDiscard={() => { setShowExitDialog(false); handleClose(); }}
+      onKeepEditing={() => setShowExitDialog(false)}
+    />
+  );
+
   // ── Modal mode ────────────────────────────────────────────────────────────
   if (isModal) {
     return (
-      <FullScreenModal open={open ?? false} onClose={handleClose}>
-        <div className="border-b flex-shrink-0 bg-white">
+      <FullScreenModal open={open ?? false} onClose={attemptClose}>
+        <div className="flex-shrink-0 bg-card">
           <div className="max-w-2xl mx-auto">
             <div className="px-4 py-3 flex items-center justify-between gap-4">
               <div className="w-1/3" />
@@ -400,12 +422,12 @@ export function AddWalkthroughPage({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-background">
+        <div className="flex-1 overflow-y-auto bg-muted/40">
           <div className="max-w-2xl mx-auto px-4 py-2.5">
             <div className={FORM_SECTION_GAP}>
               {formCards}
-              <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
-                <Button variant="outline" size="sm" type="button" onClick={handleClose}>
+              <div className="bg-card p-4 flex items-center justify-between gap-3">
+                <Button variant="outline" size="sm" type="button" onClick={attemptClose}>
                   Cancel
                 </Button>
                 <Button size="sm" type="button" onClick={handleSubmit} disabled={isPending}>
@@ -417,6 +439,7 @@ export function AddWalkthroughPage({
         </div>
 
         {confirmDialog}
+        {exitDialog}
       </FullScreenModal>
     );
   }
@@ -425,7 +448,7 @@ export function AddWalkthroughPage({
   return (
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-border/50 bg-background">
-        <Button variant="ghost" size="icon" type="button" onClick={handleClose}>
+        <Button variant="ghost" size="icon" type="button" onClick={attemptClose}>
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-base font-semibold flex-1">
@@ -439,7 +462,7 @@ export function AddWalkthroughPage({
 
       <div className="sticky bottom-0 bg-background border-t px-4 py-3">
         <div className="max-w-2xl mx-auto grid grid-cols-2 gap-3">
-          <Button variant="outline" type="button" className="h-12" onClick={handleClose}>
+          <Button variant="outline" type="button" className="h-12" onClick={attemptClose}>
             Cancel
           </Button>
           <Button type="button" className="h-12" onClick={handleSubmit} disabled={isPending}>
@@ -449,6 +472,7 @@ export function AddWalkthroughPage({
       </div>
 
       {confirmDialog}
+      {exitDialog}
     </div>
   );
 }

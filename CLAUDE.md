@@ -91,8 +91,15 @@ Si no existe, se crea en `shared/`, no dentro de la feature.
 | Tipo de formulario | Contenedor | Ejemplos |
 |---|---|---|
 | **Registro puntual** que se crea/edita desde otro sitio | **`FormSheet`** — panel lateral derecho | Client, Employee, Property, Lead |
+| **Sección de un formulario largo** (hub) | **`SectionModal`** — lateral por defecto | Service, Project, Extra, Labor |
+| **Cambio de modo** dentro de un formulario | `SectionModal variant="fullscreen"` | Review: Summary → Preview → Send |
 | **Formulario principal** de una feature | `FullScreenModal` | Request, Walkthrough, Job, Invoice |
 | Confirmación / aviso corto | `Dialog` centrado o `ConfirmDialog` | Confirm Changes, Delete |
+
+**Lateral vs pantalla completa** — el criterio es qué está haciendo el usuario, no cuánto contenido hay:
+- Editar *una parte* de algo que sigue existiendo detrás → lateral. El contexto permanece visible y el contenido de una sección (contadores, chips, un textarea) cabe de sobra en 440px.
+- Cambiar de modo (revisar y enviar) o mostrar un documento que necesita ancho (Preview del estimate) → pantalla completa.
+- En swift-slate todo es full-screen porque es móvil: ahí el full-screen **es** el equivalente del lateral. No copiar esa decisión al dashboard sin traducirla.
 
 - **Nunca** abrir un formulario de creación en un `Dialog` centrado: entra por el costado con `FormSheet`, que deja ver el contexto detrás y devuelve al usuario donde estaba.
 - El patrón nace del "+ Add New Client" de un selector: se abre el panel, se crea, se cierra y el nuevo registro queda seleccionado en el campo que lo pidió.

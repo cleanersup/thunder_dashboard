@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormSheet } from "@/shared/components/forms";
+import { FormSheet, FormBand } from "@/shared/components/forms";
 import { Input }    from "@/shared/components/ui/input";
 import { Label }    from "@/shared/components/ui/label";
 import {
@@ -143,12 +143,9 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
       onSubmit={handleSubmit(onSubmit)}
       isPending={isPending}
     >
-      <div className="space-y-4" onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}>
+      <div className="contents" onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}>
 
-          {/* ── Personal Information ──────────────────────────────────── */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Personal Information
-          </p>
+          <FormBand title="Personal Information">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-1">
               <Label>Full Name *</Label>
@@ -184,11 +181,9 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
               )}
             </div>
           </div>
+          </FormBand>
 
-          {/* ── Billing Address ───────────────────────────────────────── */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Billing Address
-          </p>
+          <FormBand title="Billing Address">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-1">
               <Label>Street *</Label>
@@ -257,22 +252,22 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
               )}
             </div>
           </div>
+          </FormBand>
 
-          {/* ── Service Address ───────────────────────────────────────── */}
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Service Address
-            </p>
-            <label className="flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={sameAsBilling}
-                onChange={(e) => handleSameAsBillingToggle(e.target.checked)}
-                className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
-              />
-              <span className="text-sm font-medium">Same as billing</span>
-            </label>
-          </div>
+          <FormBand
+            title="Service Address"
+            action={
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={sameAsBilling}
+                  onChange={(e) => handleSameAsBillingToggle(e.target.checked)}
+                  className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                />
+                <span className="text-sm font-medium">Same as billing</span>
+              </label>
+            }
+          >
           <div className={`grid grid-cols-2 gap-3 ${sameAsBilling ? "opacity-50 pointer-events-none" : ""}`}>
             <div className="col-span-2 space-y-1">
               <Label>Street *</Label>
@@ -315,11 +310,9 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
               )}
             </div>
           </div>
+          </FormBand>
 
-          {/* ── Business Details ──────────────────────────────────────── */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Business Details
-          </p>
+          <FormBand title="Business Details">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Client Type</Label>
@@ -357,6 +350,7 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
               />
             </div>
           </div>
+          </FormBand>
 
       </div>
     </FormSheet>

@@ -10,7 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { formatDisplayDate } from "@/shared/utils/formatters";
 import { Calendar as CalendarIcon, Paperclip, X } from "lucide-react";
-import { FormSheet } from "@/shared/components/forms";
+import { FormSheet, FormBand } from "@/shared/components/forms";
 import { Button }   from "@/shared/components/ui/button";
 import { Input }    from "@/shared/components/ui/input";
 import { Label }    from "@/shared/components/ui/label";
@@ -172,12 +172,9 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
       onSubmit={handleSubmit(onSubmit)}
       isPending={isPending}
     >
-      <div className="space-y-4">
+      <div className="contents">
 
-          {/* ── Personal Information ──────────────────────────────────── */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Personal Information
-          </p>
+          <FormBand title="Personal Information">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-1">
               <Label>Full Name *</Label>
@@ -210,10 +207,9 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
             </div>
           </div>
 
-          {/* ── Address ───────────────────────────────────────────────── */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Address
-          </p>
+          </FormBand>
+
+          <FormBand title="Address">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-1">
               <Label>Street Address *</Label>
@@ -259,10 +255,9 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
             </div>
           </div>
 
-          {/* ── Lead Details ──────────────────────────────────────────── */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Lead Details
-          </p>
+          </FormBand>
+
+          <FormBand title="Lead Details">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Lead Source *</Label>
@@ -402,10 +397,9 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
             </div>
           </div>
 
-          {/* ── Attachments ───────────────────────────────────────────── */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Attachments
-          </p>
+          </FormBand>
+
+          <FormBand title="Attachments">
           <div className="space-y-2">
             <input
               ref={fileInputRef}
@@ -449,6 +443,7 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
             )}
           </div>
 
+          </FormBand>
       </div>
     </FormSheet>
   );
