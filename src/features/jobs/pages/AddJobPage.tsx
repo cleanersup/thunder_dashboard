@@ -17,9 +17,7 @@ import { cn } from "@/shared/utils/cn";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { ContactPicker, EMPTY_CONTACT, type ContactPickerValue } from "@/shared/components/common/ContactPicker";
-import { EntityPickerField, type EntityOption } from "@/shared/components/common/EntityPickerField";
-import { useEmployees } from "@/features/employees/hooks/useEmployees";
-import { EmployeeForm } from "@/features/employees/components/EmployeeForm";
+import { EmployeeSelect } from "@/shared/components/common/EmployeeSelect";
 import { useJob } from "../hooks/useJobs";
 import { useCreateJob, useUpdateJob, useUpdateJobStatus } from "../hooks/useJobMutations";
 import { toDecimalString, toIntegerString } from "@/shared/utils/numericInput";
@@ -51,17 +49,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
   const [selectedProperty, setSelectedProperty] = useState<ClientProperty | null>(null);
 
   // ─── Employees ────────────────────────────────────────────────────────
-  const { data: employees = [], isLoading: employeesLoading } = useEmployees();
   const [employeeIds, setEmployeeIds] = useState<string[]>([]);
-  const [showAddEmployee, setShowAddEmployee] = useState(false);
-  const employeeOptions: EntityOption[] = useMemo(
-    () => employees.map((e) => ({ id: e.id, label: e.name })),
-    [employees],
-  );
-  const selectedEmployees = useMemo(
-    () => employeeOptions.filter((o) => employeeIds.includes(o.id)),
-    [employeeOptions, employeeIds],
-  );
 
   // ─── Schedule ─────────────────────────────────────────────────────────
   const [serviceType, setServiceType]   = useState<"residential" | "commercial">("residential");
@@ -118,7 +106,6 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
       setContact(EMPTY_CONTACT);
       setSelectedProperty(null);
       setEmployeeIds([]);
-      setShowAddEmployee(false);
       setServiceType("residential");
       setJobDate(undefined);
       setDateOpen(false);
@@ -173,7 +160,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
   // ─── Submit ───────────────────────────────────────────────────────────
   const handleSubmit = () => {
     if (!jobDate) { toast.error("Please select a date"); return; }
-    if (!contact.contactType) { toast.error("Please select a client or lead"); return; }
+    if (!contact.contactType) { toast.error("Please select a client"); return; }
     const clientNameResolved = contact.client?.full_name || contact.lead?.full_name || "";
     if (!clientNameResolved) { toast.error("Please select a contact"); return; }
 
@@ -284,7 +271,6 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                       onChange={(v) => { setContact(v); setSelectedProperty(v.property); }}
                       clientIdFromUrl={isEdit && existingJob?.contactType === "client" ? existingJob.clientId : undefined}
                       leadIdFromUrl={isEdit && existingJob?.contactType === "lead" ? existingJob.leadId : undefined}
-                      allowCreateClient
                     />
                   </CardContent>
                 </Card>
@@ -293,17 +279,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                 <Card className="border border-border/50 shadow-none">
                   <CardHeader className="pb-2"><CardTitle className="text-base">Employee(s)</CardTitle></CardHeader>
                   <CardContent>
-                    <EntityPickerField
-                      multiple
-                      options={employeeOptions}
-                      selected={selectedEmployees}
-                      onChange={(sel) => setEmployeeIds(sel.map((s) => s.id))}
-                      isLoading={employeesLoading}
-                      placeholder="Select employees..."
-                      emptyMessage="No employees found."
-                      onCreateNew={() => setShowAddEmployee(true)}
-                      createNewLabel="Add New Employee"
-                    />
+                    <EmployeeSelect value={employeeIds} onChange={setEmployeeIds} />
                   </CardContent>
                 </Card>
 
@@ -496,15 +472,6 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
         )}
       </div>
 
-      {/* Add New Employee (inline from the Employee(s) picker) */}
-      <EmployeeForm
-        open={showAddEmployee}
-        onClose={() => setShowAddEmployee(false)}
-        onCreated={(emp) => {
-          setEmployeeIds((prev) => (prev.includes(emp.id) ? prev : [...prev, emp.id]));
-          setShowAddEmployee(false);
-        }}
-      />
     </FullScreenModal>
   );
 }

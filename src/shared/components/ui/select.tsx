@@ -3,6 +3,7 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
 
 import { cn } from "@/shared/utils/cn";
+import { FORM_CONTROL_FOCUS, FORM_CONTROL_HOVER } from "@/shared/constants/formTokens";
 
 const Select = SelectPrimitive.Root;
 
@@ -17,7 +18,12 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+      // `placeholder:` no sirve aquí: Radix pinta el placeholder en un <span>, no en un
+      // <input>. El color se toma del atributo data-placeholder que pone el propio Radix,
+      // que es lo que iguala este control con Input, DateField y SearchableSelect.
+      "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors data-[placeholder]:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+      FORM_CONTROL_HOVER,
+      FORM_CONTROL_FOCUS,
       className,
     )}
     {...props}

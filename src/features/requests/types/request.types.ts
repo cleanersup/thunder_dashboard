@@ -8,6 +8,13 @@ export type BookingAttachmentMeta = {
   public_url: string;
 };
 
+/**
+ * Tipo de contacto de un request. El flujo de leads se retiró (paridad swift-slate):
+ * el form manual siempre crea `client`; `anonymous` solo llega del form público y se
+ * resuelve a un client al convertir.
+ */
+export type RequestContactType = "client" | "anonymous";
+
 export interface RequestPayload {
   lead_name:                 string;
   email:                     string;
@@ -28,8 +35,7 @@ export interface RequestPayload {
   service_details:           string | null;
   custom_answers:            Record<string, string> | null;
   client_id?:                string | null;
-  lead_id?:                  string | null;
-  contact_type?:             "client" | "lead" | "anonymous" | null;
+  contact_type?:             "client" | null;
   client_property_id?:       string | null;
   files?:                    File[];
   existingAttachments?:      BookingAttachmentMeta[];
@@ -39,8 +45,9 @@ export type Booking = Database["public"]["Tables"]["bookings"]["Row"] & {
   converted_to_type?: "estimate" | "walkthrough" | null;
   converted_to_id?:   string | null;
   client_id?:         string | null;
+  /** Legacy — ya no se escribe; se limpia a null en cada write. */
   lead_id?:           string | null;
-  contact_type?:      "client" | "lead" | "anonymous" | null;
+  contact_type?:      RequestContactType | null;
   client_property_id?: string | null;
   attachments?:       BookingAttachmentMeta[] | null;
 };
@@ -48,7 +55,7 @@ export type BookingInsert = Database["public"]["Tables"]["bookings"]["Insert"];
 export type BookingUpdate = Database["public"]["Tables"]["bookings"]["Update"];
 export type BookingForm = Database["public"]["Tables"]["booking_forms"]["Row"];
 
-export type BookingStatus = "new" | "cancelled";
+export type BookingStatus = "new" | "cancelled" | "converted" | "archived";
 export type ServiceType   = "residential" | "commercial";
 
 export interface CustomQuestion {
@@ -74,7 +81,7 @@ export interface WalkthroughConvertConfig {
   fromRequestId?:     string;
   /** walkthrough draft ID — tells the form to UPDATE instead of INSERT (date case) */
   walkthroughEditId?: string;
-  prefillContactType: "client" | "lead";
+  prefillContactType: "client";
   prefillContactId:   string;
   prefillServiceType: "residential" | "commercial";
   prefillDate?:       string;   // yyyy-MM-dd

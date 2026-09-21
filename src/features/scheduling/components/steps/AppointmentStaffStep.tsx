@@ -1,10 +1,5 @@
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { QK } from "@/shared/config/queryKeys";
 import { Check, Users } from "lucide-react";
-import { EntityPickerField } from "@/shared/components/common/EntityPickerField";
-import type { EntityOption } from "@/shared/components/common/EntityPickerField";
-import { EmployeeForm } from "@/features/employees/components/EmployeeForm";
+import { EmployeeSelect } from "@/shared/components/common/EmployeeSelect";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { calculateTotalHours, calculateLaborCost } from "../../utils/appointmentHelpers";
 
@@ -22,7 +17,6 @@ interface Props {
   scheduledTime: string;
   endTime: string | null | undefined;
   onToggle: (id: string) => void;
-  isLoading: boolean;
   error?: string;
 }
 
@@ -34,24 +28,15 @@ export function AppointmentStaffStep({
   scheduledTime,
   endTime,
   onToggle,
-  isLoading,
   error,
 }: Props) {
-  const qc = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
-
-  const options: EntityOption[] = employees.map((e) => ({
-    id: e.id,
-    label: `${e.first_name} ${e.last_name}`,
-  }));
-
-  const selectedOptions: EntityOption[] = options.filter((o) => selected.includes(o.id));
-
-  function handleSelectionChange(next: EntityOption[]) {
-    const nextIds    = new Set(next.map((o) => o.id));
-    const currentIds = new Set(selected);
-    [...nextIds].filter((id) => !currentIds.has(id)).forEach(onToggle);
-    [...currentIds].filter((id) => !nextIds.has(id)).forEach(onToggle);
+  // El padre dueña la selección con un toggle por id: traducimos la lista nueva a
+  // los toggles que hacen falta para no cambiar su API.
+  function handleSelectionChange(nextIds: string[]) {
+    const next    = new Set(nextIds);
+    const current = new Set(selected);
+    [...next].filter((id) => !current.has(id)).forEach(onToggle);
+    [...current].filter((id) => !next.has(id)).forEach(onToggle);
   }
 
   const assignedEmployees = employees.filter((e) => selected.includes(e.id));
@@ -74,17 +59,7 @@ export function AppointmentStaffStep({
           <p className="text-sm text-muted-foreground mt-0.5">Choose one or more employees for this service</p>
         </CardHeader>
         <CardContent>
-          <EntityPickerField
-          multiple
-          options={options}
-          selected={selectedOptions}
-          onChange={handleSelectionChange}
-          onCreateNew={() => setShowCreate(true)}
-          createNewLabel="Add New Employee"
-          placeholder="Select employees"
-          emptyMessage="No employee found."
-          isLoading={isLoading}
-        />
+          <EmployeeSelect value={selected} onChange={handleSelectionChange} />
 
         {/* Selected employees summary card */}
       {assignedEmployees.length > 0 && (
@@ -133,16 +108,6 @@ export function AppointmentStaffStep({
         </div>
       )}
 
-      {/* Create employee modal */}
-      <EmployeeForm
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        onCreated={(emp) => {
-          onToggle(emp.id);
-          qc.invalidateQueries({ queryKey: QK.employeesForAppointment });
-          setShowCreate(false);
-        }}
-      />
     </div>
   );
 }

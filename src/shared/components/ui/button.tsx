@@ -4,6 +4,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/shared/utils/cn";
+import { FORM_CONTROL_FOCUS, FORM_CONTROL_HOVER } from "@/shared/constants/formTokens";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
@@ -13,6 +14,18 @@ const buttonVariants = cva(
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline: "border border-input bg-transparent hover:bg-primary/10 hover:text-primary hover:border-primary",
+        /**
+         * Botón que dentro de un formulario hace de CAMPO: abre un picker, un
+         * diálogo o el selector de archivos. Se ve y reacciona como un Input o un
+         * Select (hover y foco de borde, sin relleno) porque para el usuario es un
+         * campo más — usar `outline` aquí lo delata como botón y rompe la fila.
+         * Alto y ancho los pone quien lo usa (normalmente `FORM_CONTROL_HEIGHT` + `w-full`).
+         */
+        field: cn(
+          "border border-input bg-background text-foreground font-normal hover:bg-background hover:text-foreground",
+          FORM_CONTROL_HOVER,
+          FORM_CONTROL_FOCUS,
+        ),
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-primary/10 hover:text-primary",
         link: "text-primary underline-offset-4 hover:underline",

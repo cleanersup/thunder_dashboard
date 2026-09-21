@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { jobsService } from "../services/jobsService";
 import { QK } from "@/shared/config/queryKeys";
-import type { JobStatus, CreateJobInput, UpdateJobInput } from "../types/job.types";
+import type { JobStatus, CreateJobInput, UpdateJobInput, RecurringScope } from "../types/job.types";
 
 export function useUpdateJobStatus() {
   const qc = useQueryClient();
@@ -77,5 +77,56 @@ export function useCancelJobGroup() {
       toast.success("Job series cancelled");
     },
     onError: () => toast.error("Failed to cancel job series"),
+  });
+}
+
+// ─── Recurrentes por alcance (RPC manage_recurring_job) ──────────────────────
+
+export function useUpdateRecurringJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      updates,
+      propertyId,
+      scope,
+    }: {
+      id: string;
+      updates: UpdateJobInput;
+      propertyId?: string | null;
+      scope: RecurringScope;
+    }) => jobsService.updateRecurring(id, updates, propertyId, scope),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: QK.jobs });
+      qc.invalidateQueries({ queryKey: QK.job(id) });
+      toast.success("Job updated successfully");
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to update job"),
+  });
+}
+
+export function useDeleteRecurringJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobId, scope }: { jobId: string; scope: RecurringScope }) =>
+      jobsService.deleteRecurring(jobId, scope),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.jobs });
+      toast.success("Job deleted");
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to delete job"),
+  });
+}
+
+export function useCancelRecurringJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobId, scope }: { jobId: string; scope: RecurringScope }) =>
+      jobsService.cancelRecurring(jobId, scope),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.jobs });
+      toast.success("Job cancelled");
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to cancel job"),
   });
 }

@@ -1,8 +1,7 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/shared/components/ui/dialog";
-import { Button } from "@/shared/components/ui/button";
+import { FormSheet, FormBand } from "@/shared/components/forms";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Switch } from "@/shared/components/ui/switch";
@@ -20,9 +19,11 @@ interface PropertyFormProps {
   onOpenChange: (open: boolean) => void;
   clientId: string;
   property?: ClientProperty;
+  /** Recibe la propiedad recién creada — quien la pidió la deja seleccionada. */
+  onSuccess?: (property: ClientProperty) => void;
 }
 
-export function PropertyForm({ open, onOpenChange, clientId, property }: PropertyFormProps) {
+export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess }: PropertyFormProps) {
   const isEdit = !!property;
   const { mutate: create, isPending: creating } = useCreateClientProperty(clientId);
   const { mutate: update, isPending: updating } = useUpdateClientProperty(clientId);
@@ -83,27 +84,23 @@ export function PropertyForm({ open, onOpenChange, clientId, property }: Propert
     if (isEdit) {
       update({ id: property!.id, form: payload }, { onSuccess: () => onOpenChange(false) });
     } else {
-      create(payload, { onSuccess: () => onOpenChange(false) });
+      create(payload, {
+        onSuccess: (created) => { onSuccess?.(created); onOpenChange(false); },
+      });
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-md"
-        onPointerDownOutside={(e) => {
-          if ((e.target as HTMLElement).closest?.(".pac-container")) e.preventDefault();
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Property" : "Add Property"}</DialogTitle>
-        </DialogHeader>
-
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
-          className="space-y-4 py-2"
-        >
+    <FormSheet
+      open={open}
+      onClose={() => onOpenChange(false)}
+      title={isEdit ? "Edit Property" : "Add Property"}
+      submitLabel={isEdit ? "Save Changes" : "Add Property"}
+      onSubmit={form.handleSubmit(onSubmit)}
+      isPending={isPending}
+    >
+      <div className="contents" onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}>
+        <FormBand>
           <div className="space-y-1.5">
             <Label htmlFor="title">Title (optional)</Label>
             <Input id="title" placeholder="e.g. Main Office" {...form.register("title")} />
@@ -181,15 +178,8 @@ export function PropertyForm({ open, onOpenChange, clientId, property }: Propert
               onCheckedChange={(v) => form.setValue("is_primary", v)}
             />
           </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : isEdit ? "Save Changes" : "Add Property"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </FormBand>
+      </div>
+    </FormSheet>
   );
 }

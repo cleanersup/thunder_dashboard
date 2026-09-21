@@ -19,7 +19,7 @@ import {
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { toast } from "sonner";
 import { cn } from "@/shared/utils/cn";
-import { FloatInput } from "../components/FloatInput";
+import { FloatingInput } from "@/shared/components/forms";
 import { PickerDialog } from "../components/PickerDialog";
 import { WalkthroughContactCard } from "../components/WalkthroughContactCard";
 import {
@@ -198,7 +198,7 @@ export function CommercialWalkthroughFormPage() {
                 >
                   {serviceType === "one-time" ? "One-time" : serviceType === "recurring" ? "Recurring" : "Service Type"}
                 </Button>
-                <FloatInput id="propertySize" label="Property Size (sq ft)" value={propertySize} onChange={setPropertySize} />
+                <FloatingInput type="integer" id="propertySize" label="Property Size (sq ft)" value={propertySize} onChange={setPropertySize} />
               </div>
             </CardContent>
           </Card>
@@ -370,9 +370,9 @@ export function CommercialWalkthroughFormPage() {
                 <CardContent className="p-5 space-y-3">
                   <h2 className="text-base font-semibold">Employee Count</h2>
                   <p className="text-sm text-muted-foreground">Number of employees needed for this service</p>
-                  <FloatInput id="empCount" label="Number of employees" value={employeeCount}
+                  <FloatingInput type="integer" id="empCount" label="Number of employees" value={employeeCount}
                     onChange={(v) => { setEmployeeCount(v); setValidationErrors((p) => ({ ...p, employeeCount: false })); }}
-                    hasError={validationErrors.employeeCount}
+                    error={validationErrors.employeeCount}
                   />
                 </CardContent>
               </Card>
@@ -381,9 +381,9 @@ export function CommercialWalkthroughFormPage() {
                 <CardContent className="p-5 space-y-3">
                   <h2 className="text-base font-semibold">Hourly Rate</h2>
                   <p className="text-sm text-muted-foreground">Cost per employee per hour</p>
-                  <FloatInput id="hrRate" label="Enter hourly rate ($)" value={hourlyRate} inputType="decimal"
+                  <FloatingInput id="hrRate" label="Enter hourly rate ($)" value={hourlyRate} type="decimal"
                     onChange={(v) => { setHourlyRate(v); setValidationErrors((p) => ({ ...p, hourlyRate: false })); }}
-                    hasError={validationErrors.hourlyRate}
+                    error={validationErrors.hourlyRate}
                   />
                 </CardContent>
               </Card>
@@ -392,9 +392,9 @@ export function CommercialWalkthroughFormPage() {
                 <CardContent className="p-5 space-y-3">
                   <h2 className="text-base font-semibold">Cleaning Duration</h2>
                   <p className="text-sm text-muted-foreground">Estimated time needed to complete the service</p>
-                  <FloatInput id="cleanDur" label="Duration (hours)" value={cleaningDuration} inputType="decimal"
+                  <FloatingInput id="cleanDur" label="Duration (hours)" value={cleaningDuration} type="decimal"
                     onChange={(v) => { setCleaningDuration(v); setValidationErrors((p) => ({ ...p, cleaningDuration: false })); }}
-                    hasError={validationErrors.cleaningDuration}
+                    error={validationErrors.cleaningDuration}
                   />
                 </CardContent>
               </Card>

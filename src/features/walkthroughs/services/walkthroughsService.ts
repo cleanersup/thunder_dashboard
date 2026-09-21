@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- client_properties no está en los tipos generados */
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import type { WalkthroughFormData } from "../schemas/walkthroughSchema";
+import { serviceAddressFieldsFromProperty } from "@/shared/utils/serviceAddress";
 import { fetchContactInfo } from "../utils/walkthroughUtils";
 import {
   mapResidentialWalkthroughRowToPrefillFields,
@@ -277,7 +279,7 @@ export async function createEstimateDraftFromWalkthrough(
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const { data: draft, error } = await (supabase as any)
     .from("estimates")
     .insert(payload)
@@ -287,14 +289,14 @@ export async function createEstimateDraftFromWalkthrough(
 
   // Finalize the conversion immediately so the walkthrough is marked converted.
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     await (supabase as any).rpc("finalize_walkthrough_to_estimate_conversion", {
       p_walkthrough_id: w.id,
       p_estimate_id:    draft.id,
     });
   } catch (rpcErr) {
     // Clean up the orphaned draft if the RPC fails so it doesn't pollute the list.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     await (supabase as any).from("estimates").update({ status: "Deleted" }).eq("id", draft.id);
     throw rpcErr;
   }
@@ -306,17 +308,36 @@ export async function createEstimateDraftFromWalkthrough(
   };
 }
 
-export async function createWalkthrough(formData: WalkthroughFormData): Promise<Walkthrough> {
+/**
+ * Campos denormalizados de dirección que acompañan a la propiedad elegida.
+ * El detalle, el mapa y el PDF los leen directamente — sin ellos el mapa sale vacío.
+ */
+async function resolveServiceAddressFields(propertyId: string | null | undefined) {
+  if (!propertyId) return {};
+  const { data } = await (supabase as any)
+    .from("client_properties")
+    .select("street, apt_suite, city, state, zip_code, title, is_primary")
+    .eq("id", propertyId)
+    .maybeSingle();
+  return serviceAddressFieldsFromProperty(data);
+}
+
+export async function createWalkthrough(
+  formData: WalkthroughFormData,
+  /** Booking de origen cuando el walkthrough nace de convertir un request. */
+  bookingId?: string | null,
+): Promise<Walkthrough> {
   const user = await getCurrentUser();
+  const addressFields = await resolveServiceAddressFields(formData.property_id);
 
   const { data, error } = await supabase
     .from("walkthroughs")
     .insert({
       user_id:            user.id,
-      walkthrough_type:   formData.walkthrough_type,
+      walkthrough_type:   "client",
       client_id:          formData.client_id ?? null,
-      lead_id:            formData.lead_id   ?? null,
-      property_id:        formData.walkthrough_type === "client" ? (formData.property_id ?? null) : null,
+      lead_id:            null,
+      property_id:        formData.property_id ?? null,
       service_type:       formData.service_type,
       scheduled_date:     formData.scheduled_date,
       scheduled_time:     formData.scheduled_time,
@@ -324,6 +345,8 @@ export async function createWalkthrough(formData: WalkthroughFormData): Promise<
       assigned_employees: formData.assigned_employees ?? null,
       notes:              formData.notes ?? null,
       status:             "Scheduled",
+      ...(bookingId ? { booking_id: bookingId } : {}),
+      ...addressFields,
     })
     .select()
     .single();
@@ -334,10 +357,8 @@ export async function createWalkthrough(formData: WalkthroughFormData): Promise<
 
 export async function updateWalkthrough(id: string, formData: Partial<WalkthroughFormData>, newStatus?: string): Promise<Walkthrough> {
   const updatePayload: Record<string, unknown> = {};
-  if (formData.walkthrough_type   !== undefined) updatePayload.walkthrough_type   = formData.walkthrough_type;
-  if (formData.client_id          !== undefined) updatePayload.client_id          = formData.client_id;
-  if (formData.lead_id            !== undefined) updatePayload.lead_id            = formData.lead_id;
-  if (formData.property_id        !== undefined) updatePayload.property_id        = formData.property_id;
+  if (formData.walkthrough_type   !== undefined) updatePayload.walkthrough_type   = "client";
+  if (formData.client_id          !== undefined) { updatePayload.client_id = formData.client_id; updatePayload.lead_id = null; }
   if (formData.service_type       !== undefined) updatePayload.service_type       = formData.service_type;
   if (formData.scheduled_date     !== undefined) updatePayload.scheduled_date     = formData.scheduled_date;
   if (formData.scheduled_time     !== undefined) updatePayload.scheduled_time     = formData.scheduled_time;
@@ -345,6 +366,13 @@ export async function updateWalkthrough(id: string, formData: Partial<Walkthroug
   if (formData.assigned_employees !== undefined) updatePayload.assigned_employees = formData.assigned_employees;
   if (formData.notes              !== undefined) updatePayload.notes              = formData.notes;
   if (newStatus                   !== undefined) updatePayload.status             = newStatus;
+
+  // La propiedad arrastra su dirección: si cambia en el edit, los campos denormalizados
+  // tienen que moverse con ella o el detalle seguiría mostrando la anterior.
+  if (formData.property_id !== undefined) {
+    updatePayload.property_id = formData.property_id;
+    Object.assign(updatePayload, await resolveServiceAddressFields(formData.property_id));
+  }
 
   const { data, error } = await supabase
     .from("walkthroughs")

@@ -2,10 +2,19 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type {
-  BookingInsert, CustomQuestion, PublicCompanyProfile, Booking,
+  CustomQuestion, PublicCompanyProfile, Booking,
   BookingAttachmentMeta, RequestPayload,
 } from "../types/request.types";
 import { getPublicBookingForms, getPublicCompanyProfile } from "@/shared/services/publicAccess";
+import { formatTimePreference } from "@/shared/utils/timePreference";
+
+/**
+ * Los tipos generados de Supabase van por detrás de las migraciones (bookings
+ * extendida, RPCs de booking). Helper local para no tocar los archivos generados.
+ */
+async function rpcUnsafe<T = unknown>(fn: string, args?: Record<string, unknown>) {
+  return (supabase as any).rpc(fn, args ?? {}) as Promise<{ data: T; error: any }>;
+}
 
 const STORAGE_BUCKET = "route-files";
 
@@ -57,15 +66,30 @@ export async function fetchRequest(id: string) {
 }
 
 /**
- * Updates the status of a request (e.g. to 'cancelled').
+ * Archiva un request. Usa el RPC `booking_archive` (mismo flujo que swift-slate):
+ * el status no se escribe directo porque el RPC corre lógica server-side propia.
  * @param id - The booking UUID
- * @param status - New status value
  */
-export async function updateRequestStatus(id: string, status: string) {
-  const { error } = await supabase
-    .from("bookings")
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq("id", id);
+export async function archiveRequest(id: string) {
+  const { error } = await rpcUnsafe("booking_archive", { p_booking_id: id });
+  if (error) throw error;
+}
+
+/**
+ * Cancela un request vía el RPC `booking_cancel`.
+ * @param id - The booking UUID
+ */
+export async function cancelRequest(id: string) {
+  const { error } = await rpcUnsafe("booking_cancel", { p_booking_id: id });
+  if (error) throw error;
+}
+
+/**
+ * Reactiva un request archivado vía el RPC `booking_restore`.
+ * @param id - The booking UUID
+ */
+export async function restoreRequest(id: string) {
+  const { error } = await rpcUnsafe("booking_restore", { p_booking_id: id });
   if (error) throw error;
 }
 
@@ -78,84 +102,6 @@ export async function deleteRequest(id: string) {
   if (error) throw error;
 }
 
-/**
- * Converts a request to a CRM lead and then deletes the request.
- * Sets lead_source to "Booking Form".
- * @param booking - The full booking record to convert
- */
-export async function convertRequestToLead(booking: {
-  id: string; lead_name: string; email: string; phone: string;
-  street: string; apt_suite: string | null; city: string; state: string;
-  zip_code: string; service_type: string; service_details: string | null;
-  preferred_date: string | null; time_preference: string | null;
-}) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const notes = [
-    booking.service_details,
-    booking.preferred_date ? `Preferred date: ${booking.preferred_date}` : null,
-    booking.time_preference ? `Time preference: ${booking.time_preference}` : null,
-  ].filter(Boolean).join("\n");
-
-  const { error: leadError } = await supabase.from("leads").insert({
-    user_id:            user.id,
-    full_name:          booking.lead_name,
-    email:              booking.email,
-    phone:              booking.phone,
-    address:            booking.street,
-    apt_suite:          booking.apt_suite,
-    city:               booking.city,
-    state:              booking.state,
-    zip_code:           booking.zip_code,
-    service_interested: booking.service_type,
-    internal_notes:     notes || null,
-    lead_source:        "Booking Form",
-    status:             "new",
-    priority_level:     "medium",
-  });
-  if (leadError) throw leadError;
-
-  await deleteRequest(booking.id);
-}
-
-/**
- * Converts a request to a CRM client and then deletes the request.
- * @param booking - The full booking record to convert
- */
-export async function convertRequestToClient(booking: {
-  id: string; lead_name: string; email: string; phone: string;
-  street: string; apt_suite: string | null; city: string; state: string;
-  zip_code: string; service_details: string | null;
-}) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const { error: clientError } = await supabase.from("clients").insert({
-    user_id:            user.id,
-    full_name:          booking.lead_name,
-    email:              booking.email,
-    phone:              booking.phone,
-    client_type:        "residential",
-    contact_preference: "phone",
-    billing_street:     booking.street,
-    billing_apt:        booking.apt_suite,
-    billing_city:       booking.city,
-    billing_state:      booking.state,
-    billing_zip:        booking.zip_code,
-    service_street:     booking.street,
-    service_apt:        booking.apt_suite,
-    service_city:       booking.city,
-    service_state:      booking.state,
-    service_zip:        booking.zip_code,
-    instructions:       booking.service_details ?? null,
-    status:             "active",
-  });
-  if (clientError) throw clientError;
-
-  await deleteRequest(booking.id);
-}
-
 // ─── Create / Update (from dashboard form) ───────────────────────────────────
 
 /**
@@ -165,7 +111,7 @@ export async function convertRequestToClient(booking: {
  * @param payload - Full request form payload
  */
 export async function createRequest(userId: string, payload: RequestPayload): Promise<void> {
-  const { files, existingAttachments: _ea, client_id, lead_id, contact_type, client_property_id, ...textFields } = payload;
+  const { files, existingAttachments: _ea, client_id, contact_type, client_property_id, ...textFields } = payload;
 
   const { data, error } = await supabase.functions.invoke<{ id: string }>("create-booking", {
     body: {
@@ -195,19 +141,13 @@ export async function createRequest(userId: string, payload: RequestPayload): Pr
     await (supabase as any).from("bookings").update({ attachments: uploadedMeta }).eq("id", data.id);
   }
 
-  if (client_id || lead_id) {
+  if (client_id) {
     await (supabase as any).from("bookings").update({
-      client_id:          client_id ?? null,
-      lead_id:            lead_id ?? null,
-      contact_type:       contact_type ?? "anonymous",
+      client_id,
+      lead_id:            null,
+      contact_type:       contact_type ?? "client",
       client_property_id: client_property_id ?? null,
     }).eq("id", data.id);
-  } else if (contact_type === "anonymous") {
-    try {
-      await resolveOrCreateContact({ ...textFields, id: data.id } as Booking);
-    } catch (e) {
-      console.error("requestsService.create anonymous contact resolve error:", e);
-    }
   }
 }
 
@@ -217,7 +157,7 @@ export async function createRequest(userId: string, payload: RequestPayload): Pr
  * @param payload - Updated request payload
  */
 export async function updateRequest(id: string, payload: RequestPayload): Promise<void> {
-  const { files, existingAttachments, client_id, lead_id, contact_type, client_property_id, ...textFields } = payload;
+  const { files, existingAttachments, client_id, contact_type, client_property_id, ...textFields } = payload;
 
   const uploadedMeta: BookingAttachmentMeta[] = [];
   if (files?.length) {
@@ -242,11 +182,11 @@ export async function updateRequest(id: string, payload: RequestPayload): Promis
     .eq("id", id);
   if (error) throw error;
 
-  if (client_id || lead_id) {
+  if (client_id) {
     await (supabase as any).from("bookings").update({
-      client_id:          client_id ?? null,
-      lead_id:            lead_id ?? null,
-      contact_type:       contact_type ?? "anonymous",
+      client_id,
+      lead_id:            null,
+      contact_type:       contact_type ?? "client",
       client_property_id: client_property_id ?? null,
     }).eq("id", id);
   }
@@ -298,116 +238,140 @@ export async function saveRequestForms(questions: CustomQuestion[]) {
 
 // ─── resolveOrCreateContact (for conversion flow) ────────────────────────────
 
-/**
- * Finds an existing contact (client or lead) by email address.
- * @param email - Email to search for
- * @param userId - The authenticated user's ID
- */
-async function findContactByEmail(
-  email: string,
-  userId: string,
-): Promise<{ type: "client" | "lead"; id: string } | null> {
-  const [clientResult, leadResult] = await Promise.all([
-    supabase.from("clients").select("id").eq("user_id", userId).eq("email", email).maybeSingle(),
-    supabase.from("leads").select("id").eq("user_id", userId).eq("email", email).maybeSingle(),
-  ]);
-  if (clientResult.data) return { type: "client", id: clientResult.data.id };
-  if (leadResult.data)   return { type: "lead",   id: leadResult.data.id };
-  return null;
+export interface ContactMatch {
+  type: "client";
+  id:   string;
 }
 
 /**
- * Finds an existing contact by name and phone when no email is available.
+ * Devuelve la mejor coincidencia de una query sobre `clients`.
+ * Usa `order(updated_at desc) + limit(1)` para no fallar si la DB tiene filas
+ * duplicadas — simplemente toma la más reciente.
+ */
+async function pickFirstClient(query: any): Promise<ContactMatch | null> {
+  const { data, error } = await query.order("updated_at", { ascending: false }).limit(1);
+  if (error || !data?.length) return null;
+  return { type: "client", id: data[0].id as string };
+}
+
+/**
+ * Busca un client por email (case-insensitive).
+ * @param email - Email to search for
+ * @param userId - The authenticated user's ID
+ */
+async function findClientByEmail(email: string, userId: string): Promise<ContactMatch | null> {
+  if (!email.trim()) return null;
+  return pickFirstClient(
+    supabase.from("clients").select("id").eq("user_id", userId).ilike("email", email.trim()),
+  );
+}
+
+/**
+ * Deduplicación de respaldo cuando el request no trae email: nombre + teléfono.
  * @param name - Full name to search for
  * @param phone - Phone number to search for
  * @param userId - The authenticated user's ID
  */
-async function findContactByNamePhone(
+async function findClientByNamePhone(
   name: string,
   phone: string,
   userId: string,
-): Promise<{ type: "client" | "lead"; id: string } | null> {
-  const [clientResult, leadResult] = await Promise.all([
-    supabase.from("clients").select("id").eq("user_id", userId).eq("full_name", name).eq("phone", phone).maybeSingle(),
-    supabase.from("leads").select("id").eq("user_id", userId).eq("full_name", name).eq("phone", phone).maybeSingle(),
-  ]);
-  if (clientResult.data) return { type: "client", id: clientResult.data.id };
-  if (leadResult.data)   return { type: "lead",   id: leadResult.data.id };
-  return null;
+): Promise<ContactMatch | null> {
+  if (!name.trim() || !phone.trim()) return null;
+  return pickFirstClient(
+    supabase
+      .from("clients")
+      .select("id")
+      .eq("user_id", userId)
+      .ilike("full_name", name.trim())
+      .ilike("phone", phone.trim()),
+  );
 }
 
 /**
- * Resolves or creates a contact from a booking/request record.
- * First tries by email, then by name+phone. If no match, creates a new lead.
- * @param booking - The booking record from which to derive the contact
- * @returns The found or created contact reference
+ * Crea un client a partir de un request anónimo (form público).
+ * Las direcciones de billing y service se copian de la dirección del request.
+ * @param booking - The booking record from which to derive the client
+ * @param userId - The authenticated user's ID
  */
-export async function resolveOrCreateContact(
-  booking: Booking,
-): Promise<{ type: "client" | "lead"; id: string }> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  // 0. If already linked, reuse the existing contact directly
-  if (booking.client_id) return { type: "client", id: booking.client_id };
-  if (booking.lead_id)   return { type: "lead",   id: booking.lead_id };
-
-  // Persists the resolved contact back to the booking so future conversions
-  // reuse the same contact instead of creating duplicates.
-  const persistContact = async (contact: { type: "client" | "lead"; id: string }) => {
-    await (supabase as any)
-      .from("bookings")
-      .update({
-        [contact.type === "client" ? "client_id" : "lead_id"]: contact.id,
-        contact_type: contact.type,
-      })
-      .eq("id", booking.id);
-    return contact;
-  };
-
-  // 1. Try by email
-  if (booking.email) {
-    const found = await findContactByEmail(booking.email, user.id);
-    if (found) return persistContact(found);
-  }
-
-  // 2. Try by name + phone
-  if (booking.lead_name && booking.phone) {
-    const found = await findContactByNamePhone(booking.lead_name, booking.phone, user.id);
-    if (found) return persistContact(found);
-  }
-
-  // 3. Create new lead
+async function createClientFromRequest(booking: Booking, userId: string): Promise<string> {
   const additionalServices = Array.isArray(booking.additional_services)
     ? (booking.additional_services as string[])
     : [];
 
   const notes = [
-    booking.service_details,
-    additionalServices.length > 0 ? `Additional services: ${additionalServices.join(", ")}` : null,
-    booking.preferred_date ? `Preferred date: ${booking.preferred_date}` : null,
-    booking.time_preference ? `Time preference: ${booking.time_preference}` : null,
+    booking.service_details ? `Service Details: ${booking.service_details}` : null,
+    additionalServices.length > 0 ? `Additional Services: ${additionalServices.join(", ")}` : null,
+    booking.preferred_date ? `Preferred Date: ${booking.preferred_date}` : null,
+    booking.time_preference ? `Time Preference: ${formatTimePreference(booking.time_preference)}` : null,
   ].filter(Boolean).join("\n");
 
-  const { data: newLead, error } = await supabase.from("leads").insert({
-    user_id:            user.id,
+  const { data, error } = await supabase.from("clients").insert({
+    user_id:            userId,
     full_name:          booking.lead_name,
     email:              booking.email,
     phone:              booking.phone,
-    address:            booking.street,
-    apt_suite:          booking.apt_suite,
-    city:               booking.city,
-    state:              booking.state,
-    zip_code:           booking.zip_code,
-    service_interested: booking.service_type,
-    internal_notes:     notes || null,
-    lead_source:        "Booking Form",
-    status:             "new",
-    priority_level:     "medium",
+    billing_street:     booking.street   ?? "",
+    billing_apt:        booking.apt_suite ?? null,
+    billing_city:       booking.city     ?? "",
+    billing_state:      booking.state    ?? "",
+    billing_zip:        booking.zip_code ?? "",
+    service_street:     booking.street   ?? "",
+    service_apt:        booking.apt_suite ?? null,
+    service_city:       booking.city     ?? "",
+    service_state:      booking.state    ?? "",
+    service_zip:        booking.zip_code ?? "",
+    client_type:        booking.service_type === "commercial" ? "commercial" : "residential",
+    contact_preference: "phone",
+    status:             "active",
+    instructions:       notes || null,
   }).select("id").single();
-  if (error) throw error;
 
-  return persistContact({ type: "lead", id: newLead.id });
+  if (error) throw error;
+  return data.id;
+}
+
+/**
+ * Resuelve (o crea) el client asociado a un request.
+ * Orden: client_id ya enlazado → match por email → match por nombre+teléfono →
+ * crear client nuevo. El resultado se persiste en el booking para que una segunda
+ * conversión no vuelva a resolver ni cree duplicados.
+ *
+ * El flujo de leads se retiró: un request anónimo del form público siempre termina
+ * como Client (paridad swift-slate).
+ * @param booking - The booking record from which to derive the contact
+ */
+export async function resolveOrCreateContact(booking: Booking): Promise<ContactMatch> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  // 0. Ya enlazado al crear el request
+  if (booking.client_id) return { type: "client", id: booking.client_id };
+
+  // Persiste el client resuelto en el booking (y limpia el lead_id legacy).
+  const persistContact = async (contact: ContactMatch) => {
+    await (supabase as any)
+      .from("bookings")
+      .update({ client_id: contact.id, lead_id: null, contact_type: "client" })
+      .eq("id", booking.id);
+    return contact;
+  };
+
+  // 1. Por email
+  if (booking.email) {
+    const found = await findClientByEmail(booking.email, user.id);
+    if (found) return persistContact(found);
+  }
+
+  // 2. Por nombre + teléfono
+  if (booking.lead_name && booking.phone) {
+    const found = await findClientByNamePhone(booking.lead_name, booking.phone, user.id);
+    if (found) return persistContact(found);
+  }
+
+  // 3. Client nuevo
+  const clientId = await createClientFromRequest(booking, user.id);
+  return persistContact({ type: "client", id: clientId });
 }
 
 /**
@@ -473,19 +437,4 @@ export async function fetchPublicProfile(userId: string): Promise<PublicCompanyP
  */
 export async function fetchPublicBookingForms(userId: string) {
   return getPublicBookingForms(userId);
-}
-
-/**
- * Submits a booking from the public form (no auth required).
- * @param userId - The business owner's user ID
- * @param payload - Booking data collected from the public form
- */
-export async function submitPublicBooking(
-  userId: string,
-  payload: Omit<BookingInsert, "business_owner_id" | "status">,
-) {
-  const { error } = await supabase
-    .from("bookings")
-    .insert({ ...payload, business_owner_id: userId, status: "new" });
-  if (error) throw error;
 }

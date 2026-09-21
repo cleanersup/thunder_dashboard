@@ -51,7 +51,7 @@ export function AddRequestPage({ open, onClose }: AddRequestPageProps = {}) {
     return (
       <FullScreenModal open={open ?? false} onClose={handleClose}>
         {/* Header */}
-        <div className="border-b flex-shrink-0 bg-white">
+        <div className="flex-shrink-0 bg-card">
           <div className="max-w-2xl mx-auto">
             <div className="px-4 py-3 flex items-center justify-between gap-4">
               <div className="w-1/3" />
@@ -68,8 +68,8 @@ export function AddRequestPage({ open, onClose }: AddRequestPageProps = {}) {
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto bg-background">
-          <div className="max-w-2xl mx-auto px-4 space-y-4 py-6 pb-4">
+        <div className="flex-1 overflow-y-auto bg-muted/40">
+          <div className="max-w-2xl mx-auto px-4 py-2.5">
             <RequestForm
               isModal
               title="New Request"

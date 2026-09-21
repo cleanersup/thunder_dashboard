@@ -1,7 +1,7 @@
 /**
  * @module AppointmentFormLayout
  * Sticky-header / step-tabs / sticky-footer shell for the appointment wizard.
- * Mirrors EstimateFormLayout but is scoped to the scheduling feature.
+ * Layout de wizard por pasos, scoped a la feature de scheduling.
  */
 import React, { type ReactNode } from "react";
 import { ChevronLeft, X } from "lucide-react";

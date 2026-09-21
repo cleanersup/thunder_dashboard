@@ -148,11 +148,7 @@ export function RequestsPage() {
   // ─── Filtering ───────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     return requests
-      .filter((b) => {
-        if (statusFilter === "new")       return b.status === "new";
-        if (statusFilter === "cancelled") return b.status === "cancelled";
-        return true;
-      })
+      .filter((b) => statusFilter === "all" || b.status === statusFilter)
       .filter((b) =>
         b.lead_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         b.email.toLowerCase().includes(searchQuery.toLowerCase())

@@ -7,8 +7,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
-import { Button }   from "@/shared/components/ui/button";
+import { FormSheet, FormBand } from "@/shared/components/forms";
 import { Input }    from "@/shared/components/ui/input";
 import { Label }    from "@/shared/components/ui/label";
 import {
@@ -135,29 +134,18 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent
-        className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
-        onPointerDownOutside={(e) => {
-          if ((e.target as HTMLElement).closest?.(".pac-container")) e.preventDefault();
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Client" : "Add Client"}</DialogTitle>
-        </DialogHeader>
+    <FormSheet
+      open={open}
+      onClose={onClose}
+      title={isEdit ? "Edit Client" : "Add Client"}
+      submitLabel={isEdit ? "Save Changes" : "Add Client"}
+      submitPendingLabel={isEdit ? "Saving..." : "Adding..."}
+      onSubmit={handleSubmit(onSubmit)}
+      isPending={isPending}
+    >
+      <div className="contents" onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}>
 
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.preventDefault();
-          }}
-          className="space-y-4 mt-4"
-        >
-
-          {/* ── Personal Information ──────────────────────────────────── */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Personal Information
-          </p>
+          <FormBand title="Personal Information">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-1">
               <Label>Full Name *</Label>
@@ -193,11 +181,9 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
               )}
             </div>
           </div>
+          </FormBand>
 
-          {/* ── Billing Address ───────────────────────────────────────── */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Billing Address
-          </p>
+          <FormBand title="Billing Address">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-1">
               <Label>Street *</Label>
@@ -266,22 +252,22 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
               )}
             </div>
           </div>
+          </FormBand>
 
-          {/* ── Service Address ───────────────────────────────────────── */}
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Service Address
-            </p>
-            <label className="flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={sameAsBilling}
-                onChange={(e) => handleSameAsBillingToggle(e.target.checked)}
-                className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
-              />
-              <span className="text-sm font-medium">Same as billing</span>
-            </label>
-          </div>
+          <FormBand
+            title="Service Address"
+            action={
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={sameAsBilling}
+                  onChange={(e) => handleSameAsBillingToggle(e.target.checked)}
+                  className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                />
+                <span className="text-sm font-medium">Same as billing</span>
+              </label>
+            }
+          >
           <div className={`grid grid-cols-2 gap-3 ${sameAsBilling ? "opacity-50 pointer-events-none" : ""}`}>
             <div className="col-span-2 space-y-1">
               <Label>Street *</Label>
@@ -324,11 +310,9 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
               )}
             </div>
           </div>
+          </FormBand>
 
-          {/* ── Business Details ──────────────────────────────────────── */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Business Details
-          </p>
+          <FormBand title="Business Details">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Client Type</Label>
@@ -366,20 +350,9 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
               />
             </div>
           </div>
+          </FormBand>
 
-          {/* ── Actions ───────────────────────────────────────────────── */}
-          <div className="flex gap-2 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" disabled={isPending}>
-              {isPending
-                ? (isEdit ? "Saving..." : "Adding...")
-                : (isEdit ? "Save Changes" : "Add Client")}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </FormSheet>
   );
 }

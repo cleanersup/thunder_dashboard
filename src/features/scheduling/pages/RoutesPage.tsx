@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Plus, Calendar as CalendarIcon, Map, MapPin, Check, Trash2, ChevronDown } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, Map, MapPin, Check, Trash2, ChevronDown, AlertTriangle } from "lucide-react";
 import { format, startOfWeek, endOfWeek, getMonth } from "date-fns";
 import { Button } from "@/shared/components/ui/button";
 import { Switch } from "@/shared/components/ui/switch";
@@ -13,7 +13,12 @@ import { Calendar } from "@/shared/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/shared/components/ui/dialog";
+import { Alert, AlertTitle, AlertDescription } from "@/shared/components/ui/alert";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -158,6 +163,16 @@ export function RoutesPage() {
   const [deleteTarget,   setDeleteTarget]   = useState<Route | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
+  // Aviso de deprecación: modal solo la primera vez; el banner bajo el toolbar es permanente.
+  const [showDeprecationModal, setShowDeprecationModal] = useState(false);
+  useEffect(() => {
+    if (!localStorage.getItem("routesDeprecationNoticeSeen")) setShowDeprecationModal(true);
+  }, []);
+  const dismissDeprecationModal = () => {
+    localStorage.setItem("routesDeprecationNoticeSeen", "1");
+    setShowDeprecationModal(false);
+  };
+
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithClient | null>(null);
 
   // ── Add appointment modal ─────────────────────────────────────────────────
@@ -226,6 +241,16 @@ export function RoutesPage() {
 
   return (
     <div className="min-h-full bg-background p-2.5 space-y-2.5">
+      {/* ── Aviso permanente de deprecación ─────────────────────────── */}
+      <Alert className="border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300">
+        <AlertTriangle className="h-4 w-4 text-amber-600" />
+        <AlertTitle>Heads up:</AlertTitle>
+        <AlertDescription>
+          Routes is being replaced by the new Schedule and will be removed soon. Please start using
+          Schedule for jobs and tasks.
+        </AlertDescription>
+      </Alert>
+
       {/* ── Toolbar Card: Toggle + Controls ────────────────────────── */}
       <Card className="border border-border/50 shadow-none">
         <CardContent className="p-3">
@@ -402,6 +427,22 @@ export function RoutesPage() {
         onUpdated={refetchAppointments}
         editId={editApptId}
       />
+
+      {/* ── Modal de deprecación — solo la primera vez ─────────────────── */}
+      <Dialog open={showDeprecationModal} onOpenChange={(o) => { if (!o) dismissDeprecationModal(); }}>
+        <DialogContent className="max-w-sm w-[calc(100%-2rem)]">
+          <DialogHeader>
+            <DialogTitle>Routes is going away</DialogTitle>
+            <DialogDescription>
+              We're replacing Routes with the new Schedule, where you can manage jobs and tasks on a
+              calendar. This screen will be removed in an upcoming update.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button className="w-full" onClick={dismissDeprecationModal}>Got it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

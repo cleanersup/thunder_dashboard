@@ -29,7 +29,7 @@ export function EditRequestPage({ bookingId, open, onClose }: EditRequestPagePro
   return (
     <FullScreenModal open={open} onClose={onClose}>
       {/* Header */}
-      <div className="border-b flex-shrink-0 bg-white">
+      <div className="flex-shrink-0 bg-card">
         <div className="max-w-2xl mx-auto">
           <div className="px-4 py-3 flex items-center justify-between gap-4">
             <div className="w-1/3" />
@@ -46,26 +46,18 @@ export function EditRequestPage({ bookingId, open, onClose }: EditRequestPagePro
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto bg-background">
+      <div className="flex-1 overflow-y-auto bg-muted/40">
         {isLoading || !request ? (
           <div className="flex justify-center py-16">
             <LoadingSpinner />
           </div>
         ) : (
-          <div className="max-w-2xl mx-auto px-4 space-y-4 py-6 pb-4">
+          <div className="max-w-2xl mx-auto px-4 py-2.5">
             <RequestForm
               isModal
               title="Edit Request"
               mode="edit"
               initialValues={{
-                fullName:           request.lead_name   ?? "",
-                email:              request.email       ?? "",
-                phone:              request.phone       ?? "",
-                street:             request.street      ?? "",
-                apt:                request.apt_suite   ?? "",
-                city:               request.city        ?? "",
-                state:              request.state       ?? "",
-                zip:                request.zip_code    ?? "",
                 serviceType:        request.service_type ?? "",
                 selectedDate:       request.preferred_date ? parseISO(request.preferred_date) : undefined,
                 timePreference:     request.time_preference ?? "",
@@ -82,11 +74,8 @@ export function EditRequestPage({ bookingId, open, onClose }: EditRequestPagePro
                     public_url: supabase.storage.from("route-files").getPublicUrl(att.path).data.publicUrl,
                   })
                 ),
-                initialContactType: ((request as any).contact_type === "client" || (request as any).contact_type === "lead")
-                  ? (request as any).contact_type as "client" | "lead"
-                  : null,
-                initialClientId: (request as any).client_id ?? null,
-                initialLeadId:   (request as any).lead_id   ?? null,
+                initialClientId:         (request as any).client_id ?? null,
+                initialClientPropertyId: (request as any).client_property_id ?? null,
               }}
               customQuestions={customQuestions}
               isSaving={isPending}

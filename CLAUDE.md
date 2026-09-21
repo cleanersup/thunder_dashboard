@@ -76,6 +76,44 @@
 - NO navegan a una ruta nueva — el estado vive en la página orchestradora
 - Excepción: estimates sí usan rutas propias (`/estimates/new/residential`, `/estimates/new/commercial`)
 
+### Diseño atómico — dónde vive cada cosa
+| Capa | Directorio | Qué contiene |
+|------|-----------|--------------|
+| Átomos | `src/shared/components/ui/` | Primitivos shadcn: `input`, `select`, `textarea`, `button`, `calendar`… |
+| Moléculas | `src/shared/components/forms/` | Contenedor `FormSheet` y campos completos: `FormSection`, `FloatingInput`, `SelectField`, `DateField`, `TimeField`, `OptionGrid` |
+| Organismos | `src/shared/components/common/` | `ClientSelect`, `ServicePropertySelector`, `DataTable`, `DetailModal`… |
+| Tokens | `src/shared/constants/formTokens.ts` | Alto, hover, foco y error de los controles |
+
+**Antes de crear un input, select, chip o encabezado de sección: buscar en esas tres carpetas.**
+Si no existe, se crea en `shared/`, no dentro de la feature.
+
+### Dónde se abre cada formulario (obligatorio)
+| Tipo de formulario | Contenedor | Ejemplos |
+|---|---|---|
+| **Registro puntual** que se crea/edita desde otro sitio | **`FormSheet`** — panel lateral derecho | Client, Employee, Property, Lead |
+| **Sección de un formulario largo** (hub) | **`SectionModal`** — lateral por defecto | Service, Project, Extra, Labor |
+| **Cambio de modo** dentro de un formulario | `SectionModal variant="fullscreen"` | Review: Summary → Preview → Send |
+| **Formulario principal** de una feature | `FullScreenModal` | Request, Walkthrough, Job, Invoice |
+| Confirmación / aviso corto | `Dialog` centrado o `ConfirmDialog` | Confirm Changes, Delete |
+
+**Lateral vs pantalla completa** — el criterio es qué está haciendo el usuario, no cuánto contenido hay:
+- Editar *una parte* de algo que sigue existiendo detrás → lateral. El contexto permanece visible y el contenido de una sección (contadores, chips, un textarea) cabe de sobra en 440px.
+- Cambiar de modo (revisar y enviar) o mostrar un documento que necesita ancho (Preview del estimate) → pantalla completa.
+- En swift-slate todo es full-screen porque es móvil: ahí el full-screen **es** el equivalente del lateral. No copiar esa decisión al dashboard sin traducirla.
+
+- **Nunca** abrir un formulario de creación en un `Dialog` centrado: entra por el costado con `FormSheet`, que deja ver el contexto detrás y devuelve al usuario donde estaba.
+- El patrón nace del "+ Add New Client" de un selector: se abre el panel, se crea, se cierra y el nuevo registro queda seleccionado en el campo que lo pidió.
+- `FormSheet` ya trae cabecera, scroll del cuerpo y barra de acciones (Cancel + primario). No rehacerlas por formulario.
+
+### Reglas de formularios (obligatorias)
+- **Toda sección es un `FormSection`**: ícono + título + subtítulo. Nunca escribir encabezados de sección a mano.
+- **Todo control lleva su placeholder**, y es el propio texto guía del campo (no se duplica con un `<Label>` encima).
+- **Obligatorio se marca en el CAMPO, nunca en el título de la sección** — una sección mezcla campos obligatorios y opcionales. Se pasa `required` a la molécula y ella añade el asterisco vía `withRequiredMark`; nunca concatenar `" *"` a mano en un placeholder.
+- **Separación**: `FORM_SECTION_GAP` (2.5) entre cards y `FORM_FIELD_GAP` (3) entre campos — `FormSection` ya aplica el segundo. No inventar `space-y-*` por formulario.
+- **Hover y foco nunca se escriben a mano**: salen de `formTokens`. Jerarquía única: reposo `border-input` → hover `border-primary/60` → foco `border-primary`. Sin relleno (el relleno se reserva para el estado seleccionado de `OptionGrid`).
+- Un control que por dentro es un botón (date picker, picker con diálogo, subir archivos) usa **`<Button variant="field">`** — nunca `variant="outline"`, que lo rellena en hover y lo delata como botón dentro de una fila de campos. `outline` queda para acciones reales (Cancel, etc.).
+- **Formulario de referencia**: `src/features/requests/components/RequestForm.tsx` — copiar de ahí la estructura al crear o migrar cualquier otro.
+
 ### Componentes reutilizables disponibles
 - `DetailModal` + `InfoRow` → `src/shared/components/common/DetailModal.tsx`
 - `ConfirmDialog` → `src/shared/components/common/ConfirmDialog.tsx`
@@ -139,7 +177,9 @@ Al hacer submit del form público (`/booking/:userId`):
 - `attachments` (JSONB array de BookingAttachmentMeta)
 
 ### Verificación obligatoria antes de terminar cada fase
-1. `npx tsc --noEmit` → 0 errores
+1. `npx tsc --noEmit -p tsconfig.app.json` → 0 errores
+   ⚠️ `npx tsc --noEmit` a secas **no chequea nada**: el tsconfig raíz usa project references
+   con `"files": []`, así que siempre sale 0 aunque haya errores reales.
 2. `npm run build` → 0 errores
 3. Actualizar `PLAN.md`: marcar fase como ✅, añadir entrada al log de sesiones
 4. Actualizar `MEMORY.md` con patrones nuevos descubiertos

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { MapPin } from "lucide-react";
-import { SearchableSelect } from "@/shared/components/ui/searchable-select";
+import { PropertySelect } from "./PropertySelect";
 import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
 import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
 
@@ -11,6 +11,13 @@ interface ServicePropertySelectorProps {
   preferredPropertyId?: string | null;
 }
 
+/**
+ * Campo "Service Property" — el selector canónico ([PropertySelect]) más la
+ * preselección automática y el resumen de la dirección elegida.
+ *
+ * Auto-selecciona al cargar: la propiedad indicada (edit / conversión) o la primary,
+ * porque en la práctica casi siempre es esa y obligar a elegirla sería ruido.
+ */
 export function ServicePropertySelector({
   clientId,
   value,
@@ -42,7 +49,9 @@ export function ServicePropertySelector({
     onChangeRef.current(primary);
   }, [clientId, properties, value, preferredPropertyId]);
 
-  if (!clientId || properties.length === 0) return null;
+  // Sin cliente no hay nada que elegir. Con cliente el campo se muestra SIEMPRE,
+  // aunque no tenga propiedades todavía: es desde aquí que se crea la primera.
+  if (!clientId) return null;
 
   return (
     <div className="space-y-3">
@@ -51,21 +60,11 @@ export function ServicePropertySelector({
         <p className="text-xs text-muted-foreground">Select the property where the service will be performed</p>
       </div>
 
-      <SearchableSelect
-        value={value?.id}
-        onValueChange={(id) => {
-          const prop = properties.find((p) => p.id === id);
-          if (prop) onChange(prop);
-        }}
-        options={properties.map((p) => ({
-          value:    p.id,
-          label:    p.title ? `${p.title} — ${p.street}` : p.street,
-          subtitle: `${p.city}, ${p.state} ${p.zip_code}${p.is_primary ? " · Primary" : ""}`,
-        }))}
-        placeholder="Select property..."
-        title="Select Property"
-        searchPlaceholder="Search properties..."
-        emptyMessage="No properties found."
+      <PropertySelect
+        clientId={clientId}
+        value={value}
+        onChange={onChange}
+        placeholder={properties.length === 0 ? "No properties yet — add one" : "Select property"}
       />
 
       {value && (

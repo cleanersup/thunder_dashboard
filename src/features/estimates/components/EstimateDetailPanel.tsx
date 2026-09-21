@@ -40,7 +40,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { fetchEstimate, deleteDraftEstimate } from "../services/estimatesService";
-import { RESIDENTIAL_STEPS, COMMERCIAL_STEPS } from "../config/steps.config";
 import type { DraftData } from "../types/estimate.types";
 import { useUpdateEstimateStatus } from "../hooks/useEstimates";
 import { useEstimateShare } from "../hooks/useEstimateShare";
@@ -694,9 +693,19 @@ export function EstimateDetailPanel({
     ? (estimate.draft_data as unknown as DraftData)
     : null;
   const draftFd = (draftData?.formData ?? {}) as Record<string, unknown>;
-  const draftSteps = f?.serviceType === "Commercial" ? COMMERCIAL_STEPS : RESIDENTIAL_STEPS;
-  const draftCurrentStep = draftData?.currentStep ?? 0;
-  const draftStepProgress = `Step ${draftCurrentStep + 1} of ${draftSteps.length} — ${draftSteps[draftCurrentStep]?.label ?? ""}`;
+  // El formulario ya no es un wizard por pasos: lo que describe a un draft es qué
+  // secciones tiene completas, no en qué paso quedó.
+  const draftFilledSections = [
+    (draftData?.clientId || draftData?.leadId) && "Client",
+    draftFd.selectedService && "Service",
+    f?.serviceType === "Commercial"
+      ? (draftFd.propertyType || draftFd.otherPropertyType) && "Property"
+      : Number(draftFd.bedrooms ?? 0) > 0 && "Project",
+    draftFd.scope && "Scope",
+  ].filter(Boolean) as string[];
+  const draftProgress = draftFilledSections.length > 0
+    ? draftFilledSections.join(" · ")
+    : "Not started";
 
   const draftRooms: [string, number][] = f?.status === "Draft" && f?.serviceType === "Residential"
     ? ([
@@ -886,8 +895,8 @@ export function EstimateDetailPanel({
                       <div className="flex items-center gap-3">
                         <Clock className="w-4 h-4 shrink-0 text-primary" />
                         <div>
-                          <p className="text-xs text-muted-foreground">Draft Progress</p>
-                          <p className="text-sm font-medium">{draftStepProgress}</p>
+                          <p className="text-xs text-muted-foreground">Sections completed</p>
+                          <p className="text-sm font-medium">{draftProgress}</p>
                         </div>
                       </div>
                     </div>

@@ -23,7 +23,8 @@ export const publicBookingSchema = z.object({
   // Shared
   service_details:  z.string().max(5000).optional(),
   preferred_date:   z.string().optional().nullable(),
-  time_preference:  z.enum(["am", "pm"]).optional().nullable(),
+  // Esquema nuevo (swift-slate). Los valores legacy am/pm se normalizan en lectura.
+  time_preference:  z.enum(["anytime", "morning", "afternoon", "evening"]).optional().nullable(),
   custom_answers:   z.record(z.string()).optional(),
 });
 

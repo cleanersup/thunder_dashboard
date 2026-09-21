@@ -18,18 +18,17 @@
  *     companyAddress={profile.company_address}   // optional — enables route map
  *   />
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   User, Users, Plus,
   MapPin, Mail, Phone, Building2, Info,
 } from "lucide-react";
-import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { cn } from "@/shared/utils/cn";
-import { ClientForm } from "@/features/crm/clients/components/ClientForm";
 import { LeadForm }   from "@/features/crm/leads/components/LeadForm";
-import { useClients } from "@/features/crm/clients/hooks/useClients";
 import { useLeads }   from "@/features/crm/leads/hooks/useLeads";
+import { ClientSelect } from "@/shared/components/common/ClientSelect";
 import { AddressRouteMap } from "@/shared/components/common/AddressRouteMap";
 import { ServicePropertySelector } from "@/shared/components/common/ServicePropertySelector";
 import type { ClientEntity, LeadEntity } from "@/shared/types/entities";
@@ -79,31 +78,23 @@ export function ClientLeadPicker({
   onPropertyChange,
   preferredPropertyId,
 }: ClientLeadPickerProps) {
-  const [showNewClient, setShowNewClient] = useState(false);
-  const [showNewLead,   setShowNewLead]   = useState(false);
+  const [showNewLead, setShowNewLead] = useState(false);
 
-  // ── Data — shared CRM cache ───────────────────────────────────────────────
+  // Lead flow retired from the UI (matches swift-slate): default new documents to
+  // "client". Existing lead-linked documents keep their type so editing never wipes them.
+  useEffect(() => {
+    if (entityType == null) onEntityTypeChange("client");
+  }, [entityType]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { data: clientsRaw = [] } = useClients();
-  const { data: leadsRaw   = [] } = useLeads();
+  // ── Data — leads only (client selection lives in the canonical ClientSelect) ──
 
-  // Only active clients are selectable (matches ContactPicker behaviour).
-  const activeClientsRaw = clientsRaw.filter((c) => (c as { status?: string }).status === "active");
+  const { data: leadsRaw = [] } = useLeads();
+  const leads = leadsRaw as unknown as LeadEntity[];
 
-  // Both hooks return CRM service types; cast to the shared EntityType shape.
-  const clients = activeClientsRaw as unknown as ClientEntity[];
-  const leads   = leadsRaw         as unknown as LeadEntity[];
-
-  // If the selected entity is not in the fetched list (e.g. synthetic client from an estimate
-  // edit where the contact was not saved to CRM), inject it so the Select can resolve its value.
-  const clientsWithSelected = (selectedClient && !clients.find((c) => c.id === selectedClient.id))
-    ? [...clients, selectedClient]
-    : clients;
+  // Inject the selected lead if not in the fetched list (edit of a legacy lead doc).
   const leadsWithSelected = (selectedLead && !leads.find((l) => l.id === selectedLead.id))
     ? [...leads, selectedLead]
     : leads;
-
-  const currentList = entityType === "client" ? clientsWithSelected : leadsWithSelected;
 
   // ── Selected entity info ──────────────────────────────────────────────────
 
@@ -123,86 +114,59 @@ export function ClientLeadPicker({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-5">
+    <>
       <Card>
         <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Users className="h-5 w-5 text-muted-foreground" />
-            Select Client or Lead
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {entityType === "client"
-              ? "Choose who this is for"
-              : entityType === "lead"
-              ? "Choose who this is for"
-              : "Select a client or lead to continue"}
-          </p>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <User className="h-4 w-4 text-muted-foreground" />
+            Select Client
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
 
-          {/* ── Type toggle ──────────────────────────────────────────────── */}
-          <div className="grid grid-cols-2 gap-3">
-            {(["client", "lead"] as EntityType[]).map((type) => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => onEntityTypeChange(type)}
-                className={cn(
-                  "h-16 flex flex-col items-center justify-center gap-1 rounded-lg border-2 transition-all",
-                  entityType === type
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:border-primary/40 text-muted-foreground",
-                  errors?.type && !entityType && "border-destructive",
-                )}
-              >
-                {type === "client"
-                  ? <User className="w-5 h-5" />
-                  : <Users className="w-5 h-5" />}
-                <span className="text-sm font-medium capitalize">{type}</span>
-              </button>
-            ))}
-          </div>
-          {errors?.type && <p className="text-xs text-destructive">{errors.type}</p>}
+          {/* ── Client — canonical ClientSelect (search + Add New Client) ──── */}
+          {entityType === "client" && (
+            <div className="space-y-1.5">
+              <ClientSelect
+                value={selectedClient?.id}
+                selected={selectedClient}
+                onChange={(client) => { if (client) onClientSelect(client); }}
+                error={!!errors?.entity}
+              />
+              {errors?.entity && <p className="text-xs text-destructive">{errors.entity}</p>}
+            </div>
+          )}
 
-          {/* ── Dropdown ─────────────────────────────────────────────────── */}
-          {entityType && (
+          {/* ── Lead — legacy edit-only branch (no lead flow in the UI) ────── */}
+          {entityType === "lead" && (
             <div className="space-y-3">
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
-                  {entityType === "client"
-                    ? <User className="w-4 h-4" />
-                    : <Users className="w-4 h-4" />}
-                  <p className="font-semibold capitalize">{entityType}</p>
+                  <Users className="w-4 h-4" />
+                  <p className="font-semibold">Lead</p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Select {entityType === "client" ? "a client" : "a lead"}
-                </p>
+                <p className="text-sm text-muted-foreground">Select a lead</p>
               </div>
 
               <Select
-                value={entityType === "client" ? (selectedClient?.id ?? "") : (selectedLead?.id ?? "")}
+                value={selectedLead?.id ?? ""}
                 onValueChange={(id) => {
-                  if (entityType === "client") {
-                    const c = clients.find((c) => c.id === id);
-                    if (c) onClientSelect(c);
-                  } else {
-                    const l = leads.find((l) => l.id === id);
-                    if (l) onLeadSelect(l);
-                  }
+                  const l = leads.find((l) => l.id === id);
+                  if (l) onLeadSelect(l);
                 }}
               >
                 <SelectTrigger className={cn(errors?.entity && "border-destructive")}>
-                  <SelectValue placeholder={`Select ${entityType}...`} />
+                  <SelectValue placeholder="Select lead..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {currentList.map((entity) => (
+                  {leadsWithSelected.map((entity) => (
                     <SelectItem key={entity.id} value={entity.id}>
                       {entity.full_name}
                     </SelectItem>
                   ))}
-                  {currentList.length === 0 && (
+                  {leadsWithSelected.length === 0 && (
                     <p className="px-2 py-4 text-center text-sm text-muted-foreground">
-                      No {entityType}s found
+                      No leads found
                     </p>
                   )}
                 </SelectContent>
@@ -212,11 +176,11 @@ export function ClientLeadPicker({
 
               <button
                 type="button"
-                onClick={() => entityType === "client" ? setShowNewClient(true) : setShowNewLead(true)}
+                onClick={() => setShowNewLead(true)}
                 className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                Add New {entityType === "client" ? "Client" : "Lead"}
+                Add New Lead
               </button>
             </div>
           )}
@@ -277,28 +241,21 @@ export function ClientLeadPicker({
             />
           )}
 
+          {/* ── Info notice (inline — no nested card) ─────────────────────── */}
+          <div className="flex items-start gap-2 rounded-md border border-info-subtle-border bg-info-subtle/50 dark:bg-info-subtle/20 p-3">
+            <Info className="w-4 h-4 text-info flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-info-subtle-foreground">{infoText}</p>
+          </div>
+
         </CardContent>
       </Card>
 
-      {/* ── Info notice ──────────────────────────────────────────────────── */}
-      <Card className="border-info-subtle-border bg-info-subtle/50 dark:border-info-subtle-border dark:bg-info-subtle/20">
-        <CardContent className="p-3 flex items-start gap-2">
-          <Info className="w-4 h-4 text-info flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-info-subtle-foreground">{infoText}</p>
-        </CardContent>
-      </Card>
-
-      {/* ── Quick-create dialogs ──────────────────────────────────────────── */}
-      <ClientForm
-        open={showNewClient}
-        onClose={() => setShowNewClient(false)}
-        onSuccess={(client) => { onClientSelect(client); }}
-      />
+      {/* ── Quick-create lead dialog (edit-only legacy) ───────────────────── */}
       <LeadForm
         open={showNewLead}
         onClose={() => setShowNewLead(false)}
         onSuccess={(lead) => { onLeadSelect(lead); }}
       />
-    </div>
+    </>
   );
 }
