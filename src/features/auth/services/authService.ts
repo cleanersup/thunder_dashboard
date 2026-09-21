@@ -134,16 +134,44 @@ export async function logout() {
   if (error) throw error;
 }
 
+export const UNKNOWN_EMAIL_MESSAGE =
+  "Wrong email, we don't have an account with the provided email.";
+
+/**
+ * Reads the JSON body of a non-2xx edge function response. Without this the
+ * Supabase client only exposes "Edge Function returned a non-2xx status code".
+ */
+async function readEdgeFunctionError(error: unknown): Promise<string | null> {
+  const context = (error as { context?: Response }).context;
+  if (!context || typeof context.clone !== "function") return null;
+  try {
+    const payload = await context.clone().json();
+    return typeof payload?.error === "string" ? payload.error : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The recovery link can only fail to generate when no account matches the email. */
+function isUnknownEmailError(detail: string | null): boolean {
+  if (!detail) return false;
+  return /generate password reset link|user not found|email not found/i.test(detail);
+}
+
 /**
  * Sends a password reset email via the send-password-reset-email edge function.
  * @param email - Email address to send the reset link to
- * @throws {Error} If the edge function returns an error
+ * @throws {Error} If the email has no account, or the edge function fails
  */
 export async function sendPasswordResetEmail(email: string) {
   const { error } = await supabase.functions.invoke("send-password-reset-email", {
     body: { email, appUrl: window.location.origin },
   });
-  if (error) throw error;
+  if (!error) return;
+
+  const detail = await readEdgeFunctionError(error);
+  if (isUnknownEmailError(detail)) throw new Error(UNKNOWN_EMAIL_MESSAGE);
+  throw new Error(detail ?? "We couldn't send the reset email. Please try again.");
 }
 
 /**

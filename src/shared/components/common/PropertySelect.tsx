@@ -65,8 +65,8 @@ export function PropertySelect({
         // diálogo vacío o un formulario que no sabría a quién asociar la propiedad.
         disabled={disabled || !clientId}
         required={required}
-        onAddNew={clientId ? () => setShowNew(true) : undefined}
-        addNewLabel="Add New Property"
+        onCreateNew={clientId ? () => setShowNew(true) : undefined}
+        createNewLabel="Add New Property"
       />
 
       {clientId && (

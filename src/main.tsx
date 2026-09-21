@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./app/App";
+import { setupPostHogAuth } from "./shared/lib/posthog";
 
 // Recover when a lazy-loaded chunk 404s after a deploy (hashed filenames change).
 // A plain reload() often re-serves cached index.html that still points at old chunks → infinite loop.
@@ -16,6 +17,8 @@ window.addEventListener("vite:preloadError", () => {
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Root element not found");
+
+setupPostHogAuth();
 
 createRoot(rootElement).render(
   <StrictMode>

@@ -17,6 +17,7 @@ export const editCompanySchema = z.object({
   city: z.string().min(1, "City is required").max(100),
   state: z.string().min(1, "State is required").max(2),
   zip: z.string().min(5, "ZIP must be 5 digits").max(5, "ZIP must be 5 digits"),
+  companyCountry: z.string().min(1, "This field is required"),
 });
 
 export type EditCompanyFormData = z.infer<typeof editCompanySchema>;

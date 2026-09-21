@@ -65,8 +65,8 @@ export function EmployeeSelect({
         error={error}
         disabled={disabled}
         required={required}
-        onAddNew={() => setShowNew(true)}
-        addNewLabel="Add New Employee"
+        onCreateNew={() => setShowNew(true)}
+        createNewLabel="Add New Employee"
       />
       <EmployeeForm
         open={showNew}

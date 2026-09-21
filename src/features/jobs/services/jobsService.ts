@@ -4,6 +4,17 @@ import { geocodeAddress, type GeoCoords } from "@/shared/services/googleMaps.ser
 
 // jobs table is not in local Supabase types — use supabase as any for all jobs queries
 const db = supabase as any;
+
+function isMissingSiteCoordColumn(error: { code?: string; message?: string } | null | undefined): boolean {
+  return error?.code === "PGRST204" && /site_latitude|site_longitude/.test(error.message ?? "");
+}
+
+function withoutSiteCoords(payload: Record<string, unknown>): Record<string, unknown> {
+  const next = { ...payload };
+  delete next.site_latitude;
+  delete next.site_longitude;
+  return next;
+}
 import {
   type Job,
   type DbJob,
@@ -335,6 +346,15 @@ export const jobsService = {
       .insert(payload)
       .select()
       .single();
+    if (error && isMissingSiteCoordColumn(error) && ("site_latitude" in payload || "site_longitude" in payload)) {
+      const { data: retryData, error: retryError } = await db
+        .from("jobs")
+        .insert(withoutSiteCoords(payload))
+        .select()
+        .single();
+      if (retryError) throw retryError;
+      return dbToJob(retryData as DbJob);
+    }
     if (error) throw error;
     return dbToJob(data as DbJob);
   },
@@ -390,12 +410,12 @@ export const jobsService = {
       partial.site_longitude = coords?.lng ?? null;
     } else {
       // Same address: fill in coordinates for jobs saved before geocoding existed.
-      const { data: current } = await db
+      const { data: current, error: currentErr } = await db
         .from("jobs")
         .select("property_street, property_city, property_state, property_zip, site_latitude")
         .eq("id", id)
         .single();
-      if (current && current.site_latitude == null) {
+      if (!currentErr && current && current.site_latitude == null) {
         const coords = await resolveSiteCoords({
           propertyStreet: current.property_street,
           propertyCity:   current.property_city,
@@ -415,6 +435,16 @@ export const jobsService = {
       .eq("id", id)
       .select()
       .single();
+    if (error && isMissingSiteCoordColumn(error) && ("site_latitude" in partial || "site_longitude" in partial)) {
+      const { data: retryData, error: retryError } = await db
+        .from("jobs")
+        .update(withoutSiteCoords(partial))
+        .eq("id", id)
+        .select()
+        .single();
+      if (retryError) throw retryError;
+      return dbToJob(retryData as DbJob);
+    }
     if (error) throw error;
     return dbToJob(data as DbJob);
   },

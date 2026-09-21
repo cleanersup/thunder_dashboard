@@ -10,6 +10,8 @@ interface ImportMetaEnv {
   readonly VITE_STRIPE_PUBLISHABLE_KEY: string;
   readonly VITE_MAPBOX_TOKEN: string;
   readonly VITE_DISABLE_SUBSCRIPTIONS?: string;
+  readonly VITE_PUBLIC_POSTHOG_KEY?: string;
+  readonly VITE_PUBLIC_POSTHOG_HOST?: string;
 }
 
 interface ImportMeta {

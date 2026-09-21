@@ -36,6 +36,10 @@ export const env = {
   recaptcha: {
     siteKey: import.meta.env.VITE_RECAPTCHA_SITE_KEY ?? "",
   },
+  posthog: {
+    key: import.meta.env.VITE_PUBLIC_POSTHOG_KEY ?? "",
+    host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
+  },
   features: {
     disableSubscriptions: import.meta.env.VITE_DISABLE_SUBSCRIPTIONS === "true",
   },

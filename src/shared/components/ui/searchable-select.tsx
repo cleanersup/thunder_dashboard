@@ -33,9 +33,9 @@ interface SearchableSelectBaseProps {
   error?: boolean;
   /** Añade el asterisco de obligatorio al placeholder (una sola convención en la app). */
   required?: boolean;
-  /** Optional footer action rendered below the list (e.g. "Add New Client"). */
-  onAddNew?: () => void;
-  addNewLabel?: string;
+  /** Acción al pie de la lista (ej. "Add New Client"). Mismo nombre que EntityPickerField. */
+  onCreateNew?: () => void;
+  createNewLabel?: string;
 }
 
 /**
@@ -64,13 +64,21 @@ export const SearchableSelect = React.forwardRef<
       disabled = false,
       error = false,
       required = false,
-      onAddNew,
-      addNewLabel = "Add New",
+      onCreateNew,
+      createNewLabel = "Create new",
     } = props;
 
     const [open, setOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState("");
     const isMobile = useIsMobile();
+
+    // Diálogo que contiene al select, si lo hay: el popover se monta dentro de él.
+    const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+    const [dialogContainer, setDialogContainer] = React.useState<HTMLElement | null>(null);
+    React.useEffect(() => {
+      if (!open) return;
+      setDialogContainer(triggerRef.current?.closest("[role=dialog]") as HTMLElement | null);
+    }, [open]);
 
     const isMulti = props.multiple === true;
 
@@ -105,14 +113,14 @@ export const SearchableSelect = React.forwardRef<
 
     // Footer action (e.g. "Add New Client") — closes the select, then fires.
     const AddNewButton = () =>
-      onAddNew ? (
+      onCreateNew ? (
         <button
           type="button"
-          onClick={() => { setOpen(false); onAddNew(); }}
+          onClick={() => { setOpen(false); onCreateNew(); }}
           className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-semibold text-primary hover:bg-accent transition-colors"
         >
           <Plus className="h-4 w-4 shrink-0" />
-          {addNewLabel}
+          {createNewLabel}
         </button>
       ) : null;
 
@@ -193,7 +201,13 @@ export const SearchableSelect = React.forwardRef<
 
     const trigger = (
       <Button
-        ref={ref}
+        // El ref externo y el interno apuntan al mismo botón: el interno localiza el
+        // diálogo contenedor para el portal del popover.
+        ref={(node) => {
+          triggerRef.current = node;
+          if (typeof ref === "function") ref(node);
+          else if (ref) ref.current = node;
+        }}
         type="button"
         variant="field"
         role="combobox"
@@ -215,20 +229,20 @@ export const SearchableSelect = React.forwardRef<
      * Desplegable anclado al campo — se comporta como un select, que es lo que el
      * usuario espera de un campo con chevron.
      *
-     * `modal` es obligatorio: dentro de un FullScreenModal (que es un Dialog de Radix)
-     * un Popover no-modal queda fuera del foco atrapado del diálogo y el scroll de la
-     * lista deja de responder. Con `modal` el Popover gestiona su propio foco y scroll
-     * y funciona igual suelto en la página que dentro del modal.
+     * Dentro de un diálogo se monta EN el diálogo (`container`), no en el body: el
+     * scroll-lock de Radix cancela los eventos de scroll que nacen fuera de su propio
+     * subárbol, y la lista dejaría de responder a la rueda del ratón.
      */
     if (!isMobile) {
       return (
         <>
-          <Popover open={open} onOpenChange={setOpen} modal>
+          <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>{trigger}</PopoverTrigger>
             <PopoverContent
               className="w-[var(--radix-popover-trigger-width)] p-0 z-[60]"
               align="start"
               sideOffset={4}
+              container={dialogContainer}
             >
               <div className="p-2 border-b">
                 <SearchInput autoFocus />
@@ -244,7 +258,7 @@ export const SearchableSelect = React.forwardRef<
                 )}
               </div>
 
-              {onAddNew && (
+              {onCreateNew && (
                 <div className="border-t p-1">
                   <AddNewButton />
                 </div>
@@ -282,7 +296,7 @@ export const SearchableSelect = React.forwardRef<
 
             {/* Footer */}
             <div className="px-6 py-4 border-t space-y-2">
-              {onAddNew && (
+              {onCreateNew && (
                 <div className="rounded-md border">
                   <AddNewButton />
                 </div>

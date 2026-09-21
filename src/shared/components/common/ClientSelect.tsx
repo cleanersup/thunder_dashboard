@@ -77,8 +77,8 @@ export function ClientSelect({
         error={error}
         disabled={disabled}
         required={required}
-        onAddNew={() => setShowNew(true)}
-        addNewLabel="Add New Client"
+        onCreateNew={() => setShowNew(true)}
+        createNewLabel="Add New Client"
       />
       <ClientForm
         open={showNew}
