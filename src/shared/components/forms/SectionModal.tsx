@@ -70,12 +70,22 @@ export function SectionModal({
     bodyRef.current?.scrollTo({ top: 0 });
   }, [contentKey]);
 
+  // El contenedor decide la forma del par de botones:
+  //
+  // - lateral → los dos a mitad de ancho cada uno, como el pie de `FormSheet`
+  //   (Add Client): en 440px llenar el ancho es lo que se lee bien.
+  // - pantalla completa → compactos, secundario a la izquierda y primario a la
+  //   derecha, idéntico al pie del formulario. El review es una pantalla más del
+  //   mismo formulario, así que sus botones no pueden ser otros.
+  const stretch = variant === "sheet";
+
   const actions = (
     <>
       <Button
         variant="outline"
         type="button"
-        className="flex-1"
+        size={stretch ? "default" : "sm"}
+        className={stretch ? "flex-1" : undefined}
         onClick={onSecondary ?? onCancel}
         disabled={isPending}
       >
@@ -83,7 +93,8 @@ export function SectionModal({
       </Button>
       <Button
         type="button"
-        className="flex-1"
+        size={stretch ? "default" : "sm"}
+        className={stretch ? "flex-1" : undefined}
         onClick={onSave}
         disabled={saveDisabled || isPending}
       >
@@ -162,7 +173,7 @@ export function SectionModal({
           <div className="bg-card p-4">
             {children}
           </div>
-          <div className="bg-card p-4 flex items-center gap-3">
+          <div className="bg-card p-4 flex items-center justify-between gap-3">
             {actions}
           </div>
         </div>
