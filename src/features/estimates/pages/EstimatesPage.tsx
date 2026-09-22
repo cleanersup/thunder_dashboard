@@ -11,6 +11,7 @@ import {
   Plus, Search, CheckCircle, Clock, FileText, DollarSign,
   MoreHorizontal, Edit, Mail, Share, Download, X, ChevronLeft, ChevronRight,
   BookOpen, FileSignature, Play, RefreshCw, Trash2, Calendar as CalendarIcon, MessageSquare, Briefcase,
+  Zap,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -33,6 +34,7 @@ import { useProfile } from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { PDFService } from "@/shared/services/pdf.service";
 import { deleteDraftEstimate } from "../services/estimatesService";
+import { isQuickQuote } from "../utils/quickQuote";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -102,6 +104,7 @@ export function EstimatesPage() {
     type: "residential" | "commercial" | null;
     editState?: { isEditing: boolean; estimateId: string; estimateData: any };
     continueDraft?: boolean;
+    quickQuote?: boolean;
   }>({ type: null });
 
 
@@ -117,6 +120,8 @@ export function EstimatesPage() {
     status:         e.status,
     job_id:         (e as any).job_id as string | null,
     phone:          (e as any).phone as string | null,
+    email:          (e as any).email as string | null,
+    isQuickQuote:   isQuickQuote((e as any).additional_data),
     // Autosave drafts (created by useDraftEstimate) store form state in draft_data.
     // Request-converted drafts don't have draft_data — they use main_data instead.
     hasDraftData:   !!(e as any).draft_data,
@@ -369,22 +374,30 @@ export function EstimatesPage() {
               </Popover>
             </div>
 
-            {/* Right: New */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="h-9">
-                  <Plus className="w-4 h-4 mr-1" /> New
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onClick={() => openEstimateForm("Residential")}>
-                  <BookOpen className="w-4 h-4 mr-2" /> Residential
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openEstimateForm("Commercial")}>
-                  <FileSignature className="w-4 h-4 mr-2" /> Commercial
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Right: Quick Quote + New */}
+            <div className="flex items-center gap-2">
+              {/* Cotizar sin pedir datos del cliente: solo el servicio y el precio.
+                  Los datos de la persona se piden al final, al elegir cómo enviarlo. */}
+              <Button variant="outline" className="h-9" onClick={() => setFormModal({ type: "residential", quickQuote: true })}>
+                <Zap className="w-4 h-4 mr-1" /> Quick Quote
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="h-9">
+                    <Plus className="w-4 h-4 mr-1" /> New
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem onClick={() => openEstimateForm("Residential")}>
+                    <BookOpen className="w-4 h-4 mr-2" /> Residential
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openEstimateForm("Commercial")}>
+                    <FileSignature className="w-4 h-4 mr-2" /> Commercial
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -419,7 +432,16 @@ export function EstimatesPage() {
               paginated.map((estimate) => (
                 <TableRow key={estimate.id} className="cursor-pointer hover:bg-muted/50 border-b border-border/50"
                   onClick={() => openDetail(estimate.id)}>
-                  <TableCell className="font-medium py-2 px-4">{estimate.serviceType}</TableCell>
+                  <TableCell className="font-medium py-2 px-4">
+                    <div className="flex items-center gap-2">
+                      {estimate.serviceType}
+                      {estimate.isQuickQuote && (
+                        <Badge variant="outline" className="font-medium text-[11px] bg-primary/10 text-primary border-primary/30">
+                          Quick Quote
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="py-2 px-4">{estimate.clientName}</TableCell>
                   <TableCell className="py-2 px-4">{estimate.shortDate}</TableCell>
                   <TableCell className="py-2 px-4">
@@ -475,9 +497,11 @@ export function EstimatesPage() {
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditEstimate(estimate); }}>
                                   <Edit className="w-4 h-4 mr-2" /> Edit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleSendEmail(estimate); }} disabled={isSending}>
-                                  <Mail className="w-4 h-4 mr-2" /> {isSending ? "Sending..." : "Send reminder by email"}
-                                </DropdownMenuItem>
+                                {estimate.email && (
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleSendEmail(estimate); }} disabled={isSending}>
+                                    <Mail className="w-4 h-4 mr-2" /> {isSending ? "Sending..." : "Send reminder by email"}
+                                  </DropdownMenuItem>
+                                )}
                                 {estimate.phone && (
                                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleSendSMSFromTable(estimate); }} disabled={isSendingSMS}>
                                     <MessageSquare className="w-4 h-4 mr-2" /> {isSendingSMS ? "Sending..." : "Send reminder by SMS"}
@@ -659,7 +683,7 @@ export function EstimatesPage() {
         <CreateResidentialEstimatePage
           open
           onClose={() => setFormModal({ type: null })}
-          initialState={{ ...formModal.editState, continueDraft: formModal.continueDraft }}
+          initialState={{ ...formModal.editState, continueDraft: formModal.continueDraft, quickQuote: formModal.quickQuote }}
         />
       )}
       {formModal.type === "commercial" && (

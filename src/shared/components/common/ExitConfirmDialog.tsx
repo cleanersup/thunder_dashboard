@@ -57,33 +57,35 @@ export function ExitConfirmDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        {/* Jerarquía: la acción segura pesa más que la destructiva. Descartar va en
-            texto — es la salida menos frecuente y la única que pierde trabajo. */}
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={onKeepEditing}
-              disabled={isPending}
-            >
-              Keep editing
-            </Button>
-            {canSaveDraft && (
-              <Button className="flex-1" onClick={onSaveDraft} disabled={isPending}>
-                {isPending ? "Saving…" : "Save draft"}
-              </Button>
-            )}
-          </div>
-
+        {/* Una sola fila, en orden de menos a más destructivo: descartar queda a la
+            izquierda y en texto (la salida menos frecuente, la única que pierde
+            trabajo) y la acción segura ocupa la derecha, donde cae el clic. */}
+        <div className="flex items-center gap-2">
           <Button
             variant={canSaveDraft ? "ghost" : "destructive"}
-            className={canSaveDraft ? "w-full text-destructive hover:text-destructive hover:bg-destructive/10" : "w-full"}
+            className={canSaveDraft
+              ? "flex-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+              : "flex-1"}
             onClick={onDiscard}
             disabled={isPending}
           >
-            {canSaveDraft ? "Discard changes" : "Discard"}
+            {canSaveDraft ? "Discard" : "Discard changes"}
           </Button>
+
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={onKeepEditing}
+            disabled={isPending}
+          >
+            Keep editing
+          </Button>
+
+          {canSaveDraft && (
+            <Button className="flex-1" onClick={onSaveDraft} disabled={isPending}>
+              {isPending ? "Saving…" : "Save draft"}
+            </Button>
+          )}
         </div>
       </AlertDialogContent>
     </AlertDialog>

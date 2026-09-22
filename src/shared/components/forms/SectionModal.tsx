@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/utils/cn";
@@ -32,6 +32,12 @@ export interface SectionModalProps {
   onSecondary?: () => void;
   isPending?: boolean;
   variant?: SectionModalVariant;
+  /**
+   * Identifica el contenido que se muestra ahora. Cuando un mismo modal encadena
+   * varias pantallas (el review: Summary → Preview → Send), cambiarlo devuelve el
+   * scroll arriba — si no, la pantalla siguiente aparece a media altura.
+   */
+  contentKey?: string;
   children: ReactNode;
 }
 
@@ -55,8 +61,15 @@ export function SectionModal({
   onSecondary,
   isPending = false,
   variant = "sheet",
+  contentKey,
   children,
 }: SectionModalProps) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, [contentKey]);
+
   const actions = (
     <>
       <Button
@@ -106,12 +119,16 @@ export function SectionModal({
             "[&_[data-slot=card]]:rounded-none [&_[data-slot=card]]:border-0 [&_[data-slot=card]]:shadow-none",
             // Los steps traen su propio `space-y-*`; aquí el hueco entre bandas lo
             // decide el panel para que todas las secciones separen igual.
-            "[&>div]:flex [&>div]:flex-col [&>div]:gap-2 [&>div]:space-y-0",
+            // Excluye la barra de acciones: es del panel, no una banda de contenido,
+            // y en columna apilaría los botones uno sobre otro.
+            "[&>div:not([data-actions])]:flex [&>div:not([data-actions])]:flex-col",
+            "[&>div:not([data-actions])]:gap-2 [&>div:not([data-actions])]:space-y-0",
           )}>
             {children}
 
-            {/* Dentro del scroll, al final del contenido: no pegados abajo. */}
-            <div className="bg-card px-6 py-4 flex gap-3">
+            {/* Al final del contenido y, cuando la sección es corta, pegada al pie:
+                `mt-auto` empuja la barra abajo sin sacarla del scroll. */}
+            <div data-actions className="mt-auto bg-card px-6 py-4 flex gap-3">
               {actions}
             </div>
           </div>
@@ -140,7 +157,7 @@ export function SectionModal({
 
       {/* Mismo patrón que la variante lateral: fondo gris, contenido en blanco y los
           botones al final del scroll (no pegados abajo). */}
-      <div className="flex-1 overflow-y-auto bg-muted/40 py-2">
+      <div ref={bodyRef} className="flex-1 overflow-y-auto bg-muted/40 py-2">
         <div className="max-w-2xl mx-auto flex flex-col gap-2 px-4">
           <div className="bg-card p-4">
             {children}

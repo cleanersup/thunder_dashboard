@@ -16,6 +16,11 @@ import { FORM_SECTION_GAP } from "@/shared/constants/formTokens";
 import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
 import { getEstimatePropertyId, propertyToEstimateAddress } from "../utils/estimateProperty";
 import { buildDepositAdditionalFields, restoreDepositFromAdditionalData } from "../utils/estimateDeposit";
+import {
+  buildQuickQuoteAdditionalFields, isQuickQuote, needsClientCompletion,
+  QUICK_QUOTE_EMPTY_ADDRESS, EMPTY_QUICK_QUOTE_CONTACT, isQuickQuoteContactComplete,
+  quickQuoteNeedsEmail, quickQuoteNeedsPhone, type QuickQuoteContact,
+} from "../utils/quickQuote";
 import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
 import { DraftStatusIndicator }  from "../components/DraftStatusIndicator";
 import { ExitConfirmDialog } from "@/shared/components/common/ExitConfirmDialog";
@@ -28,6 +33,7 @@ import { ResLaundryStep }  from "../components/residential/ResLaundryStep";
 import { ResSummaryStep }  from "../components/residential/ResSummaryStep";
 import { ResPreviewStep } from "../components/residential/ResPreviewStep";
 import { ResSendStep, type DeliveryMethod } from "../components/residential/ResSendStep";
+import { ResQuickSendStep } from "../components/residential/ResQuickSendStep";
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { toast } from "sonner";
@@ -40,6 +46,7 @@ import { fetchClient } from "@/features/crm/clients/services/clientsService";
 import { fetchLead } from "@/features/crm/leads/services/leadsService";
 import { useResidentialPricing } from "../hooks/useResidentialPricing";
 import { useProfile } from "@/shared/hooks/useProfile";
+import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
 import { supabase } from "@/integrations/supabase/client";
 import { QK } from "@/shared/config/queryKeys";
 import type { DraftData } from "../types/estimate.types";
@@ -71,7 +78,12 @@ interface SectionSnapshot {
 interface Props {
   open?: boolean;
   onClose?: () => void;
-  initialState?: { isEditing?: boolean; isConversionDraft?: boolean; estimateId?: string; estimateData?: any; prefill?: any; continueDraft?: boolean; };
+  initialState?: {
+    isEditing?: boolean; isConversionDraft?: boolean; estimateId?: string;
+    estimateData?: any; prefill?: any; continueDraft?: boolean;
+    /** Quick Quote: sin cliente ni propiedad; los datos de la persona se piden al enviar. */
+    quickQuote?: boolean;
+  };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -81,6 +93,14 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const qc          = useQueryClient();
   const locationState = (location.state as any) || {};
   const { isEditing, isConversionDraft, estimateId, estimateData, prefill, continueDraft } = initialState ?? locationState;
+  // Un quick quote se edita como quick quote: la marca viaja en `additional_data`,
+  // así que al reabrirlo se reconoce solo y sigue sin pedir cliente.
+  //
+  // Pero solo MIENTRAS no tenga cliente: en cuanto se convierte (job o contrato) se
+  // le crea uno y la fila pasa a ser un estimate residencial normal. Seguir en modo
+  // rápido ahí borraría al guardar el `client_id` y la dirección que acaba de ganar.
+  const quickQuote = (initialState ?? locationState)?.quickQuote
+    || (!!estimateData && needsClientCompletion(estimateData));
   // `isEditing` keeps its save semantics (UPDATE the draft, don't delete on discard),
   // but a conversion draft is brand-new to the user, so display copy reads "New/Create".
   const displayEditing = isEditing && !isConversionDraft;
@@ -191,6 +211,12 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   // ── Step 10: Send ─────────────────────────────────────────────────────────
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
   const [showSuccess,    setShowSuccess]    = useState(false);
+  // Quick quote: los datos de la persona se recogen en el paso de envío, no al empezar.
+  const [quickContact,  setQuickContact]  = useState<QuickQuoteContact>(EMPTY_QUICK_QUOTE_CONTACT);
+  const [sendErrors,    setSendErrors]    = useState<Record<string, boolean>>({});
+  // La marca de origen sobrevive a la conversión y a las ediciones posteriores:
+  // es de dónde salió el estimate, no en qué estado está.
+  const [wasQuickQuote, setWasQuickQuote] = useState(false);
 
   // ── User state ────────────────────────────────────────────────────────────
   const [userState, setUserState] = useState("");
@@ -213,6 +239,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         }
         if (!d) return;
 
+        setWasQuickQuote(isQuickQuote(d.additional_data));
         setSelectedService(d.service_sub_type ?? "");
         const md = (d.main_data as any) ?? {};
         setSquareFootage(md.squareFootage ?? "");
@@ -237,6 +264,19 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
             setLaundryService((match[1] === "wash-dry-fold" ? "wash-dry-fold" : "wash-dry") as "wash-dry" | "wash-dry-fold");
             setLaundryPounds(parseInt(match[2], 10) || 0);
           }
+        }
+
+        // Quick quote sin convertir: no hay cliente que resolver ni cliente sintético
+        // que montar. Los datos de la persona viven denormalizados en la fila y vuelven
+        // al paso de envío, que es donde se editan. Uno ya convertido cae al camino
+        // normal de abajo y carga su cliente.
+        if (needsClientCompletion(d)) {
+          setQuickContact({
+            fullName: d.client_name ?? "",
+            email:    d.email ?? "",
+            phone:    formatPhoneDisplay(d.phone),
+          });
+          return;
         }
 
         if (d.client_id) {
@@ -340,8 +380,11 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Draft ─────────────────────────────────────────────────────────────────
+  // El autosave guarda UN borrador residencial por usuario, así que un quick quote
+  // a medias adoptaría (y al enviarse borraría) el borrador del formulario normal.
+  // Sin borrador: el quick quote se completa de una sentada, que es su razón de ser.
   const { saveDraft, deleteDraft, isSaving, lastSaved, loadedDraft, clearLoadedDraft } =
-    useDraftEstimate({ serviceType: "Residential", enabled: !isEditing });
+    useDraftEstimate({ serviceType: "Residential", enabled: !isEditing && !quickQuote });
 
   // Restore draft only when user explicitly chose "Continue" from the drafts list
   useEffect(() => {
@@ -436,6 +479,17 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
 
   // ── Client helpers ────────────────────────────────────────────────────────
   function getClientInfo() {
+    // Quick quote: el "cliente" es el destinatario que se escribe en el paso de
+    // envío, y no tiene dirección de servicio (ver QUICK_QUOTE_EMPTY_ADDRESS).
+    if (quickQuote) {
+      if (!quickContact.fullName.trim()) return null;
+      return {
+        name: quickContact.fullName.trim(), company: "",
+        phone: quickContact.phone, email: quickContact.email.trim(),
+        ...QUICK_QUOTE_EMPTY_ADDRESS,
+        apt: "",
+      };
+    }
     if (estimateType === "client" && selectedClient) {
       // When a service property is selected, its address overrides the client's default address
       const addr = selectedProperty
@@ -463,6 +517,10 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
 
   // ── Submit ────────────────────────────────────────────────────────────────
   async function handleSubmit() {
+    if (quickQuote && !validateQuickContact()) {
+      toast.error("Please complete the recipient details");
+      return;
+    }
     const client = getClientInfo();
     if (!client) { toast.error("Please select a client"); return; }
     const { subtotal, total, laborCost, suppliesCost, overheadCost, totalOpCost } = pricing;
@@ -477,7 +535,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       service_type: "Residential", service_sub_type: selectedService,
       service_scope: scope || null,
       main_data: { squareFootage, bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths } as any,
-      additional_data: { fans, oven, refrigerator, blinds, windowsInside, windowsOutside, propertyId: selectedProperty?.id ?? null, assignedEmployees: carriedEmployees, ...buildDepositAdditionalFields(applyDeposit, depositType, depositValue) } as any,
+      additional_data: { fans, oven, refrigerator, blinds, windowsInside, windowsOutside, propertyId: selectedProperty?.id ?? null, assignedEmployees: carriedEmployees, ...buildDepositAdditionalFields(applyDeposit, depositType, depositValue), ...buildQuickQuoteAdditionalFields(quickQuote || wasQuickQuote) } as any,
       extra_services: extras as any,
       pets: pets === "yes" ? "Yes" : "No",
       laundry: laundryService ? `${laundryService} - ${laundryPounds} pounds` : "No",
@@ -537,10 +595,22 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
 
   function validateAll(): boolean {
     const errs: Record<string, boolean> = {};
-    if (!selectedClient && !selectedLead) errs.selectedEntity = true;
+    // El quick quote no tiene sección de cliente que validar.
+    if (!quickQuote && !selectedClient && !selectedLead) errs.selectedEntity = true;
     if (!selectedService) errs.selectedService = true;
     if (!roomsComplete)   errs.rooms           = true;
     setStepErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  /** Datos del destinatario del quick quote — solo los exige el canal elegido. */
+  function validateQuickContact(): boolean {
+    const errs: Record<string, boolean> = {};
+    if (!deliveryMethod) errs.deliveryMethod = true;
+    if (!quickContact.fullName.trim()) errs.fullName = true;
+    if (quickQuoteNeedsEmail(deliveryMethod) && !quickContact.email.trim()) errs.email = true;
+    if (quickQuoteNeedsPhone(deliveryMethod) && !quickContact.phone.trim()) errs.phone = true;
+    setSendErrors(errs);
     return Object.keys(errs).length === 0;
   }
 
@@ -627,21 +697,26 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   // ── Secciones del hub ─────────────────────────────────────────────────────
   const hubSections = (
     <>
-      <ClientPropertyField
-        client={selectedClient}
-        onClientChange={(c) => {
-          setSelectedClient(c);
-          setEstimateType("client");
-          setSelectedLead(null);
-          setSelectedProperty(null);
-          if (c) setStepErrors((e) => ({ ...e, selectedEntity: false }));
-        }}
-        property={selectedProperty}
-        onPropertyChange={setSelectedProperty}
-        preferredPropertyId={selectedProperty?.id ?? pendingPropertyId}
-        invalid={stepErrors.selectedEntity}
-        subtitle="Who the estimate is for and where the service happens"
-      />
+      {/* El quick quote empieza directamente por el servicio: no pide cliente ni
+          propiedad, que es lo que hacía abandonar el formulario. Los datos de la
+          persona se piden al final, en el paso de envío. */}
+      {!quickQuote && (
+        <ClientPropertyField
+          client={selectedClient}
+          onClientChange={(c) => {
+            setSelectedClient(c);
+            setEstimateType("client");
+            setSelectedLead(null);
+            setSelectedProperty(null);
+            if (c) setStepErrors((e) => ({ ...e, selectedEntity: false }));
+          }}
+          property={selectedProperty}
+          onPropertyChange={setSelectedProperty}
+          preferredPropertyId={selectedProperty?.id ?? pendingPropertyId}
+          invalid={stepErrors.selectedEntity}
+          subtitle="Who the estimate is for and where the service happens"
+        />
+      )}
 
       {/* Service (requerido) */}
       <FormSection
@@ -850,16 +925,43 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   );
 
   // ── Review: Summary → Preview → Send ──────────────────────────────────────
+  // Las tres pantallas comparten UN modal: cambiar de etapa cambia el contenido,
+  // no el contenedor. Con un modal por etapa, cada paso cerraba un Dialog y abría
+  // otro — parpadeo del overlay y salto de la página de fondo al soltarse y
+  // retomarse el bloqueo de scroll.
+  const reviewTitle = reviewStep === "preview" ? "Preview"
+    : reviewStep === "send" ? "Send"
+    : "Summary";
+
+  const reviewSaveLabel = reviewStep === "preview" ? "Continue"
+    : reviewStep === "send" ? (displayEditing ? "Update Estimate" : "Send Estimate")
+    : "Preview";
+
+  function handleReviewSave() {
+    if (reviewStep === "summary") { setReviewStep("preview"); return; }
+    if (reviewStep === "preview") { setReviewStep("send");    return; }
+    handleSubmit();
+  }
+
   const reviewModals = (
-    <>
-      <SectionModal
-        open={reviewStep === "summary"}
-        onCancel={() => setReviewStep(null)}
-        title="Summary"
-        variant="fullscreen"
-        onSave={() => setReviewStep("preview")}
-        saveLabel="Preview"
-      >
+    <SectionModal
+      open={reviewStep !== null}
+      onCancel={() => setReviewStep(null)}
+      title={reviewTitle}
+      contentKey={reviewStep ?? ""}
+      variant="fullscreen"
+      onSave={handleReviewSave}
+      saveLabel={reviewSaveLabel}
+      saveDisabled={reviewStep === "send" && (quickQuote
+        ? !isQuickQuoteContactComplete(quickContact, deliveryMethod)
+        : !deliveryMethod)}
+      secondaryLabel={reviewStep === "summary" ? "Cancel" : "Back"}
+      onSecondary={reviewStep === "preview" ? () => setReviewStep("summary")
+        : reviewStep === "send" ? () => setReviewStep("preview")
+        : undefined}
+      isPending={reviewStep === "send" && (createEst.isPending || updateEst.isPending || isSending)}
+    >
+      {reviewStep === "summary" && (
         <ResSummaryStep
           pricing={pricing} selectedService={selectedService}
           client={client ? { name: client.name, email: client.email, phone: client.phone, address: client.address, city: client.city, state: client.state, zip: client.zip } : null}
@@ -870,18 +972,9 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
           onApplyDiscountChange={setApplyDiscount} onDiscountTypeChange={setDiscountType} onDiscountValueChange={setDiscountValue}
           onApplyDepositChange={setApplyDeposit} onDepositTypeChange={setDepositType} onDepositValueChange={setDepositValue}
         />
-      </SectionModal>
+      )}
 
-      <SectionModal
-        open={reviewStep === "preview"}
-        onCancel={() => setReviewStep(null)}
-        title="Preview"
-        variant="fullscreen"
-        onSave={() => setReviewStep("send")}
-        saveLabel="Continue"
-        secondaryLabel="Back"
-        onSecondary={() => setReviewStep("summary")}
-      >
+      {reviewStep === "preview" && (
         <ResPreviewStep
           client={client}
           selectedService={selectedService}
@@ -895,28 +988,25 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
           applyDiscount={applyDiscount} discountType={discountType} discountValue={discountValue}
           applyDeposit={applyDeposit} depositType={depositType} depositValue={depositValue}
         />
-      </SectionModal>
+      )}
 
-      <SectionModal
-        open={reviewStep === "send"}
-        onCancel={() => setReviewStep(null)}
-        title="Send"
-        variant="fullscreen"
-        onSave={handleSubmit}
-        saveLabel={displayEditing ? "Update Estimate" : "Send Estimate"}
-        saveDisabled={!deliveryMethod}
-        secondaryLabel="Back"
-        onSecondary={() => setReviewStep("preview")}
-        isPending={createEst.isPending || updateEst.isPending || isSending}
-      >
+      {reviewStep === "send" && (quickQuote ? (
+        <ResQuickSendStep
+          contact={quickContact}
+          deliveryMethod={deliveryMethod}
+          onContactChange={(c) => { setQuickContact(c); setSendErrors({}); }}
+          onDeliveryMethodChange={(m) => { setDeliveryMethod(m); setSendErrors({}); }}
+          errors={sendErrors}
+        />
+      ) : (
         <ResSendStep
           client={client ? { name: client.name, email: client.email, phone: client.phone } : null}
           total={pricing.total}
           deliveryMethod={deliveryMethod}
           onChange={setDeliveryMethod}
         />
-      </SectionModal>
-    </>
+      ))}
+    </SectionModal>
   );
 
   // ── Cuerpo del formulario (mismo en modal y en página) ────────────────────
@@ -932,7 +1022,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
           Cancel
         </Button>
         <div className="flex items-center gap-3">
-          {!isEditing && <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} />}
+          {!isEditing && !quickQuote && <DraftStatusIndicator isSaving={isSaving} lastSaved={lastSaved} />}
           <Button size="sm" type="button" onClick={handleReview}>
             Review
           </Button>
@@ -949,7 +1039,9 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
             <div className="w-1/3" />
             <div className="w-1/3 text-center">
               <h1 className="font-semibold text-base leading-tight">
-                {displayEditing ? "Edit Residential Estimate" : "Residential Estimate"}
+                {quickQuote
+                  ? (displayEditing ? "Edit Quick Quote" : "Quick Quote")
+                  : (displayEditing ? "Edit Residential Estimate" : "Residential Estimate")}
               </h1>
             </div>
             <div className="flex items-center w-1/3 justify-end">
@@ -974,10 +1066,11 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     <>
       <ExitConfirmDialog
         open={showExitDialog}
-        entityLabel="estimate"
+        entityLabel={quickQuote ? "quick quote" : "estimate"}
         // Editar un estimate ya existente no ofrece borrador: la fila ya está guardada
-        // y "guardar como draft" lo devolvería a un estado anterior.
-        onSaveDraft={isEditing ? undefined : async () => {
+        // y "guardar como draft" lo devolvería a un estado anterior. El quick quote
+        // tampoco: comparte la única fila de borrador residencial (ver useDraftEstimate).
+        onSaveDraft={isEditing || quickQuote ? undefined : async () => {
           await saveDraft(collectDraftData());
           setShowExitDialog(false);
           goBack();

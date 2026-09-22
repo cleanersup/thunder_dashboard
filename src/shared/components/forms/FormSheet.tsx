@@ -76,7 +76,10 @@ export function FormSheet({
           <div className="flex flex-1 flex-col gap-2 overflow-y-auto bg-muted/40 py-2">
             {children}
 
-            <div className="bg-card px-6 py-4 flex gap-3">
+            {/* `mt-auto`: en un formulario corto la barra baja hasta el pie en vez de
+                quedar flotando a media altura con gris debajo. En uno largo el margen
+                se resuelve a cero y queda, como siempre, al final del scroll. */}
+            <div className="mt-auto bg-card px-6 py-4 flex gap-3">
               <Button
                 type="button"
                 variant="outline"

@@ -100,7 +100,7 @@ export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess
       isPending={isPending}
     >
       <div className="contents" onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}>
-        <FormBand>
+        <FormBand title="Property Details">
           <div className="space-y-1.5">
             <Label htmlFor="title">Title (optional)</Label>
             <Input id="title" placeholder="e.g. Main Office" {...form.register("title")} />
@@ -117,7 +117,9 @@ export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess
               </SelectContent>
             </Select>
           </div>
+        </FormBand>
 
+        <FormBand title="Address">
           <div className="space-y-1.5">
             <Label htmlFor="street">Street *</Label>
             <AddressAutocomplete
@@ -168,7 +170,12 @@ export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border border-border p-3">
+        </FormBand>
+
+        {/* Banda propia: no es un dato más de la dirección, es una decisión sobre
+            cómo se usará esta propiedad en el resto de la app. */}
+        <FormBand title="Default">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium">Primary property</p>
               <p className="text-xs text-muted-foreground">Used as default for new jobs and estimates</p>

@@ -281,21 +281,24 @@ export function AddWalkthroughPage({
         subtitle="When the crew visits the property"
         invalid={errors.date || errors.time}
       >
-        <DateField
-          placeholder="Select date"
-          value={selectedDate}
-          onChange={(d) => { setSelectedDate(d); setErrors((p) => ({ ...p, date: false })); }}
-          required
-          error={errors.date && "Date is required"}
-        />
-        <TimeField
-          id="scheduled_time"
-          label="Time"
-          value={scheduledTime}
-          onChange={(v) => { setScheduledTime(v); setErrors((p) => ({ ...p, time: false })); }}
-          required
-          error={errors.time && "Time is required"}
-        />
+        {/* Día y hora son una sola decisión — "cuándo" — y se leen juntos. */}
+        <div className="grid grid-cols-2 gap-3">
+          <DateField
+            placeholder="Select date"
+            value={selectedDate}
+            onChange={(d) => { setSelectedDate(d); setErrors((p) => ({ ...p, date: false })); }}
+            required
+            error={errors.date && "Date is required"}
+          />
+          <TimeField
+            id="scheduled_time"
+            label="Time"
+            value={scheduledTime}
+            onChange={(v) => { setScheduledTime(v); setErrors((p) => ({ ...p, time: false })); }}
+            required
+            error={errors.time && "Time is required"}
+          />
+        </div>
       </FormSection>
 
       {/* ── Crew ──────────────────────────────────────────────────── */}

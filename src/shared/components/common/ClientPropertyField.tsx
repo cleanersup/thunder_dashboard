@@ -9,7 +9,7 @@
  * Es controlado: el padre dueña `client` y `property` y arma su propio payload — este
  * componente no sabe nada de requests ni de walkthroughs (OCP).
  */
-import { User, Mail, Phone, MapPin } from "lucide-react";
+import { User, Mail, Phone } from "lucide-react";
 import { FormSection } from "@/shared/components/forms";
 import { ClientSelect } from "./ClientSelect";
 import { ServicePropertySelector } from "./ServicePropertySelector";
@@ -43,14 +43,6 @@ export function ClientPropertyField({
   subtitle = "Who this is for and where the service happens",
   flush = false,
 }: ClientPropertyFieldProps) {
-  const addrLine1 = client
-    ? [client.service_street, client.service_apt].filter(Boolean).join(" ")
-    : "";
-  const addrLine2 = client
-    ? [client.service_city, `${client.service_state ?? ""} ${client.service_zip ?? ""}`.trim()]
-        .filter(Boolean).join(", ")
-    : "";
-
   return (
     <FormSection
       icon={User}
@@ -75,6 +67,9 @@ export function ClientPropertyField({
         preferredPropertyId={preferredPropertyId}
       />
 
+      {/* Resumen de contacto — sin dirección: dónde ocurre el servicio ya lo dice
+          el selector de propiedad de arriba, y repetir aquí la dirección por defecto
+          del cliente además contradice a la propiedad elegida cuando son distintas. */}
       {client && (
         <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4">
           {[
@@ -90,17 +85,6 @@ export function ClientPropertyField({
               </div>
             </div>
           ))}
-          {(addrLine1 || addrLine2) && (
-            <div className="flex items-start gap-3">
-              <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-xs text-muted-foreground">Address</p>
-                <p className="text-sm font-medium">
-                  {addrLine1}{addrLine1 && addrLine2 && <br />}{addrLine2}
-                </p>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </FormSection>
