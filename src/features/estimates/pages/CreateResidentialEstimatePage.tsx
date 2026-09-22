@@ -17,10 +17,12 @@ import { useClientProperties } from "@/features/crm/clients/hooks/useClientPrope
 import { getEstimatePropertyId, propertyToEstimateAddress } from "../utils/estimateProperty";
 import { buildDepositAdditionalFields, restoreDepositFromAdditionalData } from "../utils/estimateDeposit";
 import {
-  buildQuickQuoteAdditionalFields, isQuickQuote, needsClientCompletion,
-  QUICK_QUOTE_EMPTY_ADDRESS, EMPTY_QUICK_QUOTE_CONTACT, isQuickQuoteContactComplete,
+  EMPTY_QUICK_QUOTE_CONTACT, isQuickQuoteContactComplete,
   quickQuoteNeedsEmail, quickQuoteNeedsPhone, type QuickQuoteContact,
 } from "../utils/quickQuote";
+import { useCreateQuickQuote, useUpdateQuickQuote } from "../hooks/useQuickQuotes";
+import { fetchQuickQuote, sendQuickQuoteEmail, sendQuickQuoteSMS } from "../services/quickQuoteService";
+import type { QuickQuoteInsert } from "../types/quickQuote.types";
 import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
 import { DraftStatusIndicator }  from "../components/DraftStatusIndicator";
 import { ExitConfirmDialog } from "@/shared/components/common/ExitConfirmDialog";
@@ -81,8 +83,10 @@ interface Props {
   initialState?: {
     isEditing?: boolean; isConversionDraft?: boolean; estimateId?: string;
     estimateData?: any; prefill?: any; continueDraft?: boolean;
-    /** Quick Quote: sin cliente ni propiedad; los datos de la persona se piden al enviar. */
+    /** Quick Quote nuevo: sin cliente ni propiedad; los datos de la persona se piden al enviar. */
     quickQuote?: boolean;
+    /** Quick Quote existente que se está editando — vive en `quick_quotes`, no en `estimates`. */
+    quickQuoteId?: string;
   };
 }
 
@@ -93,14 +97,10 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const qc          = useQueryClient();
   const locationState = (location.state as any) || {};
   const { isEditing, isConversionDraft, estimateId, estimateData, prefill, continueDraft } = initialState ?? locationState;
-  // Un quick quote se edita como quick quote: la marca viaja en `additional_data`,
-  // así que al reabrirlo se reconoce solo y sigue sin pedir cliente.
-  //
-  // Pero solo MIENTRAS no tenga cliente: en cuanto se convierte (job o contrato) se
-  // le crea uno y la fila pasa a ser un estimate residencial normal. Seguir en modo
-  // rápido ahí borraría al guardar el `client_id` y la dirección que acaba de ganar.
-  const quickQuote = (initialState ?? locationState)?.quickQuote
-    || (!!estimateData && needsClientCompletion(estimateData));
+  // Quick quote: otra tabla (`quick_quotes`), sin cliente ni dirección. Se entra
+  // en este modo al crear uno nuevo o al abrir uno existente por su id.
+  const quickQuoteId = (initialState ?? locationState)?.quickQuoteId as string | undefined;
+  const quickQuote   = !!(initialState ?? locationState)?.quickQuote || !!quickQuoteId;
   // `isEditing` keeps its save semantics (UPDATE the draft, don't delete on discard),
   // but a conversion draft is brand-new to the user, so display copy reads "New/Create".
   const displayEditing = isEditing && !isConversionDraft;
@@ -112,6 +112,8 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   }, [isModal, onClose, navigate]);
   const createEst   = useCreateEstimate();
   const updateEst   = useUpdateEstimate();
+  const createQuick = useCreateQuickQuote();
+  const updateQuick = useUpdateQuickQuote();
   const { sendEstimateEmail, isSending } = useSendEstimateEmail();
   const { sendEstimateSMS }              = useSendEstimateSMS();
   const { data: profile }                = useProfile();
@@ -121,7 +123,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   // Summary → Preview → Send (paridad swift-slate).
   const [openSection, setOpenSection] = useState<SectionId | null>(null);
   const [reviewStep, setReviewStep]   = useState<ReviewStep | null>(null);
-  const [isPrefilling,         setIsPrefilling]         = useState(!!isEditing);
+  const [isPrefilling,         setIsPrefilling]         = useState(!!isEditing || !!quickQuoteId);
   const [showExitDialog,       setShowExitDialog]       = useState(false);
   const [showCompanyInfoAlert, setShowCompanyInfoAlert] = useState(false);
 
@@ -214,9 +216,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   // Quick quote: los datos de la persona se recogen en el paso de envío, no al empezar.
   const [quickContact,  setQuickContact]  = useState<QuickQuoteContact>(EMPTY_QUICK_QUOTE_CONTACT);
   const [sendErrors,    setSendErrors]    = useState<Record<string, boolean>>({});
-  // La marca de origen sobrevive a la conversión y a las ediciones posteriores:
-  // es de dónde salió el estimate, no en qué estado está.
-  const [wasQuickQuote, setWasQuickQuote] = useState(false);
+  const [isSendingQuick, setIsSendingQuick] = useState(false);
 
   // ── User state ────────────────────────────────────────────────────────────
   const [userState, setUserState] = useState("");
@@ -225,6 +225,62 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     const p = profile as any;
     if (p?.company_state) setUserState(p.company_state);
   }, [profile]);
+
+  // ── Prefill de un quick quote existente ───────────────────────────────────
+  // Vive en `quick_quotes`: mismos campos de servicio, pero el "cliente" es el
+  // destinatario al que se le envió, que vuelve al paso de envío.
+  useEffect(() => {
+    if (!quickQuoteId) return;
+    (async () => {
+      try {
+        const q = await fetchQuickQuote(quickQuoteId);
+        if (!q) return;
+
+        setSelectedService(q.service_sub_type ?? "");
+        setScope(q.service_scope ?? "");
+
+        const md = (q.main_data ?? {}) as Record<string, any>;
+        setSquareFootage(md.squareFootage ?? "");
+        setBedrooms(md.bedrooms ?? 0); setKitchens(md.kitchens ?? 0); setLivingRooms(md.livingRooms ?? 0);
+        setDiningRooms(md.diningRooms ?? 0); setOffices(md.offices ?? 0);
+        setFullBaths(md.fullBaths ?? 0); setHalfBaths(md.halfBaths ?? 0);
+
+        const ad = (q.additional_data ?? {}) as Record<string, any>;
+        setFans(ad.fans ?? 0); setOven(ad.oven ?? 0); setRefrigerator(ad.refrigerator ?? 0);
+        setBlinds(ad.blinds ?? 0); setWindowsInside(ad.windowsInside ?? 0); setWindowsOutside(ad.windowsOutside ?? 0);
+
+        if (q.extra_services) setExtras((e) => ({ ...e, ...(q.extra_services as any) }));
+        setPets(q.pets === "Yes" ? "yes" : q.pets === "No" ? "no" : null);
+
+        const laundryStr = q.laundry ?? "";
+        if (laundryStr && laundryStr !== "No") {
+          const match = laundryStr.match(/^(wash-dry|wash-dry-fold)\s*-\s*(\d+)\s*pounds?/i);
+          if (match) {
+            setLaundryService((match[1] === "wash-dry-fold" ? "wash-dry-fold" : "wash-dry") as "wash-dry" | "wash-dry-fold");
+            setLaundryPounds(parseInt(match[2], 10) || 0);
+          }
+        }
+
+        if (q.discount_type) {
+          setApplyDiscount(true);
+          setDiscountType(q.discount_type === "amount" ? "amount" : "percentage");
+          setDiscountValue(q.discount_value?.toString() ?? "");
+        }
+
+        setQuickContact({
+          fullName: q.recipient_name  ?? "",
+          email:    q.recipient_email ?? "",
+          phone:    formatPhoneDisplay(q.recipient_phone),
+        });
+        // El canal con el que se mandó la última vez es el que propone por defecto.
+        if (q.last_sent_channel === "email" || q.last_sent_channel === "sms") {
+          setDeliveryMethod(q.last_sent_channel);
+        }
+      } finally {
+        setIsPrefilling(false);
+      }
+    })();
+  }, [quickQuoteId]);
 
   // ── Prefill when editing ──────────────────────────────────────────────────
   useEffect(() => {
@@ -239,7 +295,6 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         }
         if (!d) return;
 
-        setWasQuickQuote(isQuickQuote(d.additional_data));
         setSelectedService(d.service_sub_type ?? "");
         const md = (d.main_data as any) ?? {};
         setSquareFootage(md.squareFootage ?? "");
@@ -264,19 +319,6 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
             setLaundryService((match[1] === "wash-dry-fold" ? "wash-dry-fold" : "wash-dry") as "wash-dry" | "wash-dry-fold");
             setLaundryPounds(parseInt(match[2], 10) || 0);
           }
-        }
-
-        // Quick quote sin convertir: no hay cliente que resolver ni cliente sintético
-        // que montar. Los datos de la persona viven denormalizados en la fila y vuelven
-        // al paso de envío, que es donde se editan. Uno ya convertido cae al camino
-        // normal de abajo y carga su cliente.
-        if (needsClientCompletion(d)) {
-          setQuickContact({
-            fullName: d.client_name ?? "",
-            email:    d.email ?? "",
-            phone:    formatPhoneDisplay(d.phone),
-          });
-          return;
         }
 
         if (d.client_id) {
@@ -479,15 +521,15 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
 
   // ── Client helpers ────────────────────────────────────────────────────────
   function getClientInfo() {
-    // Quick quote: el "cliente" es el destinatario que se escribe en el paso de
-    // envío, y no tiene dirección de servicio (ver QUICK_QUOTE_EMPTY_ADDRESS).
+    // Quick quote: el destinatario se escribe en el paso de envío y no tiene
+    // dirección de servicio, así que Summary y Preview van sin bloque de cliente
+    // hasta que haya nombre.
     if (quickQuote) {
       if (!quickContact.fullName.trim()) return null;
       return {
         name: quickContact.fullName.trim(), company: "",
         phone: quickContact.phone, email: quickContact.email.trim(),
-        ...QUICK_QUOTE_EMPTY_ADDRESS,
-        apt: "",
+        address: "", apt: "", city: "", state: "", zip: "",
       };
     }
     if (estimateType === "client" && selectedClient) {
@@ -516,11 +558,75 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   }
 
   // ── Submit ────────────────────────────────────────────────────────────────
-  async function handleSubmit() {
-    if (quickQuote && !validateQuickContact()) {
+
+  /**
+   * Guarda y envía un quick quote.
+   *
+   * Va a `quick_quotes`, no a `estimates`: es otra tabla, sin cliente ni dirección.
+   * Se persiste ANTES de enviar porque las edge functions recargan la fila del lado
+   * del servidor — mandan lo que hay en la base, no lo que viaje en el body.
+   */
+  async function handleQuickQuoteSubmit() {
+    if (!validateQuickContact()) {
       toast.error("Please complete the recipient details");
       return;
     }
+    const { subtotal, total, laborCost, suppliesCost, overheadCost, totalOpCost } = pricing;
+    const name  = quickContact.fullName.trim();
+    const email = quickContact.email.trim();
+    const phone = quickContact.phone;
+
+    const payload = {
+      recipient_name:  name,
+      recipient_email: email || null,
+      recipient_phone: phone ? phone.replace(/\D/g, "") : null,
+      service_sub_type: selectedService,
+      service_scope:    scope || null,
+      main_data:       { squareFootage, bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths },
+      additional_data: { fans, oven, refrigerator, blinds, windowsInside, windowsOutside },
+      extra_services:  { ...extras } as Record<string, boolean>,
+      pets:    pets === "yes" ? "Yes" : "No",
+      laundry: laundryService ? `${laundryService} - ${laundryPounds} pounds` : "No",
+      discount_type:  applyDiscount ? discountType : null,
+      discount_value: applyDiscount && discountValue ? parseFloat(discountValue) : null,
+      subtotal, total,
+      labor_cost: laborCost, supplies_cost: suppliesCost,
+      overhead_cost: overheadCost, total_operation_cost: totalOpCost,
+      is_draft: false,
+    } as QuickQuoteInsert;
+
+    setIsSendingQuick(true);
+    try {
+      const saved = quickQuoteId
+        ? await updateQuick.mutateAsync({ id: quickQuoteId, update: payload })
+        : await createQuick.mutateAsync(payload);
+
+      // El envío es lo que pasa el status a `Sent` y sella `sent_at` — de eso se
+      // encargan las propias funciones.
+      if (quickQuoteNeedsEmail(deliveryMethod) && email) {
+        await sendQuickQuoteEmail({
+          quickQuoteId: saved.id, recipientEmail: email,
+          recipientName: name, isUpdate: !!quickQuoteId,
+        });
+      }
+      if (quickQuoteNeedsPhone(deliveryMethod) && phone) {
+        await sendQuickQuoteSMS({
+          quickQuoteId: saved.id, phoneNumber: phone,
+          recipientName: name, quoteTotal: total, isUpdate: !!quickQuoteId,
+        });
+      }
+
+      qc.invalidateQueries({ queryKey: QK.quickQuotes });
+      setShowSuccess(true);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to send quick quote");
+    } finally {
+      setIsSendingQuick(false);
+    }
+  }
+
+  async function handleSubmit() {
+    if (quickQuote) { await handleQuickQuoteSubmit(); return; }
     const client = getClientInfo();
     if (!client) { toast.error("Please select a client"); return; }
     const { subtotal, total, laborCost, suppliesCost, overheadCost, totalOpCost } = pricing;
@@ -535,7 +641,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       service_type: "Residential", service_sub_type: selectedService,
       service_scope: scope || null,
       main_data: { squareFootage, bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths } as any,
-      additional_data: { fans, oven, refrigerator, blinds, windowsInside, windowsOutside, propertyId: selectedProperty?.id ?? null, assignedEmployees: carriedEmployees, ...buildDepositAdditionalFields(applyDeposit, depositType, depositValue), ...buildQuickQuoteAdditionalFields(quickQuote || wasQuickQuote) } as any,
+      additional_data: { fans, oven, refrigerator, blinds, windowsInside, windowsOutside, propertyId: selectedProperty?.id ?? null, assignedEmployees: carriedEmployees, ...buildDepositAdditionalFields(applyDeposit, depositType, depositValue) } as any,
       extra_services: extras as any,
       pets: pets === "yes" ? "Yes" : "No",
       laundry: laundryService ? `${laundryService} - ${laundryPounds} pounds` : "No",
@@ -934,7 +1040,10 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     : "Summary";
 
   const reviewSaveLabel = reviewStep === "preview" ? "Continue"
-    : reviewStep === "send" ? (displayEditing ? "Update Estimate" : "Send Estimate")
+    : reviewStep === "send"
+      ? (quickQuote
+          ? (quickQuoteId ? "Resend Quote" : "Send Quote")
+          : (displayEditing ? "Update Estimate" : "Send Estimate"))
     : "Preview";
 
   function handleReviewSave() {
@@ -959,7 +1068,9 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       onSecondary={reviewStep === "preview" ? () => setReviewStep("summary")
         : reviewStep === "send" ? () => setReviewStep("preview")
         : undefined}
-      isPending={reviewStep === "send" && (createEst.isPending || updateEst.isPending || isSending)}
+      isPending={reviewStep === "send" && (quickQuote
+        ? (createQuick.isPending || updateQuick.isPending || isSendingQuick)
+        : (createEst.isPending || updateEst.isPending || isSending))}
     >
       {reviewStep === "summary" && (
         <ResSummaryStep
@@ -971,6 +1082,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
           onUseCustomPriceChange={setUseCustomPrice} onCustomPriceChange={setCustomPrice}
           onApplyDiscountChange={setApplyDiscount} onDiscountTypeChange={setDiscountType} onDiscountValueChange={setDiscountValue}
           onApplyDepositChange={setApplyDeposit} onDepositTypeChange={setDepositType} onDepositValueChange={setDepositValue}
+          showDeposit={!quickQuote}
         />
       )}
 
@@ -1115,10 +1227,14 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
               </div>
             </div>
             <AlertDialogTitle className="text-center">
-              {displayEditing ? "Estimate Updated!" : "Estimate Created!"}
+              {quickQuote
+                ? (quickQuoteId ? "Quote Resent!" : "Quote Sent!")
+                : (displayEditing ? "Estimate Updated!" : "Estimate Created!")}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-center">
-              {deliveryMethod ? "The estimate has been created and sent successfully." : "The estimate has been saved successfully."}
+              {quickQuote
+                ? `The quote was sent to ${quickContact.fullName.trim() || "the recipient"}.`
+                : deliveryMethod ? "The estimate has been created and sent successfully." : "The estimate has been saved successfully."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="sm:justify-center">

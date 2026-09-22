@@ -41,6 +41,12 @@ export interface ResSummaryStepProps {
   onApplyDepositChange:   (v: boolean) => void;
   onDepositTypeChange:    (v: "percentage" | "amount") => void;
   onDepositValueChange:   (v: string) => void;
+  /**
+   * Oculta el bloque de depósito. Un quick quote no lo tiene: la tabla
+   * `quick_quotes` no guarda depósito y su conversión a job lo fija en `false`,
+   * así que ofrecerlo prometería algo que se perdería al guardar.
+   */
+  showDeposit?: boolean;
 }
 
 export function ResSummaryStep({
@@ -50,6 +56,7 @@ export function ResSummaryStep({
   onUseCustomPriceChange, onCustomPriceChange,
   onApplyDiscountChange, onDiscountTypeChange, onDiscountValueChange,
   onApplyDepositChange, onDepositTypeChange, onDepositValueChange,
+  showDeposit = true,
 }: ResSummaryStepProps) {
   const { total, laborCost, suppliesCost, overheadCost, totalOpCost, netProfit, crewPlanning } = pricing;
 
@@ -258,6 +265,7 @@ export function ResSummaryStep({
       </Card>
 
       {/* Deposit */}
+      {showDeposit && (
       <Card>
         <CardContent className="p-4 space-y-4">
           <h4 className="text-sm font-semibold flex items-center gap-2">
@@ -330,6 +338,7 @@ export function ResSummaryStep({
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

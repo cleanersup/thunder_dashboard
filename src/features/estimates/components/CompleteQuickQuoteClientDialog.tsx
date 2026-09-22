@@ -4,12 +4,12 @@
  *
  * Un quick quote se envía con lo mínimo — nombre y un canal de contacto — porque
  * pedir más por adelantado hacía abandonar el formulario. Cuando la persona
- * acepta y el trabajo va en serio (job o contrato), esos datos sí hacen falta:
- * este panel los pide una sola vez, crea el cliente y deja el estimate enlazado.
+ * acepta y el trabajo va en serio, esos datos sí hacen falta: la tabla
+ * `quick_quotes` no tiene cliente ni dirección, y un job sí los necesita.
  *
- * Reutiliza un cliente existente si el email o el nombre+teléfono ya están en la
- * cartera, igual que `resolveOrCreateContact` hace al convertir un request: dos
- * quick quotes a la misma persona no deben dejar dos clientes.
+ * Este panel los pide una sola vez y resuelve el cliente — reutiliza el que ya
+ * exista si el email o el nombre+teléfono coinciden, igual que la conversión de
+ * requests: dos quick quotes a la misma persona no deben dejar dos clientes.
  */
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -20,22 +20,31 @@ import { withRequiredMark } from "@/shared/utils/formLabel";
 import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
 import { resolveQuickQuoteClient } from "../services/quickQuoteService";
 
+/** Campos de `jobs` que salen de este panel y que el prefill del backend no trae. */
+export interface QuickQuoteJobOverrides {
+  client_id:       string;
+  contact_type:    "client";
+  client_name:     string;
+  client_email:    string | null;
+  client_phone:    string | null;
+  property_street: string;
+  property_apt:    string | null;
+  property_city:   string;
+  property_state:  string;
+  property_zip:    string;
+}
+
 export interface CompleteQuickQuoteClientDialogProps {
   open: boolean;
   onClose: () => void;
-  estimate: {
-    id:          string;
-    client_name: string;
-    email:       string | null;
-    phone:       string | null;
+  quote: {
+    id:              string;
+    recipient_name:  string | null;
+    recipient_email: string | null;
+    recipient_phone: string | null;
   } | null;
-  /**
-   * El estimate ya está enlazado al cliente resuelto. Recibe la fila actualizada
-   * para que el llamador siga con la conversión que había pedido.
-   */
-  onCompleted: (updated: { client_id: string; address: string; apt: string | null; city: string; state: string; zip: string; client_name: string; email: string; phone: string }) => void;
-  /** Qué se va a hacer después — solo para el texto del botón. */
-  action: "job" | "contract";
+  /** El cliente ya está resuelto; el llamador sigue con la conversión que pidió. */
+  onCompleted: (overrides: QuickQuoteJobOverrides) => void;
 }
 
 interface FormState {
@@ -55,7 +64,7 @@ const EMPTY: FormState = {
 };
 
 export function CompleteQuickQuoteClientDialog({
-  open, onClose, estimate, onCompleted, action,
+  open, onClose, quote, onCompleted,
 }: CompleteQuickQuoteClientDialogProps) {
   const [form,      setForm]      = useState<FormState>(EMPTY);
   const [errors,    setErrors]    = useState<Record<string, boolean>>({});
@@ -63,15 +72,15 @@ export function CompleteQuickQuoteClientDialog({
 
   // Lo que el quick quote sí recogió viene ya escrito: solo falta lo que no pidió.
   useEffect(() => {
-    if (!open || !estimate) return;
+    if (!open || !quote) return;
     setForm({
       ...EMPTY,
-      fullName: estimate.client_name ?? "",
-      email:    estimate.email ?? "",
-      phone:    formatPhoneDisplay(estimate.phone),
+      fullName: quote.recipient_name  ?? "",
+      email:    quote.recipient_email ?? "",
+      phone:    formatPhoneDisplay(quote.recipient_phone),
     });
     setErrors({});
-  }, [open, estimate]);
+  }, [open, quote]);
 
   const patch = (field: keyof FormState, value: string) => {
     setForm((f) => ({ ...f, [field]: value }));
@@ -97,26 +106,38 @@ export function CompleteQuickQuoteClientDialog({
   }
 
   async function handleSubmit() {
-    if (!estimate) return;
+    if (!quote) return;
     if (!validate()) {
       toast.error("Please complete the required fields");
       return;
     }
     setIsSaving(true);
     try {
-      const result = await resolveQuickQuoteClient({
-        estimateId: estimate.id,
-        fullName:   form.fullName.trim(),
-        email:      form.email.trim(),
-        phone:      form.phone,
-        street:     form.street.trim(),
-        apt:        form.apt.trim(),
-        city:       form.city.trim(),
-        state:      form.state.trim(),
-        zip:        form.zip.trim(),
+      const fullName = form.fullName.trim();
+      const email    = form.email.trim();
+      const street   = form.street.trim();
+      const apt      = form.apt.trim();
+      const city     = form.city.trim();
+      const state    = form.state.trim();
+      const zip      = form.zip.trim();
+
+      const { clientId, reusedExisting } = await resolveQuickQuoteClient({
+        fullName, email, phone: form.phone, street, apt, city, state, zip,
       });
-      toast.success(result.reusedExisting ? "Linked to existing client" : "Client created");
-      onCompleted(result.estimateFields);
+      toast.success(reusedExisting ? "Linked to existing client" : "Client created");
+
+      onCompleted({
+        client_id:       clientId,
+        contact_type:    "client",
+        client_name:     fullName,
+        client_email:    email || null,
+        client_phone:    form.phone || null,
+        property_street: street,
+        property_apt:    apt || null,
+        property_city:   city,
+        property_state:  state,
+        property_zip:    zip,
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create client");
     } finally {
@@ -129,10 +150,8 @@ export function CompleteQuickQuoteClientDialog({
       open={open}
       onClose={onClose}
       title="Complete Client Details"
-      subtitle={action === "job"
-        ? "A job needs the full service address. Saving also adds this person to your clients."
-        : "A contract needs the full service address. Saving also adds this person to your clients."}
-      submitLabel={action === "job" ? "Save and Convert to Job" : "Save and Continue"}
+      subtitle="A job needs the full service address. Saving also adds this person to your clients."
+      submitLabel="Save and Convert to Job"
       submitPendingLabel="Saving..."
       onSubmit={handleSubmit}
       isPending={isSaving}

@@ -18,7 +18,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
-import { Badge } from "@/shared/components/ui/badge";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription,
@@ -50,8 +49,6 @@ import { PDFService } from "@/shared/services/pdf.service";
 import { SidePanel } from "@/shared/components/common/SidePanel";
 import { buildContractPrefillFromEstimate } from "../utils/buildContractPrefillFromEstimate";
 import { restoreDepositFromAdditionalData } from "../utils/estimateDeposit";
-import { isQuickQuote, needsClientCompletion } from "../utils/quickQuote";
-import { CompleteQuickQuoteClientDialog } from "./CompleteQuickQuoteClientDialog";
 import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
 import { useConvertEstimateToJob } from "@/features/jobs/hooks/useConvertEstimateToJob";
 import { fetchLead, updateLead, convertLeadToClient, checkClientDuplicate } from "@/features/crm/leads/services/leadsService";
@@ -329,9 +326,6 @@ export function EstimateDetailPanel({
   const [isDeleteOpen,          setIsDeleteOpen]          = useState(false);
   const [isDeleting,            setIsDeleting]            = useState(false);
   const [isConvertingToJob,     setIsConvertingToJob]     = useState(false);
-  // Quick quote sin cliente: la conversión pedida queda en espera hasta que el
-  // usuario complete los datos que el formulario rápido no pidió.
-  const [pendingQuickConvert,   setPendingQuickConvert]   = useState<"job" | "contract" | null>(null);
   const [showLeadConvert,       setShowLeadConvert]       = useState(false);
   const [leadDuplicateName,     setLeadDuplicateName]     = useState<string | null>(null);
   const [isConvertingLead,      setIsConvertingLead]      = useState(false);
@@ -557,46 +551,12 @@ export function EstimateDetailPanel({
 
   async function handleConvertToJob() {
     if (!estimate) return;
-    // Un job necesita cliente y dirección de servicio, y un quick quote no los
-    // tiene: se piden una sola vez antes de convertir.
-    if (needsClientCompletion(estimate)) {
-      setPendingQuickConvert("job");
-      return;
-    }
     await convertEstimateToJob({
       estimate,
       onStart:   () => setIsConvertingToJob(true),
       onFinally: () => setIsConvertingToJob(false),
       onSuccess: () => onClose(),
     });
-  }
-
-  /**
-   * Reanuda la conversión que se pidió, ya con el cliente enlazado.
-   * `fields` trae también la dirección recién capturada, que es la que el job
-   * usará como dirección de servicio — por eso se fusiona entera, no solo el id.
-   */
-  async function handleQuickClientCompleted(fields: {
-    client_id: string; client_name: string; email: string; phone: string;
-    address: string; apt: string | null; city: string; state: string; zip: string;
-  }) {
-    const action = pendingQuickConvert;
-    const updated = { ...estimate, ...fields };
-    setEstimate(updated);
-    setPendingQuickConvert(null);
-    qc.invalidateQueries({ queryKey: QK.clients });
-    qc.invalidateQueries({ queryKey: QK.estimates });
-
-    if (action === "job") {
-      await convertEstimateToJob({
-        estimate:  updated,
-        onStart:   () => setIsConvertingToJob(true),
-        onFinally: () => setIsConvertingToJob(false),
-        onSuccess: () => onClose(),
-      });
-    } else if (action === "contract") {
-      openContractWizard(updated, fields.client_id);
-    }
   }
 
   function openContractWizard(est: any, clientIdOverride?: string) {
@@ -612,11 +572,6 @@ export function EstimateDetailPanel({
     // open the wizard directly; if it's a lead, confirm promotion first.
     if (estimate.client_id) {
       openContractWizard(estimate);
-      return;
-    }
-    // Quick quote: el contrato necesita un cliente que aún no existe.
-    if (needsClientCompletion(estimate)) {
-      setPendingQuickConvert("contract");
       return;
     }
     if (estimate.lead_id) {
@@ -816,7 +771,6 @@ export function EstimateDetailPanel({
 
   const statusColor = f ? getStatusColor(f.status) : "";
   const statusBg    = f ? getStatusBg(f.status)    : "";
-  const isQuick     = isQuickQuote(estimate?.additional_data);
 
   const footer = f ? (
     <PanelFooter
@@ -1067,14 +1021,7 @@ export function EstimateDetailPanel({
                 {/* Client info */}
                 <Card className="border border-border/50">
                   <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-3 flex-wrap">
-                      <h3 className="text-base font-semibold">{f.clientName}</h3>
-                      {isQuick && (
-                        <Badge variant="outline" className="font-medium text-[11px] bg-primary/10 text-primary border-primary/30">
-                          Quick Quote
-                        </Badge>
-                      )}
-                    </div>
+                    <h3 className="text-base font-semibold mb-3">{f.clientName}</h3>
                     <div className="space-y-2">
                       {f.companyName && (
                         <div className="flex items-center gap-3">
@@ -1094,27 +1041,16 @@ export function EstimateDetailPanel({
                           <span className="text-sm">{f.email}</span>
                         </div>
                       )}
-                      {/* Un quick quote no tiene dirección de servicio: mejor decirlo que
-                          imprimir una línea con comas y nada entre ellas. */}
-                      {f.address ? (
-                        <div className="flex items-start gap-3">
-                          <MapPin className="w-4 h-4 shrink-0 text-muted-foreground mt-0.5" />
-                          <span className="text-sm">
-                            {matchedPropertyTitle && (
-                              <span className="block font-semibold">{matchedPropertyTitle}</span>
-                            )}
-                            {f.address}{f.apt && `, ${f.apt}`}<br />
-                            {f.city}, {f.state} {f.zip}
-                          </span>
-                        </div>
-                      ) : isQuick && (
-                        <div className="flex items-start gap-3">
-                          <MapPin className="w-4 h-4 shrink-0 text-muted-foreground mt-0.5" />
-                          <span className="text-sm text-muted-foreground">
-                            No service address yet — it's requested when converting to a job or a contract.
-                          </span>
-                        </div>
-                      )}
+                      <div className="flex items-start gap-3">
+                        <MapPin className="w-4 h-4 shrink-0 text-muted-foreground mt-0.5" />
+                        <span className="text-sm">
+                          {matchedPropertyTitle && (
+                            <span className="block font-semibold">{matchedPropertyTitle}</span>
+                          )}
+                          {f.address}{f.apt && `, ${f.apt}`}<br />
+                          {f.city}, {f.state} {f.zip}
+                        </span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -1443,20 +1379,6 @@ export function EstimateDetailPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* ── Quick Quote → Client (Convert to Job / Generate Contract) ────────── */}
-      <CompleteQuickQuoteClientDialog
-        open={pendingQuickConvert !== null}
-        onClose={() => setPendingQuickConvert(null)}
-        action={pendingQuickConvert === "contract" ? "contract" : "job"}
-        estimate={estimate ? {
-          id:          estimate.id,
-          client_name: estimate.client_name,
-          email:       estimate.email,
-          phone:       estimate.phone,
-        } : null}
-        onCompleted={handleQuickClientCompleted}
-      />
 
       {/* ── Cancel confirmation ──────────────────────────────────────────────── */}
       <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
