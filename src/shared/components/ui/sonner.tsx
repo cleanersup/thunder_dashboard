@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, toast } from "sonner";
 
@@ -14,7 +15,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-[hsl(129,60%,88%)] group-[.toaster]:text-foreground group-[.toaster]:border-[hsl(129,50%,75%)] group-[.toaster]:shadow-lg",
+            "group toast group-[.toaster]:bg-success-subtle group-[.toaster]:text-success-subtle-foreground group-[.toaster]:border-success-subtle-border group-[.toaster]:shadow-lg",
           description: "group-[.toast]:text-muted-foreground",
           actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
           cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
