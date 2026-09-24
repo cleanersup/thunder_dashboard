@@ -431,8 +431,13 @@ export function EstimatesPage() {
             {/* Right: Quick Quote + New */}
             <div className="flex items-center gap-2">
               {/* Cotizar sin pedir datos del cliente: solo el servicio y el precio.
-                  Los datos de la persona se piden al final, al elegir cómo enviarlo. */}
-              <Button variant="outline" className="h-9" onClick={() => openQuickQuoteForm()}>
+                  Los datos de la persona se piden al final, al elegir cómo enviarlo.
+                  Verde del tema (`--green-vibrant`, el mismo del KPI de Accepted) para
+                  separarlo de "New": no es otra forma de crear un estimate, es otra vía. */}
+              <Button
+                className="h-9 bg-green-vibrant text-white hover:bg-green-vibrant/90"
+                onClick={() => openQuickQuoteForm()}
+              >
                 <Zap className="w-4 h-4 mr-1" /> Quick Quote
               </Button>
 
