@@ -15,8 +15,7 @@ import { SidePanel }    from "@/shared/components/common/SidePanel";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/shared/components/ui/dialog";
 import { Calendar as CalendarPicker } from "@/shared/components/ui/calendar";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
+import { TimeField } from "@/shared/components/forms";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -658,14 +657,8 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
             />
           </div>
           <div className="px-6 pb-4 grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Start Time</Label>
-              <Input type="time" value={rescheduleStart} onChange={(e) => setRescheduleStart(e.target.value)} className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">End Time</Label>
-              <Input type="time" value={rescheduleEnd} onChange={(e) => setRescheduleEnd(e.target.value)} className="h-9" />
-            </div>
+            <TimeField id="reschedule-start" label="Start Time" value={rescheduleStart} onChange={setRescheduleStart} />
+            <TimeField id="reschedule-end"   label="End Time"   value={rescheduleEnd}   onChange={setRescheduleEnd} />
           </div>
           <div className="px-6 pb-6 flex gap-2">
             <Button variant="outline" className="flex-1" onClick={() => setShowReschedule(false)}>Cancel</Button>
