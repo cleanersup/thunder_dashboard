@@ -68,7 +68,9 @@
 - **Tablas**: `DataTable` genérico con búsqueda, paginación, skeleton, empty state
 - **Modales de detalle**: `DetailModal` + `InfoRow` + two-column grid — no navegación a página nueva
 - **Wizard/formularios multi-paso**: modal full-screen (FullScreenModal) — NO página separada
-- **Footer de wizard**: inline dentro del scroll (no fixed/sticky), `Cancel` outline izquierda, `Next` primary derecha, `max-w-2xl` centrado en desktop
+- **Footer de formulario**: el contenedor decide dónde va la barra de acciones.
+  - **Pantalla completa** (hub, review, formulario principal): **inline al final del scroll**, no fixed ni sticky. `Cancel` outline izquierda, primario derecha, ambos compactos (`size="sm"`), `max-w-2xl` centrado en desktop.
+  - **Panel lateral** (`FormSheet`, `SectionModal` lateral): **fija al pie**, fuera del área de scroll, con los dos botones a mitad de ancho (`flex-1`). En 440px un formulario largo escondería el botón de guardar al final del scroll — que es justo lo que hay que evitar.
 - **Padding uniforme**: `p-2.5 space-y-2.5` en todas las páginas internas
 
 ### Wizards como modales full-screen

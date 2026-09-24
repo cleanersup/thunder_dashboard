@@ -126,22 +126,18 @@ export function SectionModal({
               ancho, así el propio fondo hace de separador entre uno y otro. Las Cards
               del contenido pierden borde y esquinas — el marco lo pone el panel. */}
           <div className={cn(
-            "flex flex-1 flex-col gap-2 overflow-y-auto bg-muted/40 py-2",
+            "min-h-0 flex-1 flex flex-col gap-2 overflow-y-auto bg-muted/40 py-2",
             "[&_[data-slot=card]]:rounded-none [&_[data-slot=card]]:border-0 [&_[data-slot=card]]:shadow-none",
             // Los steps traen su propio `space-y-*`; aquí el hueco entre bandas lo
             // decide el panel para que todas las secciones separen igual.
-            // Excluye la barra de acciones: es del panel, no una banda de contenido,
-            // y en columna apilaría los botones uno sobre otro.
-            "[&>div:not([data-actions])]:flex [&>div:not([data-actions])]:flex-col",
-            "[&>div:not([data-actions])]:gap-2 [&>div:not([data-actions])]:space-y-0",
+            "[&>div]:flex [&>div]:flex-col [&>div]:gap-2 [&>div]:space-y-0",
           )}>
             {children}
+          </div>
 
-            {/* Al final del contenido y, cuando la sección es corta, pegada al pie:
-                `mt-auto` empuja la barra abajo sin sacarla del scroll. */}
-            <div data-actions className="mt-auto bg-card px-6 py-4 flex gap-3">
-              {actions}
-            </div>
+          {/* Fuera del scroll: fija al pie del panel, igual que en `FormSheet`. */}
+          <div className="shrink-0 bg-card px-6 py-4 flex gap-3">
+            {actions}
           </div>
         </SheetContent>
       </Sheet>
