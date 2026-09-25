@@ -7,36 +7,29 @@
  *   - Modal mode: full-screen Dialog when `open` + `onClose` props are provided
  */
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
-import { formatDisplayDate } from "@/shared/utils/formatters";
 import {
-  ChevronLeft, Calendar as CalendarIcon, Plus, Trash2,
+  ChevronLeft, Plus, Trash2,
   FileText, List, Calculator, StickyNote,
   Paperclip, X,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button }   from "@/shared/components/ui/button";
-import { Input }    from "@/shared/components/ui/input";
 import { Label }    from "@/shared/components/ui/label";
-import { Textarea } from "@/shared/components/ui/textarea";
 import { Badge }    from "@/shared/components/ui/badge";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/shared/components/ui/select";
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from "@/shared/components/ui/popover";
+  FormSection, FloatingInput, SelectField, DateField,
+  TextareaField, AttachmentsField,
+} from "@/shared/components/forms";
+import { FORM_SECTION_GAP } from "@/shared/constants/formTokens";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import { ClientPicker } from "@/shared/components/common/ClientPicker";
-import { ServicePropertySelector } from "@/shared/components/common/ServicePropertySelector";
+import { ClientPropertyField } from "@/shared/components/common/ClientPropertyField";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { InvoicePreviewPage } from "./InvoicePreviewPage";
-import { Calendar } from "@/shared/components/ui/calendar";
 import { cn }       from "@/shared/utils/cn";
 import { toast }    from "sonner";
 import { useAuth }   from "@/shared/hooks/useAuth";
@@ -52,7 +45,6 @@ import type { InvoiceFormData, InvoiceAttachment } from "../types/invoice.types"
 import type { ClientEntity } from "@/shared/types/entities";
 import { uploadInvoiceAttachments } from "../services/invoiceFilesService";
 import { calculateInvoiceTotals } from "../utils/invoiceCalculations";
-import { toDecimalString, toIntegerString } from "@/shared/utils/numericInput";
 import { parseDateOnly } from "@/shared/utils/formatters";
 import { StripeCheckModal } from "../components/StripeCheckModal";
 
@@ -95,19 +87,17 @@ function resolveInvoiceAddress(
   };
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const INVOICE_TYPE_OPTIONS = [
+  { value: "Single Payment", label: "Single Payment" },
+  { value: "Recurring",      label: "Recurring" },
+] as const;
 
-export interface InvoicePrefill {
-  selectedClient?: { full_name: string; company?: string; phone: string; email: string; service_street: string; service_apt?: string; service_city: string; service_state: string; service_zip: string };
-  invoiceType?: string;
-  issueDate?: Date;
-  dueDate?: Date;
-  invoiceTitle?: string;
-  lineItems?: { id: string; description: string; price: string; qty: string; total: number }[];
-  discountType?: string;
-  discountValue?: string;
-  notes?: string;
-}
+const DISCOUNT_TYPE_OPTIONS = [
+  { value: "percentage", label: "Percentage" },
+  { value: "fixed",      label: "Fixed Amount" },
+] as const;
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 interface CreateInvoicePageProps {
   /** When provided, renders as a full-screen Dialog. Omit for standalone page mode. */
@@ -115,13 +105,10 @@ interface CreateInvoicePageProps {
   onClose?: () => void;
   /** Pass an invoice ID to open in edit mode from a modal (no URL param needed). */
   editId?: string;
-  /** Prefill form data when opening from a modal (e.g. Convert to Invoice from estimate). */
-  prefill?: InvoicePrefill;
 }
 
-export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp }: CreateInvoicePageProps = {}) {
+export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePageProps = {}) {
   const navigate      = useNavigate();
-  const location      = useLocation();
   const { id: urlId } = useParams<{ id?: string }>();
   const id            = editId ?? urlId;
   const { user }      = useAuth();
@@ -133,7 +120,6 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
     else navigate("/invoices");
   }, [isModal, onClose, navigate]);
 
-  const fileInputRef     = useRef<HTMLInputElement>(null);
   const stripeChecked    = useRef(false);
 
   // ── State ─────────────────────────────────────────────────────────────────
@@ -167,8 +153,6 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
   const [showExitDialog,    setShowExitDialog]    = useState(false);
   const [showClientWarning, setShowClientWarning] = useState(false);
   const [showStripeModal,   setShowStripeModal]   = useState(false);
-  const [issueDateOpen, setIssueDateOpen] = useState(false);
-  const [dueDateOpen,   setDueDateOpen]   = useState(false);
   const [errors, setErrors] = useState({
     invoiceType: false, issueDate: false, dueDate: false,
     selectedClient: false, lineItems: false,
@@ -208,49 +192,6 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
     const isConfigured = !!(p.stripe_account_id && p.stripe_onboarding_completed);
     if (!isConfigured) setShowStripeModal(true);
   }, [isEditing, profile]);
-
-  // ── Prefill from estimate conversion ──────────────────────────────────────
-  useEffect(() => {
-    if (isEditing) return;
-    // In modal mode, only apply when the modal is opening
-    if (isModal && !open) return;
-    const state = (prefillProp ?? location.state) as InvoicePrefill | null;
-    if (!state?.selectedClient) return;
-
-    const client: ClientEntity = {
-      id: "",
-      full_name: state.selectedClient.full_name,
-      company: state.selectedClient.company ?? null,
-      phone: state.selectedClient.phone,
-      email: state.selectedClient.email,
-      service_street: state.selectedClient.service_street,
-      service_apt: state.selectedClient.service_apt ?? null,
-      service_city: state.selectedClient.service_city,
-      service_state: state.selectedClient.service_state,
-      service_zip: state.selectedClient.service_zip,
-    };
-    setSelectedClient(client);
-    setSelectedProperty(null);
-    setInvoicePropertyTitle(null);
-    setInvoiceType(state.invoiceType ?? "");
-    setIssueDate(state.issueDate);
-    setDueDate(state.dueDate);
-    setInvoiceTitle(state.invoiceTitle ?? "");
-    setDiscountType((state.discountType === "amount" ? "fixed" : (state.discountType ?? "percentage")) as "percentage" | "fixed");
-    setDiscountValue(state.discountValue ?? "");
-    setNotes(state.notes ?? "");
-    if (state.lineItems?.length) {
-      resetLineItems(state.lineItems.map((i) => ({
-        _id: i.id,
-        _price: i.price,
-        _qty: i.qty,
-        description: i.description,
-        price: typeof i.price === "string" ? parseFloat(i.price) || 0 : i.price,
-        qty: parseInt(i.qty, 10) || 1,
-        total: typeof i.total === "number" ? i.total : parseFloat(String(i.total)) || 0,
-      })));
-    }
-  }, [open, prefillProp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load invoice on edit mode ──────────────────────────────────────────────
   const { data: invoiceData } = useInvoice(isEditing ? id : undefined);
@@ -486,390 +427,225 @@ export function CreateInvoicePage({ open, onClose, editId, prefill: prefillProp 
   // ─── Shared JSX blocks ────────────────────────────────────────────────────
 
   const formCards = (
-    <div className="space-y-4">
-      {/* ── Invoice Details ─────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Invoice Details
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Invoice Number (read-only) */}
-          <div className="space-y-1">
-            <Label>Invoice Number</Label>
-            <Input value={invoiceNumber} readOnly className="bg-muted/30 font-mono" />
-          </div>
+    <div className={FORM_SECTION_GAP}>
+      <FormSection
+        icon={FileText}
+        title="Invoice Details"
+        subtitle="Number, type and the dates that rule the payment"
+        invalid={errors.invoiceType || errors.issueDate || errors.dueDate}
+      >
+        {/* El número lo genera el sistema: se muestra, no se edita. */}
+        <FloatingInput
+          id="invoice-number"
+          label="Invoice Number"
+          value={invoiceNumber}
+          onChange={() => {}}
+          disabled
+        />
 
-          {/* Invoice Type */}
-          <div className="space-y-1">
-            <Label>Invoice Type <span className="text-destructive">*</span></Label>
-            <Select value={invoiceType} onValueChange={setInvoiceType}>
-              <SelectTrigger className={cn(errors.invoiceType && "border-destructive")}>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Single Payment">Single Payment</SelectItem>
-                <SelectItem value="Recurring">Recurring</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.invoiceType && <p className="text-xs text-destructive">Required</p>}
-          </div>
+        <SelectField
+          placeholder="Invoice type"
+          value={invoiceType}
+          onChange={(v) => { setInvoiceType(v); setErrors((e) => ({ ...e, invoiceType: false })); }}
+          options={INVOICE_TYPE_OPTIONS}
+          required
+          error={errors.invoiceType && "Required"}
+        />
 
-          {/* Issue Date */}
-          <div className="space-y-1">
-            <Label>Issue Date <span className="text-destructive">*</span></Label>
-            <Popover open={issueDateOpen} onOpenChange={setIssueDateOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !issueDate && "text-muted-foreground",
-                    errors.issueDate && "border-destructive"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {issueDate ? formatDisplayDate(issueDate) : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={issueDate}
-                  onSelect={(d) => { setIssueDate(d); setIssueDateOpen(false); }}
-                  initialFocus
-                  className="pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
-            {errors.issueDate && <p className="text-xs text-destructive">Required</p>}
-          </div>
-
-          {/* Due Date */}
-          <div className="space-y-1">
-            <Label>Due Date <span className="text-destructive">*</span></Label>
-            <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !dueDate && "text-muted-foreground",
-                    errors.dueDate && "border-destructive"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dueDate ? formatDisplayDate(dueDate) : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={dueDate}
-                  onSelect={(d) => { setDueDate(d); setDueDateOpen(false); }}
-                  initialFocus
-                  className="pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
-            {errors.dueDate && <p className="text-xs text-destructive">Required</p>}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Invoice Title ───────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <StickyNote className="h-4 w-4" />
-            Invoice Title
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Input
-            placeholder="Enter invoice title"
-            value={invoiceTitle}
-            onChange={(e) => setInvoiceTitle(e.target.value)}
+        <div className="grid grid-cols-2 gap-3">
+          <DateField
+            placeholder="Issue date"
+            value={issueDate}
+            onChange={(d) => { setIssueDate(d); setErrors((e) => ({ ...e, issueDate: false })); }}
+            required
+            error={errors.issueDate && "Required"}
           />
-        </CardContent>
-      </Card>
+          <DateField
+            placeholder="Due date"
+            value={dueDate}
+            onChange={(d) => { setDueDate(d); setErrors((e) => ({ ...e, dueDate: false })); }}
+            required
+            error={errors.dueDate && "Required"}
+          />
+        </div>
 
-      {/* ── Customer Information ────────────────────────────────────── */}
-      <ClientPicker
-        selectedClient={selectedClient}
-        onClientSelect={handleClientSelect}
-        error={errors.selectedClient}
+        <FloatingInput
+          id="invoice-title"
+          label="Invoice title"
+          value={invoiceTitle}
+          onChange={setInvoiceTitle}
+        />
+      </FormSection>
+
+      {/* Misma sección de cliente que requests, estimates, walkthroughs y jobs.
+          El selector de propiedad se oculta cuando el cliente es sintético (una
+          factura cuyo cliente ya no existe como registro): no hay propiedades que
+          ofrecer. La factura no guarda el property_id — guarda la dirección, y al
+          editar la reconstruye por coincidencia (ver `pendingInvoiceAddress`). */}
+      <ClientPropertyField
+        title="Customer Information"
+        subtitle="Who this invoice is for and where the service happened"
+        client={selectedClient}
+        onClientChange={(c) => { if (c) handleClientSelect(c); }}
+        property={selectedProperty}
+        onPropertyChange={(property) => {
+          setSelectedProperty(property);
+          setInvoicePropertyTitle(null);
+        }}
+        preferredPropertyId={selectedProperty?.id}
+        showProperty={!!selectedClient && !isSyntheticClientId(selectedClient.id)}
+        invalid={errors.selectedClient}
+        errorMessage="Please select a customer."
       />
 
-      {selectedClient && !isSyntheticClientId(selectedClient.id) && (
-        <Card>
-          <CardContent className="pt-6">
-            <ServicePropertySelector
-              clientId={selectedClient.id}
-              value={selectedProperty}
-              onChange={(property) => {
-                setSelectedProperty(property);
-                setInvoicePropertyTitle(null);
-              }}
-              preferredPropertyId={selectedProperty?.id}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Line Items ──────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <List className="h-4 w-4" />
-            Line Items
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {lineItems.map((item, idx) => (
-            <div key={item._id} className="border border-border rounded-lg p-4 space-y-3">
-              {/* ── Item header ──────────────────────────────────── */}
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">Item {idx + 1}</p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => removeLineItem(idx)}
-                  disabled={lineItems.length === 1}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* ── Description ──────────────────────────────────── */}
-              <Input
-                placeholder="Description"
-                value={item.description}
-                onChange={(e) => updateLineItem(idx, "description", e.target.value)}
-                className={cn(errors.lineItems && !item.description && "border-destructive")}
-              />
-
-              {/* ── Price / Qty / Total ───────────────────────────── */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Price</Label>
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    value={item._price}
-                    onChange={(e) => updateLineItem(idx, "price", toDecimalString(e.target.value))}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Qty</Label>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="1"
-                    value={item._qty}
-                    onChange={(e) => updateLineItem(idx, "qty", toIntegerString(e.target.value))}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Total</Label>
-                  <div className="flex items-center h-9 rounded-md border border-input bg-muted/40 px-3 text-sm font-medium">
-                    ${item.total.toFixed(2)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {errors.lineItems && (
-            <p className="text-xs text-destructive">Add at least one item with a description</p>
-          )}
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addLineItem}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add an Item
+      <FormSection
+        icon={List}
+        title="Line Items"
+        subtitle="What is being billed"
+        invalid={errors.lineItems}
+        action={
+          <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
+            <Plus className="h-4 w-4 mr-1" /> Add
           </Button>
-        </CardContent>
-      </Card>
-
-      {/* ── Pricing & Tax ───────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Calculator className="h-4 w-4" />
-            Pricing &amp; Tax
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            {/* Discount type */}
-            <div className="space-y-1">
-              <Label>Discount Type</Label>
-              <Select
-                value={discountType}
-                onValueChange={(v) => setDiscountType(v as "percentage" | "fixed")}
+        }
+      >
+        {lineItems.map((item, idx) => (
+          <div key={item._id} className="rounded-lg border border-border p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-muted-foreground">Item {idx + 1}</p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                onClick={() => removeLineItem(idx)}
+                disabled={lineItems.length === 1}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="percentage">Percentage</SelectItem>
-                  <SelectItem value="fixed">Fixed Amount</SelectItem>
-                </SelectContent>
-              </Select>
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
-            {/* Discount value */}
-            <div className="space-y-1">
-              <Label>Discount Value</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                  {discountType === "percentage" ? "%" : "$"}
-                </span>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={discountValue}
-                  onChange={(e) => setDiscountValue(toDecimalString(e.target.value))}
-                  className="pl-7"
-                />
-              </div>
-            </div>
-          </div>
 
-          {/* Tax rate */}
-          <div className="space-y-1">
-            <Label>Tax Rate %</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
-              <Input
-                type="text"
-                inputMode="decimal"
-                placeholder="0"
-                value={taxRate}
-                onChange={(e) => setTaxRate(toDecimalString(e.target.value))}
-                className="pl-7"
+            <FloatingInput
+              id={`item-desc-${item._id}`}
+              label="Description"
+              value={item.description}
+              onChange={(v) => updateLineItem(idx, "description", v)}
+              error={errors.lineItems && !item.description}
+            />
+
+            <div className="grid grid-cols-3 gap-3 items-end">
+              <FloatingInput
+                id={`item-price-${item._id}`}
+                label="Price"
+                type="decimal"
+                value={item._price}
+                onChange={(v) => updateLineItem(idx, "price", v)}
               />
+              <FloatingInput
+                id={`item-qty-${item._id}`}
+                label="Qty"
+                type="integer"
+                value={item._qty}
+                onChange={(v) => updateLineItem(idx, "qty", v)}
+              />
+              {/* El total es resultado, no campo: lleva etiqueta visible encima
+                  (como `TimeField`) porque sin ella la casilla no dice qué es, y
+                  el alto de un control para que la fila no se descuadre. */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Total</Label>
+                <div className="flex items-center h-12 rounded-md border border-input bg-muted/40 px-3 text-sm font-medium">
+                  ${item.total.toFixed(2)}
+                </div>
+              </div>
             </div>
           </div>
+        ))}
 
-          {/* Live totals */}
-          <div className="bg-muted/30 rounded-md p-3 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-medium">${subtotal.toFixed(2)}</span>
-            </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-destructive">
-                <span>Discount</span>
-                <span>-${discountAmount.toFixed(2)}</span>
-              </div>
-            )}
-            {taxAmount > 0 && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tax</span>
-                <span className="font-medium">${taxAmount.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between border-t border-border/50 pt-2 font-bold">
-              <span>Total</span>
-              <span className="text-primary">${total.toFixed(2)}</span>
-            </div>
+        {errors.lineItems && (
+          <p className="text-xs text-destructive">Add at least one item with a description</p>
+        )}
+      </FormSection>
+
+      <FormSection
+        icon={Calculator}
+        title="Pricing & Tax"
+        subtitle="Discount and tax applied to the subtotal"
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <SelectField
+            placeholder="Discount type"
+            value={discountType}
+            onChange={(v) => setDiscountType(v as "percentage" | "fixed")}
+            options={DISCOUNT_TYPE_OPTIONS}
+          />
+          <FloatingInput
+            id="invoice-discount"
+            label={discountType === "percentage" ? "Discount (%)" : "Discount ($)"}
+            type="decimal"
+            value={discountValue}
+            onChange={setDiscountValue}
+          />
+        </div>
+
+        <FloatingInput
+          id="invoice-tax"
+          label="Tax rate (%)"
+          type="decimal"
+          value={taxRate}
+          onChange={setTaxRate}
+        />
+
+        <div className="bg-muted/30 rounded-md p-3 space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Subtotal</span>
+            <span className="font-medium">${subtotal.toFixed(2)}</span>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Notes ───────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <StickyNote className="h-4 w-4" />
-            Notes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            placeholder="Add any additional notes..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-          />
-        </CardContent>
-      </Card>
-
-      {/* ── Attachments ─────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Paperclip className="h-4 w-4" />
-            Attachments
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,.pdf"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              const files = Array.from(e.target.files ?? []);
-              setAttachmentFiles((prev) => [...prev, ...files]);
-              e.target.value = "";
-            }}
-          />
-
-          {(existingAttachments.length > 0 || attachmentFiles.length > 0) && (
-            <ul className="space-y-2">
-              {existingAttachments.map((file, idx) => (
-                <li key={`existing-${idx}`} className="flex items-center justify-between gap-2 text-sm bg-muted/30 rounded-md px-3 py-2">
-                  <a href={file.url} target="_blank" rel="noopener noreferrer" className="truncate text-primary hover:underline">
-                    {file.name}
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => setExistingAttachments((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </li>
-              ))}
-              {attachmentFiles.map((file, idx) => (
-                <li key={`new-${idx}`} className="flex items-center justify-between gap-2 text-sm bg-muted/30 rounded-md px-3 py-2">
-                  <span className="truncate text-muted-foreground">{file.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => setAttachmentFiles((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </li>
-              ))}
-            </ul>
+          {discountAmount > 0 && (
+            <div className="flex justify-between text-destructive">
+              <span>Discount</span>
+              <span>-${discountAmount.toFixed(2)}</span>
+            </div>
           )}
+          {taxAmount > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Tax</span>
+              <span className="font-medium">${taxAmount.toFixed(2)}</span>
+            </div>
+          )}
+          <div className="flex justify-between border-t border-border/50 pt-2 font-bold">
+            <span>Total</span>
+            <span className="text-primary">${total.toFixed(2)}</span>
+          </div>
+        </div>
+      </FormSection>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Upload Files
-          </Button>
-        </CardContent>
-      </Card>
+      <FormSection
+        icon={StickyNote}
+        title="Notes"
+        subtitle="Anything the client should read with the invoice"
+      >
+        <TextareaField
+          id="invoice-notes"
+          label="Notes"
+          placeholder="Add any additional notes..."
+          value={notes}
+          onChange={setNotes}
+        />
+      </FormSection>
+
+      <FormSection
+        icon={Paperclip}
+        title="Attachments"
+        subtitle="Files sent along with the invoice"
+      >
+        <AttachmentsField
+          existing={existingAttachments.map((f, i) => ({ id: `${f.name}-${i}`, name: f.name, url: f.url, type: f.type }))}
+          onRemoveExisting={(idx) => setExistingAttachments((prev) => prev.filter((_, i) => i !== idx))}
+          files={attachmentFiles}
+          onAddFiles={(picked) => setAttachmentFiles((prev) => [...prev, ...picked])}
+          onRemoveFile={(idx) => setAttachmentFiles((prev) => prev.filter((_, i) => i !== idx))}
+        />
+      </FormSection>
 
       {/* Status badge for edit mode */}
       {isEditing && (

@@ -9,7 +9,7 @@
  * Es controlado: el padre dueña `client` y `property` y arma su propio payload — este
  * componente no sabe nada de requests ni de walkthroughs (OCP).
  */
-import { User, Mail, Phone } from "lucide-react";
+import { User, Mail, Phone, Building2 } from "lucide-react";
 import { FormSection } from "@/shared/components/forms";
 import { ClientSelect } from "./ClientSelect";
 import { ServicePropertySelector } from "./ServicePropertySelector";
@@ -28,6 +28,14 @@ export interface ClientPropertyFieldProps {
   /** Mensaje bajo el selector cuando falta el cliente. */
   errorMessage?: string;
   subtitle?:  string;
+  /** Título de la sección. Por defecto "Client". */
+  title?:     string;
+  /**
+   * Oculta el selector de propiedad. Para el caso en que el cliente no es un
+   * registro real — una factura antigua cuyo cliente ya no existe, por ejemplo:
+   * no hay propiedades que ofrecer y el selector solo confundiría.
+   */
+  showProperty?: boolean;
   /** Sin bordes — modo página. */
   flush?:     boolean;
 }
@@ -41,12 +49,14 @@ export function ClientPropertyField({
   invalid = false,
   errorMessage = "Please select a client.",
   subtitle = "Who this is for and where the service happens",
+  title = "Client",
+  showProperty = true,
   flush = false,
 }: ClientPropertyFieldProps) {
   return (
     <FormSection
       icon={User}
-      title="Client"
+      title={title}
       subtitle={subtitle}
       invalid={invalid}
       flush={flush}
@@ -60,12 +70,14 @@ export function ClientPropertyField({
       />
       {invalid && <p className="text-xs text-destructive">{errorMessage}</p>}
 
+      {showProperty && (
       <ServicePropertySelector
         clientId={client?.id}
         value={property}
         onChange={onPropertyChange}
         preferredPropertyId={preferredPropertyId}
       />
+      )}
 
       {/* Resumen de contacto — sin dirección: dónde ocurre el servicio ya lo dice
           el selector de propiedad de arriba, y repetir aquí la dirección por defecto
@@ -73,8 +85,9 @@ export function ClientPropertyField({
       {client && (
         <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4">
           {[
-            { icon: User,  label: "Full Name", value: client.full_name },
-            { icon: Mail,  label: "Email",     value: client.email },
+            { icon: User,      label: "Full Name", value: client.full_name },
+            { icon: Building2, label: "Company",   value: client.company ?? "" },
+            { icon: Mail,      label: "Email",     value: client.email },
             { icon: Phone, label: "Phone",     value: client.phone },
           ].map(({ icon: Icon, label, value }) => value && (
             <div key={label} className="flex items-start gap-3">

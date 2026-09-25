@@ -11,10 +11,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
-import { Textarea } from "@/shared/components/ui/textarea";
 import { Switch } from "@/shared/components/ui/switch";
 import {
-  FormSection, FloatingInput, SelectField, DateField, TimeField,
+  FormSection, FloatingInput, SelectField, DateField, TimeField, TextareaField,
 } from "@/shared/components/forms";
 import { FORM_SECTION_GAP } from "@/shared/constants/formTokens";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
@@ -495,24 +494,20 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                 title="Notes"
                 subtitle="What the client sees and what stays internal"
               >
-                <div>
-                  <Label className="text-sm font-medium mb-2 block">Job Details (visible to client)</Label>
-                  <Textarea
-                    value={jobDetails}
-                    onChange={(e) => setJobDetails(e.target.value)}
-                    placeholder="Describe the job scope..."
-                    className="min-h-[100px] rounded-md"
-                  />
-                </div>
-                <div>
-                  <Label className="text-sm font-medium mb-2 block">Internal Notes</Label>
-                  <Textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Internal notes (not visible to client)..."
-                    className="min-h-[100px] rounded-md"
-                  />
-                </div>
+                <TextareaField
+                  id="job-details"
+                  label="Job Details (visible to client)"
+                  placeholder="Describe the job scope..."
+                  value={jobDetails}
+                  onChange={setJobDetails}
+                />
+                <TextareaField
+                  id="job-notes"
+                  label="Internal Notes"
+                  placeholder="Internal notes (not visible to client)..."
+                  value={notes}
+                  onChange={setNotes}
+                />
               </FormSection>
 
               {/* Pie dentro del scroll, como el resto de formularios. */}
