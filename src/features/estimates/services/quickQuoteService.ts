@@ -5,14 +5,15 @@
  *
  * El RLS es solo-dueño para las cuatro operaciones, así que el CRUD son llamadas
  * normales de PostgREST — no hay RPC propio. Los anónimos sí necesitan RPC
- * (`get_public_quick_quote`), pero esa página vive en swift-slate, que es la app
- * a la que apunta el link del correo.
+ * (`get_public_quick_quote`) en `/public/quick-quote/:token`. Esa ruta es
+ * independiente de `/public/estimate/:token`.
  *
  * La tabla no está en los tipos generados: se accede con `(supabase as any)`,
  * igual que `jobs` y `client_properties`.
  */
 import { supabase } from "@/integrations/supabase/client";
 import { generateInvoiceNumber } from "@/features/invoices/services/invoicesService";
+import { getPublicQuickQuote } from "@/shared/services/publicAccess";
 import type { QuickQuoteInsert, QuickQuoteRow } from "../types/quickQuote.types";
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
@@ -45,6 +46,15 @@ export async function fetchQuickQuote(id: string): Promise<QuickQuoteRow | null>
     .maybeSingle();
   if (error) throw error;
   return (data ?? null) as QuickQuoteRow | null;
+}
+
+/**
+ * Lee un quick quote por share token (sin auth). El RPC marca viewed_at.
+ * No toca `estimates` ni `get_public_estimate`.
+ */
+export async function fetchQuickQuoteByToken(token: string): Promise<QuickQuoteRow | null> {
+  const row = await getPublicQuickQuote(token);
+  return (row ?? null) as QuickQuoteRow | null;
 }
 
 /**

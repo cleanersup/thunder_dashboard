@@ -13,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Mail, Phone, User, Zap, Edit, Trash2, Briefcase, CheckCircle,
-  MoreHorizontal, X, Send, Clock, FileText,
+  MoreHorizontal, X, Send, Clock, FileText, ArrowRightLeft,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -21,6 +21,9 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/shared/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -77,6 +80,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props)
 
   const [isConverting,    setIsConverting]    = useState(false);
   const [convertTarget,   setConvertTarget]   = useState<"job" | "invoice" | null>(null);
+  const [convertOpen,     setConvertOpen]     = useState(false);
   const [isDeleteOpen,    setIsDeleteOpen]    = useState(false);
 
   // El status puede cambiar desde el backend (`Sent` al enviar, `Viewed` cuando
@@ -188,8 +192,8 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props)
       {!isInvoiced ? (
         <Button
           size="sm"
-          variant="outline"
           className="flex-1"
+          style={{ backgroundColor: "#202B3D", color: "white" }}
           onClick={() => setConvertTarget("invoice")}
           disabled={isConverting}
         >
@@ -216,6 +220,11 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props)
           <DropdownMenuItem onClick={() => { onClose(); onEdit?.(quote.id); }}>
             <Edit className="w-4 h-4 mr-2" /> Edit and resend
           </DropdownMenuItem>
+          {(!isConverted || !isInvoiced) && (
+            <DropdownMenuItem onClick={() => setConvertOpen(true)}>
+              <ArrowRightLeft className="w-4 h-4 mr-2" /> Convert estimate
+            </DropdownMenuItem>
+          )}
           {status !== "Accepted" && (
             <DropdownMenuItem onClick={handleMarkAccepted}>
               <CheckCircle className="w-4 h-4 mr-2 text-green-600" /> Mark as Accepted
@@ -337,6 +346,57 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props)
           </div>
         )}
       </SidePanel>
+
+      <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
+        <DialogContent className="sm:max-w-md p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+            <DialogTitle className="text-lg font-bold">Convert Estimate</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Select what to create from{" "}
+              <span className="font-medium">{quote?.recipient_name || "this quote"}</span>
+              's estimate
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-4 space-y-2">
+            {[
+              {
+                key: "job" as const,
+                label: "Job",
+                description: "Create a job from this estimate",
+                icon: <Briefcase className="w-5 h-5 text-blue-500" />,
+                done: isConverted,
+              },
+              {
+                key: "invoice" as const,
+                label: "Invoice",
+                description: "Create an invoice from this estimate",
+                icon: <FileText className="w-5 h-5 text-green-500" />,
+                done: isInvoiced,
+              },
+            ].map((opt) => (
+              <button
+                key={opt.key}
+                disabled={opt.done}
+                onClick={() => {
+                  setConvertOpen(false);
+                  setConvertTarget(opt.key);
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-secondary/50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="p-2 rounded-lg bg-secondary/60 flex-shrink-0">
+                  {opt.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm">{opt.label}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {opt.done ? `Already converted to ${opt.label.toLowerCase()}` : opt.description}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <CompleteQuickQuoteClientDialog
         open={convertTarget !== null}
