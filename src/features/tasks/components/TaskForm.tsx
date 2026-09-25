@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X } from "lucide-react";
+import { X, ClipboardList, Flag, Users } from "lucide-react";
+import { format } from "date-fns";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent } from "@/shared/components/ui/card";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
-import { Textarea } from "@/shared/components/ui/textarea";
+import {
+  FormSection, FloatingInput, SelectField, DateField, TextareaField,
+} from "@/shared/components/forms";
+import { FORM_SECTION_GAP } from "@/shared/constants/formTokens";
+import { parseDateOnly } from "@/shared/utils/formatters";
 import { EntityPickerField, type EntityOption } from "@/shared/components/common/EntityPickerField";
 import { EmployeeForm } from "@/features/employees/components/EmployeeForm";
 import { taskSchema, type TaskFormData } from "../schemas/taskSchema";
@@ -16,6 +17,18 @@ import { useCreateTask, useUpdateTask } from "../hooks/useTasks";
 import { useClients } from "@/features/crm/clients/hooks/useClients";
 import { useEmployees } from "@/features/employees/hooks/useEmployees";
 import type { Task } from "../types/task.types";
+
+const PRIORITY_OPTIONS = [
+  { value: "low",    label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high",   label: "High" },
+] as const;
+
+const STATUS_OPTIONS = [
+  { value: "to do",       label: "To Do" },
+  { value: "in progress", label: "In Progress" },
+  { value: "completed",   label: "Completed" },
+] as const;
 
 interface TaskFormProps {
   open: boolean;
@@ -45,7 +58,6 @@ export function TaskForm({ open, onClose, task }: TaskFormProps) {
   }));
 
   const {
-    register,
     handleSubmit,
     control,
     reset,
@@ -110,7 +122,7 @@ export function TaskForm({ open, onClose, task }: TaskFormProps) {
   return (
     <>
       <FullScreenModal open={open} onClose={onClose}>
-        <div className="border-b flex-shrink-0 bg-white">
+        <div className="flex-shrink-0 bg-card">
           <div className="max-w-2xl mx-auto">
             <div className="px-4 py-3 flex items-center justify-between gap-4">
               <div className="w-1/3" />
@@ -128,108 +140,118 @@ export function TaskForm({ open, onClose, task }: TaskFormProps) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-background">
-          <div className="max-w-2xl mx-auto px-4 space-y-4 py-6 pb-8">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <Card>
-                <CardContent className="p-6 space-y-4">
-                  <div>
-                    <Label>Task Title *</Label>
-                    <Input {...register("title")} placeholder="Task title" className="mt-1" />
-                    {errors.title && (
-                      <p className="text-xs text-destructive mt-1">{errors.title.message}</p>
+        <div className="flex-1 overflow-y-auto bg-muted/40">
+          <div className="max-w-2xl mx-auto px-4 py-2.5">
+            <form onSubmit={handleSubmit(onSubmit)} className={FORM_SECTION_GAP}>
+              <FormSection
+                icon={ClipboardList}
+                title="Task"
+                subtitle="What has to be done"
+                invalid={!!errors.title}
+              >
+                <Controller
+                  control={control}
+                  name="title"
+                  render={({ field }) => (
+                    <FloatingInput
+                      id="task-title"
+                      label="Task title"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      required
+                      error={errors.title?.message}
+                    />
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="description"
+                  render={({ field }) => (
+                    <TextareaField
+                      id="task-description"
+                      label="Description"
+                      placeholder="Task description..."
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
+              </FormSection>
+
+              <FormSection
+                icon={Flag}
+                title="Tracking"
+                subtitle="Priority, status and when it is due"
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <Controller
+                    control={control}
+                    name="priority"
+                    render={({ field }) => (
+                      <SelectField
+                        placeholder="Priority"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        options={PRIORITY_OPTIONS}
+                        required
+                      />
                     )}
-                  </div>
-
-                  <div>
-                    <Label>Description</Label>
-                    <Textarea {...register("description")} rows={3} placeholder="Task description..." className="mt-1" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6 space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Priority *</Label>
-                      <Controller
-                        control={control}
-                        name="priority"
-                        render={({ field }) => (
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="low">Low</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="high">High</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
+                  />
+                  <Controller
+                    control={control}
+                    name="status"
+                    render={({ field }) => (
+                      <SelectField
+                        placeholder="Status"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        options={STATUS_OPTIONS}
+                        required
                       />
-                    </div>
-                    <div>
-                      <Label>Status *</Label>
-                      <Controller
-                        control={control}
-                        name="status"
-                        render={({ field }) => (
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="to do">To Do</SelectItem>
-                              <SelectItem value="in progress">In Progress</SelectItem>
-                              <SelectItem value="completed">Completed</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    </div>
-                  </div>
+                    )}
+                  />
+                </div>
 
-                  <div>
-                    <Label>Due Date</Label>
-                    <Input type="date" {...register("due_date")} className="mt-1" />
-                  </div>
-                </CardContent>
-              </Card>
+                <Controller
+                  control={control}
+                  name="due_date"
+                  render={({ field }) => (
+                    <DateField
+                      placeholder="Due date"
+                      value={field.value ? parseDateOnly(field.value) : undefined}
+                      onChange={(d) => field.onChange(d ? format(d, "yyyy-MM-dd") : "")}
+                    />
+                  )}
+                />
+              </FormSection>
 
-              <Card>
-                <CardContent className="p-6 space-y-4">
-                  <div>
-                    <Label>Assigned To</Label>
-                    <div className="mt-1">
-                      <EntityPickerField
-                        multiple
-                        options={employeeOptions}
-                        selected={selectedEmployees}
-                        onChange={setSelectedEmployees}
-                        placeholder="Select employees"
-                        emptyMessage="No active employees"
-                        onCreateNew={() => setShowAddEmployee(true)}
-                        createNewLabel="Add Employee"
-                      />
-                    </div>
-                  </div>
+              <FormSection
+                icon={Users}
+                title="Assignment"
+                subtitle="Who does it and for which client"
+              >
+                <EntityPickerField
+                  multiple
+                  options={employeeOptions}
+                  selected={selectedEmployees}
+                  onChange={setSelectedEmployees}
+                  placeholder="Select employees"
+                  emptyMessage="No active employees"
+                  onCreateNew={() => setShowAddEmployee(true)}
+                  createNewLabel="Add Employee"
+                />
+                <EntityPickerField
+                  options={clientOptions}
+                  selected={selectedClient ? [selectedClient] : []}
+                  onChange={([c]) => setSelectedClient(c ?? null)}
+                  placeholder="Select a client"
+                  emptyMessage="No clients found"
+                  allowClear
+                  clearLabel="No client"
+                />
+              </FormSection>
 
-                  <div>
-                    <Label>Client</Label>
-                    <div className="mt-1">
-                      <EntityPickerField
-                        options={clientOptions}
-                        selected={selectedClient ? [selectedClient] : []}
-                        onChange={([c]) => setSelectedClient(c ?? null)}
-                        placeholder="Select a client"
-                        emptyMessage="No clients found"
-                        allowClear
-                        clearLabel="No client"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
+              <div className="bg-card p-4 flex items-center justify-between gap-3">
                 <Button type="button" variant="outline" size="sm" onClick={onClose}>
                   Cancel
                 </Button>
