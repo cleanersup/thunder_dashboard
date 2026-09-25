@@ -11,7 +11,7 @@ import {
   Plus, Search, CheckCircle, Clock, FileText, DollarSign,
   MoreHorizontal, Edit, Mail, Share, Download, X, ChevronLeft, ChevronRight,
   BookOpen, FileSignature, Play, RefreshCw, Trash2, Calendar as CalendarIcon, MessageSquare, Briefcase,
-  Zap,
+  Zap, ArrowRightLeft,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -104,6 +104,7 @@ export function EstimatesPage() {
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null);
   const [isDetailPanelOpen,  setIsDetailPanelOpen]  = useState(false);
   const [selectedQuickQuoteId, setSelectedQuickQuoteId] = useState<string | null>(null);
+  const [quickQuoteConvertOpen, setQuickQuoteConvertOpen] = useState(false);
   const [isAcceptDialogOpen,      setIsAcceptDialogOpen]      = useState(false);
   const [isCancelDialogOpen,      setIsCancelDialogOpen]      = useState(false);
   const [isDeleteDraftDialogOpen, setIsDeleteDraftDialogOpen] = useState(false);
@@ -232,7 +233,10 @@ export function EstimatesPage() {
 
   /** Cada fila abre el panel de su tabla: son entidades distintas. */
   function openRow(row: { kind: "estimate" | "quick_quote"; id: string }) {
-    if (row.kind === "quick_quote") setSelectedQuickQuoteId(row.id);
+    if (row.kind === "quick_quote") {
+      setQuickQuoteConvertOpen(false);
+      setSelectedQuickQuoteId(row.id);
+    }
     else openDetail(row.id);
   }
 
@@ -529,6 +533,13 @@ export function EstimatesPage() {
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openQuickQuoteForm(estimate.id); }}>
                               <Edit className="w-4 h-4 mr-2" /> Edit and resend
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedQuickQuoteId(estimate.id);
+                              setQuickQuoteConvertOpen(true);
+                            }}>
+                              <ArrowRightLeft className="w-4 h-4 mr-2" /> Convert Quote
+                            </DropdownMenuItem>
                           </>
                         ) : estimate.status === "Draft" ? (
                           <>
@@ -688,9 +699,13 @@ export function EstimatesPage() {
 
       <QuickQuoteDetailPanel
         open={selectedQuickQuoteId !== null}
-        onClose={() => setSelectedQuickQuoteId(null)}
+        onClose={() => {
+          setSelectedQuickQuoteId(null);
+          setQuickQuoteConvertOpen(false);
+        }}
         quoteId={selectedQuickQuoteId}
         onEdit={(id) => openQuickQuoteForm(id)}
+        openConvert={quickQuoteConvertOpen}
       />
 
       <AlertDialog open={isAcceptDialogOpen} onOpenChange={setIsAcceptDialogOpen}>

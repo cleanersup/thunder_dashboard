@@ -13,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Mail, Phone, User, Zap, Edit, Trash2, Briefcase, CheckCircle,
-  MoreHorizontal, X, Send, Clock, FileText, ArrowRightLeft,
+  MoreHorizontal, X, Send, Clock, FileText,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -60,6 +60,8 @@ interface Props {
   quoteId:   string | null;
   /** Abre el formulario para reenviar o corregir el quote. */
   onEdit?:   (quoteId: string) => void;
+  /** Abre el picker Job/Invoice al entrar (desde la tabla). */
+  openConvert?: boolean;
 }
 
 function InfoRow({ icon: Icon, children }: { icon: any; children: React.ReactNode }) {
@@ -71,7 +73,7 @@ function InfoRow({ icon: Icon, children }: { icon: any; children: React.ReactNod
   );
 }
 
-export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props) {
+export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConvert }: Props) {
   const qc       = useQueryClient();
   const navigate = useNavigate();
   const { data: quote, isLoading } = useQuickQuote(open ? quoteId : null);
@@ -82,6 +84,11 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props)
   const [convertTarget,   setConvertTarget]   = useState<"job" | "invoice" | null>(null);
   const [convertOpen,     setConvertOpen]     = useState(false);
   const [isDeleteOpen,    setIsDeleteOpen]    = useState(false);
+
+  useEffect(() => {
+    if (open && openConvert) setConvertOpen(true);
+    if (!open) setConvertOpen(false);
+  }, [open, openConvert]);
 
   // El status puede cambiar desde el backend (`Sent` al enviar, `Viewed` cuando
   // el destinatario abre el link), así que el panel abierto se mantiene al día.
@@ -220,11 +227,6 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props)
           <DropdownMenuItem onClick={() => { onClose(); onEdit?.(quote.id); }}>
             <Edit className="w-4 h-4 mr-2" /> Edit and resend
           </DropdownMenuItem>
-          {(!isConverted || !isInvoiced) && (
-            <DropdownMenuItem onClick={() => setConvertOpen(true)}>
-              <ArrowRightLeft className="w-4 h-4 mr-2" /> Convert estimate
-            </DropdownMenuItem>
-          )}
           {status !== "Accepted" && (
             <DropdownMenuItem onClick={handleMarkAccepted}>
               <CheckCircle className="w-4 h-4 mr-2 text-green-600" /> Mark as Accepted
