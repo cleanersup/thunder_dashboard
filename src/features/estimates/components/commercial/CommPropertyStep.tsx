@@ -10,10 +10,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { cn } from "@/shared/utils/cn";
 import { toIntegerString } from "@/shared/utils/numericInput";
+import { FormSection } from "@/shared/components/forms";
 
 const PROPERTY_TYPES = [
   { value: "restaurant",      label: "Restaurant",      icon: Store },
@@ -67,15 +67,11 @@ export function CommPropertyStep({
     <div className="space-y-5">
 
       {/* Property type grid */}
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-muted-foreground" />
-            Property Type
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Select the type of property for this estimate</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <FormSection
+        icon={Building2}
+        title="Property Type"
+        subtitle="Select the type of property for this estimate"
+      >
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {PROPERTY_TYPES.map(({ value, label, icon: Icon }) => (
               <Button key={value} variant="outline"
@@ -110,19 +106,14 @@ export function CommPropertyStep({
             />
           )}
           {errors.propertyType && <p className="text-xs text-destructive">Please select a property type</p>}
-        </CardContent>
-      </Card>
+</FormSection>
 
       {/* Property size */}
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Maximize2 className="h-5 w-5 text-muted-foreground" />
-            Property Size
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Enter the total size of the property in square feet</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <FormSection
+        icon={Maximize2}
+        title="Property Size"
+        subtitle="Enter the total size of the property in square feet"
+      >
           <div className="relative">
             <Input
               type="text"
@@ -135,19 +126,14 @@ export function CommPropertyStep({
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">sq ft</span>
           </div>
           {errors.propertySize && <p className="text-xs text-destructive">Please enter property size</p>}
-        </CardContent>
-      </Card>
+</FormSection>
 
       {/* Service type */}
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Briefcase className="h-5 w-5 text-muted-foreground" />
-            Service Type
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Select the type of cleaning service</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <FormSection
+        icon={Briefcase}
+        title="Service Type"
+        subtitle="Select the type of cleaning service"
+      >
           <div className="grid grid-cols-2 gap-3">
             {[
               { value: "one-time",   label: "One Time Cleaning" },
@@ -162,20 +148,15 @@ export function CommPropertyStep({
             ))}
           </div>
           {errors.serviceType && <p className="text-xs text-destructive">Please select a service type</p>}
-        </CardContent>
-      </Card>
+</FormSection>
 
       {/* Recurring frequency */}
       {serviceType === "recurrent" && (
-        <Card>
-          <CardHeader className="pb-2">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <RefreshCw className="h-5 w-5 text-muted-foreground" />
-              Recurring Frequency
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Select how often the service should occur</p>
-          </CardHeader>
-          <CardContent className="space-y-2">
+        <FormSection
+        icon={RefreshCw}
+        title="Recurring Frequency"
+        subtitle="Select how often the service should occur"
+      >
             {[
               { value: "once-per-week",     label: "Once per week" },
               { value: "every-2-weeks",     label: "Every 2 weeks" },
@@ -191,21 +172,16 @@ export function CommPropertyStep({
               </Button>
             ))}
             {errors.recurringFrequency && <p className="text-xs text-destructive">Please select a frequency</p>}
-          </CardContent>
-        </Card>
+</FormSection>
       )}
 
       {/* Select days (multiple times per week only) */}
       {serviceType === "recurrent" && recurringFrequency === "multiple-per-week" && (
-        <Card>
-          <CardHeader className="pb-2">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <CalendarDays className="h-5 w-5 text-muted-foreground" />
-              Select Days
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Choose the days for the recurring service</p>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <FormSection
+        icon={CalendarDays}
+        title="Select Days"
+        subtitle="Choose the days for the recurring service"
+      >
             <div className="grid grid-cols-2 gap-2">
               {WEEK_DAYS.map((day) => (
                 <Button key={day} variant="outline" onClick={() => onWeekDayToggle(day)}
@@ -218,21 +194,16 @@ export function CommPropertyStep({
             {selectedWeekDays.length > 0 && (
               <p className="text-xs text-muted-foreground">{selectedWeekDays.length} day(s) selected</p>
             )}
-          </CardContent>
-        </Card>
+</FormSection>
       )}
 
       {/* Contract duration */}
       {serviceType === "recurrent" && (
-        <Card>
-          <CardHeader className="pb-2">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-              Contract Duration
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Specify the length of the service contract (optional)</p>
-          </CardHeader>
-          <CardContent>
+        <FormSection
+        icon={Clock}
+        title="Contract Duration"
+        subtitle="Specify the length of the service contract (optional)"
+      >
             <div className="flex gap-2">
               <Input
                 type="text" inputMode="numeric" placeholder="Duration"
@@ -248,8 +219,7 @@ export function CommPropertyStep({
                 </SelectContent>
               </Select>
             </div>
-          </CardContent>
-        </Card>
+</FormSection>
       )}
     </div>
   );

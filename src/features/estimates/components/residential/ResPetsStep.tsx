@@ -3,8 +3,8 @@
  * Yes/No pet selection.
  */
 import { PawPrint, X } from "lucide-react";
-import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { cn } from "@/shared/utils/cn";
+import { FormBand } from "@/shared/components/forms";
 
 export interface ResPetsStepProps {
   pets:     "yes" | "no" | null;
@@ -15,15 +15,7 @@ export interface ResPetsStepProps {
 export function ResPetsStep({ pets, onChange, error }: ResPetsStepProps) {
   return (
     <div className="space-y-5">
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <PawPrint className="h-5 w-5 text-muted-foreground" />
-            Pets
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Let us know if there are pets in the home</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <FormBand>
           <div className="grid grid-cols-2 gap-3">
             <div
               onClick={() => onChange("yes")}
@@ -51,8 +43,7 @@ export function ResPetsStep({ pets, onChange, error }: ResPetsStepProps) {
             </div>
           </div>
           {error && <p className="text-xs text-destructive">Please select an option</p>}
-        </CardContent>
-      </Card>
+</FormBand>
     </div>
   );
 }

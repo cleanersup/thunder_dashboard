@@ -4,11 +4,12 @@
  */
 import {
   Square, TreePine, SquareStack, Layers, Archive,
-  Package, UtensilsCrossed, MoveRight, ArrowDown, Info, Star,
+  Package, UtensilsCrossed, MoveRight, ArrowDown, Info,
 } from "lucide-react";
-import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
+import { Card, CardContent } from "@/shared/components/ui/card";
 import { cn } from "@/shared/utils/cn";
 import type { LucideIcon } from "lucide-react";
+import { FormBand } from "@/shared/components/forms";
 
 export interface ExtrasState {
   baseboard: boolean; patio: boolean; walls: boolean; stairs: boolean;
@@ -36,15 +37,7 @@ const EXTRAS: { key: keyof ExtrasState; label: string; icon: LucideIcon }[] = [
 export function ResExtrasStep({ extras, onChange }: ResExtrasStepProps) {
   return (
     <div className="space-y-5">
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Star className="h-5 w-5 text-muted-foreground" />
-            Extra
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Add extra details to the cleaning estimate</p>
-        </CardHeader>
-        <CardContent>
+      <FormBand>
           <div className="grid grid-cols-2 gap-3">
             {EXTRAS.map(({ key, label, icon: Icon }) => (
               <div
@@ -62,8 +55,7 @@ export function ResExtrasStep({ extras, onChange }: ResExtrasStepProps) {
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+</FormBand>
 
       <Card className="border-info-subtle-border bg-info-subtle/50">
         <CardContent className="p-4 flex gap-3">

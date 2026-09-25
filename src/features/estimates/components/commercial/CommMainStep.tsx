@@ -5,9 +5,9 @@
 import { Plus, Minus, Users, DollarSign, Timer, AlarmClock } from "lucide-react";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
-import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { cn } from "@/shared/utils/cn";
 import { toDecimalString } from "@/shared/utils/numericInput";
+import { FormSection } from "@/shared/components/forms";
 
 export interface CommMainStepProps {
   employeeCount:    number;
@@ -61,33 +61,24 @@ export function CommMainStep({
     <div className="space-y-5">
 
       {/* Total employees */}
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Users className="h-5 w-5 text-muted-foreground" />
-            Total Employees
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Select the number of employees needed for this cleaning</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <FormSection
+        icon={Users}
+        title="Total Employees"
+        subtitle="Select the number of employees needed for this cleaning"
+      >
           <div className="flex items-center justify-between py-2 border-b border-border">
             <span className="text-sm text-foreground">Employees</span>
             <Counter value={employeeCount} onChange={(v) => { onEmployeeCountChange(v); onClearError("employeeCount"); }} />
           </div>
           {errors.employeeCount && <p className="text-xs text-destructive">Please specify the number of employees</p>}
-        </CardContent>
-      </Card>
+</FormSection>
 
       {/* Hourly rate */}
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-muted-foreground" />
-            Hourly Rate Per Employee
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Enter the hourly rate you pay per employee</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <FormSection
+        icon={DollarSign}
+        title="Hourly Rate Per Employee"
+        subtitle="Enter the hourly rate you pay per employee"
+      >
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
             <Input
@@ -97,19 +88,14 @@ export function CommMainStep({
             />
           </div>
           {errors.hourlyRate && <p className="text-xs text-destructive">Please enter the hourly rate</p>}
-        </CardContent>
-      </Card>
+</FormSection>
 
       {/* Cleaning duration */}
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Timer className="h-5 w-5 text-muted-foreground" />
-            Cleaning Duration
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">How many hours will it take to clean this property?</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <FormSection
+        icon={Timer}
+        title="Cleaning Duration"
+        subtitle="How many hours will it take to clean this property?"
+      >
           <div className="flex items-center justify-between py-2 border-b border-border">
             <span className="text-sm text-foreground">
               {cleaningDuration} {cleaningDuration === 1 ? "hour" : "hours"}
@@ -117,19 +103,14 @@ export function CommMainStep({
             <Counter value={cleaningDuration} onChange={(v) => { onCleaningDurationChange(v); onClearError("cleaningDuration"); }} />
           </div>
           {errors.cleaningDuration && <p className="text-xs text-destructive">Please specify the cleaning duration in hours</p>}
-        </CardContent>
-      </Card>
+</FormSection>
 
       {/* Time */}
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <AlarmClock className="h-5 w-5 text-muted-foreground" />
-            Time
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Set the start time for the cleaning service</p>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <FormSection
+        icon={AlarmClock}
+        title="Time"
+        subtitle="Set the start time for the cleaning service"
+      >
           <div className="space-y-2">
             <Label>Start Time</Label>
             <Input
@@ -143,8 +124,7 @@ export function CommMainStep({
             <Label>End Time</Label>
             <Input type="time" value={endTime} readOnly className="bg-muted/50 cursor-not-allowed" />
           </div>
-        </CardContent>
-      </Card>
+</FormSection>
 
     </div>
   );

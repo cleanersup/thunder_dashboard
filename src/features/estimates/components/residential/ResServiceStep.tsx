@@ -3,16 +3,12 @@
  * Service type grid + optional square footage input.
  * Selecting "Post Construction" opens a sub-type picker dialog.
  */
-import { useState } from "react";
 import { HardHat, Briefcase, Maximize2 } from "lucide-react";
 import { Input } from "@/shared/components/ui/input";
-import { Button } from "@/shared/components/ui/button";
-import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
-} from "@/shared/components/ui/dialog";
 import { toIntegerString } from "@/shared/utils/numericInput";
 import { cn } from "@/shared/utils/cn";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { FormSection } from "@/shared/components/forms";
 
 const SERVICE_OPTIONS = [
   "Deep Cleaning",
@@ -53,36 +49,17 @@ export function ResServiceStep({
   service, squareFootage, postConstructionType,
   onServiceChange, onSqftChange, onPostConstructionTypeChange, error,
 }: ResServiceStepProps) {
-  const [showDialog, setShowDialog] = useState(false);
-
-  function handleServiceClick(svc: string) {
-    onServiceChange(svc);
-    if (svc === "Post Construction") {
-      setShowDialog(true);
-    }
-  }
-
-  function handlePostConstructionSelect(type: string) {
-    onPostConstructionTypeChange(type);
-    setShowDialog(false);
-  }
-
   return (
-    <>
-      <div className="space-y-5">
-        <Card>
-          <CardHeader className="pb-2">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Briefcase className="h-5 w-5 text-muted-foreground" />
-              Select Service Type
-            </h2>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-5">
+      <FormSection
+        icon={Briefcase}
+        title="Select Service Type"
+      >
+          <div className="grid grid-cols-2 gap-3">
             {SERVICE_OPTIONS.map((svc) => (
               <div
                 key={svc}
-                onClick={() => handleServiceClick(svc)}
+                onClick={() => onServiceChange(svc)}
                 className={cn(
                   "p-4 rounded-lg border cursor-pointer transition-all",
                   service === svc
@@ -91,66 +68,60 @@ export function ResServiceStep({
                 )}
               >
                 <p className="text-sm font-medium text-center">{svc}</p>
-                {svc === "Post Construction" && service === "Post Construction" && postConstructionType && (
-                  <p className="text-xs text-primary text-center mt-1">{postConstructionType}</p>
-                )}
               </div>
             ))}
           </div>
           {error && <p className="text-xs text-destructive">Please select a service type</p>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Maximize2 className="h-4 w-4 text-muted-foreground" />
-              Square Footage
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1.5">
-            <Input
-              type="text"
-              inputMode="numeric"
-              placeholder="e.g. 1500"
-              value={squareFootage}
-              onChange={(e) => onSqftChange(toIntegerString(e.target.value))}
-            />
-          </CardContent>
-        </Card>
 
-      </div>
+          {/* El subtipo aparece aquí mismo al elegir Post Construction: son tres
+              opciones y precisan la elección de arriba, así que no merecen un
+              diálogo encima del panel — eso apilaba un modal sobre otro y
+              escondía el servicio que se acababa de elegir. */}
+          {service === "Post Construction" && (
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center gap-2">
+                <HardHat className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium">Which post-construction cleaning?</p>
+              </div>
+              <div className="space-y-2">
+                {POST_CONSTRUCTION_TYPES.map(({ label, description }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => onPostConstructionTypeChange(label)}
+                    className={cn(
+                      "w-full text-left p-3 rounded-lg border transition-colors",
+                      postConstructionType === label
+                        ? "border-primary bg-primary/10"
+                        : "border-input bg-background hover:border-primary/60"
+                    )}
+                  >
+                    <span className="block font-medium text-sm">{label}</span>
+                    <span className="block text-xs text-muted-foreground mt-0.5">{description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+</FormSection>
 
-      {/* Post Construction sub-type dialog */}
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <HardHat className="h-5 w-5" />
-              Post Construction Service Type
-            </DialogTitle>
-            <DialogDescription>
-              Select the type of post-construction cleaning service
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 py-2">
-            {POST_CONSTRUCTION_TYPES.map(({ label, description }) => (
-              <Button
-                key={label}
-                variant="outline"
-                onClick={() => handlePostConstructionSelect(label)}
-                className={cn(
-                  "w-full h-auto flex flex-col items-start gap-1 p-4 text-left",
-                  postConstructionType === label && "border-primary bg-primary/10"
-                )}
-              >
-                <span className="font-semibold text-sm">{label}</span>
-                <span className="text-xs text-muted-foreground font-normal">{description}</span>
-              </Button>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Maximize2 className="h-4 w-4 text-muted-foreground" />
+            Square Footage
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-1.5">
+          <Input
+            type="text"
+            inputMode="numeric"
+            placeholder="e.g. 1500"
+            value={squareFootage}
+            onChange={(e) => onSqftChange(toIntegerString(e.target.value))}
+          />
+        </CardContent>
+      </Card>
+    </div>
   );
 }

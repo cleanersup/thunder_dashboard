@@ -779,7 +779,8 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
     livingRooms > 0 && plural(livingRooms, "living room"),
     diningRooms > 0 && plural(diningRooms, "dining room"),
     offices     > 0 && plural(offices, "office"),
-    squareFootage && `${squareFootage} sqft`,
+    // El metraje NO va aquí: se edita en la sección Service y se resume allí.
+    // Repetirlo hacía que "Edit" en Project prometiera un campo que no contiene.
   ].filter(Boolean).join(" · ");
 
   const additionalSummary = [
@@ -978,6 +979,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         open={openSection === "additional"}
         onCancel={cancelSection}
         title="Additional"
+        subtitle="Add additional details to the estimate"
         onSave={() => setOpenSection(null)}
       >
         <ResAdditionalStep
@@ -997,6 +999,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         open={openSection === "extra"}
         onCancel={cancelSection}
         title="Extra"
+        subtitle="Add extra details to the cleaning estimate"
         onSave={() => setOpenSection(null)}
       >
         <ResExtrasStep
@@ -1009,6 +1012,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         open={openSection === "pets"}
         onCancel={cancelSection}
         title="Pets"
+        subtitle="Let us know if there are pets in the home"
         onSave={() => setOpenSection(null)}
         saveDisabled={!pets}
       >
@@ -1019,6 +1023,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         open={openSection === "laundry"}
         onCancel={cancelSection}
         title="Laundry"
+        subtitle="Add laundry services if needed"
         onSave={() => setOpenSection(null)}
       >
         <ResLaundryStep
