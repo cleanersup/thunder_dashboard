@@ -70,26 +70,27 @@ export function FormSheet({
           className="flex min-h-0 flex-1 flex-col"
         >
           {/* Fondo gris: cada `FormBand` del contenido es blanca a todo el ancho y el
-              gris entre ellas hace de separador — también contra la cabecera.
-              Los botones van DENTRO del scroll, al final del formulario: no se pegan
-              abajo (regla del proyecto, igual que en los hubs). */}
-          <div className="flex flex-1 flex-col gap-2 overflow-y-auto bg-muted/40 py-2">
+              gris entre ellas hace de separador — también contra la cabecera. */}
+          <div className="min-h-0 flex-1 flex flex-col gap-2 overflow-y-auto bg-muted/40 py-2">
             {children}
+          </div>
 
-            <div className="bg-card px-6 py-4 flex gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={onClose}
-                disabled={isPending}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" className="flex-1" disabled={isPending || submitDisabled}>
-                {isPending ? submitPendingLabel : submitLabel}
-              </Button>
-            </div>
+          {/* Fuera del scroll: la barra queda fija al pie del panel, se vea el
+              formulario entero o no. En uno largo como Add Client, dejarla al final
+              del scroll obligaba a recorrerlo entero solo para llegar a Guardar. */}
+          <div className="shrink-0 bg-card px-6 py-4 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={onClose}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" disabled={isPending || submitDisabled}>
+              {isPending ? submitPendingLabel : submitLabel}
+            </Button>
           </div>
         </form>
       </SheetContent>

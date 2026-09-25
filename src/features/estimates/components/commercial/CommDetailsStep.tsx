@@ -5,9 +5,10 @@
  */
 import { Clock, Flame, Star, Wind, Plus } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
+import { Card, CardContent } from "@/shared/components/ui/card";
 import { Switch } from "@/shared/components/ui/switch";
 import { cn } from "@/shared/utils/cn";
+import { FormSection } from "@/shared/components/forms";
 
 // Group B (restaurant / food-truck) extras.
 const EXTRA_SERVICE_OPTIONS_GROUP_B = [
@@ -56,15 +57,11 @@ export function CommDetailsStep({
     <div className="space-y-5">
 
       {/* Group B: service schedule at top */}
-      {groupB && <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Clock className="h-5 w-5 text-muted-foreground" />
-            Service Schedule
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Select the service schedule</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      {groupB && <FormSection
+        icon={Clock}
+        title="Service Schedule"
+        subtitle="Select the service schedule"
+      >
           <div className="grid grid-cols-2 gap-3">
             {[
               { value: "diurno",   label: "Day Shift" },
@@ -79,18 +76,13 @@ export function CommDetailsStep({
             ))}
           </div>
           {errors.serviceSchedule && <p className="text-xs text-destructive">Please select a schedule</p>}
-        </CardContent>
-      </Card>}
+</FormSection>}
 
-      {groupB && <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Flame className="h-5 w-5 text-muted-foreground" />
-            Grease Level
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Select the grease level</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      {groupB && <FormSection
+        icon={Flame}
+        title="Grease Level"
+        subtitle="Select the grease level"
+      >
           <div className="grid grid-cols-3 gap-3">
             {[
               { value: "bajo",  label: "Low" },
@@ -106,18 +98,13 @@ export function CommDetailsStep({
             ))}
           </div>
           {errors.greaseLevel && <p className="text-xs text-destructive">Please select a grease level</p>}
-        </CardContent>
-      </Card>}
+</FormSection>}
 
-      {groupB && <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Star className="h-5 w-5 text-muted-foreground" />
-            Restaurant Condition
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Select the restaurant condition</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      {groupB && <FormSection
+        icon={Star}
+        title="Restaurant Condition"
+        subtitle="Select the restaurant condition"
+      >
           <div className="grid grid-cols-3 gap-3">
             {[
               { value: "bien-mantenido", label: "Well Maintained" },
@@ -133,8 +120,7 @@ export function CommDetailsStep({
             ))}
           </div>
           {errors.restaurantCondition && <p className="text-xs text-destructive">Please select property condition</p>}
-        </CardContent>
-      </Card>}
+</FormSection>}
 
       {/* Client provides supplies */}
       <Card>
@@ -150,15 +136,11 @@ export function CommDetailsStep({
       </Card>
 
       {/* Group A: service schedule, dust level, property condition */}
-      {!groupB && <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Clock className="h-5 w-5 text-muted-foreground" />
-            Service Schedule
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Select the service schedule</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      {!groupB && <FormSection
+        icon={Clock}
+        title="Service Schedule"
+        subtitle="Select the service schedule"
+      >
           <div className="grid grid-cols-2 gap-3">
             {[
               { value: "diurno",   label: "Day Shift" },
@@ -173,18 +155,13 @@ export function CommDetailsStep({
             ))}
           </div>
           {errors.serviceSchedule && <p className="text-xs text-destructive">Please select a schedule</p>}
-        </CardContent>
-      </Card>}
+</FormSection>}
 
-      {!groupB && <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Wind className="h-5 w-5 text-muted-foreground" />
-            Dust Level
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Select the dust level</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      {!groupB && <FormSection
+        icon={Wind}
+        title="Dust Level"
+        subtitle="Select the dust level"
+      >
           <div className="grid grid-cols-3 gap-3">
             {[
               { value: "bajo",  label: "Low" },
@@ -200,18 +177,13 @@ export function CommDetailsStep({
             ))}
           </div>
           {errors.dustLevel && <p className="text-xs text-destructive">Please select a dust level</p>}
-        </CardContent>
-      </Card>}
+</FormSection>}
 
-      {!groupB && <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Star className="h-5 w-5 text-muted-foreground" />
-            Property Condition
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Select the current condition of the property</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      {!groupB && <FormSection
+        icon={Star}
+        title="Property Condition"
+        subtitle="Select the current condition of the property"
+      >
           <div className="grid grid-cols-1 gap-3">
             {[
               { value: "bien-mantenido", label: "Well Maintained" },
@@ -227,19 +199,14 @@ export function CommDetailsStep({
             ))}
           </div>
           {errors.propertyCondition && <p className="text-xs text-destructive">Please select property condition</p>}
-        </CardContent>
-      </Card>}
+</FormSection>}
 
       {/* Extra services */}
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Plus className="h-5 w-5 text-muted-foreground" />
-            Extra Services
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Select additional services (optional)</p>
-        </CardHeader>
-        <CardContent>
+      <FormSection
+        icon={Plus}
+        title="Extra Services"
+        subtitle="Select additional services (optional)"
+      >
           <div className="grid grid-cols-2 gap-3">
             {(groupB ? EXTRA_SERVICE_OPTIONS_GROUP_B : EXTRA_SERVICE_OPTIONS_GROUP_A).map(({ value, label }) => (
               <Button key={value} variant="outline"
@@ -250,8 +217,7 @@ export function CommDetailsStep({
               </Button>
             ))}
           </div>
-        </CardContent>
-      </Card>
+</FormSection>
     </div>
   );
 }

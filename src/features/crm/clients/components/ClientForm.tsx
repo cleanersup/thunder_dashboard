@@ -7,14 +7,22 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormSheet, FormBand } from "@/shared/components/forms";
-import { Input }    from "@/shared/components/ui/input";
-import { Label }    from "@/shared/components/ui/label";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/shared/components/ui/select";
-import { Textarea } from "@/shared/components/ui/textarea";
+  FormSheet, FormBand, FloatingInput, SelectField, TextareaField,
+} from "@/shared/components/forms";
+import { withRequiredMark } from "@/shared/utils/formLabel";
 import { clientSchema, type ClientFormData } from "../schemas/clientSchema";
+
+const CLIENT_TYPE_OPTIONS = [
+  { value: "residential", label: "Residential" },
+  { value: "commercial",  label: "Commercial" },
+] as const;
+
+const CONTACT_PREFERENCE_OPTIONS = [
+  { value: "phone",    label: "Phone" },
+  { value: "email",    label: "Email" },
+  { value: "whatsapp", label: "WhatsApp" },
+] as const;
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
@@ -43,7 +51,7 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
   const [sameAsBilling, setSameAsBilling] = useState(true);
 
   const {
-    register, handleSubmit, reset, setValue, watch,
+    handleSubmit, reset, setValue, watch,
     formState: { errors },
   } = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -146,47 +154,43 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
       <div className="contents" onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}>
 
           <FormBand title="Personal Information">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 space-y-1">
-              <Label>Full Name *</Label>
-              <Input {...register("full_name")} placeholder="John Doe" />
-              {errors.full_name && (
-                <p className="text-xs text-destructive">{errors.full_name.message}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label>Company Name</Label>
-              <Input {...register("company")} placeholder="Optional" />
-            </div>
-            <div className="space-y-1">
-              <Label>Phone Number *</Label>
+            <FloatingInput
+              id="client-full-name"
+              label="Full Name"
+              value={watch("full_name") ?? ""}
+              onChange={(v) => setValue("full_name", v, { shouldValidate: true })}
+              required
+              error={errors.full_name?.message}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <FloatingInput
+                id="client-company"
+                label="Company Name"
+                value={watch("company") ?? ""}
+                onChange={(v) => setValue("company", v)}
+              />
               <PhoneInput
+                id="client-phone"
+                floatingLabel
+                label={withRequiredMark("Phone Number", true)}
                 value={watch("phone") ?? ""}
                 onChange={(v) => setValue("phone", v, { shouldValidate: true })}
-                placeholder="(555) 000-0000"
+                error={errors.phone?.message}
               />
-              {errors.phone && (
-                <p className="text-xs text-destructive">{errors.phone.message}</p>
-              )}
             </div>
-            <div className="col-span-2 space-y-1">
-              <Label>Email Address *</Label>
-              <Input
-                {...register("email")}
-                type="email"
-                placeholder="john@email.com"
-              />
-              {errors.email && (
-                <p className="text-xs text-destructive">{errors.email.message}</p>
-              )}
-            </div>
-          </div>
+            <FloatingInput
+              id="client-email"
+              label="Email Address"
+              type="email"
+              value={watch("email") ?? ""}
+              onChange={(v) => setValue("email", v, { shouldValidate: true })}
+              required
+              error={errors.email?.message}
+            />
           </FormBand>
 
           <FormBand title="Billing Address">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 space-y-1">
-              <Label>Street *</Label>
+            <div className="space-y-1.5">
               <AddressAutocomplete
                 value={billingWatched[0] ?? ""}
                 onChange={(v) => {
@@ -203,55 +207,49 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
                   syncOnBillingChange("billing_state",  c.state);
                   syncOnBillingChange("billing_zip",    c.zip);
                 }}
+                placeholder={withRequiredMark("Street", true)}
                 error={!!errors.billing_street}
               />
               {errors.billing_street && (
                 <p className="text-xs text-destructive">{errors.billing_street.message}</p>
               )}
             </div>
-            <div className="space-y-1">
-              <Label>Apt/Suite</Label>
-              <Input
-                {...register("billing_apt", {
-                  onChange: (e) => syncOnBillingChange("billing_apt", e.target.value),
-                })}
-                placeholder="Apt 4B"
+
+            <div className="grid grid-cols-2 gap-3">
+              <FloatingInput
+                id="client-billing-apt"
+                label="Apt / Suite"
+                value={watch("billing_apt") ?? ""}
+                onChange={(v) => { setValue("billing_apt", v); syncOnBillingChange("billing_apt", v); }}
+              />
+              <FloatingInput
+                id="client-billing-city"
+                label="City"
+                value={watch("billing_city") ?? ""}
+                onChange={(v) => { setValue("billing_city", v, { shouldValidate: true }); syncOnBillingChange("billing_city", v); }}
+                required
+                error={errors.billing_city?.message}
               />
             </div>
-            <div className="space-y-1">
-              <Label>City *</Label>
-              <Input
-                {...register("billing_city", {
-                  onChange: (e) => syncOnBillingChange("billing_city", e.target.value),
-                })}
+            <div className="grid grid-cols-2 gap-3">
+              <FloatingInput
+                id="client-billing-state"
+                label="State"
+                value={watch("billing_state") ?? ""}
+                onChange={(v) => { setValue("billing_state", v, { shouldValidate: true }); syncOnBillingChange("billing_state", v); }}
+                required
+                error={errors.billing_state?.message}
               />
-              {errors.billing_city && (
-                <p className="text-xs text-destructive">{errors.billing_city.message}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label>State *</Label>
-              <Input
-                {...register("billing_state", {
-                  onChange: (e) => syncOnBillingChange("billing_state", e.target.value),
-                })}
+              <FloatingInput
+                id="client-billing-zip"
+                label="Zip Code"
+                type="integer"
+                value={watch("billing_zip") ?? ""}
+                onChange={(v) => { setValue("billing_zip", v, { shouldValidate: true }); syncOnBillingChange("billing_zip", v); }}
+                required
+                error={errors.billing_zip?.message}
               />
-              {errors.billing_state && (
-                <p className="text-xs text-destructive">{errors.billing_state.message}</p>
-              )}
             </div>
-            <div className="space-y-1">
-              <Label>Zip Code *</Label>
-              <Input
-                {...register("billing_zip", {
-                  onChange: (e) => syncOnBillingChange("billing_zip", e.target.value),
-                })}
-              />
-              {errors.billing_zip && (
-                <p className="text-xs text-destructive">{errors.billing_zip.message}</p>
-              )}
-            </div>
-          </div>
           </FormBand>
 
           <FormBand
@@ -268,88 +266,80 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
               </label>
             }
           >
-          <div className={`grid grid-cols-2 gap-3 ${sameAsBilling ? "opacity-50 pointer-events-none" : ""}`}>
-            <div className="col-span-2 space-y-1">
-              <Label>Street *</Label>
-              <Input
-                {...register("service_street")}
-                placeholder="123 Main St"
+            <div className={sameAsBilling ? "space-y-3 opacity-50 pointer-events-none" : "space-y-3"}>
+              <FloatingInput
+                id="client-service-street"
+                label="Street"
+                value={watch("service_street") ?? ""}
+                onChange={(v) => setValue("service_street", v, { shouldValidate: true })}
+                required
                 disabled={sameAsBilling}
+                error={errors.service_street?.message}
               />
-              {errors.service_street && (
-                <p className="text-xs text-destructive">{errors.service_street.message}</p>
-              )}
+              <div className="grid grid-cols-2 gap-3">
+                <FloatingInput
+                  id="client-service-apt"
+                  label="Apt / Suite"
+                  value={watch("service_apt") ?? ""}
+                  onChange={(v) => setValue("service_apt", v)}
+                  disabled={sameAsBilling}
+                />
+                <FloatingInput
+                  id="client-service-city"
+                  label="City"
+                  value={watch("service_city") ?? ""}
+                  onChange={(v) => setValue("service_city", v, { shouldValidate: true })}
+                  required
+                  disabled={sameAsBilling}
+                  error={errors.service_city?.message}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <FloatingInput
+                  id="client-service-state"
+                  label="State"
+                  value={watch("service_state") ?? ""}
+                  onChange={(v) => setValue("service_state", v, { shouldValidate: true })}
+                  required
+                  disabled={sameAsBilling}
+                  error={errors.service_state?.message}
+                />
+                <FloatingInput
+                  id="client-service-zip"
+                  label="Zip Code"
+                  type="integer"
+                  value={watch("service_zip") ?? ""}
+                  onChange={(v) => setValue("service_zip", v, { shouldValidate: true })}
+                  required
+                  disabled={sameAsBilling}
+                  error={errors.service_zip?.message}
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label>Apt/Suite</Label>
-              <Input
-                {...register("service_apt")}
-                placeholder="Apt 4B"
-                disabled={sameAsBilling}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>City *</Label>
-              <Input {...register("service_city")} disabled={sameAsBilling} />
-              {errors.service_city && (
-                <p className="text-xs text-destructive">{errors.service_city.message}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label>State *</Label>
-              <Input {...register("service_state")} disabled={sameAsBilling} />
-              {errors.service_state && (
-                <p className="text-xs text-destructive">{errors.service_state.message}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label>Zip Code *</Label>
-              <Input {...register("service_zip")} disabled={sameAsBilling} />
-              {errors.service_zip && (
-                <p className="text-xs text-destructive">{errors.service_zip.message}</p>
-              )}
-            </div>
-          </div>
           </FormBand>
 
           <FormBand title="Business Details">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>Client Type</Label>
-              <Select
+            <div className="grid grid-cols-2 gap-3">
+              <SelectField
+                placeholder="Client type"
                 value={clientType}
-                onValueChange={(v) => setValue("client_type", v as ClientFormData["client_type"])}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="residential">Residential</SelectItem>
-                  <SelectItem value="commercial">Commercial</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Preferred Contact Method</Label>
-              <Select
+                onChange={(v) => setValue("client_type", v as ClientFormData["client_type"])}
+                options={CLIENT_TYPE_OPTIONS}
+              />
+              <SelectField
+                placeholder="Preferred contact method"
                 value={contactPref}
-                onValueChange={(v) => setValue("contact_preference", v as ClientFormData["contact_preference"])}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="phone">Phone</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2 space-y-1">
-              <Label>Instructions</Label>
-              <Textarea
-                {...register("instructions")}
-                placeholder="Special instructions..."
-                rows={3}
+                onChange={(v) => setValue("contact_preference", v as ClientFormData["contact_preference"])}
+                options={CONTACT_PREFERENCE_OPTIONS}
               />
             </div>
-          </div>
+            <TextareaField
+              id="client-instructions"
+              label="Instructions"
+              placeholder="Special instructions..."
+              value={watch("instructions") ?? ""}
+              onChange={(v) => setValue("instructions", v)}
+            />
           </FormBand>
 
       </div>

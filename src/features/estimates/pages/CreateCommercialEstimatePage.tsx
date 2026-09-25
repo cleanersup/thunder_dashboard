@@ -797,16 +797,41 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
     zip:     estimateType === "client" ? (previewAddr.zip   || undefined) : (selectedLead?.zip_code ?? undefined),
   } : null;
 
+  // Las tres pantallas comparten UN modal: cambiar de etapa cambia el contenido,
+  // no el contenedor. Con un modal por etapa, cada paso cerraba un Dialog y abría
+  // otro — parpadeo del overlay y salto de la página de fondo al soltarse y
+  // retomarse el bloqueo de scroll.
+  const reviewTitle = reviewStep === "preview" ? "Preview"
+    : reviewStep === "send" ? "Send"
+    : "Summary";
+
+  const reviewSaveLabel = reviewStep === "preview" ? "Continue"
+    : reviewStep === "send" ? (displayEditing ? "Update Estimate" : "Send Estimate")
+    : "Preview";
+
+  function handleReviewSave() {
+    if (reviewStep === "summary") { setReviewStep("preview"); return; }
+    if (reviewStep === "preview") { setReviewStep("send");    return; }
+    handleSubmit();
+  }
+
   const reviewModals = (
-    <>
-      <SectionModal
-        open={reviewStep === "summary"}
-        onCancel={() => setReviewStep(null)}
-        title="Summary"
-        variant="fullscreen"
-        onSave={() => setReviewStep("preview")}
-        saveLabel="Preview"
-      >
+    <SectionModal
+      open={reviewStep !== null}
+      onCancel={() => setReviewStep(null)}
+      title={reviewTitle}
+      contentKey={reviewStep ?? ""}
+      variant="fullscreen"
+      onSave={handleReviewSave}
+      saveLabel={reviewSaveLabel}
+      saveDisabled={reviewStep === "send" && !deliveryMethod}
+      secondaryLabel={reviewStep === "summary" ? "Cancel" : "Back"}
+      onSecondary={reviewStep === "preview" ? () => setReviewStep("summary")
+        : reviewStep === "send" ? () => setReviewStep("preview")
+        : undefined}
+      isPending={reviewStep === "send" && (isSavingForm || isSendingEmail)}
+    >
+      {reviewStep === "summary" && (
         <CommSummaryStep
           costs={pricing.costs} total={pricing.total}
           serviceSubType={`${effectivePropertyType} - ${serviceType}`}
@@ -823,18 +848,9 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
           onDepositTypeChange={setDepositType}
           onDepositValueChange={setDepositValue}
         />
-      </SectionModal>
+      )}
 
-      <SectionModal
-        open={reviewStep === "preview"}
-        onCancel={() => setReviewStep(null)}
-        title="Preview"
-        variant="fullscreen"
-        onSave={() => setReviewStep("send")}
-        saveLabel="Continue"
-        secondaryLabel="Back"
-        onSecondary={() => setReviewStep("summary")}
-      >
+      {reviewStep === "preview" && (
         <CommPreviewStep
           client={previewClient}
           company={{
@@ -868,28 +884,17 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
           discountType={discountType}
           discountValue={discountValue}
         />
-      </SectionModal>
+      )}
 
-      <SectionModal
-        open={reviewStep === "send"}
-        onCancel={() => setReviewStep(null)}
-        title="Send"
-        variant="fullscreen"
-        onSave={handleSubmit}
-        saveLabel={displayEditing ? "Update Estimate" : "Send Estimate"}
-        saveDisabled={!deliveryMethod}
-        secondaryLabel="Back"
-        onSecondary={() => setReviewStep("preview")}
-        isPending={isSavingForm || isSendingEmail}
-      >
+      {reviewStep === "send" && (
         <CommSendStep
           client={selectedEntity ? { name: selectedEntity.full_name, email: selectedEntity.email ?? "", phone: selectedEntity.phone ?? "" } : null}
           total={pricing.total}
           deliveryMethod={deliveryMethod}
           onChange={setDeliveryMethod}
         />
-      </SectionModal>
-    </>
+      )}
+    </SectionModal>
   );
 
   // ── Cuerpo del formulario (mismo en modal y en página) ────────────────────

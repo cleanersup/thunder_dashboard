@@ -4,8 +4,8 @@
  */
 import { Plus, Minus, Bed, ChefHat, Sofa, Utensils, Monitor, Bath, Home } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import type { LucideIcon } from "lucide-react";
+import { FormSection } from "@/shared/components/forms";
 
 export interface ResRoomsStepProps {
   bedrooms:    number;
@@ -53,15 +53,11 @@ function Row({ label, icon: Icon, value, field, onChange }: {
 export function ResRoomsStep({ bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths, onChange, error }: ResRoomsStepProps) {
   return (
     <div className="space-y-5">
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Home className="h-5 w-5 text-muted-foreground" />
-            Main Data
-          </h2>
-          <p className="text-sm text-muted-foreground">Specify the rooms and areas to be cleaned</p>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <FormSection
+        icon={Home}
+        title="Main Data"
+        subtitle="Specify the rooms and areas to be cleaned"
+      >
           <div className="p-4 divide-y">
             <Row label="Bedrooms"     icon={Bed}      value={bedrooms}    field="bedrooms"    onChange={onChange} />
             <Row label="Kitchen"      icon={ChefHat}  value={kitchens}    field="kitchens"    onChange={onChange} />
@@ -72,8 +68,7 @@ export function ResRoomsStep({ bedrooms, kitchens, livingRooms, diningRooms, off
             <Row label="Half Bath"    icon={Bath}     value={halfBaths}   field="halfBaths"   onChange={onChange} />
           </div>
           {error && <p className="text-xs text-destructive">Please add at least one room</p>}
-        </CardContent>
-      </Card>
+</FormSection>
     </div>
   );
 }

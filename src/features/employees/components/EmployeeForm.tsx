@@ -4,13 +4,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
 import { formatDisplayDateShort } from "@/shared/utils/formatters";
 import { CalendarIcon, Download, Upload, X } from "lucide-react";
-import { FormSheet, FormBand } from "@/shared/components/forms";
+import {
+  FormSheet, FormBand, FloatingInput, SelectField, TextareaField,
+} from "@/shared/components/forms";
 import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
-import { Textarea } from "@/shared/components/ui/textarea";
 import { Checkbox } from "@/shared/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { withRequiredMark } from "@/shared/utils/formLabel";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { Calendar } from "@/shared/components/ui/calendar";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
@@ -18,7 +18,11 @@ import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
 import { COUNTRY_OPTIONS } from "@/shared/constants/countries";
 import { cn } from "@/shared/utils/cn";
 import { employeeSchema, type EmployeeFormData } from "../schemas/employeeSchema";
-import { toDecimalString } from "@/shared/utils/numericInput";
+
+const GENDER_OPTIONS = [
+  { value: "male",   label: "Male" },
+  { value: "female", label: "Female" },
+] as const;
 import { useCreateEmployee, useUpdateEmployee, useEmployee } from "../hooks/useEmployees";
 import { downloadEmployeeDocument } from "../services/employeesService";
 import type { EntityOption } from "@/shared/components/common/EntityPickerField";
@@ -75,7 +79,6 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
   const { data: existingEmployee } = useEmployee(isEdit ? employeeId : undefined);
 
   const {
-    register,
     handleSubmit,
     control,
     setValue,
@@ -259,71 +262,62 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
 
           {/* ── Personal Information ─────────────────────────────────── */}
           <FormBand title="Personal Information">
-
-            {/* Full Name */}
-            <div>
-              <Label>Full Name *</Label>
-              <Input {...register("full_name")} placeholder="First Last" className="mt-1" />
-              {errors.full_name && (
-                <p className="text-xs text-destructive mt-1">{errors.full_name.message}</p>
+            <Controller
+              control={control}
+              name="full_name"
+              render={({ field }) => (
+                <FloatingInput
+                  id="employee-full-name"
+                  label="Full Name"
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  required
+                  error={errors.full_name?.message}
+                />
               )}
-            </div>
+            />
 
-            {/* Email + Phone */}
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Email Address *</Label>
-                <Input
-                  type="email"
-                  {...register("email")}
-                  placeholder="email@example.com"
-                  className="mt-1"
-                />
-                {errors.email && (
-                  <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
+              <Controller
+                control={control}
+                name="email"
+                render={({ field }) => (
+                  <FloatingInput
+                    id="employee-email"
+                    label="Email Address"
+                    type="email"
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    required
+                    error={errors.email?.message}
+                  />
                 )}
-              </div>
-              <div>
-                <Label>Phone Number *</Label>
-                <Controller
-                  control={control}
-                  name="phone"
-                  render={({ field }) => (
-                    <PhoneInput
-                      value={field.value ?? ""}
-                      onChange={field.onChange}
-                      placeholder="(555) 555-5555"
-                      className="mt-1"
-                    />
-                  )}
-                />
-                {errors.phone && (
-                  <p className="text-xs text-destructive mt-1">{errors.phone.message}</p>
+              />
+              <Controller
+                control={control}
+                name="phone"
+                render={({ field }) => (
+                  <PhoneInput
+                    id="employee-phone"
+                    floatingLabel
+                    label={withRequiredMark("Phone Number", true)}
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    error={errors.phone?.message}
+                  />
                 )}
-              </div>
+              />
             </div>
 
-            {/* Country */}
-            <div>
-              <Label htmlFor="employee-country">Country</Label>
-              <Select value={country} onValueChange={setCountry}>
-                <SelectTrigger id="employee-country" className="mt-1">
-                  <SelectValue placeholder="Select country" />
-                </SelectTrigger>
-                <SelectContent>
-                  {COUNTRY_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <SelectField
+              placeholder="Country"
+              value={country}
+              onChange={setCountry}
+              options={COUNTRY_OPTIONS}
+            />
 
-            {/* Street + Apt */}
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
-                <Label>Street</Label>
                 <AddressAutocomplete
                   value={watch("street") ?? ""}
                   onChange={(v) => setValue("street", v)}
@@ -334,68 +328,76 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
                     setValue("zip", c.zip);
                   }}
                   country={autocompleteCountry}
-                  placeholder="123 Main St"
-                  className="mt-1"
+                  placeholder="Street"
                 />
               </div>
-              <div>
-                <Label>Apt / Suite</Label>
-                <Input {...register("apt_suite")} placeholder="Apt 4B" className="mt-1" />
-              </div>
+              <Controller
+                control={control}
+                name="apt_suite"
+                render={({ field }) => (
+                  <FloatingInput
+                    id="employee-apt"
+                    label="Apt / Suite"
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
             </div>
 
-            {/* City + State + Zip */}
             <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>City</Label>
-                <Input {...register("city")} placeholder="City" className="mt-1" />
-              </div>
-              <div>
-                <Label>State</Label>
-                <Input {...register("state")} placeholder="FL" className="mt-1" />
-              </div>
-              <div>
-                <Label>Zip Code</Label>
-                <Input {...register("zip")} placeholder="33101" className="mt-1" />
-              </div>
+              <Controller
+                control={control}
+                name="city"
+                render={({ field }) => (
+                  <FloatingInput id="employee-city" label="City" value={field.value ?? ""} onChange={field.onChange} />
+                )}
+              />
+              <Controller
+                control={control}
+                name="state"
+                render={({ field }) => (
+                  <FloatingInput id="employee-state" label="State" value={field.value ?? ""} onChange={field.onChange} />
+                )}
+              />
+              <Controller
+                control={control}
+                name="zip"
+                render={({ field }) => (
+                  <FloatingInput id="employee-zip" label="Zip Code" type="integer" value={field.value ?? ""} onChange={field.onChange} />
+                )}
+              />
             </div>
           </FormBand>
 
           {/* ── Employment Details ───────────────────────────────────── */}
           <FormBand title="Employment Details">
-
-            {/* Gender + Date of Birth */}
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Gender *</Label>
-                <Controller
-                  control={control}
-                  name="gender"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select gender" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {errors.gender && (
-                  <p className="text-xs text-destructive mt-1">{errors.gender.message}</p>
+              <Controller
+                control={control}
+                name="gender"
+                render={({ field }) => (
+                  <SelectField
+                    placeholder="Gender"
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    options={GENDER_OPTIONS}
+                    required
+                    error={errors.gender?.message}
+                  />
                 )}
-              </div>
-              <div>
-                <Label>Date of Birth *</Label>
+              />
+              {/* La fecha de nacimiento necesita saltar décadas atrás, así que
+                  conserva el calendario con selector de año en vez de `DateField`. */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">{withRequiredMark("Date of Birth", true)}</Label>
                 <Popover open={birthdayOpen} onOpenChange={setBirthdayOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="field"
                       className={cn(
-                        "w-full justify-start text-left font-normal mt-1",
+                        "w-full justify-start text-left font-normal",
                         !birthdayDate && "text-muted-foreground",
                         errors.birthday && "border-destructive",
                       )}
@@ -423,39 +425,38 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
                   </PopoverContent>
                 </Popover>
                 {errors.birthday && (
-                  <p className="text-xs text-destructive mt-1">{errors.birthday.message}</p>
+                  <p className="text-xs text-destructive">{errors.birthday.message}</p>
                 )}
               </div>
             </div>
 
-            {/* Position + Hourly Rate */}
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Position</Label>
-                <Input {...register("position")} placeholder="e.g. Cleaner" className="mt-1" />
-              </div>
-              <div>
-                <Label>Hourly Rate (USD)</Label>
-                {(() => {
-                  const field = register("hourly_rate");
-                  return (
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      {...field}
-                      onChange={(e) => {
-                        e.target.value = toDecimalString(e.target.value);
-                        field.onChange(e);
-                      }}
-                      placeholder="0.00"
-                      className="mt-1"
-                    />
-                  );
-                })()}
-                {errors.hourly_rate && (
-                  <p className="text-xs text-destructive mt-1">{errors.hourly_rate.message}</p>
+              <Controller
+                control={control}
+                name="position"
+                render={({ field }) => (
+                  <FloatingInput
+                    id="employee-position"
+                    label="Position"
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                  />
                 )}
-              </div>
+              />
+              <Controller
+                control={control}
+                name="hourly_rate"
+                render={({ field }) => (
+                  <FloatingInput
+                    id="employee-rate"
+                    label="Hourly Rate (USD)"
+                    type="decimal"
+                    value={field.value != null ? String(field.value) : ""}
+                    onChange={field.onChange}
+                    error={errors.hourly_rate?.message}
+                  />
+                )}
+              />
             </div>
           </FormBand>
 
@@ -494,11 +495,18 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
           </FormBand>
 
           <FormBand title="Additional Notes">
-            <Label>Notes</Label>
-            <Textarea
-              {...register("additional_notes")}
-              rows={3}
-              placeholder="Any additional information..."
+            <Controller
+              control={control}
+              name="additional_notes"
+              render={({ field }) => (
+                <TextareaField
+                  id="employee-notes"
+                  label="Notes"
+                  placeholder="Any additional information..."
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                />
+              )}
             />
           </FormBand>
 

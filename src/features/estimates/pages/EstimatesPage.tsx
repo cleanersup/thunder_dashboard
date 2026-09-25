@@ -11,6 +11,7 @@ import {
   Plus, Search, CheckCircle, Clock, FileText, DollarSign,
   MoreHorizontal, Edit, Mail, Share, Download, X, ChevronLeft, ChevronRight,
   BookOpen, FileSignature, Play, RefreshCw, Trash2, Calendar as CalendarIcon, MessageSquare, Briefcase,
+  Zap,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -33,14 +34,19 @@ import { useProfile } from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { PDFService } from "@/shared/services/pdf.service";
 import { deleteDraftEstimate } from "../services/estimatesService";
+import { useQuickQuotes } from "../hooks/useQuickQuotes";
+import { QuickQuoteDetailPanel } from "../components/QuickQuoteDetailPanel";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 function getStatusBadge(status: string) {
   switch (status) {
     case "Draft":     return "bg-yellow-500/15 text-yellow-700 border-yellow-500/30";
+    // `Sent` solo lo usan los quick quotes (lo escribe la edge function al enviar),
+    // pero para el dueño significa lo mismo que Pending: enviado y esperando respuesta.
     case "Pending":
     case "Viewed":
+    case "Sent":
     case "Declined":  return "bg-orange-500/15 text-orange-700 border-orange-500/30";
     case "Accepted":  return "bg-green-500/15 text-green-700 border-green-500/30";
     case "Invoiced":
@@ -58,6 +64,7 @@ export function EstimatesPage() {
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
   const { data: rawEstimates = [], isLoading } = useEstimates();
+  const { data: rawQuickQuotes = [] }          = useQuickQuotes();
 
   // ── Real-time: refetch list when estimates change (viewed_at, status, etc.) ─
   useEffect(() => {
@@ -72,6 +79,11 @@ export function EstimatesPage() {
           () => queryClient.invalidateQueries({ queryKey: QK.estimates }))
         .on("postgres_changes", { event: "DELETE", schema: "public", table: "estimates", filter: `user_id=eq.${user.id}` },
           () => queryClient.invalidateQueries({ queryKey: QK.estimates }))
+        // Los quick quotes cambian de estado desde el backend — `Sent` al enviarlos
+        // y `Viewed` cuando el destinatario abre el link — así que la lista no puede
+        // esperar a un refetch manual.
+        .on("postgres_changes", { event: "*", schema: "public", table: "quick_quotes", filter: `user_id=eq.${user.id}` },
+          () => queryClient.invalidateQueries({ queryKey: QK.quickQuotes }))
         .subscribe();
     });
     return () => { if (ch) supabase.removeChannel(ch); };
@@ -91,6 +103,7 @@ export function EstimatesPage() {
   // ── Dialogs ───────────────────────────────────────────────────────────────
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null);
   const [isDetailPanelOpen,  setIsDetailPanelOpen]  = useState(false);
+  const [selectedQuickQuoteId, setSelectedQuickQuoteId] = useState<string | null>(null);
   const [isAcceptDialogOpen,      setIsAcceptDialogOpen]      = useState(false);
   const [isCancelDialogOpen,      setIsCancelDialogOpen]      = useState(false);
   const [isDeleteDraftDialogOpen, setIsDeleteDraftDialogOpen] = useState(false);
@@ -102,13 +115,21 @@ export function EstimatesPage() {
     type: "residential" | "commercial" | null;
     editState?: { isEditing: boolean; estimateId: string; estimateData: any };
     continueDraft?: boolean;
+    quickQuote?: boolean;
+    quickQuoteId?: string;
   }>({ type: null });
 
 
   // ── Format rows ───────────────────────────────────────────────────────────
+  // La lista une dos tablas: `estimates` y `quick_quotes`. Un quick quote no
+  // tiene cliente ni dirección, así que solo comparte lo que se ve en la tabla —
+  // servicio, destinatario, fecha, estado y total. El discriminante `kind` decide
+  // qué panel se abre y qué acciones tiene cada fila.
   const formattedEstimates = rawEstimates.map((e) => ({
+    kind:           "estimate" as const,
     id:             e.id,
     estimateNumber: `EST-${e.id.slice(0, 6)}`,
+    createdAt:      e.created_at,
     shortDate:      formatDisplayDateShort(e.created_at),
     clientName:     e.client_name,
     serviceType:    e.service_type,
@@ -117,28 +138,55 @@ export function EstimatesPage() {
     status:         e.status,
     job_id:         (e as any).job_id as string | null,
     phone:          (e as any).phone as string | null,
+    email:          (e as any).email as string | null,
     // Autosave drafts (created by useDraftEstimate) store form state in draft_data.
     // Request-converted drafts don't have draft_data — they use main_data instead.
     hasDraftData:   !!(e as any).draft_data,
   }));
 
+  const formattedQuickQuotes = rawQuickQuotes.map((q) => ({
+    kind:           "quick_quote" as const,
+    id:             q.id,
+    estimateNumber: `QQ-${q.id.slice(0, 6)}`,
+    createdAt:      q.created_at,
+    shortDate:      formatDisplayDateShort(q.created_at),
+    clientName:     q.recipient_name ?? "—",
+    serviceType:    "Residential",
+    serviceSubType: q.service_sub_type ?? "",
+    total:          q.total,
+    status:         q.status,
+    job_id:         q.job_id,
+    phone:          q.recipient_phone,
+    email:          q.recipient_email,
+    hasDraftData:   false,
+  }));
+
+  type ListRow = (typeof formattedEstimates)[number] | (typeof formattedQuickQuotes)[number];
+
+  const allRows: ListRow[] = [...formattedEstimates, ...formattedQuickQuotes]
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+
   // ── KPI stats ─────────────────────────────────────────────────────────────
-  const accepted       = formattedEstimates.filter((e) => e.status === "Accepted");
-  const pending        = formattedEstimates.filter((e) => e.status === "Pending");
-  const totalValue     = formattedEstimates.reduce((s, e) => s + e.total, 0);
-  const acceptanceRate = formattedEstimates.length > 0 ? ((accepted.length / formattedEstimates.length) * 100).toFixed(1) : "0.0";
+  const accepted       = allRows.filter((e) => e.status === "Accepted");
+  const pending        = allRows.filter((e) => e.status === "Pending" || e.status === "Sent");
+  const totalValue     = allRows.reduce((s, e) => s + e.total, 0);
+  const acceptanceRate = allRows.length > 0 ? ((accepted.length / allRows.length) * 100).toFixed(1) : "0.0";
 
   const kpiCards = [
-    { title: "Total Estimates", value: formattedEstimates.length.toString(), subtitle: "All time",         icon: FileText,     borderColor: "hsl(var(--primary))" },
-    { title: "Total Value",     value: `$${totalValue.toLocaleString()}`,    subtitle: "Combined",          icon: DollarSign,   borderColor: "hsl(var(--blue-vibrant))" },
-    { title: "Accepted",        value: accepted.length.toString(),           subtitle: `${acceptanceRate}% rate`, icon: CheckCircle, borderColor: "hsl(var(--green-vibrant))" },
-    { title: "Pending",         value: pending.length.toString(),            subtitle: "Awaiting response", icon: Clock,        borderColor: "hsl(var(--orange-vibrant))" },
+    { title: "Total Estimates", value: allRows.length.toString(),         subtitle: "All time",         icon: FileText,     borderColor: "hsl(var(--primary))" },
+    { title: "Total Value",     value: `$${totalValue.toLocaleString()}`, subtitle: "Combined",          icon: DollarSign,   borderColor: "hsl(var(--blue-vibrant))" },
+    { title: "Accepted",        value: accepted.length.toString(),        subtitle: `${acceptanceRate}% rate`, icon: CheckCircle, borderColor: "hsl(var(--green-vibrant))" },
+    { title: "Pending",         value: pending.length.toString(),         subtitle: "Awaiting response", icon: Clock,        borderColor: "hsl(var(--orange-vibrant))" },
   ];
 
   // ── Filter + paginate ─────────────────────────────────────────────────────
-  const filtered = formattedEstimates
+  const filtered = allRows
     .filter((e) => e.clientName.toLowerCase().includes(searchQuery.toLowerCase()))
-    .filter((e) => statusFilter === "All" || e.status === statusFilter)
+    // "Pending" agrupa también el `Sent` de los quick quotes: para el dueño son la
+    // misma situación — enviado y esperando respuesta.
+    .filter((e) => statusFilter === "All"
+      || e.status === statusFilter
+      || (statusFilter === "Pending" && e.status === "Sent"))
     .filter((e) => {
       if (!selectedDate) return true;
       const d = new Date(e.shortDate);
@@ -180,6 +228,17 @@ export function EstimatesPage() {
   function openDetail(id: string) {
     setSelectedEstimateId(id);
     setIsDetailPanelOpen(true);
+  }
+
+  /** Cada fila abre el panel de su tabla: son entidades distintas. */
+  function openRow(row: { kind: "estimate" | "quick_quote"; id: string }) {
+    if (row.kind === "quick_quote") setSelectedQuickQuoteId(row.id);
+    else openDetail(row.id);
+  }
+
+  /** Abre el formulario rápido: nuevo si no hay id, o el existente para reenviarlo. */
+  function openQuickQuoteForm(quickQuoteId?: string) {
+    setFormModal({ type: "residential", quickQuote: true, quickQuoteId });
   }
 
   async function handleAcceptEstimate() {
@@ -369,22 +428,35 @@ export function EstimatesPage() {
               </Popover>
             </div>
 
-            {/* Right: New */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="h-9">
-                  <Plus className="w-4 h-4 mr-1" /> New
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onClick={() => openEstimateForm("Residential")}>
-                  <BookOpen className="w-4 h-4 mr-2" /> Residential
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openEstimateForm("Commercial")}>
-                  <FileSignature className="w-4 h-4 mr-2" /> Commercial
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Right: Quick Quote + New */}
+            <div className="flex items-center gap-2">
+              {/* Cotizar sin pedir datos del cliente: solo el servicio y el precio.
+                  Los datos de la persona se piden al final, al elegir cómo enviarlo.
+                  Verde del tema (`--green-vibrant`, el mismo del KPI de Accepted) para
+                  separarlo de "New": no es otra forma de crear un estimate, es otra vía. */}
+              <Button
+                className="h-9 bg-green-vibrant text-white hover:bg-green-vibrant/90"
+                onClick={() => openQuickQuoteForm()}
+              >
+                <Zap className="w-4 h-4 mr-1" /> Quick Quote
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="h-9">
+                    <Plus className="w-4 h-4 mr-1" /> New
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem onClick={() => openEstimateForm("Residential")}>
+                    <BookOpen className="w-4 h-4 mr-2" /> Residential
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openEstimateForm("Commercial")}>
+                    <FileSignature className="w-4 h-4 mr-2" /> Commercial
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -417,9 +489,18 @@ export function EstimatesPage() {
               <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No estimates found</TableCell></TableRow>
             ) : (
               paginated.map((estimate) => (
-                <TableRow key={estimate.id} className="cursor-pointer hover:bg-muted/50 border-b border-border/50"
-                  onClick={() => openDetail(estimate.id)}>
-                  <TableCell className="font-medium py-2 px-4">{estimate.serviceType}</TableCell>
+                <TableRow key={`${estimate.kind}-${estimate.id}`} className="cursor-pointer hover:bg-muted/50 border-b border-border/50"
+                  onClick={() => openRow(estimate)}>
+                  <TableCell className="font-medium py-2 px-4">
+                    <div className="flex items-center gap-2">
+                      {estimate.serviceType}
+                      {estimate.kind === "quick_quote" && (
+                        <Badge variant="outline" className="font-medium text-[11px] bg-primary/10 text-primary border-primary/30">
+                          Quick Quote
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="py-2 px-4">{estimate.clientName}</TableCell>
                   <TableCell className="py-2 px-4">{estimate.shortDate}</TableCell>
                   <TableCell className="py-2 px-4">
@@ -438,7 +519,18 @@ export function EstimatesPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        {estimate.status === "Draft" ? (
+                        {/* Un quick quote tiene sus propias acciones y viven en su
+                            panel: aquí solo lo que se hace sin abrirlo. */}
+                        {estimate.kind === "quick_quote" ? (
+                          <>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openRow(estimate); }}>
+                              <FileText className="w-4 h-4 mr-2" /> View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openQuickQuoteForm(estimate.id); }}>
+                              <Edit className="w-4 h-4 mr-2" /> Edit and resend
+                            </DropdownMenuItem>
+                          </>
+                        ) : estimate.status === "Draft" ? (
                           <>
                             <DropdownMenuItem onClick={(e) => {
                               e.stopPropagation();
@@ -475,9 +567,11 @@ export function EstimatesPage() {
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditEstimate(estimate); }}>
                                   <Edit className="w-4 h-4 mr-2" /> Edit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleSendEmail(estimate); }} disabled={isSending}>
-                                  <Mail className="w-4 h-4 mr-2" /> {isSending ? "Sending..." : "Send reminder by email"}
-                                </DropdownMenuItem>
+                                {estimate.email && (
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleSendEmail(estimate); }} disabled={isSending}>
+                                    <Mail className="w-4 h-4 mr-2" /> {isSending ? "Sending..." : "Send reminder by email"}
+                                  </DropdownMenuItem>
+                                )}
                                 {estimate.phone && (
                                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleSendSMSFromTable(estimate); }} disabled={isSendingSMS}>
                                     <MessageSquare className="w-4 h-4 mr-2" /> {isSendingSMS ? "Sending..." : "Send reminder by SMS"}
@@ -592,6 +686,13 @@ export function EstimatesPage() {
         onOpenEstimateWizard={(serviceType, continueDraft) => openEstimateForm(serviceType, undefined, continueDraft)}
       />
 
+      <QuickQuoteDetailPanel
+        open={selectedQuickQuoteId !== null}
+        onClose={() => setSelectedQuickQuoteId(null)}
+        quoteId={selectedQuickQuoteId}
+        onEdit={(id) => openQuickQuoteForm(id)}
+      />
+
       <AlertDialog open={isAcceptDialogOpen} onOpenChange={setIsAcceptDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -659,7 +760,7 @@ export function EstimatesPage() {
         <CreateResidentialEstimatePage
           open
           onClose={() => setFormModal({ type: null })}
-          initialState={{ ...formModal.editState, continueDraft: formModal.continueDraft }}
+          initialState={{ ...formModal.editState, continueDraft: formModal.continueDraft, quickQuote: formModal.quickQuote, quickQuoteId: formModal.quickQuoteId }}
         />
       )}
       {formModal.type === "commercial" && (

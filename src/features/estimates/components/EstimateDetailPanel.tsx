@@ -122,6 +122,8 @@ interface FooterProps {
   isGeneratingLink:    boolean;
   isDownloadingPDF:    boolean;
   hasPhone:            boolean;
+  /** Un quick quote enviado por SMS no tiene email al que mandar un recordatorio. */
+  hasEmail:            boolean;
   hasJobConversion:    boolean;
   isConvertingToJob:   boolean;
   onAccept:            () => void;
@@ -141,7 +143,7 @@ interface FooterProps {
 }
 
 function PanelFooter({
-  status, isSending, isSendingSMS, isGeneratingLink, isDownloadingPDF, hasPhone,
+  status, isSending, isSendingSMS, isGeneratingLink, isDownloadingPDF, hasPhone, hasEmail,
   hasJobConversion, isConvertingToJob,
   onAccept, onDecline, onSendEmail, onSendSMS, onEdit, onShare, onDownloadPDF, onConvertToJob, onGenerateContract, onCancel,
   onDelete, onDeleteDraft, onContinueDraft, onEditAndSend,
@@ -186,9 +188,11 @@ function PanelFooter({
             <DropdownMenuItem onClick={onEdit}>
               <Edit className="w-4 h-4 mr-2" /> Edit
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onSendEmail} disabled={isSending}>
-              <Mail className="w-4 h-4 mr-2" /> {isSending ? "Sending…" : "Send reminder by email"}
-            </DropdownMenuItem>
+            {hasEmail && (
+              <DropdownMenuItem onClick={onSendEmail} disabled={isSending}>
+                <Mail className="w-4 h-4 mr-2" /> {isSending ? "Sending…" : "Send reminder by email"}
+              </DropdownMenuItem>
+            )}
             {hasPhone && (
               <DropdownMenuItem onClick={onSendSMS} disabled={isSendingSMS}>
                 <MessageSquare className="w-4 h-4 mr-2" /> {isSendingSMS ? "Sending…" : "Send reminder by SMS"}
@@ -776,6 +780,7 @@ export function EstimateDetailPanel({
       isGeneratingLink={isGeneratingLink}
       isDownloadingPDF={isDownloadingPDF}
       hasPhone={!!estimate?.phone}
+      hasEmail={!!estimate?.email}
       hasJobConversion={!!estimate?.job_id}
       isConvertingToJob={isConvertingToJob}
       onAccept={() => setIsAcceptDialogOpen(true)}
@@ -1024,14 +1029,18 @@ export function EstimateDetailPanel({
                           <span className="text-sm">{f.companyName}</span>
                         </div>
                       )}
-                      <div className="flex items-center gap-3">
-                        <Phone className="w-4 h-4 shrink-0 text-muted-foreground" />
-                        <span className="text-sm">{formatPhone(f.phone)}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Mail className="w-4 h-4 shrink-0 text-muted-foreground" />
-                        <span className="text-sm">{f.email}</span>
-                      </div>
+                      {!!f.phone && (
+                        <div className="flex items-center gap-3">
+                          <Phone className="w-4 h-4 shrink-0 text-muted-foreground" />
+                          <span className="text-sm">{formatPhone(f.phone)}</span>
+                        </div>
+                      )}
+                      {!!f.email && (
+                        <div className="flex items-center gap-3">
+                          <Mail className="w-4 h-4 shrink-0 text-muted-foreground" />
+                          <span className="text-sm">{f.email}</span>
+                        </div>
+                      )}
                       <div className="flex items-start gap-3">
                         <MapPin className="w-4 h-4 shrink-0 text-muted-foreground mt-0.5" />
                         <span className="text-sm">

@@ -1,13 +1,9 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormSheet, FormBand } from "@/shared/components/forms";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
+import { FormSheet, FormBand, FloatingInput, SelectField } from "@/shared/components/forms";
 import { Switch } from "@/shared/components/ui/switch";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/shared/components/ui/select";
+import { withRequiredMark } from "@/shared/utils/formLabel";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
 import { COUNTRY_OPTIONS } from "@/shared/constants/countries";
 import { clientPropertySchema, type ClientPropertySchema } from "../schemas/clientPropertySchema";
@@ -100,26 +96,24 @@ export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess
       isPending={isPending}
     >
       <div className="contents" onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}>
-        <FormBand>
-          <div className="space-y-1.5">
-            <Label htmlFor="title">Title (optional)</Label>
-            <Input id="title" placeholder="e.g. Main Office" {...form.register("title")} />
-          </div>
+        <FormBand title="Property Details">
+          <FloatingInput
+            id="property-title"
+            label="Title (optional)"
+            value={form.watch("title") ?? ""}
+            onChange={(v) => form.setValue("title", v)}
+          />
 
-          <div className="space-y-1.5">
-            <Label htmlFor="country">Country</Label>
-            <Select value={country} onValueChange={(v) => form.setValue("country", v)}>
-              <SelectTrigger id="country"><SelectValue placeholder="Select country" /></SelectTrigger>
-              <SelectContent>
-                {COUNTRY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <SelectField
+            placeholder="Country"
+            value={country}
+            onChange={(v) => form.setValue("country", v)}
+            options={COUNTRY_OPTIONS}
+          />
+        </FormBand>
 
+        <FormBand title="Address">
           <div className="space-y-1.5">
-            <Label htmlFor="street">Street *</Label>
             <AddressAutocomplete
               value={form.watch("street") ?? ""}
               onChange={(v) => form.setValue("street", v)}
@@ -130,6 +124,7 @@ export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess
                 form.setValue("zip_code", c.zip);
               }}
               country={autocompleteCountry}
+              placeholder={withRequiredMark("Street", true)}
               error={!!form.formState.errors.street}
             />
             {form.formState.errors.street && (
@@ -138,37 +133,47 @@ export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="apt_suite">Apt/Suite</Label>
-              <Input id="apt_suite" placeholder="Apt 4B" {...form.register("apt_suite")} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="city">City *</Label>
-              <Input id="city" placeholder="Miami" {...form.register("city")} />
-              {form.formState.errors.city && (
-                <p className="text-xs text-destructive">{form.formState.errors.city.message}</p>
-              )}
-            </div>
+            <FloatingInput
+              id="property-apt"
+              label="Apt / Suite"
+              value={form.watch("apt_suite") ?? ""}
+              onChange={(v) => form.setValue("apt_suite", v)}
+            />
+            <FloatingInput
+              id="property-city"
+              label="City"
+              value={form.watch("city") ?? ""}
+              onChange={(v) => form.setValue("city", v)}
+              required
+              error={form.formState.errors.city?.message}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="state">State *</Label>
-              <Input id="state" placeholder="FL" {...form.register("state")} />
-              {form.formState.errors.state && (
-                <p className="text-xs text-destructive">{form.formState.errors.state.message}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="zip_code">ZIP Code *</Label>
-              <Input id="zip_code" placeholder="33101" {...form.register("zip_code")} />
-              {form.formState.errors.zip_code && (
-                <p className="text-xs text-destructive">{form.formState.errors.zip_code.message}</p>
-              )}
-            </div>
+            <FloatingInput
+              id="property-state"
+              label="State"
+              value={form.watch("state") ?? ""}
+              onChange={(v) => form.setValue("state", v)}
+              required
+              error={form.formState.errors.state?.message}
+            />
+            <FloatingInput
+              id="property-zip"
+              label="ZIP Code"
+              type="integer"
+              value={form.watch("zip_code") ?? ""}
+              onChange={(v) => form.setValue("zip_code", v)}
+              required
+              error={form.formState.errors.zip_code?.message}
+            />
           </div>
+        </FormBand>
 
-          <div className="flex items-center justify-between rounded-lg border border-border p-3">
+        {/* Banda propia: no es un dato más de la dirección, es una decisión sobre
+            cómo se usará esta propiedad en el resto de la app. */}
+        <FormBand title="Default">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium">Primary property</p>
               <p className="text-xs text-muted-foreground">Used as default for new jobs and estimates</p>

@@ -4,9 +4,10 @@
  */
 import { Plus, Minus, Droplets, Shirt, Info } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
+import { Card, CardContent } from "@/shared/components/ui/card";
 import { Label } from "@/shared/components/ui/label";
 import { cn } from "@/shared/utils/cn";
+import { FormBand } from "@/shared/components/forms";
 
 export interface ResLaundryStepProps {
   laundryService: "wash-dry" | "wash-dry-fold" | null;
@@ -27,15 +28,7 @@ export function ResLaundryStep({ laundryService, laundryPounds, onServiceChange,
 
   return (
     <div className="space-y-5">
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Shirt className="h-5 w-5 text-muted-foreground" />
-            Laundry
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Add laundry services if needed</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <FormBand>
           {/* Wash and dry */}
           <div
             onClick={() => handleSelect("wash-dry")}
@@ -121,8 +114,7 @@ export function ResLaundryStep({ laundryService, laundryPounds, onServiceChange,
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+</FormBand>
 
       <Card className="border-info-subtle-border bg-info-subtle/50">
         <CardContent className="p-4 flex gap-3">

@@ -8,15 +8,13 @@
  */
 import { useState, useRef, useEffect } from "react";
 import {
-  ChevronLeft, Upload, X, FileText, Image as ImageIcon,
-  Loader2, CalendarClock, Home, Building2, Paperclip,
+  ChevronLeft, CalendarClock, Home, Building2, Paperclip,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button }    from "@/shared/components/ui/button";
-import { Label }     from "@/shared/components/ui/label";
-import { Textarea }  from "@/shared/components/ui/textarea";
 import {
-  FormSection, FloatingInput, SelectField, DateField, OptionGrid,
+  FormSection, FloatingInput, SelectField, DateField, OptionGrid, TextareaField,
+  AttachmentsField,
 } from "@/shared/components/forms";
 import { ClientPropertyField }      from "@/shared/components/common/ClientPropertyField";
 import { useClients }               from "@/features/crm/clients/hooks/useClients";
@@ -156,8 +154,6 @@ export function RequestForm({
   const [keptAttachments,    setKeptAttachments]    = useState<BookingAttachmentMeta[]>(initialValues?.existingAttachments ?? []);
   const [attachmentFiles,    setAttachmentFiles]    = useState<File[]>([]);
   const [isProcessingFiles,  setIsProcessingFiles]  = useState(false);
-  const [lightboxUrl,        setLightboxUrl]        = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Validation errors ─────────────────────────────────────────────────────
   const [errors, setErrors] = useState({ client: false, serviceType: false });
@@ -183,9 +179,7 @@ export function RequestForm({
     if (client) setErrors((p) => ({ ...p, client: false }));
   };
 
-  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files || []);
-    e.target.value = "";
+  const handleFilesSelected = async (selected: File[]) => {
     if (!selected.length) return;
 
     const slots = MAX_FILES - keptAttachments.length - attachmentFiles.length;
@@ -358,15 +352,13 @@ export function RequestForm({
               onChange={setAdditionalServices}
             />
 
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Service Details</Label>
-              <Textarea
-                placeholder="Anything the crew should know before the visit..."
-                value={serviceDetails}
-                onChange={(e) => setServiceDetails(e.target.value)}
-                className="min-h-[100px] rounded-md"
-              />
-            </div>
+            <TextareaField
+              id="request-service-details"
+              label="Service Details"
+              placeholder="Anything the crew should know before the visit..."
+              value={serviceDetails}
+              onChange={setServiceDetails}
+            />
 
             {customQuestions
               .filter((q) => q.formType === "residential")
@@ -401,15 +393,13 @@ export function RequestForm({
               <FloatingInput id="otherType" label="Please specify" value={otherCommercialType} onChange={setOtherCommercialType} />
             )}
 
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Service Details</Label>
-              <Textarea
-                placeholder="Anything the crew should know before the visit..."
-                value={serviceDetails}
-                onChange={(e) => setServiceDetails(e.target.value)}
-                className="min-h-[100px] rounded-md"
-              />
-            </div>
+            <TextareaField
+              id="request-service-details"
+              label="Service Details"
+              placeholder="Anything the crew should know before the visit..."
+              value={serviceDetails}
+              onChange={setServiceDetails}
+            />
 
             {customQuestions
               .filter((q) => q.formType === "commercial")
@@ -437,91 +427,19 @@ export function RequestForm({
             </span>
           }
         >
-            {keptAttachments.length > 0 && (
-              <div className="grid grid-cols-2 gap-2">
-                {keptAttachments.map((att, idx) =>
-                  att.type.startsWith("image/") ? (
-                    <div key={att.path} className="relative rounded-md overflow-hidden border border-border aspect-square bg-muted">
-                      <img
-                        src={att.public_url}
-                        alt={att.name}
-                        className="w-full h-full object-cover cursor-pointer"
-                        onClick={() => setLightboxUrl(att.public_url)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setKeptAttachments((p) => p.filter((_, i) => i !== idx))}
-                        className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 text-white hover:bg-black/80"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <a
-                      key={att.path}
-                      href={att.public_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 p-2 rounded-md border border-border bg-background"
-                    >
-                      <FileText className="h-4 w-4 text-destructive shrink-0" />
-                      <span className="truncate text-xs flex-1">{att.name}</span>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); setKeptAttachments((p) => p.filter((_, i) => i !== idx)); }}
-                        className="shrink-0 text-muted-foreground hover:text-destructive"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </a>
-                  )
-                )}
-              </div>
-            )}
-
-            {attachmentFiles.length > 0 && (
-              <div className="grid grid-cols-2 gap-2">
-                {attachmentFiles.map((file, idx) => (
-                  <div key={idx} className="flex items-center gap-2 p-2 rounded-md border border-dashed border-primary/40 bg-primary/5">
-                    {file.type.startsWith("image/")
-                      ? <ImageIcon className="h-4 w-4 text-blue-500 shrink-0" />
-                      : <FileText  className="h-4 w-4 text-destructive shrink-0" />
-                    }
-                    <span className="truncate text-xs flex-1">{file.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => setAttachmentFiles((p) => p.filter((_, i) => i !== idx))}
-                      className="shrink-0 text-muted-foreground hover:text-destructive"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <Button
-              type="button"
-              variant="field"
-              className="w-full h-12"
-              disabled={isProcessingFiles || keptAttachments.length + attachmentFiles.length >= MAX_FILES}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {isProcessingFiles
-                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Compressing...</>
-                : <><Upload className="mr-2 h-4 w-4" />Add Photos or Files</>
-              }
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              Images are automatically compressed to 2 MB · PDFs up to 2 MB · Max {MAX_FILES} files
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
+            <AttachmentsField
+              existing={keptAttachments.map((att) => ({
+                id: att.path, name: att.name, url: att.public_url, type: att.type,
+              }))}
+              onRemoveExisting={(idx) => setKeptAttachments((p) => p.filter((_, i) => i !== idx))}
+              files={attachmentFiles}
+              onAddFiles={handleFilesSelected}
+              onRemoveFile={(idx) => setAttachmentFiles((p) => p.filter((_, i) => i !== idx))}
               accept="image/*,application/pdf"
-              className="hidden"
-              onChange={handleFilesSelected}
+              max={MAX_FILES}
+              busy={isProcessingFiles}
+              busyLabel="Compressing..."
+              hint={`Images are automatically compressed to 2 MB · PDFs up to 2 MB · Max ${MAX_FILES} files`}
             />
         </FormSection>
 
@@ -545,26 +463,6 @@ export function RequestForm({
         )}
       </div>
 
-      {/* Lightbox */}
-      {lightboxUrl && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setLightboxUrl(null)}
-        >
-          <button
-            className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-1"
-            onClick={() => setLightboxUrl(null)}
-          >
-            <X className="h-5 w-5" />
-          </button>
-          <img
-            src={lightboxUrl}
-            alt="Preview"
-            className="max-w-full max-h-full object-contain rounded-md"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
     </div>
   );
 }

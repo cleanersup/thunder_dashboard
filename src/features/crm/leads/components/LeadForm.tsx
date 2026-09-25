@@ -8,26 +8,45 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { formatDisplayDate } from "@/shared/utils/formatters";
-import { Calendar as CalendarIcon, Paperclip, X } from "lucide-react";
-import { FormSheet, FormBand } from "@/shared/components/forms";
+import { Paperclip, X } from "lucide-react";
+import {
+  FormSheet, FormBand, FloatingInput, SelectField, DateField, TextareaField,
+} from "@/shared/components/forms";
 import { Button }   from "@/shared/components/ui/button";
-import { Input }    from "@/shared/components/ui/input";
-import { Label }    from "@/shared/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/shared/components/ui/select";
-import { Textarea } from "@/shared/components/ui/textarea";
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from "@/shared/components/ui/popover";
-import { Calendar } from "@/shared/components/ui/calendar";
-import { cn }       from "@/shared/utils/cn";
+import { withRequiredMark } from "@/shared/utils/formLabel";
 import { leadSchema, type LeadFormData } from "../schemas/leadSchema";
+
+const LEAD_SOURCE_OPTIONS = [
+  { value: "facebook",  label: "Facebook" },
+  { value: "google",    label: "Google" },
+  { value: "instagram", label: "Instagram" },
+  { value: "website",   label: "Website" },
+  { value: "referral",  label: "Referral" },
+  { value: "flyer",     label: "Flyer" },
+  { value: "other",     label: "Other" },
+] as const;
+
+const SERVICE_INTERESTED_OPTIONS = [
+  { value: "residential", label: "Residential" },
+  { value: "commercial",  label: "Commercial" },
+] as const;
+
+const PRIORITY_OPTIONS = [
+  { value: "low",    label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high",   label: "High" },
+] as const;
+
+const LEAD_STATUS_OPTIONS = [
+  { value: "new",           label: "New" },
+  { value: "contacted",     label: "Contacted" },
+  { value: "walkthrough",   label: "Walkthrough" },
+  { value: "estimate send", label: "Estimate Send" },
+  { value: "decision",      label: "Decision" },
+] as const;
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
-import { toDecimalString } from "@/shared/utils/numericInput";
 import { useCreateLead, useUpdateLead } from "../hooks/useLeads";
 import type { Lead } from "../../types/crm.types";
 import type { LeadEntity } from "@/shared/types/entities";
@@ -85,10 +104,9 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments,  setAttachments]  = useState<File[]>([]);
   const [followupDate, setFollowupDate] = useState<Date | undefined>(undefined);
-  const [followupOpen, setFollowupOpen] = useState(false);
 
   const {
-    register, handleSubmit, reset, setValue, watch,
+    handleSubmit, reset, setValue, watch,
     formState: { errors },
   } = useForm<LeadFormData>({
     resolver: zodResolver(leadSchema),
@@ -151,7 +169,6 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
             reset(CREATE_LEAD_DEFAULTS);
             setAttachments([]);
             setFollowupDate(undefined);
-            setFollowupOpen(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
             onSuccess?.(createdLead as unknown as LeadEntity);
             onClose();
@@ -175,44 +192,43 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
       <div className="contents">
 
           <FormBand title="Personal Information">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 space-y-1">
-              <Label>Full Name *</Label>
-              <Input {...register("full_name")} placeholder="Jane Smith" />
-              {errors.full_name && (
-                <p className="text-xs text-destructive">{errors.full_name.message}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label>Company Name</Label>
-              <Input {...register("company_name")} placeholder="Optional" />
-            </div>
-            <div className="space-y-1">
-              <Label>Phone Number *</Label>
+            <FloatingInput
+              id="lead-full-name"
+              label="Full Name"
+              value={watch("full_name") ?? ""}
+              onChange={(v) => setValue("full_name", v, { shouldValidate: true })}
+              required
+              error={errors.full_name?.message}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <FloatingInput
+                id="lead-company"
+                label="Company Name"
+                value={watch("company_name") ?? ""}
+                onChange={(v) => setValue("company_name", v)}
+              />
               <PhoneInput
+                id="lead-phone"
+                floatingLabel
+                label={withRequiredMark("Phone Number", true)}
                 value={watch("phone") ?? ""}
                 onChange={(v) => setValue("phone", v, { shouldValidate: true })}
-                placeholder="(555) 000-0000"
+                error={errors.phone?.message}
               />
-              {errors.phone && (
-                <p className="text-xs text-destructive">{errors.phone.message}</p>
-              )}
             </div>
-            <div className="col-span-2 space-y-1">
-              <Label>Email Address *</Label>
-              <Input {...register("email")} type="email" placeholder="jane@email.com" />
-              {errors.email && (
-                <p className="text-xs text-destructive">{errors.email.message}</p>
-              )}
-            </div>
-          </div>
-
+            <FloatingInput
+              id="lead-email"
+              label="Email Address"
+              type="email"
+              value={watch("email") ?? ""}
+              onChange={(v) => setValue("email", v, { shouldValidate: true })}
+              required
+              error={errors.email?.message}
+            />
           </FormBand>
 
           <FormBand title="Address">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 space-y-1">
-              <Label>Street Address *</Label>
+            <div className="space-y-1.5">
               <AddressAutocomplete
                 value={addressValue}
                 onChange={(v) => setValue("address", v)}
@@ -222,181 +238,128 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
                   setValue("state",    c.state);
                   setValue("zip_code", c.zip);
                 }}
+                placeholder={withRequiredMark("Street Address", true)}
                 error={!!errors.address}
               />
               {errors.address && (
                 <p className="text-xs text-destructive">{errors.address.message}</p>
               )}
             </div>
-            <div className="space-y-1">
-              <Label>Apt/Suite</Label>
-              <Input {...register("apt_suite")} placeholder="Apt 4B" />
-            </div>
-            <div className="space-y-1">
-              <Label>City *</Label>
-              <Input {...register("city")} />
-              {errors.city && (
-                <p className="text-xs text-destructive">{errors.city.message}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label>State *</Label>
-              <Input {...register("state")} />
-              {errors.state && (
-                <p className="text-xs text-destructive">{errors.state.message}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label>Zip Code *</Label>
-              <Input {...register("zip_code")} />
-              {errors.zip_code && (
-                <p className="text-xs text-destructive">{errors.zip_code.message}</p>
-              )}
-            </div>
-          </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <FloatingInput
+                id="lead-apt"
+                label="Apt / Suite"
+                value={watch("apt_suite") ?? ""}
+                onChange={(v) => setValue("apt_suite", v)}
+              />
+              <FloatingInput
+                id="lead-city"
+                label="City"
+                value={watch("city") ?? ""}
+                onChange={(v) => setValue("city", v, { shouldValidate: true })}
+                required
+                error={errors.city?.message}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FloatingInput
+                id="lead-state"
+                label="State"
+                value={watch("state") ?? ""}
+                onChange={(v) => setValue("state", v, { shouldValidate: true })}
+                required
+                error={errors.state?.message}
+              />
+              <FloatingInput
+                id="lead-zip"
+                label="Zip Code"
+                type="integer"
+                value={watch("zip_code") ?? ""}
+                onChange={(v) => setValue("zip_code", v, { shouldValidate: true })}
+                required
+                error={errors.zip_code?.message}
+              />
+            </div>
           </FormBand>
 
           <FormBand title="Lead Details">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>Lead Source *</Label>
-              <Select
+            <div className="grid grid-cols-2 gap-3">
+              <SelectField
+                placeholder="Lead source"
                 value={leadSource}
-                onValueChange={(v) => setValue("lead_source", v as LeadFormData["lead_source"])}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="facebook">Facebook</SelectItem>
-                  <SelectItem value="google">Google</SelectItem>
-                  <SelectItem value="instagram">Instagram</SelectItem>
-                  <SelectItem value="website">Website</SelectItem>
-                  <SelectItem value="referral">Referral</SelectItem>
-                  <SelectItem value="flyer">Flyer</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Service Interested In *</Label>
-              <Select
+                onChange={(v) => setValue("lead_source", v as LeadFormData["lead_source"])}
+                options={LEAD_SOURCE_OPTIONS}
+                required
+              />
+              <SelectField
+                placeholder="Service interested in"
                 value={serviceInterested}
-                onValueChange={(v) => setValue("service_interested", v as LeadFormData["service_interested"])}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="residential">Residential</SelectItem>
-                  <SelectItem value="commercial">Commercial</SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(v) => setValue("service_interested", v as LeadFormData["service_interested"])}
+                options={SERVICE_INTERESTED_OPTIONS}
+                required
+              />
             </div>
 
             {leadSource === "referral" && (
-              <>
-                <div className="space-y-1">
-                  <Label>Referral Name</Label>
-                  <Input {...register("referral_name")} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Referral Company</Label>
-                  <Input {...register("referral_company")} />
-                </div>
-              </>
+              <div className="grid grid-cols-2 gap-3">
+                <FloatingInput
+                  id="lead-referral-name"
+                  label="Referral Name"
+                  value={watch("referral_name") ?? ""}
+                  onChange={(v) => setValue("referral_name", v)}
+                />
+                <FloatingInput
+                  id="lead-referral-company"
+                  label="Referral Company"
+                  value={watch("referral_company") ?? ""}
+                  onChange={(v) => setValue("referral_company", v)}
+                />
+              </div>
             )}
 
-            <div className="space-y-1">
-              <Label>Priority Level *</Label>
-              <Select
+            <div className="grid grid-cols-2 gap-3">
+              <SelectField
+                placeholder="Priority level"
                 value={priorityLevel}
-                onValueChange={(v) => setValue("priority_level", v as LeadFormData["priority_level"])}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Status *</Label>
-              <Select
+                onChange={(v) => setValue("priority_level", v as LeadFormData["priority_level"])}
+                options={PRIORITY_OPTIONS}
+                required
+              />
+              <SelectField
+                placeholder="Status"
                 value={statusVal}
-                onValueChange={(v) => setValue("status", v as LeadFormData["status"])}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="contacted">Contacted</SelectItem>
-                  <SelectItem value="walkthrough">Walkthrough</SelectItem>
-                  <SelectItem value="estimate send">Estimate Send</SelectItem>
-                  <SelectItem value="decision">Decision</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label>Estimate Budget</Label>
-              {(() => {
-                const field = register("estimate_budget", {
-                  setValueAs: parseEstimateBudgetFieldValue,
-                });
-                return (
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    {...field}
-                    value={estimateBudgetDisplay}
-                    onChange={(e) => {
-                      e.target.value = toDecimalString(e.target.value);
-                      field.onChange(e);
-                    }}
-                    placeholder="0.00"
-                  />
-                );
-              })()}
-            </div>
-            <div className="space-y-1">
-              <Label>Next Follow-up Date</Label>
-              <Popover open={followupOpen} onOpenChange={setFollowupOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !followupDate && "text-muted-foreground",
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {followupDate ? formatDisplayDate(followupDate) : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={followupDate}
-                    onSelect={(date) => {
-                      setFollowupDate(date);
-                      setValue("next_followup_date", date ? format(date, "yyyy-MM-dd") : null);
-                      setFollowupOpen(false);
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="col-span-2 space-y-1">
-              <Label>Internal Notes</Label>
-              <Textarea
-                {...register("internal_notes")}
-                rows={3}
-                placeholder="Internal notes..."
+                onChange={(v) => setValue("status", v as LeadFormData["status"])}
+                options={LEAD_STATUS_OPTIONS}
+                required
               />
             </div>
-          </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <FloatingInput
+                id="lead-budget"
+                label="Estimate Budget"
+                type="decimal"
+                value={estimateBudgetDisplay}
+                onChange={(v) => setValue("estimate_budget", parseEstimateBudgetFieldValue(v))}
+              />
+              <DateField
+                placeholder="Next follow-up date"
+                value={followupDate}
+                onChange={(date) => {
+                  setFollowupDate(date);
+                  setValue("next_followup_date", date ? format(date, "yyyy-MM-dd") : null);
+                }}
+              />
+            </div>
+
+            <TextareaField
+              id="lead-notes"
+              label="Internal Notes"
+              placeholder="Internal notes..."
+              value={watch("internal_notes") ?? ""}
+              onChange={(v) => setValue("internal_notes", v)}
+            />
           </FormBand>
 
           <FormBand title="Attachments">

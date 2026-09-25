@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/utils/cn";
@@ -32,6 +32,12 @@ export interface SectionModalProps {
   onSecondary?: () => void;
   isPending?: boolean;
   variant?: SectionModalVariant;
+  /**
+   * Identifica el contenido que se muestra ahora. Cuando un mismo modal encadena
+   * varias pantallas (el review: Summary → Preview → Send), cambiarlo devuelve el
+   * scroll arriba — si no, la pantalla siguiente aparece a media altura.
+   */
+  contentKey?: string;
   children: ReactNode;
 }
 
@@ -55,14 +61,31 @@ export function SectionModal({
   onSecondary,
   isPending = false,
   variant = "sheet",
+  contentKey,
   children,
 }: SectionModalProps) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, [contentKey]);
+
+  // El contenedor decide la forma del par de botones:
+  //
+  // - lateral → los dos a mitad de ancho cada uno, como el pie de `FormSheet`
+  //   (Add Client): en 440px llenar el ancho es lo que se lee bien.
+  // - pantalla completa → compactos, secundario a la izquierda y primario a la
+  //   derecha, idéntico al pie del formulario. El review es una pantalla más del
+  //   mismo formulario, así que sus botones no pueden ser otros.
+  const stretch = variant === "sheet";
+
   const actions = (
     <>
       <Button
         variant="outline"
         type="button"
-        className="flex-1"
+        size={stretch ? "default" : "sm"}
+        className={stretch ? "flex-1" : undefined}
         onClick={onSecondary ?? onCancel}
         disabled={isPending}
       >
@@ -70,7 +93,8 @@ export function SectionModal({
       </Button>
       <Button
         type="button"
-        className="flex-1"
+        size={stretch ? "default" : "sm"}
+        className={stretch ? "flex-1" : undefined}
         onClick={onSave}
         disabled={saveDisabled || isPending}
       >
@@ -102,18 +126,18 @@ export function SectionModal({
               ancho, así el propio fondo hace de separador entre uno y otro. Las Cards
               del contenido pierden borde y esquinas — el marco lo pone el panel. */}
           <div className={cn(
-            "flex flex-1 flex-col gap-2 overflow-y-auto bg-muted/40 py-2",
+            "min-h-0 flex-1 flex flex-col gap-2 overflow-y-auto bg-muted/40 py-2",
             "[&_[data-slot=card]]:rounded-none [&_[data-slot=card]]:border-0 [&_[data-slot=card]]:shadow-none",
             // Los steps traen su propio `space-y-*`; aquí el hueco entre bandas lo
             // decide el panel para que todas las secciones separen igual.
             "[&>div]:flex [&>div]:flex-col [&>div]:gap-2 [&>div]:space-y-0",
           )}>
             {children}
+          </div>
 
-            {/* Dentro del scroll, al final del contenido: no pegados abajo. */}
-            <div className="bg-card px-6 py-4 flex gap-3">
-              {actions}
-            </div>
+          {/* Fuera del scroll: fija al pie del panel, igual que en `FormSheet`. */}
+          <div className="shrink-0 bg-card px-6 py-4 flex gap-3">
+            {actions}
           </div>
         </SheetContent>
       </Sheet>
@@ -140,12 +164,12 @@ export function SectionModal({
 
       {/* Mismo patrón que la variante lateral: fondo gris, contenido en blanco y los
           botones al final del scroll (no pegados abajo). */}
-      <div className="flex-1 overflow-y-auto bg-muted/40 py-2">
+      <div ref={bodyRef} className="flex-1 overflow-y-auto bg-muted/40 py-2">
         <div className="max-w-2xl mx-auto flex flex-col gap-2 px-4">
           <div className="bg-card p-4">
             {children}
           </div>
-          <div className="bg-card p-4 flex items-center gap-3">
+          <div className="bg-card p-4 flex items-center justify-between gap-3">
             {actions}
           </div>
         </div>
