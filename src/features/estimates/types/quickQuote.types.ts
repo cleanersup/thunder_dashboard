@@ -15,10 +15,10 @@
 /** Estados posibles. Texto libre en la tabla, igual que `estimates.status`. */
 export type QuickQuoteStatus =
   | "Draft" | "Pending" | "Sent" | "Viewed"
-  | "Accepted" | "Declined" | "Converted" | "Canceled";
+  | "Accepted" | "Declined" | "Converted" | "Invoiced" | "Canceled";
 
 /** Quién escribe cada estado: el backend algunos, el frontend el resto. */
-export const QUICK_QUOTE_BACKEND_STATUSES: QuickQuoteStatus[] = ["Sent", "Viewed", "Converted"];
+export const QUICK_QUOTE_BACKEND_STATUSES: QuickQuoteStatus[] = ["Sent", "Viewed", "Converted", "Invoiced"];
 
 export interface QuickQuoteRow {
   id:         string;
@@ -62,6 +62,7 @@ export interface QuickQuoteRow {
   sent_at:            string | null;
   last_sent_channel:  "email" | "sms" | null;
   job_id:             string | null;
+  invoice_id:         string | null;
 
   created_at: string;
   updated_at: string;

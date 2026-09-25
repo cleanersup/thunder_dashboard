@@ -12,6 +12,7 @@
  * igual que `jobs` y `client_properties`.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { generateInvoiceNumber } from "@/features/invoices/services/invoicesService";
 import type { QuickQuoteInsert, QuickQuoteRow } from "../types/quickQuote.types";
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
@@ -316,4 +317,81 @@ export async function convertQuickQuoteToJob({
   }
 
   return job.id as string;
+}
+
+export interface ConvertQuickQuoteToInvoiceInput {
+  quickQuoteId: string;
+  client: {
+    name:    string;
+    email:   string;
+    phone:   string;
+    street:  string;
+    apt:     string;
+    city:    string;
+    state:   string;
+    zip:     string;
+  };
+}
+
+/**
+ * Convierte un quick quote en invoice: prefill → insert → RPC de finalización.
+ * El quote no tiene cliente ni dirección; esos campos los pone el formulario.
+ * @returns El id de la invoice creada, o el de la que ya estaba vinculada
+ */
+export async function convertQuickQuoteToInvoice({
+  quickQuoteId, client,
+}: ConvertQuickQuoteToInvoiceInput): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const existing = await fetchQuickQuote(quickQuoteId);
+  if (existing?.invoice_id) return existing.invoice_id;
+
+  const { data: prefill, error: prefillError } = await (supabase as any).rpc(
+    "get_quick_quote_invoice_prefill",
+    { p_quick_quote_id: quickQuoteId },
+  );
+  if (prefillError) throw prefillError;
+
+  const invoiceNumber = await generateInvoiceNumber();
+  const { data: invoice, error: insertError } = await (supabase as any)
+    .from("invoices")
+    .insert({
+      user_id:        user.id,
+      invoice_number: invoiceNumber,
+      invoice_name:   prefill?.invoice_name ?? null,
+      invoice_date:   prefill?.invoice_date,
+      due_date:       prefill?.due_date,
+      service_type:   prefill?.service_type || "Single Payment",
+      status:         "Draft",
+      client_name:    client.name,
+      email:          client.email,
+      phone:          client.phone,
+      address:        client.street,
+      apt:            client.apt || null,
+      city:           client.city,
+      state:          client.state,
+      zip:            client.zip,
+      line_items:     prefill?.line_items ?? [],
+      discount_type:  prefill?.discount_type ?? null,
+      discount_value: prefill?.discount_value ?? null,
+      tax_rate:       prefill?.tax_rate ?? null,
+      total:          prefill?.total ?? 0,
+      notes:          prefill?.notes ?? null,
+      quick_quote_id: quickQuoteId,
+    })
+    .select("id")
+    .single();
+  if (insertError) throw insertError;
+
+  const { error: rpcError } = await (supabase as any).rpc(
+    "finalize_quick_quote_to_invoice_conversion",
+    { p_quick_quote_id: quickQuoteId, p_invoice_id: invoice.id },
+  );
+  if (rpcError) {
+    await (supabase as any).from("invoices").delete().eq("id", invoice.id);
+    throw rpcError;
+  }
+
+  return invoice.id as string;
 }

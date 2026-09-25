@@ -34,6 +34,13 @@ export async function fetchTask(id: string) {
  * Creates a new task record.
  * @param payload - Task insert payload (without user_id)
  */
+function taskWriteError(error: { message?: string; code?: string }): Error {
+  if (error.code === "23505" || /same title and schedule already exists/i.test(error.message ?? "")) {
+    return new Error("A task with the same title and schedule already exists");
+  }
+  return new Error(error.message || "Failed to save task");
+}
+
 export async function createTask(payload: Omit<TaskInsert, "user_id">) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
@@ -42,7 +49,7 @@ export async function createTask(payload: Omit<TaskInsert, "user_id">) {
     .insert({ ...payload, user_id: user.id })
     .select()
     .single();
-  if (error) throw error;
+  if (error) throw taskWriteError(error);
   return data;
 }
 
@@ -58,7 +65,7 @@ export async function updateTask(id: string, payload: TaskUpdate) {
     .eq("id", id)
     .select()
     .single();
-  if (error) throw error;
+  if (error) throw taskWriteError(error);
   return data;
 }
 

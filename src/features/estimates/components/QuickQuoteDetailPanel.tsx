@@ -4,8 +4,8 @@
  * Panel de detalle de un quick quote.
  *
  * Panel aparte del de estimates porque son entidades distintas: `quick_quotes`
- * no tiene cliente, dirección ni propiedad, y sus acciones son otras — no hay
- * contrato ni factura, y convertir a job exige antes crear el cliente.
+ * no tiene cliente, dirección ni propiedad. Convertir a job o invoice exige
+ * antes completar el cliente.
  */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Mail, Phone, User, Zap, Edit, Trash2, Briefcase, CheckCircle,
-  MoreHorizontal, X, Send, Clock,
+  MoreHorizontal, X, Send, Clock, FileText,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -30,7 +30,7 @@ import { formatDisplayDateTime, formatDateOnly, formatCurrency } from "@/shared/
 import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
 import { QK } from "@/shared/config/queryKeys";
 import { useQuickQuote, useUpdateQuickQuoteStatus, useDeleteQuickQuote } from "../hooks/useQuickQuotes";
-import { convertQuickQuoteToJob } from "../services/quickQuoteService";
+import { convertQuickQuoteToJob, convertQuickQuoteToInvoice } from "../services/quickQuoteService";
 import {
   CompleteQuickQuoteClientDialog, type QuickQuoteJobOverrides,
 } from "./CompleteQuickQuoteClientDialog";
@@ -43,6 +43,7 @@ function statusColors(status: string): { color: string; bg: string } {
   switch (status) {
     case "Draft":     return { color: "hsl(45 93% 40%)",  bg: "hsl(45 93% 40% / 0.15)" };
     case "Accepted":  return { color: "hsl(var(--green-vibrant))", bg: "hsl(var(--green-vibrant) / 0.15)" };
+    case "Invoiced":
     case "Converted": return { color: "hsl(270 70% 50%)", bg: "hsl(270 70% 50% / 0.15)" };
     case "Canceled":
     case "Declined":  return { color: "hsl(var(--destructive))", bg: "hsl(var(--destructive) / 0.12)" };
@@ -75,7 +76,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props)
   const deleteQuote  = useDeleteQuickQuote();
 
   const [isConverting,    setIsConverting]    = useState(false);
-  const [showComplete,    setShowComplete]    = useState(false);
+  const [convertTarget,   setConvertTarget]   = useState<"job" | "invoice" | null>(null);
   const [isDeleteOpen,    setIsDeleteOpen]    = useState(false);
 
   // El status puede cambiar desde el backend (`Sent` al enviar, `Viewed` cuando
@@ -113,24 +114,47 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props)
     }
   }
 
-  /** Crea el job con el cliente que el panel de conversión acaba de resolver. */
+  /** Crea el job o la invoice con el cliente que el panel acaba de resolver. */
   async function handleConvert(overrides: QuickQuoteJobOverrides) {
-    if (!quote) return;
-    setShowComplete(false);
+    if (!quote || !convertTarget) return;
+    const target = convertTarget;
     setIsConverting(true);
     try {
-      const jobId = await convertQuickQuoteToJob({
+      if (target === "job") {
+        const jobId = await convertQuickQuoteToJob({
+          quickQuoteId: quote.id,
+          jobOverrides: overrides as unknown as Record<string, unknown>,
+        });
+        qc.invalidateQueries({ queryKey: QK.jobs });
+        qc.invalidateQueries({ queryKey: QK.quickQuotes });
+        qc.invalidateQueries({ queryKey: QK.clients });
+        setConvertTarget(null);
+        onClose();
+        toast.success("Job created from quick quote");
+        navigate("/jobs", { state: { openEditJobId: jobId } });
+        return;
+      }
+
+      const invoiceId = await convertQuickQuoteToInvoice({
         quickQuoteId: quote.id,
-        jobOverrides: overrides as unknown as Record<string, unknown>,
+        client: {
+          name:   overrides.client_name,
+          email:  overrides.client_email ?? "",
+          phone:  overrides.client_phone ?? "",
+          street: overrides.property_street,
+          apt:    overrides.property_apt ?? "",
+          city:   overrides.property_city,
+          state:  overrides.property_state,
+          zip:    overrides.property_zip,
+        },
       });
-      qc.invalidateQueries({ queryKey: QK.jobs });
+      qc.invalidateQueries({ queryKey: QK.invoices });
       qc.invalidateQueries({ queryKey: QK.quickQuotes });
       qc.invalidateQueries({ queryKey: QK.clients });
+      setConvertTarget(null);
       onClose();
-      toast.success("Job created from quick quote");
-      // Igual que estimate→job: el job se abre en edición para terminar de
-      // completarlo (empleados, horario…).
-      navigate("/jobs", { state: { openEditJobId: jobId } });
+      toast.success("Invoice created from quick quote");
+      navigate("/invoices", { state: { openEditId: invoiceId } });
     } catch (err: any) {
       toast.error(err?.message ?? "Failed to convert quick quote");
     } finally {
@@ -141,6 +165,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props)
   const status = quote?.status ?? "";
   const colors = statusColors(status);
   const isConverted = !!quote?.job_id;
+  const isInvoiced  = !!quote?.invoice_id;
 
   const footer = quote ? (
     <div className="flex items-center gap-2">
@@ -149,15 +174,36 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props)
           size="sm"
           className="flex-1"
           style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }}
-          onClick={() => setShowComplete(true)}
+          onClick={() => setConvertTarget("job")}
           disabled={isConverting}
         >
           <Briefcase className="w-4 h-4 mr-1.5" />
-          {isConverting ? "Converting…" : "Convert to Job"}
+          {isConverting && convertTarget === "job" ? "Converting…" : "Convert to Job"}
         </Button>
       ) : (
         <Button size="sm" variant="outline" className="flex-1" disabled>
           Converted to job
+        </Button>
+      )}
+      {!isInvoiced ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1"
+          onClick={() => setConvertTarget("invoice")}
+          disabled={isConverting}
+        >
+          <FileText className="w-4 h-4 mr-1.5" />
+          {isConverting && convertTarget === "invoice" ? "Converting…" : "Convert to Invoice"}
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1"
+          onClick={() => { onClose(); navigate("/invoices", { state: { openId: quote.invoice_id } }); }}
+        >
+          <FileText className="w-4 h-4 mr-1.5" /> View Invoice
         </Button>
       )}
       <DropdownMenu>
@@ -233,7 +279,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props)
                   )}
                   <InfoRow icon={User}>
                     <span className="text-muted-foreground">
-                      No client record — created when you convert this to a job
+                      No client record — created when you convert this to a job or invoice
                     </span>
                   </InfoRow>
                 </div>
@@ -293,8 +339,8 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props)
       </SidePanel>
 
       <CompleteQuickQuoteClientDialog
-        open={showComplete}
-        onClose={() => setShowComplete(false)}
+        open={convertTarget !== null}
+        onClose={() => setConvertTarget(null)}
         quote={quote ? {
           id:              quote.id,
           recipient_name:  quote.recipient_name,
@@ -302,6 +348,11 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit }: Props)
           recipient_phone: quote.recipient_phone,
         } : null}
         onCompleted={handleConvert}
+        title={convertTarget === "invoice" ? "Complete Invoice Details" : "Complete Client Details"}
+        subtitle={convertTarget === "invoice"
+          ? "An invoice needs the client and service address. Saving also adds this person to your clients."
+          : "A job needs the full service address. Saving also adds this person to your clients."}
+        submitLabel={convertTarget === "invoice" ? "Save and Convert to Invoice" : "Save and Convert to Job"}
       />
 
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>

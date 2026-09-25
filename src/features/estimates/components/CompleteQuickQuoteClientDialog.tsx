@@ -44,7 +44,10 @@ export interface CompleteQuickQuoteClientDialogProps {
     recipient_phone: string | null;
   } | null;
   /** El cliente ya está resuelto; el llamador sigue con la conversión que pidió. */
-  onCompleted: (overrides: QuickQuoteJobOverrides) => void;
+  onCompleted: (overrides: QuickQuoteJobOverrides) => void | Promise<void>;
+  title?: string;
+  subtitle?: string;
+  submitLabel?: string;
 }
 
 interface FormState {
@@ -65,6 +68,9 @@ const EMPTY: FormState = {
 
 export function CompleteQuickQuoteClientDialog({
   open, onClose, quote, onCompleted,
+  title = "Complete Client Details",
+  subtitle = "A job needs the full service address. Saving also adds this person to your clients.",
+  submitLabel = "Save and Convert to Job",
 }: CompleteQuickQuoteClientDialogProps) {
   const [form,      setForm]      = useState<FormState>(EMPTY);
   const [errors,    setErrors]    = useState<Record<string, boolean>>({});
@@ -126,7 +132,7 @@ export function CompleteQuickQuoteClientDialog({
       });
       toast.success(reusedExisting ? "Linked to existing client" : "Client created");
 
-      onCompleted({
+      await onCompleted({
         client_id:       clientId,
         contact_type:    "client",
         client_name:     fullName,
@@ -149,9 +155,9 @@ export function CompleteQuickQuoteClientDialog({
     <FormSheet
       open={open}
       onClose={onClose}
-      title="Complete Client Details"
-      subtitle="A job needs the full service address. Saving also adds this person to your clients."
-      submitLabel="Save and Convert to Job"
+      title={title}
+      subtitle={subtitle}
+      submitLabel={submitLabel}
       submitPendingLabel="Saving..."
       onSubmit={handleSubmit}
       isPending={isSaving}

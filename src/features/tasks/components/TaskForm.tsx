@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { Button } from "@/shared/components/ui/button";
 import {
-  FormSection, FloatingInput, SelectField, DateField, TextareaField,
+  FormSection, FloatingInput, SelectField, DateField, TimeField, TextareaField,
 } from "@/shared/components/forms";
 import { FORM_SECTION_GAP } from "@/shared/constants/formTokens";
 import { parseDateOnly } from "@/shared/utils/formatters";
@@ -76,7 +76,11 @@ export function TaskForm({ open, onClose, task }: TaskFormProps) {
         description: task.description ?? undefined,
         priority: task.priority as TaskFormData["priority"],
         status: task.status as TaskFormData["status"],
-        due_date: task.due_date ?? undefined,
+        due_date:    task.due_date ?? undefined,
+        start_date:  task.start_date ?? undefined,
+        end_date:    task.end_date ?? undefined,
+        start_time:  task.start_time ? String(task.start_time).slice(0, 5) : undefined,
+        end_time:    task.end_time ? String(task.end_time).slice(0, 5) : undefined,
       });
 
       if (Array.isArray(task.assigned_employees)) {
@@ -105,8 +109,14 @@ export function TaskForm({ open, onClose, task }: TaskFormProps) {
   }, [open, task, clients, reset]);
 
   const onSubmit = (data: TaskFormData) => {
+    const blankToNull = (v?: string | null) => (v && v.trim() ? v : null);
     const payload = {
       ...data,
+      due_date:    blankToNull(data.due_date),
+      start_date:  blankToNull(data.start_date),
+      end_date:    blankToNull(data.end_date),
+      start_time:  blankToNull(data.start_time),
+      end_time:    blankToNull(data.end_time),
       client_id: selectedClient?.id ?? null,
       assigned_employees: selectedEmployees.length > 0
         ? selectedEmployees.map((e) => ({ id: e.id, name: e.label }))
@@ -223,6 +233,56 @@ export function TaskForm({ open, onClose, task }: TaskFormProps) {
                     />
                   )}
                 />
+                <div className="grid grid-cols-2 gap-3">
+                  <Controller
+                    control={control}
+                    name="start_date"
+                    render={({ field }) => (
+                      <DateField
+                        placeholder="Start date"
+                        value={field.value ? parseDateOnly(field.value) : undefined}
+                        onChange={(d) => field.onChange(d ? format(d, "yyyy-MM-dd") : "")}
+                      />
+                    )}
+                  />
+                  <Controller
+                    control={control}
+                    name="end_date"
+                    render={({ field }) => (
+                      <DateField
+                        placeholder="End date"
+                        value={field.value ? parseDateOnly(field.value) : undefined}
+                        onChange={(d) => field.onChange(d ? format(d, "yyyy-MM-dd") : "")}
+                      />
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Controller
+                    control={control}
+                    name="start_time"
+                    render={({ field }) => (
+                      <TimeField
+                        id="task-start-time"
+                        label="Start time"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
+                  <Controller
+                    control={control}
+                    name="end_time"
+                    render={({ field }) => (
+                      <TimeField
+                        id="task-end-time"
+                        label="End time"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
+                </div>
               </FormSection>
 
               <FormSection

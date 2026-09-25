@@ -25,7 +25,7 @@ export function useCreateTask() {
       qc.invalidateQueries({ queryKey: QK.tasks });
       toast.success("Task created successfully");
     },
-    onError: () => toast.error("Failed to create task"),
+    onError: (err: Error) => toast.error(err.message || "Failed to create task"),
   });
 }
 
@@ -38,7 +38,7 @@ export function useUpdateTask() {
       qc.invalidateQueries({ queryKey: [...QK.tasks, id] });
       toast.success("Task updated successfully");
     },
-    onError: () => toast.error("Failed to update task"),
+    onError: (err: Error) => toast.error(err.message || "Failed to update task"),
   });
 }
 
