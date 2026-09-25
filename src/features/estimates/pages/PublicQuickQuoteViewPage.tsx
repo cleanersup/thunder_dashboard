@@ -46,6 +46,8 @@ export function PublicQuickQuoteViewPage() {
           clientZip:      "",
           estimateNumber: quote.id.substring(0, 8).toUpperCase(),
           estimateDate:   formatDateOnly(quote.quote_date, "MMMM dd, yyyy"),
+          documentTitle:  "PROFESSIONAL CLEANING QUOTE",
+          numberLabel:    "Quote #",
           serviceType:    quote.service_type,
           serviceSubType: quote.service_sub_type ?? undefined,
           serviceScope:   quote.service_scope   ?? undefined,
@@ -90,6 +92,22 @@ export function PublicQuickQuoteViewPage() {
   }
 
   return null;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Staging links are `/{quoteId}` — ignore anything that is not a UUID. */
+export function PublicQuickQuoteByIdPage() {
+  const { token } = useParams<{ token: string }>();
+  if (!UUID_RE.test(token ?? "")) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen gap-4">
+        <h1 className="text-4xl font-bold text-muted-foreground">404</h1>
+        <p className="text-muted-foreground">Page not found</p>
+      </div>
+    );
+  }
+  return <PublicQuickQuoteViewPage />;
 }
 
 export default PublicQuickQuoteViewPage;

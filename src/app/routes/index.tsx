@@ -46,6 +46,7 @@ const CreateResidentialEstimatePage = lazy(() => import("@/features/estimates/pa
 const CreateCommercialEstimatePage  = lazy(() => import("@/features/estimates/pages/CreateCommercialEstimatePage").then((m) => ({ default: m.CreateCommercialEstimatePage })));
 const PublicEstimateViewPage        = lazy(() => import("@/features/estimates/pages/PublicEstimateViewPage").then((m) => ({ default: m.PublicEstimateViewPage })));
 const PublicQuickQuoteViewPage      = lazy(() => import("@/features/estimates/pages/PublicQuickQuoteViewPage").then((m) => ({ default: m.PublicQuickQuoteViewPage })));
+const PublicQuickQuoteByIdPage      = lazy(() => import("@/features/estimates/pages/PublicQuickQuoteViewPage").then((m) => ({ default: m.PublicQuickQuoteByIdPage })));
 
 // Phase 8 — Invoices ✅
 const InvoicesPage             = lazy(() => import("@/features/invoices/pages/InvoicesPage").then((m) => ({ default: m.InvoicesPage })));
@@ -198,6 +199,8 @@ export function AppRouter() {
           {/* Public — no auth required */}
           <Route path="/privacy"             element={<PrivacyPage />} />
           <Route path="/contact-card/:userId" element={<ContactCardPage />} />
+          {/* Staging View Quote links are https://staging.thunderpro.co/{quoteId} */}
+          <Route path="/:token" element={<PublicQuickQuoteByIdPage />} />
 
           {/* ── 404 fallback ──────────────────────────────────────────── */}
           <Route

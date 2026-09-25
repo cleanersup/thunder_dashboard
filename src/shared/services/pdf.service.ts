@@ -62,6 +62,10 @@ export interface EstimatePDFData {
   discountType?:   string;
   discountValue?:  number;
   total:           number;
+  /** Banner title. Defaults keep estimate PDFs unchanged. */
+  documentTitle?:  string;
+  /** Label before the number, e.g. "Estimate #" / "Quote #". */
+  numberLabel?:    string;
 }
 
 /**
@@ -87,7 +91,7 @@ async function generateEstimatePDF(data: EstimatePDFData): Promise<jsPDF> {
   // Title banner
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  const titleText = "PROFESSIONAL CLEANING ESTIMATE";
+  const titleText = data.documentTitle ?? "PROFESSIONAL CLEANING ESTIMATE";
   const titleW    = doc.getTextWidth(titleText);
   const pad       = 5;
   const titleCW   = titleW + pad * 2;
@@ -104,7 +108,7 @@ async function generateEstimatePDF(data: EstimatePDFData): Promise<jsPDF> {
   doc.setTextColor(100, 100, 100);
   doc.setFont("helvetica", "normal");
   const dateText = `Date: ${data.estimateDate}`;
-  const estText  = `Estimate #: ${data.estimateNumber}`;
+  const estText  = `${data.numberLabel ?? "Estimate #"}: ${data.estimateNumber}`;
   const dateW    = doc.getTextWidth(dateText);
   doc.text(dateText, pageWidth - margin, yPos, { align: "right" });
   const sepX = pageWidth - margin - dateW - 8;
