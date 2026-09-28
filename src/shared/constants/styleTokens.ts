@@ -48,12 +48,6 @@ export const LEAD_STATUS_BADGE: Record<string, string> = {
 // ─── Task ─────────────────────────────────────────────────────────────────────
 
 /** Soft pill with border — used in tasks table. */
-export const TASK_STATUS_SOFT: Record<string, string> = {
-  "to do":       "bg-task-status-todo/15      text-task-status-todo      border-task-status-todo/30",
-  "in progress": "bg-task-status-progress/15  text-task-status-progress  border-task-status-progress/30",
-  completed:     "bg-task-status-completed/15 text-task-status-completed border-task-status-completed/30",
-};
-
 /** Soft pill, no border — used in task detail modal info section. */
 export const TASK_STATUS_BADGE: Record<string, string> = {
   "to do":       "bg-task-status-todo/15      text-task-status-todo",

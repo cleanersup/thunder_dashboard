@@ -10,7 +10,10 @@ import {
 } from "@/shared/components/ui/dropdown-menu";
 import { DataTable, type ColumnDef } from "@/shared/components/common/DataTable";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
-import { PRIORITY_SOFT_BORDER, TASK_STATUS_SOFT } from "@/shared/constants/styleTokens";
+import { PRIORITY_SOFT_BORDER } from "@/shared/constants/styleTokens";
+import {
+  TASK_STATUS_SOFT, TASK_STATUS_LABEL, getEffectiveTaskStatus,
+} from "../config/taskStatusConfig";
 import { useTasks, useUpdateTask, useDeleteTask } from "../hooks/useTasks";
 import { TaskForm } from "./TaskForm";
 import { TaskDetailModal } from "./TaskDetailModal";
@@ -144,11 +147,16 @@ export function TasksTable({ searchQuery, showForm, onCloseForm }: TasksTablePro
     {
       key: "status",
       header: "Status",
-      cell: (t) => (
-        <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border capitalize ${TASK_STATUS_SOFT[t.status] ?? ""}`}>
-          {t.status === "to do" ? "To Do" : t.status === "in progress" ? "In Progress" : "Completed"}
-        </span>
-      ),
+      // Muestra el estado efectivo, no el guardado: una task con fecha pasada
+      // sin completar sale como vencida, igual que en el calendario.
+      cell: (t) => {
+        const status = getEffectiveTaskStatus(t);
+        return (
+          <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${TASK_STATUS_SOFT[status]}`}>
+            {TASK_STATUS_LABEL[status]}
+          </span>
+        );
+      },
     },
     {
       key: "actions",
