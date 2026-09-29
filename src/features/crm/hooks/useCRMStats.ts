@@ -24,8 +24,11 @@ export function useCRMStats() {
     activeLeads:     leads.filter((l) => l.status === "active").length,
     hotLeads:        leads.filter((l) => l.priority_level === "high").length,
     convertedLeads:  leads.filter((l) => l.status === "won").length,
-    pendingTasks:    tasks.filter((t) => t.status === "pending").length,
-    inProgressTasks: tasks.filter((t) => t.status === "in_progress").length,
+    // Los valores que guarda la base son "to do" e "in progress" (con espacio);
+    // estos contadores buscaban "pending" e "in_progress", así que siempre daban
+    // cero por mucho que hubiera tasks.
+    pendingTasks:    tasks.filter((t) => t.status === "to do").length,
+    inProgressTasks: tasks.filter((t) => t.status === "in progress").length,
     completedTasks:  tasks.filter((t) => t.status === "completed").length,
   }), [clients, leads, tasks]);
 

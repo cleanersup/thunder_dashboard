@@ -33,6 +33,7 @@ import { useRoutes, useCreateRoute, useDeleteRoute } from "../hooks/useRoutes";
 import { useAppointments } from "../hooks/useAppointments";
 import { useProfile, getCompanyAddress } from "@/shared/hooks/useProfile";
 import { SchedulingCalendar, type CalendarViewType } from "../components/SchedulingCalendar";
+import { appointmentToEvent } from "../types/scheduleEvent";
 import { AppointmentDetailPanel } from "../components/AppointmentDetailPanel";
 import { RouteMapView } from "../components/RouteMapView";
 import { AddAppointmentPage, type FromEstimateData } from "./AddAppointmentPage";
@@ -367,12 +368,17 @@ export function RoutesPage() {
             />
           ) : (
             <SchedulingCalendar
-              appointments={appointments}
+              // El calendario habla `ScheduleEvent`; las citas se convierten aquí.
+              // Routes desaparecerá, pero mientras exista comparte la misma rejilla.
+              events={appointments.map(appointmentToEvent)}
               viewType={calViewType}
               selectedDate={selectedDate}
               onSelectedDateChange={setSelectedDate}
               onViewTypeChange={setCalViewType}
-              onAppointmentClick={setSelectedAppointment}
+              onEventClick={(e) => {
+                const appt = appointments.find((a) => a.id === e.refId);
+                if (appt) setSelectedAppointment(appt);
+              }}
               onDayClick={(date) => {
                 setAddApptDate(format(date, "yyyy-MM-dd"));
                 setAddApptRouteId(displayRouteId !== "all" ? displayRouteId : "");

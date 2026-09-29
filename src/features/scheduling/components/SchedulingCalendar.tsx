@@ -4,21 +4,24 @@
  */
 import {
   format,
-  addDays, subDays,
-  addWeeks, subWeeks,
-  addMonths, subMonths,
-  addYears, subYears,
+  addDays,
   startOfWeek, endOfWeek,
   startOfMonth, endOfMonth,
   eachDayOfInterval,
   isSameDay, isSameMonth,
-  getMonth,
 } from "date-fns";
 import { formatDisplayTime } from "@/shared/utils/formatters";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import {
+  HoverCard, HoverCardContent, HoverCardTrigger,
+} from "@/shared/components/ui/hover-card";
+import { ScheduleEventCard } from "./ScheduleEventCard";
 import { cn } from "@/shared/utils/cn";
-import type { AppointmentWithClient } from "../types/scheduling.types";
+import {
+  type ScheduleEvent, eventPalette, isAllDay, coversDate,
+} from "../types/scheduleEvent";
+import { calendarRangeLabel, shiftCalendarDate } from "../utils/calendarRange";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,12 +30,6 @@ export type CalendarViewType = "day" | "week" | "month" | "year";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SLOT_H = 56; // px per hour slot (day/week views)
-
-const EVENT_COLORS = [
-  "bg-pink-500", "bg-amber-500", "bg-teal-500", "bg-blue-500",
-  "bg-purple-500", "bg-orange-500", "bg-green-500", "bg-rose-500",
-  "bg-indigo-500", "bg-cyan-500",
-];
 
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -43,25 +40,16 @@ const MONTHS = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function apptColor(id: string): string {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) {
-    h = ((h << 5) - h) + id.charCodeAt(i);
-    h |= 0;
-  }
-  return EVENT_COLORS[Math.abs(h) % EVENT_COLORS.length];
-}
-
 function parseTime(t: string | null): [number, number] {
   if (!t) return [0, 0];
   const [hh, mm] = t.split(":");
   return [parseInt(hh ?? "0", 10), parseInt(mm ?? "0", 10)];
 }
 
-function durationMins(a: AppointmentWithClient): number {
-  if (!a.scheduled_time || !a.end_time) return 60;
-  const [sh, sm] = parseTime(a.scheduled_time);
-  const [eh, em] = parseTime(a.end_time);
+function durationMins(e: ScheduleEvent): number {
+  if (!e.startTime || !e.endTime) return 60;
+  const [sh, sm] = parseTime(e.startTime);
+  const [eh, em] = parseTime(e.endTime);
   const d = (eh * 60 + em) - (sh * 60 + sm);
   return d > 0 ? d : 60;
 }
@@ -77,31 +65,38 @@ function dateStr(d: Date): string {
   return format(d, "yyyy-MM-dd");
 }
 
-function apptsOnDate(appts: AppointmentWithClient[], d: Date) {
+/** Eventos con hora que caen en ese día — los de "todo el día" van aparte. */
+function timedOnDate(events: ScheduleEvent[], d: Date) {
   const k = dateStr(d);
-  return appts.filter((a) => a.scheduled_date === k);
+  return events.filter((e) => !isAllDay(e) && e.date === k);
 }
 
-function apptsForHour(appts: AppointmentWithClient[], d: Date, hour: number) {
-  return apptsOnDate(appts, d).filter((a) => {
-    const [h] = parseTime(a.scheduled_time);
+/** Eventos sin hora o de varios días que cubren ese día. */
+function allDayOnDate(events: ScheduleEvent[], d: Date) {
+  const k = dateStr(d);
+  return events.filter((e) => isAllDay(e) && coversDate(e, k));
+}
+
+function eventsForHour(events: ScheduleEvent[], d: Date, hour: number) {
+  return timedOnDate(events, d).filter((e) => {
+    const [h] = parseTime(e.startTime);
     return h === hour;
   });
 }
 
 /** Events that overlap a given event (for side-by-side layout) */
 function overlapping(
-  all: AppointmentWithClient[],
-  appt: AppointmentWithClient,
+  all: ScheduleEvent[],
+  event: ScheduleEvent,
   date: Date,
-): AppointmentWithClient[] {
-  const dayAppts = apptsOnDate(all, date);
-  const [ash, asm] = parseTime(appt.scheduled_time);
+): ScheduleEvent[] {
+  const dayEvents = timedOnDate(all, date);
+  const [ash, asm] = parseTime(event.startTime);
   const aStart = ash * 60 + asm;
-  const aEnd   = aStart + durationMins(appt);
+  const aEnd   = aStart + durationMins(event);
 
-  return dayAppts.filter((b) => {
-    const [bsh, bsm] = parseTime(b.scheduled_time);
+  return dayEvents.filter((b) => {
+    const [bsh, bsm] = parseTime(b.startTime);
     const bStart = bsh * 60 + bsm;
     const bEnd   = bStart + durationMins(b);
     return aStart < bEnd && aEnd > bStart;
@@ -111,80 +106,63 @@ function overlapping(
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface SchedulingCalendarProps {
-  appointments: AppointmentWithClient[];
+  events: ScheduleEvent[];
   viewType: CalendarViewType;
   selectedDate: Date;
   onSelectedDateChange: (d: Date) => void;
-  onAppointmentClick: (a: AppointmentWithClient) => void;
+  onEventClick: (e: ScheduleEvent) => void;
   onViewTypeChange?: (vt: CalendarViewType) => void;
   onDayClick?: (d: Date) => void;
+  /** Oculta la navegación propia cuando el contenedor ya la ofrece. */
+  showNavigation?: boolean;
 }
 
 export function SchedulingCalendar({
-  appointments,
+  events,
   viewType,
   selectedDate,
   onSelectedDateChange,
-  onAppointmentClick,
+  onEventClick,
   onViewTypeChange,
   onDayClick,
+  showNavigation = true,
 }: SchedulingCalendarProps) {
   const today = new Date();
 
-  function prev() {
-    if (viewType === "day")   return onSelectedDateChange(subDays(selectedDate, 1));
-    if (viewType === "week")  return onSelectedDateChange(subWeeks(selectedDate, 1));
-    if (viewType === "month") return onSelectedDateChange(subMonths(selectedDate, 1));
-    if (viewType === "year")  return onSelectedDateChange(subYears(selectedDate, 1));
-  }
+  function prev() { onSelectedDateChange(shiftCalendarDate(selectedDate, viewType, -1)); }
 
-  function next() {
-    if (viewType === "day")   return onSelectedDateChange(addDays(selectedDate, 1));
-    if (viewType === "week")  return onSelectedDateChange(addWeeks(selectedDate, 1));
-    if (viewType === "month") return onSelectedDateChange(addMonths(selectedDate, 1));
-    if (viewType === "year")  return onSelectedDateChange(addYears(selectedDate, 1));
-  }
+  function next() { onSelectedDateChange(shiftCalendarDate(selectedDate, viewType, 1)); }
 
-  function title(): string {
-    if (viewType === "day")   return format(selectedDate, "EEEE, MMMM d, yyyy");
-    if (viewType === "year")  return format(selectedDate, "yyyy");
-    if (viewType === "month") return format(selectedDate, "MMMM yyyy");
-    // week
-    const ws = startOfWeek(selectedDate, { weekStartsOn: 0 });
-    const we = endOfWeek(selectedDate,   { weekStartsOn: 0 });
-    return getMonth(ws) === getMonth(we)
-      ? `${format(ws, "MMM d")} – ${format(we, "d, yyyy")}`
-      : `${format(ws, "MMM d")} – ${format(we, "MMM d, yyyy")}`;
-  }
 
   return (
     <div className="w-full">
-      {/* Navigation */}
-      <div className="flex items-center justify-between mb-4">
-        <Button variant="ghost" size="icon" onClick={prev} className="h-8 w-8">
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <h3 className="text-lg font-semibold">{title()}</h3>
-        <Button variant="ghost" size="icon" onClick={next} className="h-8 w-8">
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
+      {showNavigation && (
+        <div className="flex items-center justify-between mb-4">
+          <Button variant="ghost" size="icon" onClick={prev} className="h-8 w-8">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h3 className="text-lg font-semibold">{calendarRangeLabel(selectedDate, viewType)}</h3>
+          <Button variant="ghost" size="icon" onClick={next} className="h-8 w-8">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {viewType === "day"   && (
         <DayView
-          appointments={appointments}
+          events={events}
           date={selectedDate}
           today={today}
-          onAppointmentClick={onAppointmentClick}
+          onEventClick={onEventClick}
           onSlotClick={onDayClick}
         />
       )}
       {viewType === "week"  && (
         <WeekView
-          appointments={appointments}
+          events={events}
           selectedDate={selectedDate}
           today={today}
-          onAppointmentClick={onAppointmentClick}
+          onEventClick={onEventClick}
           onDayHeaderClick={(d) => {
             onSelectedDateChange(d);
             onViewTypeChange?.("day");
@@ -194,10 +172,10 @@ export function SchedulingCalendar({
       )}
       {viewType === "month" && (
         <MonthView
-          appointments={appointments}
+          events={events}
           currentMonth={selectedDate}
           today={today}
-          onAppointmentClick={onAppointmentClick}
+          onEventClick={onEventClick}
           onDayClick={(d) => {
             onSelectedDateChange(d);
             onDayClick?.(d);
@@ -206,7 +184,7 @@ export function SchedulingCalendar({
       )}
       {viewType === "year"  && (
         <YearView
-          appointments={appointments}
+          events={events}
           year={selectedDate.getFullYear()}
           today={today}
           onMonthClick={(d) => {
@@ -219,15 +197,32 @@ export function SchedulingCalendar({
   );
 }
 
+/**
+ * Envuelve un bloque del calendario con su tarjeta de detalle.
+ *
+ * `openDelay` corto pero no cero: aparecer al instante convierte cualquier
+ * barrido del ratón por la rejilla en una sucesión de tarjetas parpadeando.
+ */
+function EventHover({ event, children }: { event: ScheduleEvent; children: React.ReactNode }) {
+  return (
+    <HoverCard openDelay={250} closeDelay={80}>
+      <HoverCardTrigger asChild>{children}</HoverCardTrigger>
+      <HoverCardContent side="right" align="start" className="w-auto border-0 bg-transparent p-0 shadow-none">
+        <ScheduleEventCard event={event} />
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
 // ─── Day view ─────────────────────────────────────────────────────────────────
 
 function DayView({
-  appointments, date, today, onAppointmentClick, onSlotClick,
+  events, date, today, onEventClick, onSlotClick,
 }: {
-  appointments: AppointmentWithClient[];
+  events: ScheduleEvent[];
   date: Date;
   today: Date;
-  onAppointmentClick: (a: AppointmentWithClient) => void;
+  onEventClick: (e: ScheduleEvent) => void;
   onSlotClick?: (d: Date) => void;
 }) {
   const isToday = isSameDay(date, today);
@@ -242,10 +237,13 @@ function DayView({
         {format(date, "EEEE, MMMM d")}
       </div>
 
+      {/* Banda de "todo el día": eventos sin hora y los de varios días. */}
+      <AllDayBand events={allDayOnDate(events, date)} onEventClick={onEventClick} />
+
       {/* Scrollable hour grid */}
       <div className="overflow-y-auto max-h-[600px]">
         {Array.from({ length: 24 }, (_, hour) => {
-          const slotAppts = apptsForHour(appointments, date, hour);
+          const slotEvents = eventsForHour(events, date, hour);
 
           return (
             <div key={hour} className="flex border-b border-border last:border-b-0" style={{ minHeight: SLOT_H }}>
@@ -264,39 +262,39 @@ function DayView({
                   onSlotClick?.(d);
                 }}
               >
-                {slotAppts.map((appt) => {
-                  const [, startMin]  = parseTime(appt.scheduled_time);
-                  const durH          = durationMins(appt) / 60;
+                {slotEvents.map((ev) => {
+                  const [, startMin]  = parseTime(ev.startTime);
+                  const durH          = durationMins(ev) / 60;
                   const topPx         = (startMin / 60) * SLOT_H;
                   const heightPx      = Math.max(durH * SLOT_H, 24);
-                  const group         = overlapping(appointments, appt, date);
-                  const idx           = group.findIndex((b) => b.id === appt.id);
+                  const group         = overlapping(events, ev, date);
+                  const idx           = group.findIndex((b) => b.id === ev.id);
                   const widthPct      = 100 / group.length;
                   const leftPct       = idx * widthPct;
+                  const palette       = eventPalette(ev);
 
                   return (
+                    <EventHover key={ev.id} event={ev}>
                     <div
-                      key={appt.id}
-                      onClick={(e) => { e.stopPropagation(); onAppointmentClick(appt); }}
-                      className={cn(
-                        "absolute rounded px-2 py-1 text-white text-xs cursor-pointer hover:opacity-90 z-10 overflow-hidden",
-                        apptColor(appt.id),
-                      )}
+                      onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
+                      className="absolute rounded px-2 py-1 text-white text-xs cursor-pointer hover:opacity-90 z-10 overflow-hidden"
                       style={{
                         top:    topPx,
                         height: heightPx,
                         left:   `calc(${leftPct}% + 4px)`,
                         width:  `calc(${widthPct}% - 8px)`,
+                        backgroundColor: palette.color,
                       }}
                     >
-                      <div className="font-semibold truncate">{appt.clients?.full_name}</div>
-                      {appt.scheduled_time && (
+                      <div className="font-semibold truncate">{ev.title}</div>
+                      {ev.startTime && (
                         <div className="opacity-90 truncate">
-                          {formatDisplayTime(appt.scheduled_time)}
-                          {appt.end_time && ` – ${formatDisplayTime(appt.end_time)}`}
+                          {formatDisplayTime(ev.startTime)}
+                          {ev.endTime && ` – ${formatDisplayTime(ev.endTime)}`}
                         </div>
                       )}
                     </div>
+                    </EventHover>
                   );
                 })}
               </div>
@@ -308,15 +306,55 @@ function DayView({
   );
 }
 
+// ─── Banda de todo el día ─────────────────────────────────────────────────────
+
+/**
+ * Los eventos sin hora no caben en una rejilla horaria: se apilan arriba, como
+ * en cualquier calendario. Los de varios días viven aquí también, porque una
+ * barra que cruza jornadas no pertenece a ninguna franja.
+ */
+function AllDayBand({
+  events, onEventClick, compact = false,
+}: {
+  events: ScheduleEvent[];
+  onEventClick: (e: ScheduleEvent) => void;
+  compact?: boolean;
+}) {
+  if (events.length === 0) return null;
+
+  return (
+    <div className={cn("flex flex-col gap-1 border-b border-border bg-muted/20", compact ? "p-1" : "px-3 py-2")}>
+      {events.map((ev) => {
+        const palette = eventPalette(ev);
+        return (
+          <EventHover key={ev.id} event={ev}>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
+            className={cn(
+              "w-full text-left rounded text-white font-medium truncate hover:opacity-90 transition-opacity",
+              compact ? "px-1 py-0.5 text-[10px]" : "px-2 py-1 text-xs",
+            )}
+            style={{ backgroundColor: palette.color }}
+          >
+            {ev.title}
+          </button>
+          </EventHover>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Week view ────────────────────────────────────────────────────────────────
 
 function WeekView({
-  appointments, selectedDate, today, onAppointmentClick, onDayHeaderClick, onSlotClick,
+  events, selectedDate, today, onEventClick, onDayHeaderClick, onSlotClick,
 }: {
-  appointments: AppointmentWithClient[];
+  events: ScheduleEvent[];
   selectedDate: Date;
   today: Date;
-  onAppointmentClick: (a: AppointmentWithClient) => void;
+  onEventClick: (e: ScheduleEvent) => void;
   onDayHeaderClick: (d: Date) => void;
   onSlotClick?: (d: Date) => void;
 }) {
@@ -358,6 +396,23 @@ function WeekView({
             })}
           </div>
 
+          {/* Fila de "todo el día", alineada con las columnas de la semana. */}
+          {weekDays.some((d) => allDayOnDate(events, d).length > 0) && (
+            <div
+              className="grid border-b border-border bg-muted/20"
+              style={{ gridTemplateColumns: "64px repeat(7, 1fr)" }}
+            >
+              <div className="text-right pr-2 py-1 text-[10px] text-muted-foreground border-r border-border">
+                All day
+              </div>
+              {weekDays.map((day, di) => (
+                <div key={di} className="border-l border-border first:border-l-0 p-0.5">
+                  <AllDayBand events={allDayOnDate(events, day)} onEventClick={onEventClick} compact />
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Hour grid */}
           {Array.from({ length: 24 }, (_, hour) => (
             <div key={hour} className="grid border-b border-border last:border-b-0" style={{ gridTemplateColumns: "64px repeat(7, 1fr)", minHeight: SLOT_H }}>
@@ -368,7 +423,7 @@ function WeekView({
 
               {/* Day slots */}
               {weekDays.map((day, di) => {
-                const slotAppts = apptsForHour(appointments, day, hour);
+                const slotEvents = eventsForHour(events, day, hour);
                 return (
                   <div
                     key={di}
@@ -380,33 +435,33 @@ function WeekView({
                       onSlotClick?.(d);
                     }}
                   >
-                    {slotAppts.map((appt) => {
-                      const [, startMin] = parseTime(appt.scheduled_time);
-                      const durH         = durationMins(appt) / 60;
+                    {slotEvents.map((ev) => {
+                      const [, startMin] = parseTime(ev.startTime);
+                      const durH         = durationMins(ev) / 60;
                       const topPx        = (startMin / 60) * SLOT_H;
                       const heightPx     = Math.max(durH * SLOT_H, 20);
-                      const group        = overlapping(appointments, appt, day);
-                      const idx          = group.findIndex((b) => b.id === appt.id);
+                      const group        = overlapping(events, ev, day);
+                      const idx          = group.findIndex((b) => b.id === ev.id);
                       const widthPct     = 100 / group.length;
                       const leftPct      = idx * widthPct;
+                      const palette      = eventPalette(ev);
 
                       return (
-                        <div
-                          key={appt.id}
-                          onClick={(e) => { e.stopPropagation(); onAppointmentClick(appt); }}
-                          className={cn(
-                            "absolute rounded px-1 py-0.5 text-white text-[10px] font-medium cursor-pointer hover:opacity-90 z-10 overflow-hidden",
-                            apptColor(appt.id),
-                          )}
-                          style={{
-                            top:    topPx,
-                            height: heightPx,
-                            left:   `${leftPct}%`,
-                            width:  `${widthPct}%`,
-                          }}
-                        >
-                          <span className="truncate block">{appt.clients?.full_name}</span>
-                        </div>
+                        <EventHover key={ev.id} event={ev}>
+                          <div
+                            onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
+                            className="absolute rounded px-1 py-0.5 text-white text-[10px] font-medium cursor-pointer hover:opacity-90 z-10 overflow-hidden"
+                            style={{
+                              top:    topPx,
+                              height: heightPx,
+                              left:   `${leftPct}%`,
+                              width:  `${widthPct}%`,
+                              backgroundColor: palette.color,
+                            }}
+                          >
+                            <span className="truncate block">{ev.title}</span>
+                          </div>
+                        </EventHover>
                       );
                     })}
                   </div>
@@ -425,12 +480,12 @@ function WeekView({
 const MAX_MONTH_PILLS = 3;
 
 function MonthView({
-  appointments, currentMonth, today, onAppointmentClick, onDayClick,
+  events, currentMonth, today, onEventClick, onDayClick,
 }: {
-  appointments: AppointmentWithClient[];
+  events: ScheduleEvent[];
   currentMonth: Date;
   today: Date;
-  onAppointmentClick: (a: AppointmentWithClient) => void;
+  onEventClick: (e: ScheduleEvent) => void;
   onDayClick: (d: Date) => void;
 }) {
   const monthStart = startOfMonth(currentMonth);
@@ -439,12 +494,12 @@ function MonthView({
   const calEnd     = endOfWeek(monthEnd,     { weekStartsOn: 0 });
   const days       = eachDayOfInterval({ start: calStart, end: calEnd });
 
-  const apptsByDate = new Map<string, AppointmentWithClient[]>();
-  appointments.forEach((a) => {
-    const k = a.scheduled_date;
-    if (!apptsByDate.has(k)) apptsByDate.set(k, []);
-    apptsByDate.get(k)!.push(a);
-  });
+  // Se recorren los días de la rejilla y no los eventos, porque uno de varios
+  // días tiene que aparecer en cada jornada que cubre, no solo en la de inicio.
+  const eventsOn = (day: Date) => {
+    const k = dateStr(day);
+    return events.filter((e) => coversDate(e, k));
+  };
 
   return (
     <div className="border border-border rounded-lg overflow-hidden">
@@ -462,10 +517,10 @@ function MonthView({
       <div className="grid grid-cols-7">
         {days.map((day, idx) => {
           const k         = dateStr(day);
-          const dayAppts  = apptsByDate.get(k) ?? [];
+          const dayEvents = eventsOn(day);
           const inMonth   = isSameMonth(day, currentMonth);
           const isToday   = isSameDay(day, today);
-          const overflow  = dayAppts.length - MAX_MONTH_PILLS;
+          const overflow  = dayEvents.length - MAX_MONTH_PILLS;
           const isLastRow = idx >= days.length - 7;
           const colIdx    = idx % 7;
 
@@ -490,17 +545,16 @@ function MonthView({
                 {format(day, "d")}
               </span>
 
-              {dayAppts.slice(0, MAX_MONTH_PILLS).map((a) => (
-                <button
-                  key={a.id}
-                  onClick={(e) => { e.stopPropagation(); onAppointmentClick(a); }}
-                  className={cn(
-                    "w-full text-left px-1 sm:px-2 py-0.5 rounded text-[9px] sm:text-xs text-white font-medium truncate hover:opacity-90",
-                    apptColor(a.id),
-                  )}
-                >
-                  {a.clients?.full_name ?? "Client"}
-                </button>
+              {dayEvents.slice(0, MAX_MONTH_PILLS).map((ev) => (
+                <EventHover key={ev.id} event={ev}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
+                    className="w-full text-left px-1 sm:px-2 py-0.5 rounded text-[9px] sm:text-xs text-white font-medium truncate hover:opacity-90"
+                    style={{ backgroundColor: eventPalette(ev).color }}
+                  >
+                    {ev.title}
+                  </button>
+                </EventHover>
               ))}
 
               {overflow > 0 && (
@@ -517,17 +571,18 @@ function MonthView({
 // ─── Year view ────────────────────────────────────────────────────────────────
 
 function YearView({
-  appointments, year, today, onMonthClick,
+  events, year, today, onMonthClick,
 }: {
-  appointments: AppointmentWithClient[];
+  events: ScheduleEvent[];
   year: number;
   today: Date;
   onMonthClick: (firstOfMonth: Date) => void;
 }) {
   // Count appointments per month
   const countByMonth = Array(12).fill(0) as number[];
-  appointments.forEach((a) => {
-    const d = new Date(a.scheduled_date + "T00:00:00");
+  events.forEach((e) => {
+    if (!e.date) return;
+    const d = new Date(e.date + "T00:00:00");
     if (d.getFullYear() === year) {
       countByMonth[d.getMonth()]++;
     }

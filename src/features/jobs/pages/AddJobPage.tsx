@@ -22,14 +22,11 @@ import { ContactPicker, EMPTY_CONTACT, type ContactPickerValue } from "@/shared/
 import { EmployeeSelect } from "@/shared/components/common/EmployeeSelect";
 import { useJob } from "../hooks/useJobs";
 import { useCreateJob, useUpdateJob, useUpdateJobStatus } from "../hooks/useJobMutations";
-import type { JobServiceItem, CreateJobInput } from "../types/job.types";
+import type { JobServiceItem, CreateJobInput, RecurrenceFrequency } from "../types/job.types";
+import { SERVICE_TYPE_OPTIONS } from "../config/jobRecurrence";
+import { RecurrenceFields } from "../components/RecurrenceFields";
 import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
 import { toast } from "sonner";
-
-const SERVICE_TYPE_OPTIONS = [
-  { value: "residential", label: "Residential" },
-  { value: "commercial",  label: "Commercial"  },
-] as const;
 
 /** Tipo y valor del descuento/depósito comparten forma: porcentaje o monto. */
 const RATE_TYPE_OPTIONS = [
@@ -68,6 +65,11 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
   const [jobDate, setJobDate]           = useState<Date | undefined>(undefined);
   const [startTime, setStartTime]       = useState("");
   const [endTime, setEndTime]           = useState("");
+  const [isRecurring, setIsRecurring]   = useState(false);
+  const [frequency, setFrequency]       = useState<RecurrenceFrequency | "">("");
+  const [repeatEvery, setRepeatEvery]   = useState("");
+  const [weekDays, setWeekDays]         = useState<number[]>([]);
+  const [endRepeatOn, setEndRepeatOn]   = useState<Date | undefined>(undefined);
 
   // ─── Services ─────────────────────────────────────────────────────────
   const [services, setServices]   = useState<JobServiceItem[]>([newServiceItem()]);
@@ -97,6 +99,11 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
     setJobDate(existingJob.jobDate ? parseISO(existingJob.jobDate) : undefined);
     setStartTime(existingJob.startTime ?? "");
     setEndTime(existingJob.endTime ?? "");
+    setIsRecurring(existingJob.isRecurring);
+    setFrequency(existingJob.recurrenceFrequency ?? "");
+    setRepeatEvery(existingJob.repeatEvery ? String(existingJob.repeatEvery) : "");
+    setWeekDays(existingJob.weekDays ?? []);
+    setEndRepeatOn(existingJob.recurringEndDate ? parseISO(existingJob.recurringEndDate) : undefined);
     setServices(existingJob.services.length > 0 ? existingJob.services : [newServiceItem()]);
     setJobDetails(existingJob.jobDetails ?? "");
     setNotes(existingJob.notes ?? "");
@@ -121,6 +128,11 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
       setJobDate(undefined);
       setStartTime("");
       setEndTime("");
+      setIsRecurring(false);
+      setFrequency("");
+      setRepeatEvery("");
+      setWeekDays([]);
+      setEndRepeatOn(undefined);
       setServices([newServiceItem()]);
       setJobDetails("");
       setNotes("");
@@ -208,10 +220,15 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
       propertyZip:    selectedProperty?.zip_code  ?? null,
       employeeIds,
       serviceType,
-      isRecurring:  false,
-      recurrenceFrequency:  null,
+      isRecurring,
+      recurrenceFrequency:  isRecurring ? (frequency || null) : null,
+      // La duración en meses/años es del modelo viejo; el nuevo la expresa con
+      // "End repeat on", así que se manda vacía.
       serviceDuration:      null,
       serviceDurationUnit:  null,
+      repeatEvery:          isRecurring ? Number(repeatEvery) || 1 : null,
+      weekDays:             isRecurring && frequency === "weekly" ? weekDays : [],
+      recurringEndDate:     isRecurring && endRepeatOn ? format(endRepeatOn, "yyyy-MM-dd") : null,
       jobDate: format(jobDate, "yyyy-MM-dd"),
       startTime,
       endTime,
@@ -322,7 +339,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
               <FormSection
                 icon={CalendarClock}
                 title="Schedule"
-                subtitle="Type of service and when the crew goes"
+                subtitle="Type of service, when the crew goes and how often it repeats"
                 invalid={errors.date}
               >
                 <SelectField
@@ -345,6 +362,23 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                   <TimeField id="job-start-time" label="Start Time" value={startTime} onChange={setStartTime} />
                   <TimeField id="job-end-time"   label="End Time"   value={endTime}   onChange={setEndTime} />
                 </div>
+
+                <RecurrenceFields
+                  isRecurring={isRecurring}
+                  onIsRecurring={setIsRecurring}
+                  frequency={frequency}
+                  onFrequency={setFrequency}
+                  repeatEvery={repeatEvery}
+                  onRepeatEvery={setRepeatEvery}
+                  weekDays={weekDays}
+                  onToggleWeekDay={(day) =>
+                    setWeekDays((prev) =>
+                      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort(),
+                    )
+                  }
+                  endRepeatOn={endRepeatOn}
+                  onEndRepeatOn={setEndRepeatOn}
+                />
               </FormSection>
 
               <FormSection

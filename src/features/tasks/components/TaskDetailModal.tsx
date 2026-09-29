@@ -14,7 +14,11 @@ import { SidePanel } from "@/shared/components/common/SidePanel";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { TaskForm } from "./TaskForm";
 import { useDeleteTask, useUpdateTask } from "../hooks/useTasks";
-import { PRIORITY_SOFT_BORDER, TASK_STATUS_SOFT } from "@/shared/constants/styleTokens";
+import { PRIORITY_SOFT_BORDER } from "@/shared/constants/styleTokens";
+import {
+  TASK_STATUS_SOFT, TASK_STATUS_LABEL, TASK_STATUS_COLOR, TASK_STATUS_BG,
+  getEffectiveTaskStatus,
+} from "../config/taskStatusConfig";
 import { getAssignedNames, formatDueDate, formatTaskSchedule } from "../utils/taskFormatters";
 import { toast } from "sonner";
 import type { TaskWithClient } from "../types/task.types";
@@ -49,21 +53,14 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
 
   if (!t) return null;
 
-  const statusLabel =
-    t.status === "to do" ? "To Do" :
-    t.status === "in progress" ? "In Progress" : "Completed";
+  const effectiveStatus = getEffectiveTaskStatus(t);
+  const statusLabel = TASK_STATUS_LABEL[effectiveStatus];
 
-  // SidePanel renders the badge over a dark header, so colors must be readable
-  // there. --task-status-todo is a very dark navy (23% L) that disappears on the
-  // header, so the badge uses the lighter --info blue (same hue, 48% L) instead.
-  const statusColor =
-    t.status === "to do"       ? "hsl(var(--info))"                  :
-    t.status === "in progress" ? "hsl(var(--task-status-progress))"  :
-                                 "hsl(var(--task-status-completed))";
-  const statusBg =
-    t.status === "to do"       ? "hsl(var(--info) / 0.15)"                 :
-    t.status === "in progress" ? "hsl(var(--task-status-progress) / 0.15)" :
-                                 "hsl(var(--task-status-completed) / 0.15)";
+  // El badge se pinta sobre la cabecera oscura del SidePanel, así que "to do"
+  // usa el azul --info (48% L) y no --task-status-todo (23% L), que ahí
+  // desaparecería. Ese matiz vive en `taskStatusConfig`.
+  const statusColor = TASK_STATUS_COLOR[effectiveStatus];
+  const statusBg    = TASK_STATUS_BG[effectiveStatus];
 
   const badge = { label: statusLabel, color: statusColor, bg: statusBg };
 
@@ -156,7 +153,7 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
               <CheckCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
               <div className="flex-1">
                 <p className="text-xs text-muted-foreground">Status</p>
-                <span className={`inline-block mt-0.5 text-xs font-medium px-2.5 py-0.5 rounded-full border capitalize ${TASK_STATUS_SOFT[t.status] ?? ""}`}>
+                <span className={`inline-block mt-0.5 text-xs font-medium px-2.5 py-0.5 rounded-full border capitalize ${TASK_STATUS_SOFT[effectiveStatus]}`}>
                   {statusLabel}
                 </span>
               </div>
