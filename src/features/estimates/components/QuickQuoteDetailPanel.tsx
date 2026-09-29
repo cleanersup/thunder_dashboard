@@ -349,7 +349,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
           <ThumbsDown className="w-4 h-4 mr-2 text-orange-500" /> Decline
         </DropdownMenuItem>
         <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setIsCancelOpen(true)}>
-          <X className="w-4 h-4 mr-2" /> Cancel Estimate
+          <X className="w-4 h-4 mr-2" /> Cancel Quote
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
