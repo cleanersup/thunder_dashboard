@@ -300,6 +300,12 @@ export async function convertQuickQuoteToJob({
 
   const prefill = await fetchQuickQuoteJobPrefill(quickQuoteId);
 
+  const existing = await fetchQuickQuote(quickQuoteId);
+  if (existing?.job_id) return existing.job_id;
+  if (existing?.status !== "Accepted") {
+    throw new Error("Quote must be accepted before converting to a job");
+  }
+
   // El prefill trae datos del desglose que `jobs` no tiene como columnas; el
   // insert falla si se mandan tal cual.
   const jobPayload: Record<string, unknown> = { ...prefill };
@@ -356,6 +362,9 @@ export async function convertQuickQuoteToInvoice({
 
   const existing = await fetchQuickQuote(quickQuoteId);
   if (existing?.invoice_id) return existing.invoice_id;
+  if (existing?.status !== "Accepted") {
+    throw new Error("Quote must be accepted before converting to an invoice");
+  }
 
   const { data: prefill, error: prefillError } = await (supabase as any).rpc(
     "get_quick_quote_invoice_prefill",

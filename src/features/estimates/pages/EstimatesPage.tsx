@@ -533,13 +533,15 @@ export function EstimatesPage() {
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openQuickQuoteForm(estimate.id); }}>
                               <Edit className="w-4 h-4 mr-2" /> Edit and resend
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedQuickQuoteId(estimate.id);
-                              setQuickQuoteConvertOpen(true);
-                            }}>
-                              <ArrowRightLeft className="w-4 h-4 mr-2" /> Convert Quote
-                            </DropdownMenuItem>
+                            {estimate.status === "Accepted" && (
+                              <DropdownMenuItem onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedQuickQuoteId(estimate.id);
+                                setQuickQuoteConvertOpen(true);
+                              }}>
+                                <ArrowRightLeft className="w-4 h-4 mr-2" /> Convert Quote
+                              </DropdownMenuItem>
+                            )}
                           </>
                         ) : estimate.status === "Draft" ? (
                           <>

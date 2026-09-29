@@ -86,9 +86,12 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
   const [isDeleteOpen,    setIsDeleteOpen]    = useState(false);
 
   useEffect(() => {
-    if (open && openConvert) setConvertOpen(true);
-    if (!open) setConvertOpen(false);
-  }, [open, openConvert]);
+    if (!open) {
+      setConvertOpen(false);
+      return;
+    }
+    if (openConvert && quote?.status === "Accepted") setConvertOpen(true);
+  }, [open, openConvert, quote?.status]);
 
   // El status puede cambiar desde el backend (`Sent` al enviar, `Viewed` cuando
   // el destinatario abre el link), así que el panel abierto se mantiene al día.
@@ -128,6 +131,10 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
   /** Crea el job o la invoice con el cliente que el panel acaba de resolver. */
   async function handleConvert(overrides: QuickQuoteJobOverrides) {
     if (!quote || !convertTarget) return;
+    if (quote.status !== "Accepted") {
+      toast.error("Quote must be accepted before converting");
+      return;
+    }
     const target = convertTarget;
     setIsConverting(true);
     try {
@@ -175,12 +182,13 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
 
   const status = quote?.status ?? "";
   const colors = statusColors(status);
+  const isAccepted  = status === "Accepted";
   const isConverted = !!quote?.job_id;
   const isInvoiced  = !!quote?.invoice_id;
 
   const footer = quote ? (
     <div className="flex items-center gap-2">
-      {!isConverted ? (
+      {isAccepted && !isConverted && (
         <Button
           size="sm"
           className="flex-1"
@@ -191,12 +199,13 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
           <Briefcase className="w-4 h-4 mr-1.5" />
           {isConverting && convertTarget === "job" ? "Converting…" : "Convert to Job"}
         </Button>
-      ) : (
+      )}
+      {isConverted && (
         <Button size="sm" variant="outline" className="flex-1" disabled>
           Converted to job
         </Button>
       )}
-      {!isInvoiced ? (
+      {isAccepted && !isInvoiced && (
         <Button
           size="sm"
           className="flex-1"
@@ -207,7 +216,8 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
           <FileText className="w-4 h-4 mr-1.5" />
           {isConverting && convertTarget === "invoice" ? "Converting…" : "Convert to Invoice"}
         </Button>
-      ) : (
+      )}
+      {isInvoiced && (
         <Button
           size="sm"
           variant="outline"
