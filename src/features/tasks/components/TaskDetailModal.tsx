@@ -19,7 +19,7 @@ import {
   TASK_STATUS_SOFT, TASK_STATUS_LABEL, TASK_STATUS_COLOR, TASK_STATUS_BG,
   getEffectiveTaskStatus,
 } from "../config/taskStatusConfig";
-import { getAssignedNames, formatDueDate } from "../utils/taskFormatters";
+import { getAssignedNames, formatDueDate, formatTaskSchedule } from "../utils/taskFormatters";
 import { toast } from "sonner";
 import type { TaskWithClient } from "../types/task.types";
 
@@ -159,6 +159,9 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
               </div>
             </div>
 
+            {(t.start_date || t.end_date || t.start_time || t.end_time) && (
+              <InfoRow icon={Calendar} label="Schedule" value={formatTaskSchedule(t)} />
+            )}
             {t.due_date && (
               <InfoRow icon={Calendar} label="Due Date" value={formatDueDate(t.due_date)} />
             )}

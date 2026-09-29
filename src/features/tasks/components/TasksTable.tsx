@@ -17,7 +17,7 @@ import {
 import { useTasks, useUpdateTask, useDeleteTask } from "../hooks/useTasks";
 import { TaskForm } from "./TaskForm";
 import { TaskDetailModal } from "./TaskDetailModal";
-import { formatDueDate, getAssignedName } from "../utils/taskFormatters";
+import { formatTaskSchedule, getAssignedName } from "../utils/taskFormatters";
 import { toast } from "sonner";
 import type { TaskWithClient } from "../types/task.types";
 
@@ -131,8 +131,8 @@ export function TasksTable({ searchQuery, showForm, onCloseForm }: TasksTablePro
     },
     {
       key: "due_date",
-      header: "Due Date",
-      cell: (t) => <span className="text-sm text-muted-foreground">{formatDueDate(t.due_date)}</span>,
+      header: "Schedule",
+      cell: (t) => <span className="text-sm text-muted-foreground">{formatTaskSchedule(t)}</span>,
       hideOnMobile: true,
     },
     {

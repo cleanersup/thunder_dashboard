@@ -120,6 +120,17 @@ export async function getInvoiceMerchantProfile(token: string): Promise<InvoiceM
   return row as InvoiceMerchantProfile | null;
 }
 
+export async function getPublicQuickQuote(token: string): Promise<Record<string, unknown> | null> {
+  const { data, missing, error } = await callRpc<Record<string, unknown>>("get_public_quick_quote", {
+    p_token: token,
+  });
+  if (!missing) {
+    if (error) throw error;
+    return data;
+  }
+  return null;
+}
+
 export async function getPublicEstimate(token: string): Promise<Record<string, unknown> | null> {
   const { data, missing, error } = await callRpc<Record<string, unknown>>("get_public_estimate", {
     p_token: token,

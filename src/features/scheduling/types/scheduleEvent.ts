@@ -151,19 +151,12 @@ export function jobToEvent(job: Job): ScheduleEvent {
 }
 
 /**
- * Las columnas de agenda de `tasks` (`start_date`, `end_date`, `start_time`,
- * `end_time`) están pendientes en el backend — ver la especificación acordada.
- * Hasta que lleguen se usa `due_date` como día único y la task va siempre a la
- * banda de "todo el día"; cuando existan, solo cambia este conversor.
+ * Una task se agenda con `start_date`/`end_date` y su franja horaria. `due_date`
+ * queda de respaldo: las tasks anteriores a esas columnas solo tienen eso, y sin
+ * el respaldo desaparecerían del calendario.
  */
 export function taskToEvent(task: Task): ScheduleEvent {
-  const t = task as Task & {
-    start_date?: string | null;
-    end_date?: string | null;
-    start_time?: string | null;
-    end_time?: string | null;
-  };
-  const start = t.start_date ?? task.due_date ?? "";
+  const start = task.start_date ?? task.due_date ?? "";
   const effective = getEffectiveTaskStatus(task, start);
 
   return {
@@ -171,9 +164,9 @@ export function taskToEvent(task: Task): ScheduleEvent {
     type: "task",
     refId: task.id,
     date: start,
-    endDate: t.end_date ?? null,
-    startTime: t.start_time ?? null,
-    endTime: t.end_time ?? null,
+    endDate: task.end_date ?? null,
+    startTime: task.start_time ?? null,
+    endTime: task.end_time ?? null,
     title: task.title,
     subtitle: cap(task.priority) ? `${cap(task.priority)} priority` : null,
     status: effective,

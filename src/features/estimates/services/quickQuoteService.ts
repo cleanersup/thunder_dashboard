@@ -5,13 +5,15 @@
  *
  * El RLS es solo-dueño para las cuatro operaciones, así que el CRUD son llamadas
  * normales de PostgREST — no hay RPC propio. Los anónimos sí necesitan RPC
- * (`get_public_quick_quote`), pero esa página vive en swift-slate, que es la app
- * a la que apunta el link del correo.
+ * (`get_public_quick_quote`) en `/public/quick-quote/:token`. Esa ruta es
+ * independiente de `/public/estimate/:token`.
  *
  * La tabla no está en los tipos generados: se accede con `(supabase as any)`,
  * igual que `jobs` y `client_properties`.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { generateInvoiceNumber } from "@/features/invoices/services/invoicesService";
+import { getPublicQuickQuote } from "@/shared/services/publicAccess";
 import type { QuickQuoteInsert, QuickQuoteRow } from "../types/quickQuote.types";
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
@@ -44,6 +46,15 @@ export async function fetchQuickQuote(id: string): Promise<QuickQuoteRow | null>
     .maybeSingle();
   if (error) throw error;
   return (data ?? null) as QuickQuoteRow | null;
+}
+
+/**
+ * Lee un quick quote por share token (sin auth). El RPC marca viewed_at.
+ * No toca `estimates` ni `get_public_estimate`.
+ */
+export async function fetchQuickQuoteByToken(token: string): Promise<QuickQuoteRow | null> {
+  const row = await getPublicQuickQuote(token);
+  return (row ?? null) as QuickQuoteRow | null;
 }
 
 /**
@@ -289,6 +300,12 @@ export async function convertQuickQuoteToJob({
 
   const prefill = await fetchQuickQuoteJobPrefill(quickQuoteId);
 
+  const existing = await fetchQuickQuote(quickQuoteId);
+  if (existing?.job_id) return existing.job_id;
+  if (existing?.status !== "Accepted") {
+    throw new Error("Quote must be accepted before converting to a job");
+  }
+
   // El prefill trae datos del desglose que `jobs` no tiene como columnas; el
   // insert falla si se mandan tal cual.
   const jobPayload: Record<string, unknown> = { ...prefill };
@@ -316,4 +333,84 @@ export async function convertQuickQuoteToJob({
   }
 
   return job.id as string;
+}
+
+export interface ConvertQuickQuoteToInvoiceInput {
+  quickQuoteId: string;
+  client: {
+    name:    string;
+    email:   string;
+    phone:   string;
+    street:  string;
+    apt:     string;
+    city:    string;
+    state:   string;
+    zip:     string;
+  };
+}
+
+/**
+ * Convierte un quick quote en invoice: prefill → insert → RPC de finalización.
+ * El quote no tiene cliente ni dirección; esos campos los pone el formulario.
+ * @returns El id de la invoice creada, o el de la que ya estaba vinculada
+ */
+export async function convertQuickQuoteToInvoice({
+  quickQuoteId, client,
+}: ConvertQuickQuoteToInvoiceInput): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const existing = await fetchQuickQuote(quickQuoteId);
+  if (existing?.invoice_id) return existing.invoice_id;
+  if (existing?.status !== "Accepted") {
+    throw new Error("Quote must be accepted before converting to an invoice");
+  }
+
+  const { data: prefill, error: prefillError } = await (supabase as any).rpc(
+    "get_quick_quote_invoice_prefill",
+    { p_quick_quote_id: quickQuoteId },
+  );
+  if (prefillError) throw prefillError;
+
+  const invoiceNumber = await generateInvoiceNumber();
+  const { data: invoice, error: insertError } = await (supabase as any)
+    .from("invoices")
+    .insert({
+      user_id:        user.id,
+      invoice_number: invoiceNumber,
+      invoice_name:   prefill?.invoice_name ?? null,
+      invoice_date:   prefill?.invoice_date,
+      due_date:       prefill?.due_date,
+      service_type:   prefill?.service_type || "Single Payment",
+      status:         "Draft",
+      client_name:    client.name,
+      email:          client.email,
+      phone:          client.phone,
+      address:        client.street,
+      apt:            client.apt || null,
+      city:           client.city,
+      state:          client.state,
+      zip:            client.zip,
+      line_items:     prefill?.line_items ?? [],
+      discount_type:  prefill?.discount_type ?? null,
+      discount_value: prefill?.discount_value ?? null,
+      tax_rate:       prefill?.tax_rate ?? null,
+      total:          prefill?.total ?? 0,
+      notes:          prefill?.notes ?? null,
+      quick_quote_id: quickQuoteId,
+    })
+    .select("id")
+    .single();
+  if (insertError) throw insertError;
+
+  const { error: rpcError } = await (supabase as any).rpc(
+    "finalize_quick_quote_to_invoice_conversion",
+    { p_quick_quote_id: quickQuoteId, p_invoice_id: invoice.id },
+  );
+  if (rpcError) {
+    await (supabase as any).from("invoices").delete().eq("id", invoice.id);
+    throw rpcError;
+  }
+
+  return invoice.id as string;
 }

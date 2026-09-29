@@ -9,6 +9,34 @@ import type { Json } from "@/integrations/supabase/types";
  * @param due - ISO date or datetime string, or null
  * @returns Formatted date string, or "—" if null/invalid
  */
+function formatTimeHm(value: string | null | undefined): string {
+  if (!value) return "";
+  return value.slice(0, 5);
+}
+
+/** Start/end window, falling back to due date when no window was set. */
+export function formatTaskSchedule(task: {
+  start_date?: string | null;
+  end_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  due_date?: string | null;
+}): string {
+  const startDay = task.start_date ? formatDueDate(task.start_date) : "";
+  const endDay   = task.end_date ? formatDueDate(task.end_date) : "";
+  const startT   = formatTimeHm(task.start_time);
+  const endT     = formatTimeHm(task.end_time);
+
+  if (startDay || endDay || startT || endT) {
+    const start = [startDay, startT].filter(Boolean).join(" ");
+    const end   = [endDay, endT].filter(Boolean).join(" ");
+    if (start && end) return `${start} – ${end}`;
+    return start || end;
+  }
+
+  return formatDueDate(task.due_date ?? null);
+}
+
 export function formatDueDate(due: string | null): string {
   if (!due) return "—";
   try {

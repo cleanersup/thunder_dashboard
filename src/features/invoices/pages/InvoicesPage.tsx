@@ -96,7 +96,13 @@ export function InvoicesPage() {
 
   // ── Auto-open panel from state (coming from job completion or linked record) ─
   useEffect(() => {
-    const state = location.state as { openId?: string } | null;
+    const state = location.state as { openId?: string; openEditId?: string } | null;
+    if (state?.openEditId) {
+      setEditInvoiceId(state.openEditId);
+      setShowEditModal(true);
+      window.history.replaceState({}, "");
+      return;
+    }
     if (state?.openId) {
       setDetailId(state.openId);
       setIsDetailOpen(true);

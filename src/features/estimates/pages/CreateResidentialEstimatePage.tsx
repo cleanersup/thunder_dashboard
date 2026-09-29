@@ -1244,7 +1244,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
           </AlertDialogHeader>
           <AlertDialogFooter className="sm:justify-center">
             <AlertDialogAction onClick={() => { setShowSuccess(false); goBack(); }}>
-              View Estimates
+              {quickQuote ? "View Quote" : "View Estimates"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
