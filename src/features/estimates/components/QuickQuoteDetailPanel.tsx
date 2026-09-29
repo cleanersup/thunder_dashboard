@@ -13,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Mail, Phone, User, Zap, Edit, Trash2, Briefcase, CheckCircle,
-  MoreHorizontal, X, Send, Clock, FileText,
+  MoreHorizontal, X, Send, Clock, FileText, MessageSquare, Share, Download, ThumbsDown,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -32,8 +32,10 @@ import { SidePanel } from "@/shared/components/common/SidePanel";
 import { formatDisplayDateTime, formatDateOnly, formatCurrency } from "@/shared/utils/formatters";
 import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
 import { QK } from "@/shared/config/queryKeys";
+import { useProfile } from "@/shared/hooks/useProfile";
+import { PDFService } from "@/shared/services/pdf.service";
 import { useQuickQuote, useUpdateQuickQuoteStatus, useDeleteQuickQuote } from "../hooks/useQuickQuotes";
-import { convertQuickQuoteToJob, convertQuickQuoteToInvoice } from "../services/quickQuoteService";
+import { convertQuickQuoteToJob, convertQuickQuoteToInvoice, sendQuickQuoteEmail, sendQuickQuoteSMS } from "../services/quickQuoteService";
 import {
   CompleteQuickQuoteClientDialog, type QuickQuoteJobOverrides,
 } from "./CompleteQuickQuoteClientDialog";
@@ -73,17 +75,35 @@ function InfoRow({ icon: Icon, children }: { icon: any; children: React.ReactNod
   );
 }
 
+function quotePublicUrl(quote: { id: string; public_share_token: string | null }): string {
+  const host = window.location.hostname;
+  if (host === "thunderpro.co" || host === "www.thunderpro.co" || host === "portal.thunderpro.co") {
+    return quote.public_share_token
+      ? `https://thunderpro.co/public/quick-quote/${quote.public_share_token}`
+      : `https://thunderpro.co/${quote.id}`;
+  }
+  if (host.includes("staging")) return `https://staging.thunderpro.co/${quote.id}`;
+  return `${window.location.origin}/${quote.id}`;
+}
+
 export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConvert }: Props) {
   const qc       = useQueryClient();
   const navigate = useNavigate();
   const { data: quote, isLoading } = useQuickQuote(open ? quoteId : null);
+  const { data: profile } = useProfile();
   const updateStatus = useUpdateQuickQuoteStatus();
   const deleteQuote  = useDeleteQuickQuote();
 
-  const [isConverting,    setIsConverting]    = useState(false);
-  const [convertTarget,   setConvertTarget]   = useState<"job" | "invoice" | null>(null);
-  const [convertOpen,     setConvertOpen]     = useState(false);
-  const [isDeleteOpen,    setIsDeleteOpen]    = useState(false);
+  const [isConverting,      setIsConverting]      = useState(false);
+  const [convertTarget,     setConvertTarget]     = useState<"job" | "invoice" | null>(null);
+  const [convertOpen,       setConvertOpen]       = useState(false);
+  const [isDeleteOpen,      setIsDeleteOpen]      = useState(false);
+  const [isAcceptOpen,      setIsAcceptOpen]      = useState(false);
+  const [isCancelOpen,      setIsCancelOpen]      = useState(false);
+  const [isSending,         setIsSending]         = useState(false);
+  const [isSendingSMS,      setIsSendingSMS]      = useState(false);
+  const [isGeneratingLink,  setIsGeneratingLink]  = useState(false);
+  const [isDownloadingPDF,  setIsDownloadingPDF]  = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -106,6 +126,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
   async function handleMarkAccepted() {
     if (!quote) return;
     await updateStatus.mutateAsync({ id: quote.id, status: "Accepted" });
+    setIsAcceptOpen(false);
     toast.success("Quick quote accepted");
   }
 
@@ -113,6 +134,113 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
     if (!quote) return;
     await updateStatus.mutateAsync({ id: quote.id, status: "Declined" });
     toast.success("Quick quote declined");
+  }
+
+  async function handleCancel() {
+    if (!quote) return;
+    await updateStatus.mutateAsync({ id: quote.id, status: "Canceled" });
+    setIsCancelOpen(false);
+    toast.success("Quick quote canceled");
+  }
+
+  async function handleSendEmail() {
+    if (!quote?.recipient_email) return;
+    setIsSending(true);
+    try {
+      await sendQuickQuoteEmail({
+        quickQuoteId:   quote.id,
+        recipientEmail: quote.recipient_email,
+        recipientName:  quote.recipient_name ?? undefined,
+        isUpdate:       true,
+      });
+      toast.success("Reminder sent by email");
+      qc.invalidateQueries({ queryKey: QK.quickQuote(quote.id) });
+      qc.invalidateQueries({ queryKey: QK.quickQuotes });
+    } catch {
+      toast.error("Failed to send email");
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  async function handleSendSMS() {
+    if (!quote?.recipient_phone) return;
+    setIsSendingSMS(true);
+    try {
+      await sendQuickQuoteSMS({
+        quickQuoteId:  quote.id,
+        phoneNumber:   quote.recipient_phone,
+        recipientName: quote.recipient_name ?? undefined,
+        quoteTotal:    quote.total,
+        isUpdate:      true,
+      });
+      toast.success("Reminder sent by SMS");
+      qc.invalidateQueries({ queryKey: QK.quickQuote(quote.id) });
+      qc.invalidateQueries({ queryKey: QK.quickQuotes });
+    } catch {
+      toast.error("Failed to send SMS");
+    } finally {
+      setIsSendingSMS(false);
+    }
+  }
+
+  async function handleShare() {
+    if (!quote) return;
+    setIsGeneratingLink(true);
+    try {
+      await navigator.clipboard.writeText(quotePublicUrl(quote));
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error("Failed to copy link");
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  }
+
+  async function handleDownloadPDF() {
+    if (!quote || !profile) { toast.error("Missing data to generate PDF"); return; }
+    setIsDownloadingPDF(true);
+    try {
+      toast.info("Generating PDF...");
+      const doc = await PDFService.generateEstimatePDF({
+        companyLogo:    profile.company_logo    ?? undefined,
+        companyName:    profile.company_name    ?? "",
+        companyPhone:   profile.company_phone   ?? "",
+        companyEmail:   profile.company_email   ?? "",
+        companyAddress: profile.company_address ?? "",
+        companyCity:    profile.company_city    ?? "",
+        companyState:   profile.company_state   ?? "",
+        companyZip:     profile.company_zip     ?? "",
+        clientName:     quote.recipient_name    ?? "",
+        clientPhone:    quote.recipient_phone   ?? "",
+        clientEmail:    quote.recipient_email   ?? "",
+        clientAddress:  "",
+        clientCity:     "",
+        clientState:    "",
+        clientZip:      "",
+        estimateNumber: quote.id.substring(0, 8).toUpperCase(),
+        estimateDate:   formatDateOnly(quote.quote_date, "MMMM dd, yyyy"),
+        documentTitle:  "PROFESSIONAL CLEANING QUOTE",
+        numberLabel:    "Quote #",
+        serviceType:    quote.service_type,
+        serviceSubType: quote.service_sub_type ?? undefined,
+        serviceScope:   quote.service_scope   ?? undefined,
+        mainData:       (quote.main_data       as Record<string, any>) ?? undefined,
+        additionalData: (quote.additional_data as Record<string, any>) ?? undefined,
+        extraServices:  (quote.extra_services  as Record<string, boolean>) ?? undefined,
+        subtotal:       quote.subtotal,
+        discountType:   quote.discount_type   ?? undefined,
+        discountValue:  quote.discount_value  ?? undefined,
+        total:          quote.total,
+      });
+      const name = (quote.recipient_name || "quote").replace(/\s+/g, "_");
+      doc.save(`Quote_${quote.id.substring(0, 8).toUpperCase()}_${name}.pdf`);
+      toast.success("PDF downloaded!");
+    } catch {
+      toast.error("Failed to generate PDF");
+    } finally {
+      setIsDownloadingPDF(false);
+    }
   }
 
   async function handleDelete() {
@@ -183,10 +311,64 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
   const status = quote?.status ?? "";
   const colors = statusColors(status);
   const isAccepted  = status === "Accepted";
+  const isAwaiting  = status === "Pending" || status === "Viewed" || status === "Sent";
   const isConverted = !!quote?.job_id;
   const isInvoiced  = !!quote?.invoice_id;
+  const hasEmail    = !!quote?.recipient_email;
+  const hasPhone    = !!quote?.recipient_phone;
+
+  const awaitingMenu = quote ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="outline" className="px-2.5">
+          <MoreHorizontal className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuItem onClick={() => { onClose(); onEdit?.(quote.id); }}>
+          <Edit className="w-4 h-4 mr-2" /> Edit
+        </DropdownMenuItem>
+        {hasEmail && (
+          <DropdownMenuItem onClick={handleSendEmail} disabled={isSending}>
+            <Mail className="w-4 h-4 mr-2" /> {isSending ? "Sending…" : "Send reminder by email"}
+          </DropdownMenuItem>
+        )}
+        {hasPhone && (
+          <DropdownMenuItem onClick={handleSendSMS} disabled={isSendingSMS}>
+            <MessageSquare className="w-4 h-4 mr-2" /> {isSendingSMS ? "Sending…" : "Send reminder by SMS"}
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onClick={handleShare} disabled={isGeneratingLink}>
+          <Share className="w-4 h-4 mr-2" /> {isGeneratingLink ? "Generating…" : "Share"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleDownloadPDF} disabled={isDownloadingPDF}>
+          <Download className="w-4 h-4 mr-2" /> {isDownloadingPDF ? "Downloading…" : "Download PDF"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleDecline}>
+          <ThumbsDown className="w-4 h-4 mr-2 text-orange-500" /> Decline
+        </DropdownMenuItem>
+        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setIsCancelOpen(true)}>
+          <X className="w-4 h-4 mr-2" /> Cancel Estimate
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
 
   const footer = quote ? (
+    isAwaiting ? (
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          className="flex-1"
+          style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }}
+          onClick={() => setIsAcceptOpen(true)}
+        >
+          <CheckCircle className="w-4 h-4 mr-1.5" /> Mark as Accepted
+        </Button>
+        {awaitingMenu}
+      </div>
+    ) : (
     <div className="flex items-center gap-2">
       {isAccepted && !isConverted && (
         <Button
@@ -237,12 +419,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
           <DropdownMenuItem onClick={() => { onClose(); onEdit?.(quote.id); }}>
             <Edit className="w-4 h-4 mr-2" /> Edit and resend
           </DropdownMenuItem>
-          {status !== "Accepted" && (
-            <DropdownMenuItem onClick={handleMarkAccepted}>
-              <CheckCircle className="w-4 h-4 mr-2 text-green-600" /> Mark as Accepted
-            </DropdownMenuItem>
-          )}
-          {status !== "Declined" && (
+          {status !== "Declined" && status !== "Canceled" && (
             <DropdownMenuItem onClick={handleDecline}>
               <X className="w-4 h-4 mr-2 text-orange-500" /> Mark as Declined
             </DropdownMenuItem>
@@ -257,6 +434,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
+    )
   ) : undefined;
 
   return (
@@ -426,6 +604,45 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
           : "A job needs the full service address. Saving also adds this person to your clients."}
         submitLabel={convertTarget === "invoice" ? "Save and Convert to Invoice" : "Save and Convert to Job"}
       />
+
+      <AlertDialog open={isAcceptOpen} onOpenChange={setIsAcceptOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "hsl(var(--green-vibrant) / 0.1)" }}>
+                <CheckCircle className="w-8 h-8" style={{ color: "hsl(var(--green-vibrant))" }} />
+              </div>
+            </div>
+            <AlertDialogTitle className="text-center">Accept Quote?</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              This will mark the quote as accepted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleMarkAccepted} style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }}>
+              Accept
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isCancelOpen} onOpenChange={setIsCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Quote</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this quote? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Quote</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancel} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Cancel Quote
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent>
