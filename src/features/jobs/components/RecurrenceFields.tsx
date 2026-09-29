@@ -12,6 +12,7 @@
 import { Label } from "@/shared/components/ui/label";
 import { OptionGrid, SelectField, DateField } from "@/shared/components/forms";
 import { cn } from "@/shared/utils/cn";
+import { withRequiredMark } from "@/shared/utils/formLabel";
 import type { RecurrenceFrequency } from "../types/job.types";
 import { RECURRENCE_OPTIONS, WEEK_DAYS, repeatEveryOptions } from "../config/jobRecurrence";
 
@@ -33,6 +34,13 @@ interface RecurrenceFieldsProps {
   onToggleWeekDay: (day: number) => void;
   endRepeatOn: Date | undefined;
   onEndRepeatOn: (d: Date | undefined) => void;
+  /** Fecha del job: la repetición no puede acabar antes de la primera visita. */
+  jobDate?: Date;
+  errors?: {
+    frequency?: boolean | string;
+    weekDays?:  boolean | string;
+    endRepeatOn?: boolean | string;
+  };
   disabled?: boolean;
 }
 
@@ -42,6 +50,8 @@ export function RecurrenceFields({
   repeatEvery, onRepeatEvery,
   weekDays, onToggleWeekDay,
   endRepeatOn, onEndRepeatOn,
+  jobDate,
+  errors = {},
   disabled = false,
 }: RecurrenceFieldsProps) {
   // Sin frecuencia elegida no se puede decir "cada cuántas" ni "hasta cuándo".
@@ -65,6 +75,7 @@ export function RecurrenceFields({
           value={frequency}
           onChange={(v) => onFrequency(v as RecurrenceFrequency)}
           options={RECURRENCE_OPTIONS}
+          error={errors.frequency}
           disabled={disabled}
           required
         />
@@ -82,7 +93,9 @@ export function RecurrenceFields({
 
           {frequency === "weekly" && (
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Repeat on</Label>
+              <Label className="text-sm font-medium">
+                {withRequiredMark("Repeat on", true)}
+              </Label>
               <div className="flex gap-2">
                 {WEEK_DAYS.map((d) => {
                   const active = weekDays.includes(d.value);
@@ -98,7 +111,9 @@ export function RecurrenceFields({
                         "disabled:cursor-not-allowed disabled:opacity-50",
                         active
                           ? "border-primary bg-primary text-primary-foreground"
-                          : "border-input text-foreground enabled:hover:border-primary/60",
+                          : errors.weekDays
+                            ? "border-destructive text-foreground"
+                            : "border-input text-foreground enabled:hover:border-primary/60",
                       )}
                     >
                       {d.label}
@@ -106,6 +121,12 @@ export function RecurrenceFields({
                   );
                 })}
               </div>
+              {typeof errors.weekDays === "string" && (
+                <p className="text-xs text-destructive">{errors.weekDays}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Pick more than one day to visit several times a week.
+              </p>
             </div>
           )}
 
@@ -113,8 +134,17 @@ export function RecurrenceFields({
             placeholder="End repeat on"
             value={endRepeatOn}
             onChange={onEndRepeatOn}
+            // Acabar antes de empezar no significa nada, y el backend no lo
+            // rechaza: simplemente no genera ninguna ocurrencia.
+            disabledDates={jobDate ? (d) => d < jobDate : undefined}
+            error={errors.endRepeatOn}
             disabled={disabled}
           />
+          {!errors.endRepeatOn && (
+            <p className="-mt-1 text-xs text-muted-foreground">
+              Ends a year out unless you change it. Extend it whenever you need.
+            </p>
+          )}
         </>
       )}
     </>
