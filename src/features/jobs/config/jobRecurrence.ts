@@ -7,6 +7,7 @@
  * una frecuencia que allá no existe, un job creado en el dashboard no se podría
  * editar desde el móvil.
  */
+import { addMonths } from "date-fns";
 import type { RecurrenceFrequency, ServiceType } from "../types/job.types";
 
 export const SERVICE_TYPE_OPTIONS: { value: ServiceType; label: string }[] = [
@@ -47,4 +48,23 @@ export function repeatEveryOptions(freq: string): { value: string; label: string
     const n = i + 1;
     return { value: String(n), label: `${n} ${unit}${n === 1 ? "" : "s"}` };
   });
+}
+
+/**
+ * Hasta dónde llega una repetición a la que no se le puso fin.
+ *
+ * El backend permite dejarla abierta, pero entonces genera hasta 500 filas de
+ * una sentada — una serie semanal se estira casi diez años. Como `fetchAll` se
+ * trae los jobs sin filtro de fechas, unas pocas series así llenan la respuesta
+ * y empiezan a desaparecer jobs de la lista sin que nadie lo note.
+ *
+ * Un año es el horizonte con el que se firma este tipo de servicio, y deja la
+ * serie en 52 filas para una semanal o 12 para una mensual. Siempre se puede
+ * alargar: el campo queda a la vista con esta fecha puesta, no escondida.
+ */
+export const DEFAULT_RECURRENCE_MONTHS = 12;
+
+/** Fin por defecto de una repetición que arranca en `jobDate`. */
+export function defaultRecurrenceEnd(jobDate: Date): Date {
+  return addMonths(jobDate, DEFAULT_RECURRENCE_MONTHS);
 }
