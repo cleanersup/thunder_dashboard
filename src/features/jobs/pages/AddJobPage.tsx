@@ -23,7 +23,7 @@ import { EmployeeSelect } from "@/shared/components/common/EmployeeSelect";
 import { useJob } from "../hooks/useJobs";
 import { useCreateJob, useUpdateJob, useUpdateJobStatus } from "../hooks/useJobMutations";
 import type { JobServiceItem, CreateJobInput, RecurrenceFrequency } from "../types/job.types";
-import { SERVICE_TYPE_OPTIONS } from "../config/jobRecurrence";
+import { SERVICE_TYPE_OPTIONS, defaultRecurrenceEnd } from "../config/jobRecurrence";
 import { RecurrenceFields } from "../components/RecurrenceFields";
 import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
 import { toast } from "sonner";
@@ -87,6 +87,35 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
   const [applyDeposit, setApplyDeposit]         = useState(false);
   const [depositType, setDepositType]           = useState<"percentage" | "amount">("percentage");
   const [depositValueStr, setDepositValueStr]   = useState("");
+
+  /**
+   * Al elegir "Weekly" se marca el día de la fecha del job.
+   *
+   * Si no se marca ninguno, el backend rellena con el día de `scheduled_date`,
+   * así que la serie se repetiría ese día sin que nada lo dijera en pantalla.
+   * Esto no cambia el resultado: lo hace visible antes de guardar, y se puede
+   * cambiar. Solo rellena cuando está vacío — si se desmarcan todos a propósito,
+   * la validación lo señala en vez de volver a marcarlo solo.
+   */
+  useEffect(() => {
+    if (!isRecurring || frequency !== "weekly" || !jobDate) return;
+    setWeekDays((prev) => (prev.length > 0 ? prev : [jobDate.getDay()]));
+  }, [isRecurring, frequency, jobDate]);
+
+  /**
+   * Una repetición sin fin se propone acabando dentro de un año.
+   *
+   * Dejarla abierta hace que el backend genere cientos de ocurrencias de golpe;
+   * ver `DEFAULT_RECURRENCE_MONTHS`. Se rellena el campo en vez de mandarlo por
+   * detrás al guardar, para que la fecha se vea y se pueda alargar.
+   *
+   * Solo en jobs nuevos: a una serie que ya existe sin fin no se le pone uno
+   * por el hecho de abrir su formulario.
+   */
+  useEffect(() => {
+    if (isEdit || !isRecurring || !frequency || !jobDate) return;
+    setEndRepeatOn((prev) => prev ?? defaultRecurrenceEnd(jobDate));
+  }, [isEdit, isRecurring, frequency, jobDate]);
 
   // ─── Pre-fill from existing job (edit mode) ───────────────────────────
   const [prefillDone, setPrefillDone] = useState(false);
@@ -192,6 +221,19 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
     const errs: Record<string, boolean> = {};
     if (!contact.contactType || !clientName) errs.contact = true;
     if (!jobDate) errs.date = true;
+
+    if (isRecurring) {
+      // Sin frecuencia el insert pasa, pero al publicarlo el trigger que genera
+      // la serie lanza "Unsupported recurring_frequency" y el job se queda en
+      // Draft sin explicación. Se corta aquí.
+      if (!frequency) errs.frequency = true;
+      // El backend rellenaría con el día de la fecha; se exige elegirlo para que
+      // la serie no salga en un día que nadie pidió.
+      if (frequency === "weekly" && weekDays.length === 0) errs.weekDays = true;
+      // Una repetición que acaba antes de la primera visita no genera nada.
+      if (endRepeatOn && jobDate && endRepeatOn < jobDate) errs.endRepeatOn = true;
+    }
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -340,7 +382,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                 icon={CalendarClock}
                 title="Schedule"
                 subtitle="Type of service, when the crew goes and how often it repeats"
-                invalid={errors.date}
+                invalid={errors.date || errors.frequency || errors.weekDays || errors.endRepeatOn}
               >
                 <SelectField
                   placeholder="Service type"
@@ -367,17 +409,24 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                   isRecurring={isRecurring}
                   onIsRecurring={setIsRecurring}
                   frequency={frequency}
-                  onFrequency={setFrequency}
+                  onFrequency={(v) => { setFrequency(v); setErrors((e) => ({ ...e, frequency: false })); }}
                   repeatEvery={repeatEvery}
                   onRepeatEvery={setRepeatEvery}
                   weekDays={weekDays}
-                  onToggleWeekDay={(day) =>
+                  onToggleWeekDay={(day) => {
                     setWeekDays((prev) =>
                       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort(),
-                    )
-                  }
+                    );
+                    setErrors((e) => ({ ...e, weekDays: false }));
+                  }}
                   endRepeatOn={endRepeatOn}
-                  onEndRepeatOn={setEndRepeatOn}
+                  onEndRepeatOn={(d) => { setEndRepeatOn(d); setErrors((e) => ({ ...e, endRepeatOn: false })); }}
+                  jobDate={jobDate}
+                  errors={{
+                    frequency:   errors.frequency   && "Choose how often it repeats",
+                    weekDays:    errors.weekDays    && "Pick at least one day",
+                    endRepeatOn: errors.endRepeatOn && "It cannot end before the first visit",
+                  }}
                 />
               </FormSection>
 
