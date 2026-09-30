@@ -2,6 +2,7 @@ import * as React from "react";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { cn } from "@/shared/utils/cn";
+import { withRequiredMark } from "@/shared/utils/formLabel";
 
 export interface PhoneInputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
@@ -10,6 +11,8 @@ export interface PhoneInputProps
   label?: string;
   error?: string;
   floatingLabel?: boolean;
+  /** Añade el asterisco al label, igual que el resto de moléculas del kit. */
+  required?: boolean;
 }
 
 /**
@@ -19,9 +22,10 @@ export interface PhoneInputProps
  * @param label - Field label text
  * @param error - Error message to display below the field
  * @param floatingLabel - When true renders a CSS floating-label over the input
+ * @param required - Marks the label with the project's required asterisk
  */
 export const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
-  ({ value = "", onChange, label, error, floatingLabel = false, className, id, ...props }, ref) => {
+  ({ value = "", onChange, label, error, floatingLabel = false, required = false, className, id, ...props }, ref) => {
     const formatPhoneNumber = (raw: string): string => {
       let digits = raw.replace(/[^\d]/g, "");
       // Drop the US country code when a full +1 number is pasted (e.g. +12137945379).
@@ -64,7 +68,7 @@ export const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
               error ? "text-destructive" : "text-muted-foreground",
             )}
           >
-            {label}
+            {withRequiredMark(label, required)}
           </Label>
           {error && <p className="text-xs text-destructive mt-1">{error}</p>}
         </div>
@@ -73,7 +77,7 @@ export const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
 
     return (
       <div className="space-y-2">
-        {label && <Label htmlFor={id}>{label}</Label>}
+        {label && <Label htmlFor={id}>{withRequiredMark(label, required)}</Label>}
         <Input
           ref={ref}
           id={id}
