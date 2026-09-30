@@ -15,9 +15,8 @@ import { format } from "date-fns";
 import { formatDisplayDate } from "@/shared/utils/formatters";
 import { ChevronLeft, Briefcase, Users, FileText, Check, X } from "lucide-react";
 import { Button }   from "@/shared/components/ui/button";
-import { Textarea } from "@/shared/components/ui/textarea";
 import {
-  FormSection, SelectField, DateField, TimeField,
+  FormSection, SelectField, DateField, TimeField, TextareaField,
 } from "@/shared/components/forms";
 import { ClientPropertyField } from "@/shared/components/common/ClientPropertyField";
 import { ExitConfirmDialog } from "@/shared/components/common/ExitConfirmDialog";
@@ -338,12 +337,11 @@ export function AddWalkthroughPage({
         title="Notes"
         subtitle="Anything the crew should know before the visit"
       >
-        <Textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={3}
+        <TextareaField
+          id="walkthrough-notes"
           placeholder="Enter notes here..."
-          className="min-h-[100px] rounded-md"
+          value={notes}
+          onChange={setNotes}
         />
       </FormSection>
     </>

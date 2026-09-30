@@ -4,11 +4,8 @@
  * Selecting "Post Construction" opens a sub-type picker dialog.
  */
 import { HardHat, Briefcase, Maximize2 } from "lucide-react";
-import { Input } from "@/shared/components/ui/input";
-import { toIntegerString } from "@/shared/utils/numericInput";
 import { cn } from "@/shared/utils/cn";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
-import { FormSection } from "@/shared/components/forms";
+import { FormSection, FloatingInput } from "@/shared/components/forms";
 
 const SERVICE_OPTIONS = [
   "Deep Cleaning",
@@ -105,23 +102,19 @@ export function ResServiceStep({
           )}
 </FormSection>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Maximize2 className="h-4 w-4 text-muted-foreground" />
-            Square Footage
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1.5">
-          <Input
-            type="text"
-            inputMode="numeric"
-            placeholder="e.g. 1500"
-            value={squareFootage}
-            onChange={(e) => onSqftChange(toIntegerString(e.target.value))}
-          />
-        </CardContent>
-      </Card>
+      <FormSection
+        icon={Maximize2}
+        title="Square Footage"
+        subtitle="Total size of the property"
+      >
+        <FloatingInput
+          id="res-square-footage"
+          label="Square footage"
+          type="integer"
+          value={squareFootage}
+          onChange={onSqftChange}
+        />
+      </FormSection>
     </div>
   );
 }

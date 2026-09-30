@@ -1209,7 +1209,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
               Complete Company Information
             </AlertDialogTitle>
             <AlertDialogDescription className="text-base">
-              Para calcular el estimado debes llenar todos los datos de la dirección de tu empresa.
+              Your company address is used to price the estimate. Fill it in to continue.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

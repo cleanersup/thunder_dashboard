@@ -3,11 +3,7 @@
  * Total employees, hourly rate, cleaning duration, start/end time.
  */
 import { Plus, Minus, Users, DollarSign, Timer, AlarmClock } from "lucide-react";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
-import { cn } from "@/shared/utils/cn";
-import { toDecimalString } from "@/shared/utils/numericInput";
-import { FormSection } from "@/shared/components/forms";
+import { FormSection, FloatingInput, TimeField } from "@/shared/components/forms";
 
 export interface CommMainStepProps {
   employeeCount:    number;
@@ -79,15 +75,15 @@ export function CommMainStep({
         title="Hourly Rate Per Employee"
         subtitle="Enter the hourly rate you pay per employee"
       >
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-            <Input
-              type="text" inputMode="decimal" placeholder="0.00" value={hourlyRate}
-              onChange={(e) => { onHourlyRateChange(toDecimalString(e.target.value)); onClearError("hourlyRate"); }}
-              className={cn("pl-7", errors.hourlyRate && "border-destructive")}
-            />
-          </div>
-          {errors.hourlyRate && <p className="text-xs text-destructive">Please enter the hourly rate</p>}
+          <FloatingInput
+            id="comm-hourly-rate"
+            label="Hourly rate ($)"
+            type="decimal"
+            required
+            value={hourlyRate}
+            onChange={(v) => { onHourlyRateChange(v); onClearError("hourlyRate"); }}
+            error={errors.hourlyRate && "Please enter the hourly rate"}
+          />
 </FormSection>
 
       {/* Cleaning duration */}
@@ -111,18 +107,24 @@ export function CommMainStep({
         title="Time"
         subtitle="Set the start time for the cleaning service"
       >
-          <div className="space-y-2">
-            <Label>Start Time</Label>
-            <Input
-              type="time" value={startTime}
-              onChange={(e) => { onStartTimeChange(e.target.value); onClearError("startTime"); }}
-              className={errors.startTime ? "border-destructive" : ""}
+          {/* Inicio y fin son una sola decisión y se leen juntos. El fin no se
+              teclea: sale de sumar la duración a la hora de inicio. */}
+          <div className="grid grid-cols-2 gap-3">
+            <TimeField
+              id="comm-start-time"
+              label="Start Time"
+              required
+              value={startTime}
+              onChange={(v: string) => { onStartTimeChange(v); onClearError("startTime"); }}
+              error={errors.startTime && "Please select the start time"}
             />
-            {errors.startTime && <p className="text-xs text-destructive">Please select the start time</p>}
-          </div>
-          <div className="space-y-2">
-            <Label>End Time</Label>
-            <Input type="time" value={endTime} readOnly className="bg-muted/50 cursor-not-allowed" />
+            <TimeField
+              id="comm-end-time"
+              label="End Time"
+              value={endTime}
+              onChange={() => {}}
+              disabled
+            />
           </div>
 </FormSection>
 

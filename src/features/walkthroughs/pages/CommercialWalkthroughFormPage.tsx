@@ -1,14 +1,10 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  Building2,
-  Camera,
-  X,
+  Building2, Camera, X, CalendarClock, CalendarDays, Droplets, Sparkles,
+  Package, Repeat, Users, DollarSign, Clock, FileText, SprayCan,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent } from "@/shared/components/ui/card";
-import { Input } from "@/shared/components/ui/input";
-import { Textarea } from "@/shared/components/ui/textarea";
 import { Switch } from "@/shared/components/ui/switch";
 import {
   Dialog,
@@ -19,7 +15,10 @@ import {
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { toast } from "sonner";
 import { cn } from "@/shared/utils/cn";
-import { FloatingInput } from "@/shared/components/forms";
+import { FORM_CONTROL_ERROR } from "@/shared/constants/formTokens";
+import {
+  FormSection, FloatingInput, TextareaField, TimeField, OptionGrid,
+} from "@/shared/components/forms";
 import { PickerDialog } from "../components/PickerDialog";
 import { WalkthroughContactCard } from "../components/WalkthroughContactCard";
 import {
@@ -87,13 +86,6 @@ export function CommercialWalkthroughFormPage() {
 
   const frequencyLabel = (v: string) =>
     COMMERCIAL_FREQUENCY_OPTIONS.find((f) => f.value === v)?.label ?? "Select Frequency";
-
-  function toggleExtra(s: string) {
-    setExtraServices((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
-  }
-  function toggleWeekDay(d: string) {
-    setSelectedWeekDays((prev) => prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]);
-  }
 
   async function handleFinish() {
     const errors = {
@@ -177,124 +169,78 @@ export function CommercialWalkthroughFormPage() {
           )}
 
           {/* Property */}
-          <Card>
-            <CardContent className="p-5 space-y-4">
-              <h2 className="text-base font-semibold flex items-center gap-2">
-                <Building2 className="w-4 h-4" /> Property
-              </h2>
-              <p className="text-sm text-muted-foreground">Select property details and service type</p>
+          <FormSection icon={Building2} title="Property" subtitle="Select property details and service type">
               <div className="space-y-3">
                 <Button
-                  variant="outline"
-                  className={cn("w-full justify-start h-10", validationErrors.propertyType && "border-destructive")}
+                  variant="field"
+                  className={cn("w-full justify-start", validationErrors.propertyType && FORM_CONTROL_ERROR)}
                   onClick={() => setShowPropertyTypeDialog(true)}
                 >
                   {propertyType || "Select Property Type"}
                 </Button>
                 <Button
-                  variant="outline"
-                  className="w-full justify-start h-10"
+                  variant="field"
+                  className="w-full justify-start"
                   onClick={() => setShowServiceTypeDialog(true)}
                 >
                   {serviceType === "one-time" ? "One-time" : serviceType === "recurring" ? "Recurring" : "Service Type"}
                 </Button>
                 <FloatingInput type="integer" id="propertySize" label="Property Size (sq ft)" value={propertySize} onChange={setPropertySize} />
               </div>
-            </CardContent>
-          </Card>
+          </FormSection>
 
           {/* Restaurant / Food-Truck specific */}
           {isRestaurant && (
             <>
-              <Card>
-                <CardContent className="p-5 space-y-3">
-                  <h2 className="text-base font-semibold">Service Schedule</h2>
-                  <p className="text-sm text-muted-foreground">Choose when the service will be performed</p>
+              <FormSection icon={CalendarClock} title="Service Schedule" subtitle="Choose when the service will be performed">
                   <Button
-                    variant="outline"
-                    className={cn("w-full justify-start h-10", validationErrors.serviceSchedule && "border-destructive")}
+                    variant="field"
+                    className={cn("w-full justify-start", validationErrors.serviceSchedule && FORM_CONTROL_ERROR)}
                     onClick={() => setShowServiceScheduleDialog(true)}
                   >
                     {serviceSchedule || "Select Schedule"}
                   </Button>
-                </CardContent>
-              </Card>
+              </FormSection>
 
-              <Card>
-                <CardContent className="p-5 space-y-3">
-                  <h2 className="text-base font-semibold">Grease Level</h2>
-                  <p className="text-sm text-muted-foreground">Indicate the current grease accumulation level</p>
+              <FormSection icon={Droplets} title="Grease Level" subtitle="Indicate the current grease accumulation level">
                   <Button
-                    variant="outline"
-                    className={cn("w-full justify-start h-10", validationErrors.greaseLevel && "border-destructive")}
+                    variant="field"
+                    className={cn("w-full justify-start", validationErrors.greaseLevel && FORM_CONTROL_ERROR)}
                     onClick={() => setShowGreaseLevelDialog(true)}
                   >
                     {greaseLevel || "Select Level"}
                   </Button>
-                </CardContent>
-              </Card>
+              </FormSection>
 
-              <Card>
-                <CardContent className="p-5 space-y-3">
-                  <h2 className="text-base font-semibold">Restaurant Condition</h2>
-                  <p className="text-sm text-muted-foreground">Rate the overall cleanliness of the property</p>
+              <FormSection icon={Sparkles} title="Restaurant Condition" subtitle="Rate the overall cleanliness of the property">
                   <Button
-                    variant="outline"
-                    className={cn("w-full justify-start h-10", validationErrors.restaurantCondition && "border-destructive")}
+                    variant="field"
+                    className={cn("w-full justify-start", validationErrors.restaurantCondition && FORM_CONTROL_ERROR)}
                     onClick={() => setShowConditionDialog(true)}
                   >
                     {restaurantCondition || "Select Condition"}
                   </Button>
-                </CardContent>
-              </Card>
+              </FormSection>
 
-              <Card>
-                <CardContent className="p-5 space-y-4">
-                  <h2 className="text-base font-semibold">Extra Services</h2>
-                  <p className="text-sm text-muted-foreground">Select additional services (optional)</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {COMMERCIAL_EXTRA_GROUP_B.map((s) => (
-                      <Button key={s} variant="outline"
-                        className={cn("h-10", extraServices.includes(s) && "bg-accent text-accent-foreground border-accent-foreground/30")}
-                        onClick={() => toggleExtra(s)}
-                      >
-                        {s}
-                      </Button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <FormSection icon={Package} title="Extra Services" subtitle="Select additional services (optional)">
+                  <OptionGrid multiple options={COMMERCIAL_EXTRA_GROUP_B} value={extraServices} onChange={setExtraServices} />
+              </FormSection>
             </>
           )}
 
           {/* Recurring frequency (non-restaurant only) */}
           {serviceType === "recurring" && !isRestaurant && (
             <>
-              <Card>
-                <CardContent className="p-5 space-y-3">
-                  <h2 className="text-base font-semibold">Recurring Frequency</h2>
-                  <Button variant="outline" className="w-full justify-start h-10" onClick={() => setShowFrequencyDialog(true)}>
+              <FormSection icon={Repeat} title="Recurring Frequency">
+                  <Button variant="field" className="w-full justify-start" onClick={() => setShowFrequencyDialog(true)}>
                     {frequencyLabel(recurringFrequency)}
                   </Button>
-                </CardContent>
-              </Card>
+              </FormSection>
 
               {recurringFrequency === "multiple-per-week" && (
-                <Card>
-                  <CardContent className="p-5 space-y-3">
-                    <h2 className="text-base font-semibold">Select Days</h2>
-                    <div className="grid grid-cols-2 gap-3">
-                      {WEEK_DAYS.map((day) => (
-                        <Button key={day} variant="outline"
-                          className={cn("h-10", selectedWeekDays.includes(day) && "bg-accent text-accent-foreground border-accent-foreground/30")}
-                          onClick={() => toggleWeekDay(day)}
-                        >
-                          {day}
-                        </Button>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                <FormSection icon={CalendarDays} title="Select Days">
+                    <OptionGrid multiple options={WEEK_DAYS} value={selectedWeekDays} onChange={setSelectedWeekDays} />
+                </FormSection>
               )}
             </>
           )}
@@ -302,126 +248,73 @@ export function CommercialWalkthroughFormPage() {
           {/* Group A specific */}
           {shouldShowGroupAFields && (
             <>
-              <Card>
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Client Provides Supplies</p>
-                      <p className="text-xs text-muted-foreground">Will the client provide cleaning supplies?</p>
-                    </div>
-                    <Switch checked={clientProvidesSupplies} onCheckedChange={setClientProvidesSupplies} />
-                  </div>
-                </CardContent>
-              </Card>
+              <FormSection
+                icon={SprayCan}
+                title="Client Provides Supplies"
+                subtitle="Will the client provide cleaning supplies?"
+                action={<Switch checked={clientProvidesSupplies} onCheckedChange={setClientProvidesSupplies} />}
+              >
+                <></>
+              </FormSection>
 
-              <Card>
-                <CardContent className="p-5 space-y-3">
-                  <h2 className="text-base font-semibold">Service Schedule</h2>
-                  <p className="text-sm text-muted-foreground">Choose when the service will be performed</p>
-                  <Button variant="outline" className="w-full justify-start h-10" onClick={() => setShowServiceScheduleDialog(true)}>
+              <FormSection icon={CalendarClock} title="Service Schedule" subtitle="Choose when the service will be performed">
+                  <Button variant="field" className="w-full justify-start" onClick={() => setShowServiceScheduleDialog(true)}>
                     {serviceSchedule || "Select Schedule"}
                   </Button>
-                </CardContent>
-              </Card>
+              </FormSection>
 
-              <Card>
-                <CardContent className="p-5 space-y-3">
-                  <h2 className="text-base font-semibold">Dust Level</h2>
-                  <p className="text-sm text-muted-foreground">Indicate the current dust accumulation level</p>
-                  <Button variant="outline" className="w-full justify-start h-10" onClick={() => setShowGreaseLevelDialog(true)}>
+              <FormSection icon={Droplets} title="Dust Level" subtitle="Indicate the current dust accumulation level">
+                  <Button variant="field" className="w-full justify-start" onClick={() => setShowGreaseLevelDialog(true)}>
                     {greaseLevel || "Select Level"}
                   </Button>
-                </CardContent>
-              </Card>
+              </FormSection>
 
-              <Card>
-                <CardContent className="p-5 space-y-3">
-                  <h2 className="text-base font-semibold">Property Condition</h2>
-                  <p className="text-sm text-muted-foreground">Rate the overall cleanliness of the property</p>
-                  <Button variant="outline" className="w-full justify-start h-10" onClick={() => setShowConditionDialog(true)}>
+              <FormSection icon={Sparkles} title="Property Condition" subtitle="Rate the overall cleanliness of the property">
+                  <Button variant="field" className="w-full justify-start" onClick={() => setShowConditionDialog(true)}>
                     {restaurantCondition || "Select Condition"}
                   </Button>
-                </CardContent>
-              </Card>
+              </FormSection>
 
-              <Card>
-                <CardContent className="p-5 space-y-4">
-                  <h2 className="text-base font-semibold">Extra Services</h2>
-                  <p className="text-sm text-muted-foreground">Select additional services (optional)</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {COMMERCIAL_EXTRA_GROUP_A.map((s) => (
-                      <Button key={s} variant="outline"
-                        className={cn("h-10", extraServices.includes(s) && "bg-accent text-accent-foreground border-accent-foreground/30")}
-                        onClick={() => toggleExtra(s)}
-                      >
-                        {s}
-                      </Button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <FormSection icon={Package} title="Extra Services" subtitle="Select additional services (optional)">
+                  <OptionGrid multiple options={COMMERCIAL_EXTRA_GROUP_A} value={extraServices} onChange={setExtraServices} />
+              </FormSection>
             </>
           )}
 
           {/* Main service detail fields */}
           {serviceType && (
             <>
-              <Card>
-                <CardContent className="p-5 space-y-3">
-                  <h2 className="text-base font-semibold">Employee Count</h2>
-                  <p className="text-sm text-muted-foreground">Number of employees needed for this service</p>
+              <FormSection icon={Users} title="Employee Count" subtitle="Number of employees needed for this service">
                   <FloatingInput type="integer" id="empCount" label="Number of employees" value={employeeCount}
                     onChange={(v) => { setEmployeeCount(v); setValidationErrors((p) => ({ ...p, employeeCount: false })); }}
                     error={validationErrors.employeeCount}
                   />
-                </CardContent>
-              </Card>
+              </FormSection>
 
-              <Card>
-                <CardContent className="p-5 space-y-3">
-                  <h2 className="text-base font-semibold">Hourly Rate</h2>
-                  <p className="text-sm text-muted-foreground">Cost per employee per hour</p>
+              <FormSection icon={DollarSign} title="Hourly Rate" subtitle="Cost per employee per hour">
                   <FloatingInput id="hrRate" label="Enter hourly rate ($)" value={hourlyRate} type="decimal"
                     onChange={(v) => { setHourlyRate(v); setValidationErrors((p) => ({ ...p, hourlyRate: false })); }}
                     error={validationErrors.hourlyRate}
                   />
-                </CardContent>
-              </Card>
+              </FormSection>
 
-              <Card>
-                <CardContent className="p-5 space-y-3">
-                  <h2 className="text-base font-semibold">Cleaning Duration</h2>
-                  <p className="text-sm text-muted-foreground">Estimated time needed to complete the service</p>
+              <FormSection icon={Clock} title="Cleaning Duration" subtitle="Estimated time needed to complete the service">
                   <FloatingInput id="cleanDur" label="Duration (hours)" value={cleaningDuration} type="decimal"
                     onChange={(v) => { setCleaningDuration(v); setValidationErrors((p) => ({ ...p, cleaningDuration: false })); }}
                     error={validationErrors.cleaningDuration}
                   />
-                </CardContent>
-              </Card>
+              </FormSection>
 
-              <Card>
-                <CardContent className="p-5 space-y-3">
-                  <h2 className="text-base font-semibold">Start Time</h2>
-                  <p className="text-sm text-muted-foreground">When will the service begin?</p>
-                  <Input id="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-10" />
-                </CardContent>
-              </Card>
+              <FormSection icon={Clock} title="Start Time" subtitle="When will the service begin?">
+                  <TimeField id="startTime" label="Start Time" value={startTime} onChange={setStartTime} />
+              </FormSection>
 
-              <Card>
-                <CardContent className="p-5 space-y-3">
-                  <h2 className="text-base font-semibold">Notes</h2>
-                  <p className="text-sm text-muted-foreground">Add any additional information or special instructions</p>
-                  <Textarea value={notes} onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Add any additional notes..." className="min-h-[100px]" />
-                </CardContent>
-              </Card>
+              <FormSection icon={FileText} title="Notes" subtitle="Add any additional information or special instructions">
+                  <TextareaField id="walkthrough-notes" placeholder="Add any additional notes..."
+                    value={notes} onChange={setNotes} />
+              </FormSection>
 
-              <Card>
-                <CardContent className="p-5 space-y-4">
-                  <h2 className="text-base font-semibold flex items-center gap-2">
-                    <Camera className="w-4 h-4" /> Photos
-                  </h2>
-                  <p className="text-sm text-muted-foreground">Capture images of the property for reference</p>
+              <FormSection icon={Camera} title="Photos" subtitle="Capture images of the property for reference">
                   {photos.length > 0 && (
                     <div className="grid grid-cols-3 gap-2">
                       {photos.map((photo, index) => (
@@ -441,8 +334,7 @@ export function CommercialWalkthroughFormPage() {
                     <Camera className="w-4 h-4" /> Add Photos
                   </Button>
                   <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoCapture} />
-                </CardContent>
-              </Card>
+              </FormSection>
             </>
           )}
 
