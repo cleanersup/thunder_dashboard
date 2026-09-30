@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import {
   Mail, Phone, User, Zap, Edit, Trash2, Briefcase, CheckCircle,
   MoreHorizontal, X, Send, Clock, FileText, MessageSquare, Share, Download, ThumbsDown,
+  ChevronRight,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -35,7 +36,9 @@ import { QK } from "@/shared/config/queryKeys";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { PDFService } from "@/shared/services/pdf.service";
 import { useQuickQuote, useUpdateQuickQuoteStatus, useDeleteQuickQuote } from "../hooks/useQuickQuotes";
-import { convertQuickQuoteToJob, convertQuickQuoteToInvoice, sendQuickQuoteEmail, sendQuickQuoteSMS } from "../services/quickQuoteService";
+import { convertQuickQuoteToJob, convertQuickQuoteToInvoice, sendQuickQuoteEmail, sendQuickQuoteSMS, buildQuickQuotePublicUrl } from "../services/quickQuoteService";
+import type { QuickQuoteRow } from "../types/quickQuote.types";
+import { supabase } from "@/integrations/supabase/client";
 import {
   CompleteQuickQuoteClientDialog, type QuickQuoteJobOverrides,
 } from "./CompleteQuickQuoteClientDialog";
@@ -75,24 +78,16 @@ function InfoRow({ icon: Icon, children }: { icon: any; children: React.ReactNod
   );
 }
 
-function quotePublicUrl(quote: { id: string; public_share_token: string | null }): string {
-  const host = window.location.hostname;
-  if (host === "thunderpro.co" || host === "www.thunderpro.co" || host === "portal.thunderpro.co") {
-    return quote.public_share_token
-      ? `https://thunderpro.co/public/quick-quote/${quote.public_share_token}`
-      : `https://thunderpro.co/${quote.id}`;
-  }
-  if (host.includes("staging")) return `https://staging.thunderpro.co/${quote.id}`;
-  return `${window.location.origin}/${quote.id}`;
-}
-
 export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConvert }: Props) {
   const qc       = useQueryClient();
   const navigate = useNavigate();
-  const { data: quote, isLoading } = useQuickQuote(open ? quoteId : null);
+  const { data: fetchedQuote, isLoading } = useQuickQuote(open ? quoteId : null);
   const { data: profile } = useProfile();
   const updateStatus = useUpdateQuickQuoteStatus();
   const deleteQuote  = useDeleteQuickQuote();
+  // Igual que EstimateDetailPanel: el badge y el footer leen estado local para
+  // que Accept/Decline/Cancel se vean al instante, sin esperar un refetch.
+  const [quote, setQuote] = useState<QuickQuoteRow | null>(null);
 
   const [isConverting,      setIsConverting]      = useState(false);
   const [convertTarget,     setConvertTarget]     = useState<"job" | "invoice" | null>(null);
@@ -107,25 +102,58 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
 
   useEffect(() => {
     if (!open) {
+      setQuote(null);
       setConvertOpen(false);
       return;
     }
-    if (openConvert && quote?.status === "Accepted") setConvertOpen(true);
+    if (fetchedQuote && fetchedQuote.id === quoteId) {
+      setQuote((prev) => {
+        if (!prev || prev.id !== fetchedQuote.id) return fetchedQuote;
+        const local = prev.status;
+        const remote = fetchedQuote.status;
+        if (
+          (local === "Accepted" || local === "Declined" || local === "Canceled") &&
+          (remote === "Pending" || remote === "Viewed" || remote === "Sent")
+        ) {
+          return { ...fetchedQuote, status: local };
+        }
+        return fetchedQuote;
+      });
+    }
+  }, [open, fetchedQuote, quoteId]);
+
+  useEffect(() => {
+    if (open && openConvert && quote?.status === "Accepted") setConvertOpen(true);
   }, [open, openConvert, quote?.status]);
 
   // El status puede cambiar desde el backend (`Sent` al enviar, `Viewed` cuando
-  // el destinatario abre el link), así que el panel abierto se mantiene al día.
+  // el destinatario abre el link) o desde Accept en este panel. Igual que estimates:
+  // realtime sobre la fila abierta actualiza el badge sin recargar.
   useEffect(() => {
     if (!open || !quoteId) return;
-    const id = setInterval(() => {
-      qc.invalidateQueries({ queryKey: QK.quickQuote(quoteId) });
-    }, 30_000);
-    return () => clearInterval(id);
+    const channel = supabase
+      .channel(`quick-quote-panel-${quoteId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "quick_quotes", filter: `id=eq.${quoteId}` },
+        (payload) => {
+          const n = payload.new as Record<string, unknown>;
+          setQuote((prev) => (prev ? { ...prev, ...n } as QuickQuoteRow : prev));
+          qc.setQueryData(QK.quickQuote(quoteId), (prev: unknown) => {
+            if (!prev || typeof prev !== "object") return prev;
+            return { ...prev, ...n };
+          });
+          qc.invalidateQueries({ queryKey: QK.quickQuotes });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [open, quoteId, qc]);
 
   async function handleMarkAccepted() {
     if (!quote) return;
     await updateStatus.mutateAsync({ id: quote.id, status: "Accepted" });
+    setQuote({ ...quote, status: "Accepted" });
     setIsAcceptOpen(false);
     toast.success("Quick quote accepted");
   }
@@ -133,12 +161,14 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
   async function handleDecline() {
     if (!quote) return;
     await updateStatus.mutateAsync({ id: quote.id, status: "Declined" });
+    setQuote({ ...quote, status: "Declined" });
     toast.success("Quick quote declined");
   }
 
   async function handleCancel() {
     if (!quote) return;
     await updateStatus.mutateAsync({ id: quote.id, status: "Canceled" });
+    setQuote({ ...quote, status: "Canceled" });
     setIsCancelOpen(false);
     toast.success("Quick quote canceled");
   }
@@ -188,7 +218,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
     if (!quote) return;
     setIsGeneratingLink(true);
     try {
-      await navigator.clipboard.writeText(quotePublicUrl(quote));
+      await navigator.clipboard.writeText(buildQuickQuotePublicUrl(quote));
       toast.success("Link copied to clipboard");
     } catch {
       toast.error("Failed to copy link");
@@ -273,6 +303,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
         });
         qc.invalidateQueries({ queryKey: QK.jobs });
         qc.invalidateQueries({ queryKey: QK.quickQuotes });
+        qc.invalidateQueries({ queryKey: QK.quickQuote(quote.id) });
         qc.invalidateQueries({ queryKey: QK.clients });
         setConvertTarget(null);
         onClose();
@@ -296,6 +327,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
       });
       qc.invalidateQueries({ queryKey: QK.invoices });
       qc.invalidateQueries({ queryKey: QK.quickQuotes });
+      qc.invalidateQueries({ queryKey: QK.quickQuote(quote.id) });
       qc.invalidateQueries({ queryKey: QK.clients });
       setConvertTarget(null);
       onClose();
@@ -349,28 +381,47 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
           <ThumbsDown className="w-4 h-4 mr-2 text-orange-500" /> Decline
         </DropdownMenuItem>
         <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setIsCancelOpen(true)}>
-          <X className="w-4 h-4 mr-2" /> Cancel Quote
+          <X className="w-4 h-4 mr-2" /> Cancel Estimate
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   ) : null;
 
-  const footer = quote ? (
-    isAwaiting ? (
-      <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          className="flex-1"
-          style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }}
-          onClick={() => setIsAcceptOpen(true)}
-        >
-          <CheckCircle className="w-4 h-4 mr-1.5" /> Mark as Accepted
+  const acceptedMenu = quote ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="outline" className="px-2.5">
+          <MoreHorizontal className="w-4 h-4" />
         </Button>
-        {awaitingMenu}
-      </div>
-    ) : (
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={handleDownloadPDF} disabled={isDownloadingPDF}>
+          <Download className="w-4 h-4 mr-2" /> {isDownloadingPDF ? "Downloading…" : "Download PDF"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleShare} disabled={isGeneratingLink}>
+          <Share className="w-4 h-4 mr-2" /> {isGeneratingLink ? "Generating…" : "Share"}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
+
+  const isTerminalConverted = status === "Converted" || status === "Invoiced" || (isConverted && isInvoiced);
+
+  const footer = !quote || isTerminalConverted ? undefined : isAwaiting ? (
     <div className="flex items-center gap-2">
-      {isAccepted && !isConverted && (
+      <Button
+        size="sm"
+        className="flex-1"
+        style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }}
+        onClick={() => setIsAcceptOpen(true)}
+      >
+        <CheckCircle className="w-4 h-4 mr-1.5" /> Mark as Accepted
+      </Button>
+      {awaitingMenu}
+    </div>
+  ) : isAccepted ? (
+    <div className="flex items-center gap-2">
+      {!isConverted && (
         <Button
           size="sm"
           className="flex-1"
@@ -382,12 +433,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
           {isConverting && convertTarget === "job" ? "Converting…" : "Convert to Job"}
         </Button>
       )}
-      {isConverted && (
-        <Button size="sm" variant="outline" className="flex-1" disabled>
-          Converted to job
-        </Button>
-      )}
-      {isAccepted && !isInvoiced && (
+      {!isInvoiced && (
         <Button
           size="sm"
           className="flex-1"
@@ -399,16 +445,28 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
           {isConverting && convertTarget === "invoice" ? "Converting…" : "Convert to Invoice"}
         </Button>
       )}
-      {isInvoiced && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="flex-1"
-          onClick={() => { onClose(); navigate("/invoices", { state: { openId: quote.invoice_id } }); }}
-        >
-          <FileText className="w-4 h-4 mr-1.5" /> View Invoice
-        </Button>
-      )}
+      {acceptedMenu}
+    </div>
+  ) : status === "Declined" ? (
+    <div className="flex items-center gap-2">
+      <Button size="sm" className="flex-1" onClick={() => { onClose(); onEdit?.(quote.id); }}>
+        <Edit className="w-4 h-4 mr-1.5" /> Edit
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="outline" className="px-2.5">
+            <MoreHorizontal className="w-4 h-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setIsCancelOpen(true)}>
+            <X className="w-4 h-4 mr-2" /> Cancel Estimate
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  ) : (
+    <div className="flex items-center gap-2">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" variant="outline" className="px-2.5">
@@ -416,15 +474,6 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
-          <DropdownMenuItem onClick={() => { onClose(); onEdit?.(quote.id); }}>
-            <Edit className="w-4 h-4 mr-2" /> Edit and resend
-          </DropdownMenuItem>
-          {status !== "Declined" && status !== "Canceled" && (
-            <DropdownMenuItem onClick={handleDecline}>
-              <X className="w-4 h-4 mr-2 text-orange-500" /> Mark as Declined
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
             onClick={() => setIsDeleteOpen(true)}
@@ -434,8 +483,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-    )
-  ) : undefined;
+  );
 
   return (
     <>
@@ -484,6 +532,56 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
                 </div>
               </CardContent>
             </Card>
+
+            {/* Converted To — same card pattern as EstimateDetailPanel */}
+            {(status === "Converted" || status === "Invoiced" || quote.job_id || quote.invoice_id) && (
+              <Card className="border border-border/50">
+                <CardContent className="p-4 space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Converted To
+                  </p>
+                  {quote.job_id ? (
+                    <button
+                      type="button"
+                      onClick={() => { onClose(); navigate("/jobs", { state: { openId: quote.job_id } }); }}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-secondary/50 transition-colors text-left"
+                    >
+                      <div className="p-2 rounded bg-blue-500/10 flex-shrink-0">
+                        <Briefcase className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">Job</p>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {quote.service_sub_type || quote.service_type}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                    </button>
+                  ) : null}
+                  {quote.invoice_id ? (
+                    <button
+                      type="button"
+                      onClick={() => { onClose(); navigate("/invoices", { state: { openId: quote.invoice_id } }); }}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-secondary/50 transition-colors text-left"
+                    >
+                      <div className="p-2 rounded bg-green-500/10 flex-shrink-0">
+                        <FileText className="w-4 h-4 text-green-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">Invoice</p>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {quote.service_sub_type || quote.service_type}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                    </button>
+                  ) : null}
+                  {!quote.job_id && !quote.invoice_id && (
+                    <p className="text-sm text-muted-foreground">The linked job was deleted.</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Envío y seguimiento */}
             <Card className="border border-border/50">
@@ -630,15 +728,15 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
       <AlertDialog open={isCancelOpen} onOpenChange={setIsCancelOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Quote</AlertDialogTitle>
+            <AlertDialogTitle>Cancel Estimate</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to cancel this quote? This action cannot be undone.
+              Are you sure? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep Quote</AlertDialogCancel>
+            <AlertDialogCancel>Keep</AlertDialogCancel>
             <AlertDialogAction onClick={handleCancel} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Cancel Quote
+              Cancel Estimate
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

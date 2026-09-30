@@ -11,7 +11,7 @@ import {
   Plus, Search, CheckCircle, Clock, FileText, DollarSign,
   MoreHorizontal, Edit, Mail, Share, Download, X, ChevronLeft, ChevronRight,
   BookOpen, FileSignature, Play, RefreshCw, Trash2, Calendar as CalendarIcon, MessageSquare, Briefcase,
-  Zap, ArrowRightLeft,
+  Zap, ThumbsDown,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -34,8 +34,9 @@ import { useProfile } from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { PDFService } from "@/shared/services/pdf.service";
 import { deleteDraftEstimate } from "../services/estimatesService";
-import { useQuickQuotes } from "../hooks/useQuickQuotes";
+import { useQuickQuotes, useUpdateQuickQuoteStatus } from "../hooks/useQuickQuotes";
 import { QuickQuoteDetailPanel } from "../components/QuickQuoteDetailPanel";
+import { sendQuickQuoteEmail, sendQuickQuoteSMS, fetchQuickQuote, buildQuickQuotePublicUrl } from "../services/quickQuoteService";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -83,7 +84,16 @@ export function EstimatesPage() {
         // y `Viewed` cuando el destinatario abre el link — así que la lista no puede
         // esperar a un refetch manual.
         .on("postgres_changes", { event: "*", schema: "public", table: "quick_quotes", filter: `user_id=eq.${user.id}` },
-          () => queryClient.invalidateQueries({ queryKey: QK.quickQuotes }))
+          (payload) => {
+            queryClient.invalidateQueries({ queryKey: QK.quickQuotes });
+            const n = payload.new as { id?: string } | undefined;
+            if (n?.id) {
+              queryClient.setQueryData(QK.quickQuote(n.id), (prev: unknown) => {
+                if (!prev || typeof prev !== "object") return prev;
+                return { ...prev, ...(payload.new as object) };
+              });
+            }
+          })
         .subscribe();
     });
     return () => { if (ch) supabase.removeChannel(ch); };
@@ -92,6 +102,7 @@ export function EstimatesPage() {
   const { sendEstimateEmail, isSending }        = useSendEstimateEmail();
   const { sendEstimateSMS, isSendingSMS }       = useSendEstimateSMS();
   const updateStatus = useUpdateEstimateStatus();
+  const updateQuickQuoteStatus = useUpdateQuickQuoteStatus();
 
   // ── Filters + pagination ──────────────────────────────────────────────────
   const [searchQuery,    setSearchQuery]    = useState("");
@@ -157,6 +168,8 @@ export function EstimatesPage() {
     total:          q.total,
     status:         q.status,
     job_id:         q.job_id,
+    invoice_id:     q.invoice_id,
+    public_share_token: q.public_share_token,
     phone:          q.recipient_phone,
     email:          q.recipient_email,
     hasDraftData:   false,
@@ -247,21 +260,36 @@ export function EstimatesPage() {
 
   async function handleAcceptEstimate() {
     if (!actionEstimate) return;
-    await updateStatus.mutateAsync({ id: actionEstimate.id, status: "Accepted", estimate: { client_name: actionEstimate.clientName, total: actionEstimate.total } });
+    if (actionEstimate.kind === "quick_quote") {
+      await updateQuickQuoteStatus.mutateAsync({ id: actionEstimate.id, status: "Accepted" });
+      toast.success("Quick quote accepted");
+    } else {
+      await updateStatus.mutateAsync({ id: actionEstimate.id, status: "Accepted", estimate: { client_name: actionEstimate.clientName, total: actionEstimate.total } });
+      toast.success("Estimate accepted");
+    }
     setIsAcceptDialogOpen(false);
     setActionEstimate(null);
-    toast.success("Estimate accepted");
   }
 
   async function handleCancelEstimate() {
     if (!actionEstimate) return;
-    await updateStatus.mutateAsync({ id: actionEstimate.id, status: "Canceled", estimate: { client_name: actionEstimate.clientName, total: actionEstimate.total } });
+    if (actionEstimate.kind === "quick_quote") {
+      await updateQuickQuoteStatus.mutateAsync({ id: actionEstimate.id, status: "Canceled" });
+      toast.success("Quick quote canceled");
+    } else {
+      await updateStatus.mutateAsync({ id: actionEstimate.id, status: "Canceled", estimate: { client_name: actionEstimate.clientName, total: actionEstimate.total } });
+      toast.success("Estimate canceled");
+    }
     setIsCancelDialogOpen(false);
     setActionEstimate(null);
-    toast.success("Estimate canceled");
   }
 
   async function handleDeclineEstimate(estimate: any) {
+    if (estimate.kind === "quick_quote") {
+      await updateQuickQuoteStatus.mutateAsync({ id: estimate.id, status: "Declined" });
+      toast.success("Quick quote declined");
+      return;
+    }
     await updateStatus.mutateAsync({ id: estimate.id, status: "Declined", estimate: { client_name: estimate.clientName, total: estimate.total } });
     toast.success("Estimate declined");
   }
@@ -330,6 +358,95 @@ export function EstimatesPage() {
       doc.save(`Estimate_${data.id.substring(0, 8).toUpperCase()}_${data.client_name.replace(/\s+/g, "_")}.pdf`);
       toast.success("PDF downloaded!");
     } catch { toast.error("Failed to generate PDF"); }
+  }
+
+  async function handleQuickQuoteSendEmail(row: any) {
+    if (!row.email) return;
+    try {
+      await sendQuickQuoteEmail({
+        quickQuoteId:   row.id,
+        recipientEmail: row.email,
+        recipientName:  row.clientName !== "—" ? row.clientName : undefined,
+        isUpdate:       true,
+      });
+      toast.success("Reminder sent by email");
+      queryClient.invalidateQueries({ queryKey: QK.quickQuotes });
+    } catch {
+      toast.error("Failed to send email");
+    }
+  }
+
+  async function handleQuickQuoteSendSMS(row: any) {
+    if (!row.phone) return;
+    try {
+      await sendQuickQuoteSMS({
+        quickQuoteId:  row.id,
+        phoneNumber:   row.phone,
+        recipientName: row.clientName !== "—" ? row.clientName : undefined,
+        quoteTotal:    row.total,
+        isUpdate:      true,
+      });
+      toast.success("Reminder sent by SMS");
+      queryClient.invalidateQueries({ queryKey: QK.quickQuotes });
+    } catch {
+      toast.error("Failed to send SMS");
+    }
+  }
+
+  async function handleQuickQuoteShare(row: any) {
+    try {
+      await navigator.clipboard.writeText(buildQuickQuotePublicUrl({
+        id: row.id,
+        public_share_token: row.public_share_token ?? null,
+      }));
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error("Failed to copy link");
+    }
+  }
+
+  async function handleQuickQuoteDownloadPDF(row: any) {
+    const quote = await fetchQuickQuote(row.id);
+    if (!quote || !profile) { toast.error("Missing data to generate PDF"); return; }
+    try {
+      toast.info("Generating PDF...");
+      const doc = await PDFService.generateEstimatePDF({
+        companyLogo:    profile.company_logo    ?? undefined,
+        companyName:    profile.company_name    ?? "",
+        companyPhone:   profile.company_phone   ?? "",
+        companyEmail:   profile.company_email   ?? "",
+        companyAddress: profile.company_address ?? "",
+        companyCity:    profile.company_city    ?? "",
+        companyState:   profile.company_state   ?? "",
+        companyZip:     profile.company_zip     ?? "",
+        clientName:     quote.recipient_name    ?? "",
+        clientPhone:    quote.recipient_phone   ?? "",
+        clientEmail:    quote.recipient_email   ?? "",
+        clientAddress:  "",
+        clientCity:     "",
+        clientState:    "",
+        clientZip:      "",
+        estimateNumber: quote.id.substring(0, 8).toUpperCase(),
+        estimateDate:   formatDateOnly(quote.quote_date, "MMMM dd, yyyy"),
+        documentTitle:  "PROFESSIONAL CLEANING QUOTE",
+        numberLabel:    "Quote #",
+        serviceType:    quote.service_type,
+        serviceSubType: quote.service_sub_type ?? undefined,
+        serviceScope:   quote.service_scope   ?? undefined,
+        mainData:       (quote.main_data       as Record<string, any>) ?? undefined,
+        additionalData: (quote.additional_data as Record<string, any>) ?? undefined,
+        extraServices:  (quote.extra_services  as Record<string, boolean>) ?? undefined,
+        subtotal:       quote.subtotal,
+        discountType:   quote.discount_type   ?? undefined,
+        discountValue:  quote.discount_value  ?? undefined,
+        total:          quote.total,
+      });
+      const name = (quote.recipient_name || "quote").replace(/\s+/g, "_");
+      doc.save(`Quote_${quote.id.substring(0, 8).toUpperCase()}_${name}.pdf`);
+      toast.success("PDF downloaded!");
+    } catch {
+      toast.error("Failed to generate PDF");
+    }
   }
 
   async function handleEditEstimate(estimate: any) {
@@ -530,17 +647,57 @@ export function EstimatesPage() {
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openRow(estimate); }}>
                               <FileText className="w-4 h-4 mr-2" /> View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openQuickQuoteForm(estimate.id); }}>
-                              <Edit className="w-4 h-4 mr-2" /> Edit and resend
-                            </DropdownMenuItem>
+                            {(estimate.status === "Pending" || estimate.status === "Viewed" || estimate.status === "Sent") && (
+                              <>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openQuickQuoteForm(estimate.id); }}>
+                                  <Edit className="w-4 h-4 mr-2" /> Edit
+                                </DropdownMenuItem>
+                                {estimate.email && (
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleQuickQuoteSendEmail(estimate); }}>
+                                    <Mail className="w-4 h-4 mr-2" /> Send reminder by email
+                                  </DropdownMenuItem>
+                                )}
+                                {estimate.phone && (
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleQuickQuoteSendSMS(estimate); }}>
+                                    <MessageSquare className="w-4 h-4 mr-2" /> Send reminder by SMS
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleQuickQuoteShare(estimate); }}>
+                                  <Share className="w-4 h-4 mr-2" /> Share
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleQuickQuoteDownloadPDF(estimate); }}>
+                                  <Download className="w-4 h-4 mr-2" /> Download PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDeclineEstimate(estimate); }}>
+                                  <ThumbsDown className="w-4 h-4 mr-2 text-orange-500" /> Decline
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive focus:text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); setActionEstimate(estimate); setIsCancelDialogOpen(true); }}>
+                                  <X className="w-4 h-4 mr-2" /> Cancel Estimate
+                                </DropdownMenuItem>
+                              </>
+                            )}
                             {estimate.status === "Accepted" && (
-                              <DropdownMenuItem onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedQuickQuoteId(estimate.id);
-                                setQuickQuoteConvertOpen(true);
-                              }}>
-                                <ArrowRightLeft className="w-4 h-4 mr-2" /> Convert Quote
-                              </DropdownMenuItem>
+                              <>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleQuickQuoteDownloadPDF(estimate); }}>
+                                  <Download className="w-4 h-4 mr-2" /> Download PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleQuickQuoteShare(estimate); }}>
+                                  <Share className="w-4 h-4 mr-2" /> Share
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {estimate.status === "Declined" && (
+                              <>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openQuickQuoteForm(estimate.id); }}>
+                                  <Edit className="w-4 h-4 mr-2" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive focus:text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); setActionEstimate(estimate); setIsCancelDialogOpen(true); }}>
+                                  <X className="w-4 h-4 mr-2" /> Cancel Estimate
+                                </DropdownMenuItem>
+                              </>
                             )}
                           </>
                         ) : estimate.status === "Draft" ? (

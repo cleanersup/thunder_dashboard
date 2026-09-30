@@ -26,11 +26,13 @@ export function useQuickQuotes() {
 /** Un quick quote por id. */
 export function useQuickQuote(id: string | null) {
   return useQuery({
-    queryKey:  QK.quickQuote(id!),
-    queryFn:   () => fetchQuickQuote(id!),
-    enabled:   !!id,
-    staleTime: 60 * 1000,
-    retry:     false,
+    queryKey:             QK.quickQuote(id!),
+    queryFn:              () => fetchQuickQuote(id!),
+    enabled:              !!id,
+    staleTime:            0,
+    refetchOnMount:       "always",
+    refetchOnWindowFocus: true,
+    retry:                false,
   });
 }
 
@@ -59,9 +61,12 @@ export function useUpdateQuickQuoteStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => updateQuickQuoteStatus(id, status),
-    onSuccess:  (_data, { id }) => {
+    onSuccess:  (_data, { id, status }) => {
+      qc.setQueryData(QK.quickQuote(id), (prev: unknown) => {
+        if (!prev || typeof prev !== "object") return prev;
+        return { ...prev, status };
+      });
       qc.invalidateQueries({ queryKey: QK.quickQuotes });
-      qc.invalidateQueries({ queryKey: QK.quickQuote(id) });
     },
   });
 }

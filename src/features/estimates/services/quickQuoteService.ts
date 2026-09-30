@@ -16,6 +16,22 @@ import { generateInvoiceNumber } from "@/features/invoices/services/invoicesServ
 import { getPublicQuickQuote } from "@/shared/services/publicAccess";
 import type { QuickQuoteInsert, QuickQuoteRow } from "../types/quickQuote.types";
 
+/** Public View Quote URL — same hosts the email/SMS backend uses. */
+export function buildQuickQuotePublicUrl(quote: {
+  id: string;
+  public_share_token: string | null;
+}): string {
+  const slug = quote.public_share_token || quote.id;
+  const host = window.location.hostname;
+  if (host === "thunderpro.co" || host === "www.thunderpro.co" || host === "portal.thunderpro.co") {
+    return `https://thunderpro.co/public/quick-quote/${slug}`;
+  }
+  if (host.includes("staging")) {
+    return `https://staging.thunderpro.co/public/quick-quote/${slug}`;
+  }
+  return `${window.location.origin}/public/quick-quote/${slug}`;
+}
+
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 /**
