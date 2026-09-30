@@ -7,13 +7,12 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import {
-  Plus, Trash2, X, User, Users, CalendarClock, Package, DollarSign, FileText,
+  X, User, Users, CalendarClock, Package, DollarSign, FileText,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Label } from "@/shared/components/ui/label";
-import { Switch } from "@/shared/components/ui/switch";
 import {
-  FormSection, FloatingInput, SelectField, DateField, TimeField, TextareaField,
+  FormSection, SelectField, DateField, TimeField, TextareaField,
+  LineItemsFields, AddLineItemButton, PricingFields,
 } from "@/shared/components/forms";
 import { FORM_SECTION_GAP } from "@/shared/constants/formTokens";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
@@ -434,46 +433,24 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                 icon={Package}
                 title="Services"
                 subtitle="What is being charged for"
-                action={
-                  <Button size="sm" variant="outline" type="button" onClick={() => setServices((p) => [...p, newServiceItem()])}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add
-                  </Button>
-                }
+                action={<AddLineItemButton onClick={() => setServices((p) => [...p, newServiceItem()])} />}
               >
-                {services.map((item, idx) => (
-                  <div key={item.id} className="grid grid-cols-[1fr_80px_100px_32px] gap-2 items-start">
-                    <FloatingInput
-                      id={`service-name-${item.id}`}
-                      label="Service"
-                      value={item.name}
-                      onChange={(v) => updateService(idx, "name", v)}
-                    />
-                    <FloatingInput
-                      id={`service-qty-${item.id}`}
-                      label="Qty"
-                      type="integer"
-                      value={String(item.quantity)}
-                      onChange={(v) => updateService(idx, "quantity", v || "1")}
-                    />
-                    <FloatingInput
-                      id={`service-price-${item.id}`}
-                      label="Price"
-                      type="decimal"
-                      value={item.unitPrice ? String(item.unitPrice) : ""}
-                      onChange={(v) => updateService(idx, "unitPrice", v)}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      type="button"
-                      className="h-12 w-8 text-destructive hover:text-destructive"
-                      onClick={() => setServices((p) => p.filter((_, i) => i !== idx))}
-                      disabled={services.length === 1}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
+                <LineItemsFields
+                  descriptionLabel="Service"
+                  items={services.map((it) => ({
+                    id: it.id,
+                    description: it.name,
+                    quantity: String(it.quantity),
+                    unitPrice: it.unitPrice ? String(it.unitPrice) : "",
+                  }))}
+                  onChange={(idx, field, v) => {
+                    if (field === "description") updateService(idx, "name", v);
+                    else if (field === "quantity") updateService(idx, "quantity", v || "1");
+                    else updateService(idx, "unitPrice", v);
+                  }}
+                  onRemove={(idx) => setServices((p) => p.filter((_, i) => i !== idx))}
+                  onAdd={() => setServices((p) => [...p, newServiceItem()])}
+                />
               </FormSection>
 
               <FormSection
@@ -481,95 +458,39 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                 title="Pricing"
                 subtitle="Discount, tax and deposit applied to the total"
               >
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">${subtotal.toFixed(2)}</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">Discount</Label>
-                  <Switch checked={applyDiscount} onCheckedChange={setApplyDiscount} />
-                </div>
-                {applyDiscount && (
-                  <>
-                    <div className="grid grid-cols-[100px_1fr] gap-2">
-                      <SelectField
-                        placeholder="Type"
-                        value={discountType}
-                        onChange={(v) => setDiscountType(v as "percentage" | "amount")}
-                        options={RATE_TYPE_OPTIONS}
-                      />
-                      <FloatingInput
-                        id="job-discount-value"
-                        label="Discount value"
-                        type="decimal"
-                        value={discountValueStr}
-                        onChange={setDiscountValueStr}
-                      />
-                    </div>
-                    {discountAmount > 0 && (
-                      <div className="flex justify-between text-sm text-destructive">
-                        <span>Discount</span><span>-${discountAmount.toFixed(2)}</span>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">Tax</Label>
-                  <Switch checked={applyTax} onCheckedChange={setApplyTax} />
-                </div>
-                {applyTax && (
-                  <>
-                    <FloatingInput
-                      id="job-tax-rate"
-                      label="Tax rate (%)"
-                      type="decimal"
-                      value={taxRateStr}
-                      onChange={setTaxRateStr}
-                    />
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Tax</span>
-                      <span className="font-medium">${taxAmount.toFixed(2)}</span>
-                    </div>
-                  </>
-                )}
-
-                <div className="flex justify-between text-sm font-bold border-t pt-2">
-                  <span>Total</span><span>${total.toFixed(2)}</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">Deposit Required</Label>
-                  <Switch checked={applyDeposit} onCheckedChange={setApplyDeposit} />
-                </div>
-                {applyDeposit && (
-                  <>
-                    <div className="grid grid-cols-[100px_1fr] gap-2">
-                      <SelectField
-                        placeholder="Type"
-                        value={depositType}
-                        onChange={(v) => setDepositType(v as "percentage" | "amount")}
-                        options={RATE_TYPE_OPTIONS}
-                      />
-                      <FloatingInput
-                        id="job-deposit-value"
-                        label="Deposit value"
-                        type="decimal"
-                        value={depositValueStr}
-                        onChange={setDepositValueStr}
-                      />
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Deposit</span>
-                      <span className="font-medium">${depositAmount.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Balance Due</span>
-                      <span className="font-medium">${balanceDue.toFixed(2)}</span>
-                    </div>
-                  </>
-                )}
+                <PricingFields
+                  idPrefix="job"
+                  subtotal={subtotal}
+                  discount={{
+                    enabled: applyDiscount,
+                    onEnabledChange: setApplyDiscount,
+                    type: discountType,
+                    onTypeChange: (v) => setDiscountType(v as "percentage" | "amount"),
+                    typeOptions: RATE_TYPE_OPTIONS,
+                    value: discountValueStr,
+                    onValueChange: setDiscountValueStr,
+                    amount: discountAmount,
+                  }}
+                  tax={{
+                    enabled: applyTax,
+                    onEnabledChange: setApplyTax,
+                    rate: taxRateStr,
+                    onRateChange: setTaxRateStr,
+                    amount: taxAmount,
+                  }}
+                  total={total}
+                  deposit={{
+                    enabled: applyDeposit,
+                    onEnabledChange: setApplyDeposit,
+                    type: depositType,
+                    onTypeChange: (v) => setDepositType(v as "percentage" | "amount"),
+                    typeOptions: RATE_TYPE_OPTIONS,
+                    value: depositValueStr,
+                    onValueChange: setDepositValueStr,
+                    amount: depositAmount,
+                    balanceDue,
+                  }}
+                />
               </FormSection>
 
               <FormSection
