@@ -1,25 +1,18 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
-import { CheckCircle2, CalendarIcon } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { createNotification } from "@/features/notifications/services/notificationsService";
 import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
-import { Textarea } from "@/shared/components/ui/textarea";
 import { Card, CardContent } from "@/shared/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
-import { Calendar } from "@/shared/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
+import { FloatingInput, SelectField, DateField, TextareaField, OptionGrid } from "@/shared/components/forms";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { usePublicProfile, usePublicBookingForms } from "../hooks/useBookings";
 import { submitPublicBooking } from "../services/bookingService";
 import { toast } from "sonner";
-import { cn } from "@/shared/utils/cn";
 import { toIntegerString } from "@/shared/utils/numericInput";
 import { TIME_PREFERENCE_OPTIONS } from "@/shared/utils/timePreference";
 import { format } from "date-fns";
-import { formatDisplayDate } from "@/shared/utils/formatters";
 import type { CustomQuestion } from "../types/booking.types";
 
 const ADDITIONAL_SERVICES = [
@@ -27,36 +20,14 @@ const ADDITIONAL_SERVICES = [
   "Patio", "Garage", "Pets", "Laundry", "Windows",
 ];
 
+const SERVICE_TYPE_OPTIONS = [
+  { value: "residential", label: "Residential" },
+  { value: "commercial",  label: "Commercial" },
+];
+
 const COMMERCIAL_TYPES = [
   "School", "Church", "Office", "Warehouse", "Restaurant", "Other",
 ];
-
-/** Floating label input for the public form. */
-function FloatingInput({
-  id, label, type = "text", value, onChange,
-}: {
-  id: string; label: string; type?: string;
-  value: string; onChange: (v: string) => void;
-}) {
-  return (
-    <div className="relative">
-      <Input
-        id={id}
-        type={type}
-        placeholder=" "
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-12 rounded-md border border-border focus-visible:ring-0 focus-visible:border-primary px-3 bg-white peer"
-      />
-      <Label
-        htmlFor={id}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground bg-white px-1 transition-all pointer-events-none peer-focus:top-0 peer-focus:text-xs peer-focus:text-primary peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-primary"
-      >
-        {label}
-      </Label>
-    </div>
-  );
-}
 
 /**
  * Public booking form page — accessible without authentication.
@@ -137,11 +108,6 @@ export function PublicBookingFormPage() {
     onError:   (err: Error) => toast.error(err.message ?? "Failed to submit booking"),
   });
 
-  const toggleAdditionalService = (s: string) =>
-    setAdditionalServices((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
-    );
-
   // ─── Loading / error / success states ────────────────────────────────────
   if (profileLoading) return <LoadingSpinner fullScreen />;
 
@@ -184,9 +150,9 @@ export function PublicBookingFormPage() {
           <CardContent className="p-4 space-y-6">
             <h3 className="text-base font-semibold">Personal Information</h3>
             <div className="space-y-6">
-              <FloatingInput id="fullName" label="Full Name *" value={fullName} onChange={setFullName} />
-              <FloatingInput id="email"    label="Email *"     value={email}    onChange={setEmail}    type="email" />
-              <FloatingInput id="phone"    label="Phone *"     value={phone}    onChange={setPhone} />
+              <FloatingInput id="fullName" label="Full Name" required value={fullName} onChange={setFullName} />
+              <FloatingInput id="email"    label="Email" required     value={email}    onChange={setEmail}    type="email" />
+              <FloatingInput id="phone"    label="Phone" required     value={phone}    onChange={setPhone} />
             </div>
           </CardContent>
         </Card>
@@ -196,14 +162,14 @@ export function PublicBookingFormPage() {
           <CardContent className="p-4 space-y-6">
             <h3 className="text-base font-semibold">Address</h3>
             <div className="space-y-6">
-              <FloatingInput id="street" label="Street *"   value={street} onChange={setStreet} />
+              <FloatingInput id="street" label="Street" required   value={street} onChange={setStreet} />
               <div className="grid grid-cols-2 gap-3">
                 <FloatingInput id="apt"  label="Apt/Suite" value={apt}  onChange={setApt} />
-                <FloatingInput id="city" label="City *"    value={city} onChange={setCity} />
+                <FloatingInput id="city" label="City" required    value={city} onChange={setCity} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <FloatingInput id="state" label="State *"    value={state} onChange={setState} />
-                <FloatingInput id="zip"   label="Zip Code *" value={zip}   onChange={setZip} />
+                <FloatingInput id="state" label="State" required    value={state} onChange={setState} />
+                <FloatingInput id="zip"   label="Zip Code" required value={zip}   onChange={setZip} />
               </div>
             </div>
           </CardContent>
@@ -215,51 +181,26 @@ export function PublicBookingFormPage() {
             <h3 className="text-base font-semibold">Preferred Cleaning Date & Time</h3>
             <div className="space-y-6">
 
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full h-12 justify-start text-left font-normal rounded-md bg-white hover:bg-primary/10 hover:text-primary hover:border-primary",
-                      !selectedDate && "text-muted-foreground",
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? formatDisplayDate(selectedDate) : "Select Preferred Date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+              <DateField
+                placeholder="Select Preferred Date"
+                value={selectedDate}
+                onChange={setSelectedDate}
+                disabledDates={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+              />
 
-              <Select value={timePreference} onValueChange={setTimePreference}>
-                <SelectTrigger className="h-12 rounded-md border border-border bg-white">
-                  <SelectValue placeholder="Time Preference" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIME_PREFERENCE_OPTIONS.map(({ value, label }) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SelectField
+                placeholder="Time Preference"
+                value={timePreference}
+                onChange={setTimePreference}
+                options={TIME_PREFERENCE_OPTIONS}
+              />
 
-              <Select value={serviceType} onValueChange={(v) => { setServiceType(v); setCommercialType(""); }}>
-                <SelectTrigger className="h-12 rounded-md border border-border bg-white">
-                  <SelectValue placeholder="Service Type *" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="residential">Residential</SelectItem>
-                  <SelectItem value="commercial">Commercial</SelectItem>
-                </SelectContent>
-              </Select>
+              <SelectField
+                placeholder="Service Type" required
+                value={serviceType}
+                onChange={(v) => { setServiceType(v); setCommercialType(""); }}
+                options={SERVICE_TYPE_OPTIONS}
+              />
             </div>
           </CardContent>
         </Card>
@@ -273,36 +214,21 @@ export function PublicBookingFormPage() {
                 <FloatingInput id="bedrooms"  label="How many bedrooms"  value={bedrooms}  onChange={(v) => setBedrooms(toIntegerString(v))}  type="text" />
                 <FloatingInput id="bathrooms" label="How many bathrooms" value={bathrooms} onChange={(v) => setBathrooms(toIntegerString(v))} type="text" />
 
-                <div>
-                  <Label className="text-sm font-medium mb-3 block">Additional Services</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {ADDITIONAL_SERVICES.map((s) => (
-                      <div
-                        key={s}
-                        onClick={() => toggleAdditionalService(s)}
-                        className={cn(
-                          "flex items-center justify-center p-3 rounded-lg border cursor-pointer transition-all",
-                          additionalServices.includes(s)
-                            ? "border-primary bg-primary/10 text-primary font-medium"
-                            : "border-border bg-white hover:border-primary/50",
-                        )}
-                      >
-                        <span className="text-sm">{s}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <OptionGrid
+                  label="Additional Services"
+                  multiple
+                  options={ADDITIONAL_SERVICES}
+                  value={additionalServices}
+                  onChange={setAdditionalServices}
+                />
 
-                <div>
-                  <Label htmlFor="serviceDetails" className="text-sm font-medium mb-2 block">Service Details</Label>
-                  <Textarea
-                    id="serviceDetails"
-                    placeholder="Service details..."
-                    value={serviceDetails}
-                    onChange={(e) => setServiceDetails(e.target.value)}
-                    className="min-h-[100px] rounded-md border border-border bg-white"
-                  />
-                </div>
+                <TextareaField
+                  id="serviceDetails"
+                  label="Service Details"
+                  placeholder="Service details..."
+                  value={serviceDetails}
+                  onChange={setServiceDetails}
+                />
 
                 {customQuestions.map((q) => (
                   <FloatingInput
@@ -325,22 +251,11 @@ export function PublicBookingFormPage() {
               <h3 className="text-base font-semibold">Select the property type</h3>
               <div className="space-y-6">
 
-                <div className="grid grid-cols-2 gap-3">
-                  {COMMERCIAL_TYPES.map((t) => (
-                    <div
-                      key={t}
-                      onClick={() => setCommercialType(t)}
-                      className={cn(
-                        "flex items-center justify-center p-3 rounded-lg border cursor-pointer transition-all",
-                        commercialType === t
-                          ? "border-primary bg-primary/10 text-primary font-medium"
-                          : "border-border bg-white hover:border-primary/50",
-                      )}
-                    >
-                      <span className="text-sm">{t}</span>
-                    </div>
-                  ))}
-                </div>
+                <OptionGrid
+                  options={COMMERCIAL_TYPES}
+                  value={commercialType}
+                  onChange={setCommercialType}
+                />
 
                 {commercialType === "Other" && (
                   <FloatingInput
@@ -351,16 +266,13 @@ export function PublicBookingFormPage() {
                   />
                 )}
 
-                <div>
-                  <Label htmlFor="commercialDetails" className="text-sm font-medium mb-2 block">Service Details</Label>
-                  <Textarea
-                    id="commercialDetails"
-                    placeholder="Service details..."
-                    value={serviceDetails}
-                    onChange={(e) => setServiceDetails(e.target.value)}
-                    className="min-h-[100px] rounded-md border border-border bg-white"
-                  />
-                </div>
+                <TextareaField
+                  id="commercialDetails"
+                  label="Service Details"
+                  placeholder="Service details..."
+                  value={serviceDetails}
+                  onChange={setServiceDetails}
+                />
 
                 {customQuestions.map((q) => (
                   <FloatingInput
