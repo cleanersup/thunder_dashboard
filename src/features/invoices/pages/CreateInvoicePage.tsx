@@ -10,15 +10,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import {
-  ChevronLeft, Plus, Trash2,
+  ChevronLeft,
   FileText, List, Calculator, StickyNote,
   Paperclip, X,
 } from "lucide-react";
 import { Button }   from "@/shared/components/ui/button";
-import { Label }    from "@/shared/components/ui/label";
 import { Badge }    from "@/shared/components/ui/badge";
 import {
-  FormSection, FloatingInput, SelectField, DateField,
+  FormSection, FloatingInput, SelectField, LineItemsFields, AddLineItemButton, PricingFields, DateField,
   TextareaField, AttachmentsField,
 } from "@/shared/components/forms";
 import { FORM_SECTION_GAP } from "@/shared/constants/formTokens";
@@ -92,9 +91,14 @@ const INVOICE_TYPE_OPTIONS = [
   { value: "Recurring",      label: "Recurring" },
 ] as const;
 
+/**
+ * Los rótulos son los mismos símbolos que usa Jobs: la columna del tipo es
+ * estrecha para que el valor tenga sitio, y "Fixed Amount" no cabía. Lo que se
+ * guarda ("percentage" / "fixed") no cambia — es lo que espera la tabla.
+ */
 const DISCOUNT_TYPE_OPTIONS = [
-  { value: "percentage", label: "Percentage" },
-  { value: "fixed",      label: "Fixed Amount" },
+  { value: "percentage", label: "%" },
+  { value: "fixed",      label: "$" },
 ] as const;
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -142,6 +146,10 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
   const [discountType,  setDiscountType]  = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
   const [taxRate,       setTaxRate]       = useState("");
+  // Descuento e impuesto empiezan apagados, como en Jobs: una factura sin
+  // descuento —la mayoría— no enseña campos vacíos que haya que descartar.
+  const [applyDiscount, setApplyDiscount] = useState(false);
+  const [applyTax,      setApplyTax]      = useState(false);
   const [notes,         setNotes]         = useState("");
   const [attachmentFiles,    setAttachmentFiles]    = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<InvoiceAttachment[]>([]);
@@ -219,6 +227,8 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
     setDiscountType((invoiceData.discount_type as "percentage" | "fixed") ?? "percentage");
     setDiscountValue(invoiceData.discount_value?.toString() ?? "");
     setTaxRate(invoiceData.tax_rate?.toString() ?? "");
+    setApplyDiscount((invoiceData.discount_value ?? 0) > 0);
+    setApplyTax((invoiceData.tax_rate ?? 0) > 0);
     setNotes(invoiceData.notes ?? "");
     if (invoiceData.attachments && Array.isArray(invoiceData.attachments)) {
       setExistingAttachments(invoiceData.attachments);
@@ -503,63 +513,25 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
         title="Line Items"
         subtitle="What is being billed"
         invalid={errors.lineItems}
-        action={
-          <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
-            <Plus className="h-4 w-4 mr-1" /> Add
-          </Button>
-        }
+        action={<AddLineItemButton onClick={addLineItem} />}
       >
-        {lineItems.map((item, idx) => (
-          <div key={item._id} className="rounded-lg border border-border p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-muted-foreground">Item {idx + 1}</p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                onClick={() => removeLineItem(idx)}
-                disabled={lineItems.length === 1}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <FloatingInput
-              id={`item-desc-${item._id}`}
-              label="Description"
-              value={item.description}
-              onChange={(v) => updateLineItem(idx, "description", v)}
-              error={errors.lineItems && !item.description}
-            />
-
-            <div className="grid grid-cols-3 gap-3 items-end">
-              <FloatingInput
-                id={`item-price-${item._id}`}
-                label="Price"
-                type="decimal"
-                value={item._price}
-                onChange={(v) => updateLineItem(idx, "price", v)}
-              />
-              <FloatingInput
-                id={`item-qty-${item._id}`}
-                label="Qty"
-                type="integer"
-                value={item._qty}
-                onChange={(v) => updateLineItem(idx, "qty", v)}
-              />
-              {/* El total es resultado, no campo: lleva etiqueta visible encima
-                  (como `TimeField`) porque sin ella la casilla no dice qué es, y
-                  el alto de un control para que la fila no se descuadre. */}
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium">Total</Label>
-                <div className="flex items-center h-12 rounded-md border border-input bg-muted/40 px-3 text-sm font-medium">
-                  ${item.total.toFixed(2)}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
+        <LineItemsFields
+          items={lineItems.map((it) => ({
+            id: it._id,
+            description: it.description,
+            quantity: it._qty,
+            unitPrice: it._price,
+          }))}
+          onChange={(idx, field, v) => {
+            if (field === "description") updateLineItem(idx, "description", v);
+            else if (field === "quantity") updateLineItem(idx, "qty", v);
+            else updateLineItem(idx, "price", v);
+          }}
+          onRemove={removeLineItem}
+          onAdd={addLineItem}
+          showLineTotal
+          invalid={errors.lineItems}
+        />
 
         {errors.lineItems && (
           <p className="text-xs text-destructive">Add at least one item with a description</p>
@@ -571,52 +543,28 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
         title="Pricing & Tax"
         subtitle="Discount and tax applied to the subtotal"
       >
-        <div className="grid grid-cols-2 gap-3">
-          <SelectField
-            placeholder="Discount type"
-            value={discountType}
-            onChange={(v) => setDiscountType(v as "percentage" | "fixed")}
-            options={DISCOUNT_TYPE_OPTIONS}
-          />
-          <FloatingInput
-            id="invoice-discount"
-            label={discountType === "percentage" ? "Discount (%)" : "Discount ($)"}
-            type="decimal"
-            value={discountValue}
-            onChange={setDiscountValue}
-          />
-        </div>
-
-        <FloatingInput
-          id="invoice-tax"
-          label="Tax rate (%)"
-          type="decimal"
-          value={taxRate}
-          onChange={setTaxRate}
+        <PricingFields
+          idPrefix="invoice"
+          subtotal={subtotal}
+          discount={{
+            enabled: applyDiscount,
+            onEnabledChange: (v) => { setApplyDiscount(v); if (!v) setDiscountValue(""); },
+            type: discountType,
+            onTypeChange: (v) => setDiscountType(v as "percentage" | "fixed"),
+            typeOptions: DISCOUNT_TYPE_OPTIONS,
+            value: discountValue,
+            onValueChange: setDiscountValue,
+            amount: discountAmount,
+          }}
+          tax={{
+            enabled: applyTax,
+            onEnabledChange: (v) => { setApplyTax(v); if (!v) setTaxRate(""); },
+            rate: taxRate,
+            onRateChange: setTaxRate,
+            amount: taxAmount,
+          }}
+          total={total}
         />
-
-        <div className="bg-muted/30 rounded-md p-3 space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Subtotal</span>
-            <span className="font-medium">${subtotal.toFixed(2)}</span>
-          </div>
-          {discountAmount > 0 && (
-            <div className="flex justify-between text-destructive">
-              <span>Discount</span>
-              <span>-${discountAmount.toFixed(2)}</span>
-            </div>
-          )}
-          {taxAmount > 0 && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax</span>
-              <span className="font-medium">${taxAmount.toFixed(2)}</span>
-            </div>
-          )}
-          <div className="flex justify-between border-t border-border/50 pt-2 font-bold">
-            <span>Total</span>
-            <span className="text-primary">${total.toFixed(2)}</span>
-          </div>
-        </div>
       </FormSection>
 
       <FormSection
