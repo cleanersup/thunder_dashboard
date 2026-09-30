@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { cn } from "@/shared/utils/cn";
@@ -9,7 +11,7 @@ import { FORM_CONTROL_ERROR, FORM_CONTROL_HEIGHT } from "@/shared/constants/form
  * `integer` / `decimal` nunca usan `<input type="number">` (regla del proyecto):
  * se sanitizan en `onChange` con las utilidades de `numericInput`.
  */
-export type FloatingInputType = "text" | "email" | "integer" | "decimal";
+export type FloatingInputType = "text" | "email" | "password" | "integer" | "decimal";
 
 export interface FloatingInputProps {
   id:        string;
@@ -18,6 +20,8 @@ export interface FloatingInputProps {
   value:     string;
   onChange:  (value: string) => void;
   type?:     FloatingInputType;
+  /** Tope de caracteres (estado de dos letras, código postal de cinco…). */
+  maxLength?: number;
   required?: boolean;
   /** `true` marca el borde; un string además muestra el mensaje debajo. */
   error?:    boolean | string;
@@ -46,6 +50,7 @@ export function FloatingInput({
   value,
   onChange,
   type = "text",
+  maxLength,
   required = false,
   error,
   disabled = false,
@@ -54,12 +59,18 @@ export function FloatingInput({
   const hasError     = Boolean(error);
   const errorMessage = typeof error === "string" ? error : undefined;
 
+  // Ver lo que se teclea es cosa del campo, no del formulario: si lo resolviera
+  // cada pantalla, el ojo acabaría en un sitio distinto en cada una.
+  const [reveal, setReveal] = useState(false);
+  const isPassword = type === "password";
+
   return (
     <div className="relative">
       <Input
         id={id}
-        type={type === "email" ? "email" : "text"}
+        type={type === "email" ? "email" : isPassword && !reveal ? "password" : "text"}
         inputMode={INPUT_MODES[type]}
+        maxLength={maxLength}
         placeholder=" "
         value={value}
         disabled={disabled}
@@ -67,6 +78,7 @@ export function FloatingInput({
         className={cn(
           FORM_CONTROL_HEIGHT,
           "peer px-3",
+          isPassword && "pr-10",
           hasError && FORM_CONTROL_ERROR,
         )}
       />
@@ -78,6 +90,20 @@ export function FloatingInput({
       >
         {withRequiredMark(label, required)}
       </Label>
+
+      {isPassword && (
+        <button
+          type="button"
+          tabIndex={-1}
+          disabled={disabled}
+          onClick={() => setReveal((v) => !v)}
+          aria-label={reveal ? "Hide password" : "Show password"}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+        >
+          {reveal ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      )}
+
       {errorMessage && <p className="text-xs text-destructive mt-1">{errorMessage}</p>}
     </div>
   );

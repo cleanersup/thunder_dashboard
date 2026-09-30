@@ -2,17 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Info, Trash2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
-import { Textarea } from "@/shared/components/ui/textarea";
 import { Card, CardContent } from "@/shared/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
-import { Calendar } from "@/shared/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/shared/components/ui/dialog";
-import { CalendarIcon } from "lucide-react";
-import { formatDisplayDate } from "@/shared/utils/formatters";
-import { cn } from "@/shared/utils/cn";
+import {
+  FormSheet, FloatingInput, SelectField, DateField, TextareaField, OptionGrid,
+} from "@/shared/components/forms";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { useRequestForms, useSaveRequestForms } from "../hooks/useRequests";
 import type { CustomQuestion, ServiceType } from "../types/request.types";
@@ -26,21 +19,53 @@ const COMMERCIAL_TYPES = [
   "School", "Church", "Office", "Warehouse", "Restaurant", "Other",
 ];
 
-function FloatingInput({ id, label, type = "text" }: { id: string; label: string; type?: string }) {
+const SERVICE_TYPE_OPTIONS = [
+  { value: "residential", label: "Residential" },
+  { value: "commercial",  label: "Commercial" },
+];
+
+const TIME_PREFERENCE_PREVIEW = [
+  { value: "am", label: "AM" },
+  { value: "pm", label: "PM" },
+];
+
+/**
+ * Campo de la vista previa.
+ *
+ * Es lo que verá el cliente, así que usa la misma molécula que el formulario
+ * público. Guarda lo que se teclee en su propio estado y no lo manda a ningún
+ * sitio: aquí solo se está mirando cómo queda el formulario, no rellenándolo.
+ */
+function PreviewField({ id, label, type }: { id: string; label: string; type?: "text" | "email" }) {
+  const [value, setValue] = useState("");
+  return <FloatingInput id={id} label={label} type={type} value={value} onChange={setValue} />;
+}
+
+/**
+ * Pregunta añadida por el dueño, dentro de la vista previa.
+ *
+ * La papelera va fuera del campo, no encima: borrarla es una acción del dueño,
+ * y el cliente que rellene el formulario no verá nada de esto. Dentro del campo
+ * se leería como parte del formulario.
+ */
+function CustomQuestionRow({
+  question, onRemove,
+}: { question: CustomQuestion; onRemove: (id: string) => void }) {
   return (
-    <div className="relative">
-      <Input
-        id={id}
-        type={type}
-        placeholder=" "
-        className="h-12 rounded-md border border-border focus-visible:ring-0 focus-visible:border-primary px-3 bg-white peer"
-      />
-      <Label
-        htmlFor={id}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground bg-white px-1 transition-all pointer-events-none peer-focus:top-0 peer-focus:text-xs peer-focus:text-primary peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-primary"
+    <div className="flex items-start gap-2">
+      <div className="flex-1">
+        <PreviewField id={question.id} label={question.question} />
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={`Remove "${question.question}"`}
+        onClick={() => onRemove(question.id)}
+        className="h-12 w-10 shrink-0 text-muted-foreground hover:text-destructive"
       >
-        {label}
-      </Label>
+        <Trash2 className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
@@ -55,6 +80,7 @@ export function EditRequestFormPage() {
   const [serviceType, setServiceType]       = useState<ServiceType | "">("");
   const [selectedDate, setSelectedDate]     = useState<Date | undefined>(undefined);
   const [commercialType, setCommercialType] = useState("");
+  const [timePreference, setTimePreference] = useState("");
   const [additionalServices, setAdditionalServices] = useState<string[]>([]);
 
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
@@ -85,11 +111,6 @@ export function EditRequestFormPage() {
 
   const removeQuestion = (id: string) =>
     setQuestions((prev) => prev.filter((q) => q.id !== id));
-
-  const toggleService = (s: string) =>
-    setAdditionalServices((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
-    );
 
   const companyName = profile?.company_name ?? "Your Company";
   const companyLogo = profile?.company_logo;
@@ -144,9 +165,9 @@ export function EditRequestFormPage() {
             <CardContent className="p-4 space-y-6">
               <h3 className="text-base font-semibold">Personal Information</h3>
               <div className="space-y-6">
-                <FloatingInput id="fullName" label="Full Name" />
-                <FloatingInput id="email"    label="Email" type="email" />
-                <FloatingInput id="phone"    label="Phone" />
+                <PreviewField id="fullName" label="Full Name" />
+                <PreviewField id="email" label="Email" type="email" />
+                <PreviewField id="phone" label="Phone" />
               </div>
             </CardContent>
           </Card>
@@ -156,14 +177,14 @@ export function EditRequestFormPage() {
             <CardContent className="p-4 space-y-6">
               <h3 className="text-base font-semibold">Address</h3>
               <div className="space-y-6">
-                <FloatingInput id="street" label="Street" />
+                <PreviewField id="street" label="Street" />
                 <div className="grid grid-cols-2 gap-3">
-                  <FloatingInput id="apt"  label="Apt/Suite" />
-                  <FloatingInput id="city" label="City" />
+                  <PreviewField id="apt" label="Apt/Suite" />
+                  <PreviewField id="city" label="City" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <FloatingInput id="state" label="State" />
-                  <FloatingInput id="zip"   label="Zip Code" />
+                  <PreviewField id="state" label="State" />
+                  <PreviewField id="zip" label="Zip Code" />
                 </div>
               </div>
             </CardContent>
@@ -174,49 +195,25 @@ export function EditRequestFormPage() {
             <CardContent className="p-4 space-y-6">
               <h3 className="text-base font-semibold">Preferred Cleaning Date & Time</h3>
               <div className="space-y-6">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full h-12 justify-start text-left font-normal rounded-md bg-white hover:bg-primary/10 hover:text-primary hover:border-primary",
-                        !selectedDate && "text-muted-foreground",
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? formatDisplayDate(selectedDate) : "Select Preferred Date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DateField
+                  placeholder="Select Preferred Date"
+                  value={selectedDate}
+                  onChange={setSelectedDate}
+                />
 
-                <Select>
-                  <SelectTrigger className="h-12 rounded-md border border-border bg-white">
-                    <SelectValue placeholder="Time Preference" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="am">AM</SelectItem>
-                    <SelectItem value="pm">PM</SelectItem>
-                  </SelectContent>
-                </Select>
+                <SelectField
+                  placeholder="Time Preference"
+                  value={timePreference}
+                  onChange={setTimePreference}
+                  options={TIME_PREFERENCE_PREVIEW}
+                />
 
-                <Select value={serviceType} onValueChange={(v) => setServiceType(v as ServiceType)}>
-                  <SelectTrigger className="h-12 rounded-md border border-border bg-white">
-                    <SelectValue placeholder="Service Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="residential">Residential</SelectItem>
-                    <SelectItem value="commercial">Commercial</SelectItem>
-                  </SelectContent>
-                </Select>
+                <SelectField
+                  placeholder="Service Type"
+                  value={serviceType}
+                  onChange={(v) => setServiceType(v as ServiceType)}
+                  options={SERVICE_TYPE_OPTIONS}
+                />
               </div>
             </CardContent>
           </Card>
@@ -227,57 +224,27 @@ export function EditRequestFormPage() {
               <CardContent className="p-4 space-y-6">
                 <h3 className="text-base font-semibold">Residential Service Details</h3>
                 <div className="space-y-6">
-                  <FloatingInput id="bedrooms"  label="How many bedrooms" type="text" />
-                  <FloatingInput id="bathrooms" label="How many bathrooms" type="text" />
+                  <PreviewField id="bedrooms" label="How many bedrooms" />
+                  <PreviewField id="bathrooms" label="How many bathrooms" />
 
-                  <div>
-                    <Label className="text-sm font-medium mb-3 block">Additional Services</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {ADDITIONAL_SERVICES.map((s) => (
-                        <div
-                          key={s}
-                          onClick={() => toggleService(s)}
-                          className={cn(
-                            "flex items-center justify-center p-3 rounded-lg border cursor-pointer transition-all",
-                            additionalServices.includes(s)
-                              ? "border-primary bg-primary/10 text-primary font-medium"
-                              : "border-border bg-white hover:border-primary/50",
-                          )}
-                        >
-                          <span className="text-sm">{s}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <OptionGrid
+                    label="Additional Services"
+                    multiple
+                    options={ADDITIONAL_SERVICES}
+                    value={additionalServices}
+                    onChange={setAdditionalServices}
+                  />
 
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">Service Details</Label>
-                    <Textarea
-                      placeholder="Service details..."
-                      className="min-h-[100px] rounded-md border border-border bg-white"
-                    />
-                  </div>
+                  <TextareaField
+                    id="preview-details"
+                    label="Service Details"
+                    placeholder="Service details..."
+                    value=""
+                    onChange={() => {}}
+                  />
 
                   {questions.filter((q) => q.formType === "residential").map((q) => (
-                    <div key={q.id} className="relative">
-                      <Input
-                        id={q.id}
-                        placeholder=" "
-                        className="h-12 rounded-md border border-border px-3 bg-white pr-10 peer"
-                      />
-                      <Label
-                        htmlFor={q.id}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground bg-white px-1 transition-all pointer-events-none peer-focus:top-0 peer-focus:text-xs peer-focus:text-primary peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs"
-                      >
-                        {q.question}
-                      </Label>
-                      <button
-                        onClick={() => removeQuestion(q.id)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                    <CustomQuestionRow key={q.id} question={q} onRemove={removeQuestion} />
                   ))}
                 </div>
               </CardContent>
@@ -290,51 +257,22 @@ export function EditRequestFormPage() {
               <CardContent className="p-4 space-y-6">
                 <h3 className="text-base font-semibold">Select the property type</h3>
                 <div className="space-y-6">
-                  <div className="grid grid-cols-2 gap-3">
-                    {COMMERCIAL_TYPES.map((t) => (
-                      <div
-                        key={t}
-                        onClick={() => setCommercialType(t)}
-                        className={cn(
-                          "flex items-center justify-center p-3 rounded-lg border cursor-pointer transition-all",
-                          commercialType === t
-                            ? "border-primary bg-primary/10 text-primary font-medium"
-                            : "border-border bg-white hover:border-primary/50",
-                        )}
-                      >
-                        <span className="text-sm">{t}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <OptionGrid
+                    options={COMMERCIAL_TYPES}
+                    value={commercialType}
+                    onChange={setCommercialType}
+                  />
 
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">Service Details</Label>
-                    <Textarea
-                      placeholder="Service details..."
-                      className="min-h-[100px] rounded-md border border-border bg-white"
-                    />
-                  </div>
+                  <TextareaField
+                    id="preview-details"
+                    label="Service Details"
+                    placeholder="Service details..."
+                    value=""
+                    onChange={() => {}}
+                  />
 
                   {questions.filter((q) => q.formType === "commercial").map((q) => (
-                    <div key={q.id} className="relative">
-                      <Input
-                        id={q.id}
-                        placeholder=" "
-                        className="h-12 rounded-md border border-border px-3 bg-white pr-10 peer"
-                      />
-                      <Label
-                        htmlFor={q.id}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground bg-white px-1 transition-all pointer-events-none peer-focus:top-0 peer-focus:text-xs peer-focus:text-primary peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs"
-                      >
-                        {q.question}
-                      </Label>
-                      <button
-                        onClick={() => removeQuestion(q.id)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                    <CustomQuestionRow key={q.id} question={q} onRemove={removeQuestion} />
                   ))}
                 </div>
               </CardContent>
@@ -366,53 +304,31 @@ export function EditRequestFormPage() {
         </div>
       </div>
 
-      {/* ── Add Question Dialog ──────────────────────────────────────── */}
-      <Dialog open={isAddQuestionOpen} onOpenChange={setIsAddQuestionOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold">Add New Question</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="newQ" className="text-sm font-medium">Question</Label>
-              <Input
-                id="newQ"
-                placeholder="Enter your question"
-                value={newQuestion}
-                onChange={(e) => setNewQuestion(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddQuestion()}
-                className="h-12"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="qFormType" className="text-sm font-medium">Add to Form</Label>
-              <Select value={questionFormType} onValueChange={(v) => setQuestionFormType(v as ServiceType)}>
-                <SelectTrigger id="qFormType" className="h-12">
-                  <SelectValue placeholder="Select form type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="residential">Residential</SelectItem>
-                  <SelectItem value="commercial">Commercial</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <div className="grid grid-cols-2 gap-3 w-full">
-              <Button variant="outline" className="h-12" onClick={() => setIsAddQuestionOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                className="h-12"
-                onClick={handleAddQuestion}
-                disabled={!newQuestion.trim() || !questionFormType}
-              >
-                Add Question
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ── Alta de pregunta ─────────────────────────────────────────── */}
+      <FormSheet
+        open={isAddQuestionOpen}
+        onClose={() => setIsAddQuestionOpen(false)}
+        title="Add New Question"
+        subtitle="It will show up in the form your clients fill in"
+        submitLabel="Add Question"
+        onSubmit={handleAddQuestion}
+        submitDisabled={!newQuestion.trim() || !questionFormType}
+      >
+        <FloatingInput
+          id="newQ"
+          label="Question"
+          required
+          value={newQuestion}
+          onChange={setNewQuestion}
+        />
+        <SelectField
+          placeholder="Add to Form"
+          required
+          value={questionFormType}
+          onChange={(v) => setQuestionFormType(v as ServiceType)}
+          options={SERVICE_TYPE_OPTIONS}
+        />
+      </FormSheet>
     </div>
   );
 }

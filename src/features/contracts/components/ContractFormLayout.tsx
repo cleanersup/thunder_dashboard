@@ -1,15 +1,16 @@
 /**
  * @module ContractFormLayout
- * Sticky-header layout shell for the contract creation wizard.
- * Header style matches CreateInvoicePage for visual consistency.
+ * Marco del formulario de contrato: cabecera fija y cuerpo con scroll.
+ *
+ * Ya no hay barra de pasos: el formulario es un hub, se ve entero de una vez y
+ * cada sección se edita en su modal. Mantener el indicador de progreso sobre un
+ * hub prometía un recorrido que no existe.
  */
 import type { ReactNode } from "react";
 import { ChevronLeft, X, FileSignature } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { ContractProgressBar } from "./ContractProgressBar";
 
 interface ContractFormLayoutProps {
-  currentStep: 1 | 2 | 3;
   isEditing?: boolean;
   /** When true, uses flex h-full (fits inside FullScreenModal). */
   isModal?: boolean;
@@ -19,7 +20,6 @@ interface ContractFormLayoutProps {
 }
 
 export function ContractFormLayout({
-  currentStep,
   isEditing,
   isModal,
   onExit,
@@ -50,8 +50,6 @@ export function ContractFormLayout({
           </div>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <ContractProgressBar currentStep={currentStep} />
-
           {/* Scrollable content */}
           <div className="max-w-2xl mx-auto px-4 space-y-4">
             {children}
@@ -77,8 +75,6 @@ export function ContractFormLayout({
           </div>
         </div>
       </div>
-
-      <ContractProgressBar currentStep={currentStep} />
 
       {/* Content */}
       <div className="flex-1 flex flex-col items-center">

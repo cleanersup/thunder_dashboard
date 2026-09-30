@@ -10,26 +10,20 @@ import {
   Mail,
   Phone,
   MapPin,
-  Eye,
-  EyeOff,
   Loader2,
   FileSignature,
   LayoutGrid,
   Upload,
+  User,
+  Building2,
+  KeyRound,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/components/ui/select";
+import { FormSection, FloatingInput, SelectField } from "@/shared/components/forms";
+import { FORM_SECTION_GAP } from "@/shared/constants/formTokens";
 import { toast } from "@/shared/components/ui/use-toast";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Progress } from "@/shared/components/ui/progress";
@@ -81,11 +75,41 @@ const NAV_ITEMS: Array<{
   { section: "stripe",        icon: LayoutGrid, label: "Stripe Dashboard" },
 ];
 
+/**
+ * Barra de acciones de las secciones de ajustes.
+ *
+ * Es una pantalla completa, así que va en línea al final del scroll, no fija:
+ * `Cancel` a la izquierda y la acción a la derecha, ambos compactos. Las tres
+ * secciones la repetían con el orden invertido, cada una por su cuenta.
+ */
+function FormActions({
+  pending,
+  onCancel,
+  label = "Save Changes",
+  pendingLabel = "Saving…",
+}: {
+  pending: boolean;
+  onCancel: () => void;
+  label?: string;
+  pendingLabel?: string;
+}) {
+  return (
+    <div className="flex justify-end gap-2 pt-1">
+      <Button type="button" size="sm" variant="outline" disabled={pending} onClick={onCancel}>
+        Cancel
+      </Button>
+      <Button type="submit" size="sm" disabled={pending}>
+        {pending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{pendingLabel}</> : label}
+      </Button>
+    </div>
+  );
+}
+
 // ─── Edit Profile section ────────────────────────────────────────────────────
 
 function EditProfileSection({ profile }: { profile: Profile }) {
   const { mutate: updateProfile, isPending } = useUpdatePersonalInfo();
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isDirty } } =
+  const { handleSubmit, reset, setValue, watch, formState: { errors, isDirty } } =
     useForm<EditProfileFormData>({
       resolver: zodResolver(editProfileSchema),
       defaultValues: { firstName: "", lastName: "", phoneNumber: "" },
@@ -116,41 +140,29 @@ function EditProfileSection({ profile }: { profile: Profile }) {
       <h2 className="text-2xl font-bold">Edit Profile</h2>
       <p className="text-sm text-muted-foreground mt-1 mb-6">Update your personal information</p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        <div className="space-y-1.5">
-          <Label htmlFor="ep-firstName">First Name <span className="text-destructive">*</span></Label>
-          <Input id="ep-firstName" placeholder="John" {...register("firstName")}
-            className={errors.firstName ? "border-destructive" : ""} />
-          {errors.firstName && <p className="text-xs text-destructive">{errors.firstName.message}</p>}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="ep-lastName">Last Name <span className="text-destructive">*</span></Label>
-          <Input id="ep-lastName" placeholder="Doe" {...register("lastName")}
-            className={errors.lastName ? "border-destructive" : ""} />
-          {errors.lastName && <p className="text-xs text-destructive">{errors.lastName.message}</p>}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="ep-phone">Phone Number <span className="text-destructive">*</span></Label>
+      <form onSubmit={handleSubmit(onSubmit)} className={FORM_SECTION_GAP}>
+        <FormSection icon={User} title="Personal Information" subtitle="How your name appears to clients">
+          <FloatingInput
+            id="ep-firstName" label="First Name" required
+            value={watch("firstName") ?? ""}
+            onChange={(v) => setValue("firstName", v, { shouldDirty: true, shouldValidate: true })}
+            error={errors.firstName?.message}
+          />
+          <FloatingInput
+            id="ep-lastName" label="Last Name" required
+            value={watch("lastName") ?? ""}
+            onChange={(v) => setValue("lastName", v, { shouldDirty: true, shouldValidate: true })}
+            error={errors.lastName?.message}
+          />
           <PhoneInput
-            id="ep-phone"
+            id="ep-phone" label="Phone Number" floatingLabel required
             value={watch("phoneNumber")}
             onChange={(val) => setValue("phoneNumber", val, { shouldDirty: true })}
             error={errors.phoneNumber?.message}
           />
-        </div>
+        </FormSection>
 
-        {isDirty && (
-          <div className="flex gap-2">
-            <Button type="submit" disabled={isPending}>
-              {isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : "Save Changes"}
-            </Button>
-            <Button type="button" variant="outline" disabled={isPending} onClick={() => reset()}>
-              Cancel
-            </Button>
-          </div>
-        )}
+        {isDirty && <FormActions pending={isPending} onCancel={() => reset()} />}
       </form>
     </div>
   );
@@ -160,7 +172,7 @@ function EditProfileSection({ profile }: { profile: Profile }) {
 
 function CompanyInfoSection({ profile }: { profile: Profile }) {
   const { mutate: updateCompany, isPending } = useUpdateCompanyInfo();
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isDirty } } =
+  const { handleSubmit, reset, setValue, watch, formState: { errors, isDirty } } =
     useForm<EditCompanyFormData>({
       resolver: zodResolver(editCompanySchema),
       defaultValues: { companyName: "", companyEmail: "", companyPhone: "", address: "", aptSuite: "", city: "", state: "", zip: "", companyCountry: "" },
@@ -199,55 +211,36 @@ function CompanyInfoSection({ profile }: { profile: Profile }) {
       <h2 className="text-2xl font-bold">Company Information</h2>
       <p className="text-sm text-muted-foreground mt-1 mb-6">Update your business details</p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        <div className="space-y-1.5">
-          <Label htmlFor="ci-name">Company Name <span className="text-destructive">*</span></Label>
-          <Input id="ci-name" placeholder="Thunder Pro LLC" {...register("companyName")}
-            className={errors.companyName ? "border-destructive" : ""} />
-          {errors.companyName && <p className="text-xs text-destructive">{errors.companyName.message}</p>}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="ci-country">Country <span className="text-destructive">*</span></Label>
-          <Select
-            value={companyCountry || undefined}
-            onValueChange={(val) => {
-              setValue("companyCountry", val, { shouldValidate: true, shouldDirty: true });
-            }}
-          >
-            <SelectTrigger
-              id="ci-country"
-              className={errors.companyCountry ? "border-destructive" : ""}
-            >
-              <SelectValue placeholder="Country *" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px] bg-white z-50">
-              {REGISTRATION_COUNTRIES.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.companyCountry && <p className="text-xs text-destructive">{errors.companyCountry.message}</p>}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="ci-email">Company Email <span className="text-destructive">*</span></Label>
-          <Input id="ci-email" type="email" placeholder="info@company.com" {...register("companyEmail")}
-            className={errors.companyEmail ? "border-destructive" : ""} />
-          {errors.companyEmail && <p className="text-xs text-destructive">{errors.companyEmail.message}</p>}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="ci-phone">Company Phone <span className="text-destructive">*</span></Label>
-          <PhoneInput id="ci-phone" value={watch("companyPhone")}
+      <form onSubmit={handleSubmit(onSubmit)} className={FORM_SECTION_GAP}>
+        <FormSection icon={Building2} title="Business Details" subtitle="How your company identifies itself">
+          <FloatingInput
+            id="ci-name" label="Company Name" required
+            value={watch("companyName") ?? ""}
+            onChange={(v) => setValue("companyName", v, { shouldDirty: true, shouldValidate: true })}
+            error={errors.companyName?.message}
+          />
+          <SelectField
+            placeholder="Country" required
+            value={companyCountry}
+            onChange={(val) => setValue("companyCountry", val, { shouldValidate: true, shouldDirty: true })}
+            options={REGISTRATION_COUNTRIES}
+            error={errors.companyCountry?.message}
+          />
+          <FloatingInput
+            id="ci-email" label="Company Email" type="email" required
+            value={watch("companyEmail") ?? ""}
+            onChange={(v) => setValue("companyEmail", v, { shouldDirty: true, shouldValidate: true })}
+            error={errors.companyEmail?.message}
+          />
+          <PhoneInput
+            id="ci-phone" label="Company Phone" floatingLabel required
+            value={watch("companyPhone")}
             onChange={(val) => setValue("companyPhone", val, { shouldDirty: true })}
-            error={errors.companyPhone?.message} />
-        </div>
+            error={errors.companyPhone?.message}
+          />
+        </FormSection>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="ci-address">Street Address <span className="text-destructive">*</span></Label>
+        <FormSection icon={MapPin} title="Address" subtitle="Where the business is based">
           <AddressAutocomplete
             value={watch("address")}
             onChange={(val) => setValue("address", val, { shouldDirty: true })}
@@ -261,46 +254,36 @@ function CompanyInfoSection({ profile }: { profile: Profile }) {
             error={!!errors.address}
           />
           {errors.address && <p className="text-xs text-destructive">{errors.address.message}</p>}
-        </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="ci-apt">Apt/Suite</Label>
-          <Input id="ci-apt" placeholder="Suite 200" {...register("aptSuite")} />
-        </div>
+          <FloatingInput
+            id="ci-apt" label="Apt/Suite"
+            value={watch("aptSuite") ?? ""}
+            onChange={(v) => setValue("aptSuite", v, { shouldDirty: true })}
+          />
+          <FloatingInput
+            id="ci-city" label="City" required
+            value={watch("city") ?? ""}
+            onChange={(v) => setValue("city", v, { shouldDirty: true, shouldValidate: true })}
+            error={errors.city?.message}
+          />
 
-        <div className="space-y-1.5">
-          <Label htmlFor="ci-city">City <span className="text-destructive">*</span></Label>
-          <Input id="ci-city" placeholder="Los Angeles" {...register("city")}
-            className={errors.city ? "border-destructive" : ""} />
-          {errors.city && <p className="text-xs text-destructive">{errors.city.message}</p>}
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="ci-state">State <span className="text-destructive">*</span></Label>
-            <Input id="ci-state" placeholder="CA" maxLength={2}
-              className={`uppercase ${errors.state ? "border-destructive" : ""}`}
-              {...register("state", { onChange: (e) => { e.target.value = e.target.value.toUpperCase(); } })} />
-            {errors.state && <p className="text-xs text-destructive">{errors.state.message}</p>}
+          <div className="grid grid-cols-2 gap-3">
+            <FloatingInput
+              id="ci-state" label="State" required maxLength={2}
+              value={watch("state") ?? ""}
+              onChange={(v) => setValue("state", v.toUpperCase(), { shouldDirty: true, shouldValidate: true })}
+              error={errors.state?.message}
+            />
+            <FloatingInput
+              id="ci-zip" label="ZIP Code" required maxLength={5}
+              value={watch("zip") ?? ""}
+              onChange={(v) => setValue("zip", v, { shouldDirty: true, shouldValidate: true })}
+              error={errors.zip?.message}
+            />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="ci-zip">ZIP Code <span className="text-destructive">*</span></Label>
-            <Input id="ci-zip" placeholder="90210" maxLength={5} {...register("zip")}
-              className={errors.zip ? "border-destructive" : ""} />
-            {errors.zip && <p className="text-xs text-destructive">{errors.zip.message}</p>}
-          </div>
-        </div>
+        </FormSection>
 
-        {isDirty && (
-          <div className="flex gap-2">
-            <Button type="submit" disabled={isPending}>
-              {isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : "Save Changes"}
-            </Button>
-            <Button type="button" variant="outline" disabled={isPending} onClick={() => reset()}>
-              Cancel
-            </Button>
-          </div>
-        )}
+        {isDirty && <FormActions pending={isPending} onCancel={() => reset()} />}
       </form>
     </div>
   );
@@ -308,13 +291,16 @@ function CompanyInfoSection({ profile }: { profile: Profile }) {
 
 // ─── Security section ─────────────────────────────────────────────────────────
 
+const PASSWORD_FIELDS = [
+  { id: "sec-cur", label: "Current Password",     field: "currentPassword" as const },
+  { id: "sec-new", label: "New Password",         field: "newPassword"     as const },
+  { id: "sec-con", label: "Confirm New Password", field: "confirmPassword" as const },
+];
+
 function SecuritySection() {
   const { mutate: changePassword, isPending } = useUpdatePassword();
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors, isDirty } } =
+  const { handleSubmit, reset, setValue, watch, formState: { errors, isDirty } } =
     useForm<SecurityFormData>({
       resolver: zodResolver(securitySchema),
       defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
@@ -343,40 +329,21 @@ function SecuritySection() {
       <h2 className="text-2xl font-bold">Security</h2>
       <p className="text-sm text-muted-foreground mt-1 mb-6">Update your security settings</p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        {(
-          [
-            { id: "sec-cur", label: "Current Password", field: "currentPassword" as const, show: showCurrent, setShow: setShowCurrent },
-            { id: "sec-new", label: "New Password",     field: "newPassword"     as const, show: showNew,     setShow: setShowNew     },
-            { id: "sec-con", label: "Confirm New Password", field: "confirmPassword" as const, show: showConfirm, setShow: setShowConfirm },
-          ] as const
-        ).map(({ id, label, field, show, setShow }) => (
-          <div key={id} className="space-y-1.5">
-            <Label htmlFor={id}>{label} <span className="text-destructive">*</span></Label>
-            <div className="relative">
-              <Input id={id} type={show ? "text" : "password"}
-                placeholder="••••••••"
-                {...register(field)}
-                className={`pr-10 ${errors[field] ? "border-destructive" : ""}`} />
-              <button type="button" tabIndex={-1}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                onClick={() => setShow((v) => !v)}>
-                {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            {errors[field] && <p className="text-xs text-destructive">{errors[field]?.message}</p>}
-          </div>
-        ))}
+      <form onSubmit={handleSubmit(onSubmit)} className={FORM_SECTION_GAP}>
+        <FormSection icon={KeyRound} title="Password" subtitle="Change the password you sign in with">
+          {PASSWORD_FIELDS.map(({ id, label, field }) => (
+            <FloatingInput
+              key={id}
+              id={id} label={label} type="password" required
+              value={watch(field) ?? ""}
+              onChange={(v) => setValue(field, v, { shouldDirty: true, shouldValidate: true })}
+              error={errors[field]?.message}
+            />
+          ))}
+        </FormSection>
 
         {isDirty && (
-          <div className="flex gap-2">
-            <Button type="submit" disabled={isPending}>
-              {isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Updating…</> : "Update Password"}
-            </Button>
-            <Button type="button" variant="outline" disabled={isPending} onClick={() => reset()}>
-              Cancel
-            </Button>
-          </div>
+          <FormActions pending={isPending} onCancel={() => reset()} label="Update Password" pendingLabel="Updating…" />
         )}
       </form>
     </div>

@@ -5,9 +5,10 @@
  */
 import { useState } from "react";
 import { RotateCcw } from "lucide-react";
-import { Button }       from "@/shared/components/ui/button";
-import { Input }        from "@/shared/components/ui/input";
-import { Label }        from "@/shared/components/ui/label";
+import { format } from "date-fns";
+import { Button }    from "@/shared/components/ui/button";
+import { DateField } from "@/shared/components/forms";
+import { parseDateOnly } from "@/shared/utils/formatters";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/shared/components/ui/dialog";
@@ -70,26 +71,25 @@ export function RenewContractModal({ contract, open, onClose }: RenewContractMod
           <p>A new Draft contract will be created with the dates below.</p>
         </div>
 
-        <div className="space-y-4 pt-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="renew-start">New Start Date</Label>
-            <Input
-              id="renew-start"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="renew-end">New End Date</Label>
-            <Input
-              id="renew-end"
-              type="date"
-              value={endDate}
-              min={startDate || undefined}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
+        <div className="space-y-3 pt-2">
+          <DateField
+            placeholder="New Start Date"
+            required
+            value={startDate ? parseDateOnly(startDate) : undefined}
+            onChange={(d) => {
+              setStartDate(d ? format(d, "yyyy-MM-dd") : "");
+              // Un fin anterior al nuevo inicio deja de valer; se limpia en vez
+              // de dejar el botón bloqueado sin decir por qué.
+              if (d && endDate && endDate <= format(d, "yyyy-MM-dd")) setEndDate("");
+            }}
+          />
+          <DateField
+            placeholder="New End Date"
+            required
+            value={endDate ? parseDateOnly(endDate) : undefined}
+            onChange={(d) => setEndDate(d ? format(d, "yyyy-MM-dd") : "")}
+            disabledDates={(d) => (startDate ? d <= parseDateOnly(startDate) : false)}
+          />
         </div>
 
         <DialogFooter className="pt-2">

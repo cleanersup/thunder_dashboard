@@ -27,6 +27,8 @@ export { TimeField }     from "./TimeField";
 export { OptionGrid }    from "./OptionGrid";
 export { TextareaField } from "./TextareaField";
 export { AttachmentsField } from "./AttachmentsField";
+export { LineItemsFields, AddLineItemButton } from "./LineItemsFields";
+export { PricingFields }  from "./PricingFields";
 
 export type { FormSheetProps }     from "./FormSheet";
 export type { FormBandProps }      from "./FormBand";
@@ -41,3 +43,5 @@ export type { TimeFieldProps }     from "./TimeField";
 export type { OptionGridItem }     from "./OptionGrid";
 export type { TextareaFieldProps }  from "./TextareaField";
 export type { AttachmentsFieldProps, AttachmentItem } from "./AttachmentsField";
+export type { LineItemsFieldsProps, LineItemValue, LineItemField } from "./LineItemsFields";
+export type { PricingFieldsProps, RateBlock } from "./PricingFields";
