@@ -9,11 +9,8 @@ import {
   Maximize2, Briefcase, RefreshCw, CalendarDays, Clock,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { cn } from "@/shared/utils/cn";
-import { toIntegerString } from "@/shared/utils/numericInput";
-import { FormSection } from "@/shared/components/forms";
+import { FormSection, FloatingInput, SelectField } from "@/shared/components/forms";
 
 const PROPERTY_TYPES = [
   { value: "restaurant",      label: "Restaurant",      icon: Store },
@@ -54,6 +51,12 @@ export interface CommPropertyStepProps {
   onContractTimeUnitChange:   (v: string) => void;
   onClearError:               (key: string) => void;
 }
+
+/** Unidades en las que se expresa la duración de un contrato recurrente. */
+const CONTRACT_TIME_UNITS = [
+  { value: "months", label: "Months" },
+  { value: "years",  label: "Years" },
+];
 
 export function CommPropertyStep({
   propertyType, isOtherProperty, otherPropertyType, propertySize,
@@ -98,11 +101,13 @@ export function CommPropertyStep({
             </Button>
           </div>
           {isOtherProperty && (
-            <Input
-              placeholder="Enter property type"
+            <FloatingInput
+              id="other-property-type"
+              label="Property type"
+              required
               value={otherPropertyType}
-              onChange={(e) => { onOtherPropertyTypeChange(e.target.value); onClearError("propertyType"); }}
-              className={errors.propertyType && !otherPropertyType ? "border-destructive" : ""}
+              onChange={(v) => { onOtherPropertyTypeChange(v); onClearError("propertyType"); }}
+              error={errors.propertyType && !otherPropertyType}
             />
           )}
           {errors.propertyType && <p className="text-xs text-destructive">Please select a property type</p>}
@@ -114,18 +119,15 @@ export function CommPropertyStep({
         title="Property Size"
         subtitle="Enter the total size of the property in square feet"
       >
-          <div className="relative">
-            <Input
-              type="text"
-              inputMode="numeric"
-              placeholder="Enter square feet"
-              value={propertySize}
-              onChange={(e) => { onPropertySizeChange(toIntegerString(e.target.value)); onClearError("propertySize"); }}
-              className={cn("pr-14", errors.propertySize && "border-destructive")}
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">sq ft</span>
-          </div>
-          {errors.propertySize && <p className="text-xs text-destructive">Please enter property size</p>}
+          <FloatingInput
+            id="property-size"
+            label="Property Size (sq ft)"
+            type="integer"
+            required
+            value={propertySize}
+            onChange={(v) => { onPropertySizeChange(v); onClearError("propertySize"); }}
+            error={errors.propertySize && "Please enter property size"}
+          />
 </FormSection>
 
       {/* Service type */}
@@ -204,20 +206,20 @@ export function CommPropertyStep({
         title="Contract Duration"
         subtitle="Specify the length of the service contract (optional)"
       >
-            <div className="flex gap-2">
-              <Input
-                type="text" inputMode="numeric" placeholder="Duration"
+            <div className="grid grid-cols-[110px_1fr] gap-2">
+              <FloatingInput
+                id="contract-duration"
+                label="Duration"
+                type="integer"
                 value={contractDuration}
-                onChange={(e) => onContractDurationChange(toIntegerString(e.target.value))}
-                className="w-24"
+                onChange={onContractDurationChange}
               />
-              <Select value={contractTimeUnit} onValueChange={onContractTimeUnitChange}>
-                <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="months">Months</SelectItem>
-                  <SelectItem value="years">Years</SelectItem>
-                </SelectContent>
-              </Select>
+              <SelectField
+                placeholder="Time unit"
+                value={contractTimeUnit}
+                onChange={onContractTimeUnitChange}
+                options={CONTRACT_TIME_UNITS}
+              />
             </div>
 </FormSection>
       )}
