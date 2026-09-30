@@ -6,8 +6,12 @@ import { FORM_CONTROL_ERROR } from "@/shared/constants/formTokens";
 
 export interface TextareaFieldProps {
   id:     string;
-  /** Nombra el campo. A diferencia del resto del kit va encima, no flotante. */
-  label:  string;
+  /**
+   * Nombra el campo, encima y no flotante. Se omite cuando la sección que lo
+   * contiene ya lo nombra y hay un solo área de texto dentro: repetir el título
+   * dos veces seguidas no añade nada.
+   */
+  label?: string;
   /** Ejemplo de qué escribir — complementa a la etiqueta, no la repite. */
   placeholder?: string;
   value:  string;
@@ -45,9 +49,11 @@ export function TextareaField({
 
   return (
     <div className={cn("space-y-1.5", className)}>
-      <Label htmlFor={id} className="text-sm font-medium">
-        {withRequiredMark(label, required)}
-      </Label>
+      {label && (
+        <Label htmlFor={id} className="text-sm font-medium">
+          {withRequiredMark(label, required)}
+        </Label>
+      )}
       <Textarea
         id={id}
         placeholder={placeholder}

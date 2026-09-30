@@ -28,6 +28,10 @@ import { useSendContractEmail } from "../hooks/useSendContractEmail";
 import { useSendContractSMS }   from "../hooks/useSendContractSMS";
 import { useClient }            from "@/features/crm/clients/hooks/useClients";
 import { ContractFormLayout }   from "../components/ContractFormLayout";
+import {
+  FormSection, SectionModal, SummaryRow, SelectorRow,
+} from "@/shared/components/forms";
+import { ClipboardList } from "lucide-react";
 import { ContractDetailsStep }  from "../components/ContractDetailsStep";
 import { ContractClausesStep }  from "../components/ContractClausesStep";
 import { ContractSendStep }     from "../components/ContractSendStep";
@@ -84,7 +88,6 @@ export function CreateContractStep1Page({
   const goBack               = () => { if (isModal) onClose!(); else navigate("/contracts"); };
 
   // ── Shared state ────────────────────────────────────────────────────────────
-  const [step,      setStep]      = useState<1 | 2 | 3>(1);
   const [formData,  setFormData]  = useState<ContractFormData>(DEFAULT_FORM);
   const [showExit,  setShowExit]  = useState(false);
 
@@ -228,53 +231,100 @@ export function CreateContractStep1Page({
   // ── Step content ─────────────────────────────────────────────────────────────
   const profileRecord = (profile ?? null) as Record<string, unknown> | null;
 
-  const stepContent = (() => {
-    if (step === 1) {
-      return (
-        <ContractDetailsStep
-          formData={formData}
-          onChange={patch}
-          contractNumber={contractNumber}
-          initialClient={initialClient}
-          savedDefaults={savedDefaults}
-          onNext={() => setStep(2)}
-          onCancel={() => setShowExit(true)}
-        />
-      );
-    }
-    if (step === 2) {
-      return (
+  /**
+   * El formulario es un hub: todo se ve de una vez y cada sección se edita en su
+   * modal. `review` es el único cambio de pantalla real — resumir, previsualizar
+   * y enviar — y por eso va a pantalla completa.
+   */
+  const [openSection, setOpenSection] = useState<"policies" | "review" | null>(null);
+
+  // Las cláusulas validan sus propias reglas; el hub las consulta antes de
+  // dejar pasar a la revisión.
+  const validateClauses = useRef<(() => boolean) | null>(null);
+
+  const policiesCount = formData.sections?.length ?? 0;
+  const policiesDone  = policiesCount > 0 && formData.sections.every((c) => c.body?.trim());
+
+  const hubContent = (
+    <>
+      <ContractDetailsStep
+        formData={formData}
+        onChange={patch}
+        contractNumber={contractNumber}
+        initialClient={initialClient}
+        savedDefaults={savedDefaults}
+        onReview={() => {
+          if (validateClauses.current && !validateClauses.current()) {
+            setOpenSection("policies");
+            return;
+          }
+          setOpenSection("review");
+        }}
+        onCancel={() => setShowExit(true)}
+        policiesSection={
+          <FormSection
+            icon={ClipboardList}
+            title="Policies"
+            subtitle="The clauses that make up the contract"
+            onEdit={policiesCount > 0 ? () => setOpenSection("policies") : undefined}
+          >
+            {policiesCount > 0 ? (
+              <SummaryRow
+                icon={ClipboardList}
+                subtitle={policiesDone ? undefined : "Some policies are still empty"}
+              >
+                {policiesCount} {policiesCount === 1 ? "policy" : "policies"}
+              </SummaryRow>
+            ) : (
+              <SelectorRow label="+ Add Policies" required onClick={() => setOpenSection("policies")} />
+            )}
+          </FormSection>
+        }
+      />
+
+      <SectionModal
+        open={openSection === "policies"}
+        onCancel={() => setOpenSection(null)}
+        onSave={() => setOpenSection(null)}
+        title="Policies"
+        subtitle="The clauses that make up the contract"
+      >
         <ContractClausesStep
           formData={formData}
           onChange={patch}
           profile={profileRecord}
-          onBack={() => setStep(1)}
-          onNext={() => setStep(3)}
+          onValidateReady={(fn) => { validateClauses.current = fn; }}
         />
-      );
-    }
-    return (
-      <ContractSendStep
-        formData={formData}
-        onChange={patch}
-        profile={profileRecord}
-        contractNumber={contractNumber}
-        onBack={() => setStep(2)}
-        onSend={handleSend}
-        onSuccess={goBack}
-      />
-    );
-  })();
+      </SectionModal>
+
+      <SectionModal
+        open={openSection === "review"}
+        onCancel={() => setOpenSection(null)}
+        onSave={() => setOpenSection(null)}
+        title={isEditing ? "Review Contract" : "Review Contract"}
+        variant="fullscreen"
+      >
+        <ContractSendStep
+          formData={formData}
+          onChange={patch}
+          profile={profileRecord}
+          contractNumber={contractNumber}
+          onBack={() => setOpenSection(null)}
+          onSend={handleSend}
+          onSuccess={goBack}
+        />
+      </SectionModal>
+    </>
+  );
 
   // ── Layout ───────────────────────────────────────────────────────────────────
   const layout = (
     <ContractFormLayout
-      currentStep={step}
       isEditing={isEditing}
       isModal={isModal}
       onExit={() => setShowExit(true)}
     >
-      {stepContent}
+      {hubContent}
 
       {/* Exit confirmation (shared across all steps) */}
       <AlertDialog open={showExit} onOpenChange={setShowExit}>
