@@ -8,11 +8,10 @@ import {
   MapPin, Building2, Globe,
   GripVertical, FileText, Trash2,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import type { LucideIcon } from "lucide-react";
+import { Card, CardContent } from "@/shared/components/ui/card";
+import { FormSection, FloatingInput, TextareaField } from "@/shared/components/forms";
 import { Button }   from "@/shared/components/ui/button";
-import { Input }    from "@/shared/components/ui/input";
-import { Label }    from "@/shared/components/ui/label";
-import { Textarea } from "@/shared/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/shared/components/ui/dialog";
@@ -31,7 +30,7 @@ import type { ContractFormData, ContractClause } from "../types/contract.types";
 
 // ─── Section icon map ─────────────────────────────────────────────────────────
 
-const SECTION_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+const SECTION_ICON: Record<string, LucideIcon> = {
   scope_of_work:        ClipboardList,
   purpose_of_agreement: FileSignature,
   price_and_payment:    DollarSign,
@@ -50,8 +49,11 @@ interface ContractClausesStepProps {
   onChange:  (partial: Partial<ContractFormData>) => void;
   /** Profile data needed for AI generation (companyName) and clause initialization. */
   profile:   Record<string, unknown> | null;
-  onBack:    () => void;
-  onNext:    () => void;
+  /**
+   * El hub valida antes de abrir la revisión, así que necesita preguntar aquí.
+   * Se entrega en el montaje para no duplicar las reglas de las cláusulas.
+   */
+  onValidateReady?: (validate: () => boolean) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -60,8 +62,7 @@ export function ContractClausesStep({
   formData,
   onChange,
   profile,
-  onBack,
-  onNext,
+  onValidateReady,
 }: ContractClausesStepProps) {
   const { generateClause, saveClause, generatingKey, savingKey } = useContractClauses();
 
@@ -195,6 +196,13 @@ export function ContractClausesStep({
     return true;
   };
 
+  // El hub necesita poder validar las cláusulas sin renderizarlas, así que se
+  // le entrega la función una vez montado.
+  useEffect(() => {
+    onValidateReady?.(validateStep);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.sections]);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
@@ -207,48 +215,46 @@ export function ContractClausesStep({
         const placeholder = sec?.placeholder ?? `Describe ${clause.title}...`;
 
         return (
-          <Card
+          // El arrastre va en un envoltorio: `FormSection` solo maqueta y no
+          // recibe atributos del DOM, y así se reordena sin tocarla.
+          <div
             key={clause.key}
             draggable
             onDragStart={() => handleDragStart(idx)}
             onDragEnter={() => handleDragEnter(idx)}
             onDragEnd={handleDragEnd}
             onDragOver={(e) => e.preventDefault()}
-            className={cn(
-              "rounded-lg border transition-opacity",
-              hasError && "ring-1 ring-inset ring-destructive",
-              draggingIdx === idx && "opacity-50",
-            )}
+            className={cn("transition-opacity", draggingIdx === idx && "opacity-50")}
           >
-            <CardHeader className="px-6 py-3">
-              <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2 min-w-0">
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate">{clause.title}</span>
+            <FormSection
+              icon={Icon}
+              title={clause.title}
+              invalid={hasError}
+              action={
+                <>
                   {isCustom && (
-                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-normal flex-shrink-0">
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-normal text-primary">
                       Custom
                     </span>
                   )}
-                </CardTitle>
-                <div className="flex items-center gap-1 flex-shrink-0">
                   <Button
                     variant="ghost" size="sm"
-                    className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => setDeleteClauseKey(clause.key)}
+                    aria-label={`Delete ${clause.title}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
-                  <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="px-6 pb-4 pt-0 space-y-2">
-              <Textarea
-                value={clause.body}
-                onChange={(e) => updateClause(clause.key, e.target.value)}
+                  <GripVertical className="w-4 h-4 cursor-grab text-muted-foreground active:cursor-grabbing" />
+                </>
+              }
+            >
+              <TextareaField
+                id={`clause-${clause.key}`}
                 placeholder={placeholder}
-                className="min-h-[100px] resize-y"
+                value={clause.body}
+                onChange={(v) => updateClause(clause.key, v)}
+                error={hasError}
               />
               <FieldActions
                 value={clause.body}
@@ -262,8 +268,8 @@ export function ContractClausesStep({
                 onSaveDefault={() => handleSaveClause(clause.key, clause.title)}
                 onClear={() => updateClause(clause.key, "", "empty")}
               />
-            </CardContent>
-          </Card>
+            </FormSection>
+          </div>
         );
       })}
 
@@ -280,12 +286,6 @@ export function ContractClausesStep({
         </CardContent>
       </Card>
 
-      {/* Footer */}
-      <div className="flex-shrink-0 bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
-        <Button variant="outline" size="sm" onClick={onBack}>Back</Button>
-        <Button size="sm" onClick={() => { if (validateStep()) onNext(); }}>Next</Button>
-      </div>
-
       {/* Add Custom Policy dialog */}
       <Dialog open={showAddPolicy} onOpenChange={setShowAddPolicy}>
         <DialogContent className="max-w-sm">
@@ -295,23 +295,21 @@ export function ContractClausesStep({
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Policy Title</Label>
-              <Input
-                value={newPolicyTitle}
-                onChange={(e) => setNewPolicyTitle(e.target.value)}
-                placeholder="e.g. Property Damage Policy"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Description (optional)</Label>
-              <Textarea
-                value={newPolicyDesc}
-                onChange={(e) => setNewPolicyDesc(e.target.value)}
-                placeholder="Write the content of this policy..."
-                className="min-h-[120px] resize-y"
-              />
-            </div>
+            <FloatingInput
+              id="new-policy-title"
+              label="Policy Title"
+              required
+              value={newPolicyTitle}
+              onChange={setNewPolicyTitle}
+            />
+            <TextareaField
+              id="new-policy-desc"
+              label="Description"
+              placeholder="Write the content of this policy..."
+              value={newPolicyDesc}
+              onChange={setNewPolicyDesc}
+              minHeight="min-h-[120px]"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowAddPolicy(false); setNewPolicyTitle(""); setNewPolicyDesc(""); }}>
