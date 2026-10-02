@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormSheet, FormBand, FloatingInput, SelectField } from "@/shared/components/forms";
+import { FormSheet, FormBand, FloatingInput } from "@/shared/components/forms";
 import { Switch } from "@/shared/components/ui/switch";
 import { withRequiredMark } from "@/shared/utils/formLabel";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
-import { COUNTRY_OPTIONS } from "@/shared/constants/countries";
-import { clientPropertySchema, type ClientPropertySchema } from "../schemas/clientPropertySchema";
+import { postalRule, stateRule } from "@/shared/constants/countries";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
+import { buildClientPropertySchema, type ClientPropertySchema } from "../schemas/clientPropertySchema";
 import { useCreateClientProperty, useUpdateClientProperty } from "../hooks/useClientProperties";
 import type { ClientProperty } from "../types/clientProperty.types";
 
@@ -25,8 +26,13 @@ export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess
   const { mutate: update, isPending: updating } = useUpdateClientProperty(clientId);
   const isPending = creating || updating;
 
+  // La propiedad está en el país de operación del dueño: no se pregunta.
+  const { country } = useOwnerCountry();
+  const postal = postalRule(country);
+  const stateFormat = stateRule(country);
+
   const form = useForm<ClientPropertySchema>({
-    resolver: zodResolver(clientPropertySchema),
+    resolver: zodResolver(buildClientPropertySchema(country)),
     defaultValues: {
       title:      "",
       street:     "",
@@ -34,7 +40,6 @@ export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess
       city:       "",
       state:      "",
       zip_code:   "",
-      country:    "us",
       is_primary: false,
     },
   });
@@ -50,20 +55,15 @@ export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess
               city:       property.city,
               state:      property.state,
               zip_code:   property.zip_code,
-              country:    property.country    ?? "us",
               is_primary: property.is_primary,
             }
           : {
               title: "", street: "", apt_suite: "", city: "",
-              state: "", zip_code: "", country: "us", is_primary: false,
+              state: "", zip_code: "", is_primary: false,
             }
       );
     }
   }, [open, property, form]);
-
-  const country = form.watch("country") || "us";
-  // 'all' = no country restriction on autocomplete suggestions.
-  const autocompleteCountry = country === "all" ? "" : country;
 
   const onSubmit = (data: ClientPropertySchema) => {
     const payload = {
@@ -73,7 +73,6 @@ export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess
       city:       data.city,
       state:      data.state,
       zip_code:   data.zip_code,
-      country:    data.country    ?? "",
       is_primary: data.is_primary,
     };
 
@@ -103,13 +102,6 @@ export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess
             value={form.watch("title") ?? ""}
             onChange={(v) => form.setValue("title", v)}
           />
-
-          <SelectField
-            placeholder="Country"
-            value={country}
-            onChange={(v) => form.setValue("country", v)}
-            options={COUNTRY_OPTIONS}
-          />
         </FormBand>
 
         <FormBand title="Address">
@@ -123,7 +115,7 @@ export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess
                 form.setValue("state",    c.state);
                 form.setValue("zip_code", c.zip);
               }}
-              country={autocompleteCountry}
+              country={country}
               placeholder={withRequiredMark("Street", true)}
               error={!!form.formState.errors.street}
             />
@@ -153,15 +145,17 @@ export function PropertyForm({ open, onOpenChange, clientId, property, onSuccess
             <FloatingInput
               id="property-state"
               label="State"
+              maxLength={stateFormat.maxLength}
               value={form.watch("state") ?? ""}
-              onChange={(v) => form.setValue("state", v)}
+              onChange={(v) => form.setValue("state", stateFormat.uppercase ? v.toUpperCase() : v)}
               required
               error={form.formState.errors.state?.message}
             />
             <FloatingInput
               id="property-zip"
               label="ZIP Code"
-              type="integer"
+              type={postal.numeric ? "integer" : "text"}
+              maxLength={postal.maxLength}
               value={form.watch("zip_code") ?? ""}
               onChange={(v) => form.setValue("zip_code", v)}
               required

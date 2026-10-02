@@ -45,6 +45,8 @@ const LEAD_STATUS_OPTIONS = [
   { value: "decision",      label: "Decision" },
 ] as const;
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
+import { postalRule, stateRule } from "@/shared/constants/countries";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
 import { useCreateLead, useUpdateLead } from "../hooks/useLeads";
@@ -100,6 +102,11 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
   const { mutate: create, isPending: creating } = useCreateLead();
   const { mutate: update, isPending: updating } = useUpdateLead();
   const isPending = creating || updating;
+
+  // Un lead solo puede estar en el país de operación del dueño.
+  const { country } = useOwnerCountry();
+  const postal      = postalRule(country);
+  const stateFormat = stateRule(country);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments,  setAttachments]  = useState<File[]>([]);
@@ -238,6 +245,7 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
                   setValue("state",    c.state);
                   setValue("zip_code", c.zip);
                 }}
+                country={country}
                 placeholder={withRequiredMark("Street Address", true)}
                 error={!!errors.address}
               />
@@ -266,15 +274,17 @@ export function LeadForm({ open, onClose, lead, onSuccess }: LeadFormProps) {
               <FloatingInput
                 id="lead-state"
                 label="State"
+                maxLength={stateFormat.maxLength}
                 value={watch("state") ?? ""}
-                onChange={(v) => setValue("state", v, { shouldValidate: true })}
+                onChange={(v) => setValue("state", stateFormat.uppercase ? v.toUpperCase() : v, { shouldValidate: true })}
                 required
                 error={errors.state?.message}
               />
               <FloatingInput
                 id="lead-zip"
                 label="Zip Code"
-                type="integer"
+                type={postal.numeric ? "integer" : "text"}
+                maxLength={postal.maxLength}
                 value={watch("zip_code") ?? ""}
                 onChange={(v) => setValue("zip_code", v, { shouldValidate: true })}
                 required

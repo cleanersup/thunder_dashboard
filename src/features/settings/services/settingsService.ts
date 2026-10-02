@@ -27,6 +27,12 @@ export async function updatePersonalInfo(
 
 // ─── Company Info ─────────────────────────────────────────────────────────────
 
+/**
+ * Guarda los datos de empresa.
+ *
+ * El país no va en el update: `profiles.company_country` se congela al
+ * registrarse y el trigger descarta cualquier valor nuevo.
+ */
 export async function updateCompanyInfo(
   userId: string,
   data: EditCompanyFormData
@@ -42,7 +48,6 @@ export async function updateCompanyInfo(
       company_city: data.city,
       company_state: data.state,
       company_zip: data.zip,
-      company_country: data.companyCountry,
     } as never)
     .eq("user_id", userId);
 

@@ -894,5 +894,141 @@ Esto significa:
 
 ---
 
+## FASE 22 — País único de operación
+> Estado: ✅ Completa (2026-10-02) — queda lo que depende del backend
+
+### Descripción
+Un dueño presta servicio solo en el país con el que se registró. El país deja de
+elegirse en los formularios: se lee del dueño y gobierna las sugerencias de
+direcciones y el formato de estado y código postal.
+
+### Fuente del país
+El backend lo entrega de tres formas; se usan dos, en este orden:
+1. `session.user.user_metadata.country` — viene en la sesión tras el login, síncrono.
+2. `rpc("get_my_country")` — respaldo para sesiones emitidas antes de que el backend
+   poblara el metadata (`user_metadata` solo se refresca al renovar el token).
+
+`profiles.company_country` se sigue escribiendo al guardar Company Info (sincronía),
+pero ya no manda. ⚠️ `user_metadata` lo puede escribir el propio usuario desde el
+cliente: sirve para sesgar sugerencias y elegir formatos, **no** para hacer cumplir
+nada.
+
+Override de desarrollo: `VITE_OWNER_COUNTRY=co npm run dev`.
+
+### Paso 0 — Fuente única ✅
+- [x] `shared/services/ownerCountry.service.ts` — único punto de resolución del país
+- [x] `shared/hooks/useOwnerCountry.ts` — `{ country, countryName, isLoading }`
+- [x] `QK.ownerCountry`
+- [x] `countries.ts`: `countryLabel()`, `postalRule()`, `stateRule()` (estricta solo para `us`,
+      tolerante para el resto — una regex equivocada bloquea a un usuario real)
+
+### Paso 1 — Fuera los selects de país ✅
+- [x] `PropertyForm` — el país ya no se pregunta; se persiste el del dueño
+- [x] `EmployeeForm` — el select era código muerto (`employees` no tiene columna `country`)
+- [x] `EditCompanyInfoPage` y `ProfilePage` (tab Company) — `ReadOnlyField` con el nombre del país
+- [x] `SignupForm` — sin cambios: es el único sitio donde se elige
+
+### Paso 2 — Autocomplete atado al país ✅
+- [x] `AddressAutocomplete`: el prop `country` pasa a **obligatorio** (sin default `"us"`)
+- [x] 7 call sites pasan `useOwnerCountry().country`: ClientForm, LeadForm, PropertyForm,
+      EmployeeForm, CompleteQuickQuoteClientDialog, EditCompanyInfoPage, ProfilePage
+
+### Paso 3 — Validaciones por país ✅
+- [x] `buildEditCompanySchema(country)` — el estado de 2 letras y el ZIP de 5 dígitos
+      ya no son universales (bloqueaban a un dueño no-US al guardar Company Info)
+- [x] `buildClientPropertySchema(country)`
+- [x] Inputs de ZIP: `type="integer"` → texto donde el código postal lleva letras
+- [x] `publicBookingSchema`: reglas tolerantes (el form público no tiene sesión y el RPC
+      no devuelve el país) y borrada la copia duplicada de `features/requests/schemas`
+- [x] `ReadOnlyField` — nueva molécula del kit de formularios
+
+### Paso 4 — Geocoding y mapas por país ✅
+- [x] `googleMaps.service`: `withCountrySuffix()`, `toRegion()`, `geocodeRequest()` y
+      `geocodeAddress(address, country)`. El sesgo son tres cosas a la vez:
+      `componentRestrictions` garantiza que ningún resultado caiga en otro país, el
+      sufijo ayuda a Google a interpretar la dirección (se guardan sin país) y `region`
+      desempata. swift-slate solo hace las dos últimas
+- [x] `geocodeRequest()` devuelve la petición en vez de hacerla: las pantallas que
+      geocodifican en lote conservan su caché y su callback, y solo comparten el sesgo
+- [x] 6 sitios pasados: `useScheduleGeocode`, `useSmartMap`, `RouteMapView`,
+      `AppointmentDetailModal`, `AppointmentDetailPanel`, `AddressRouteMap`
+      (`jobsService` ya usaba el service). Ya no queda ningún `geocode({ … })` pelado
+- [x] `region` + sufijo en los 3 `DirectionsService.route()` que usan direcciones
+      (el de `RouteMapView` usa coordenadas, ahí no aplica)
+- [x] `COUNTRY_CENTER` + `countryCenter()` portados; usados en los 6 mapas que
+      centraban en `39.8283,-98.5795` a fuego
+- [x] Los mapas no se crean hasta saber el país (`isLoading` del hook): así el centro
+      es el correcto desde el primer render, sin recolocar el mapa bajo la mano del usuario
+
+### Paso 5 — Paridad de datos ✅
+- [x] `ClientForm` escribe `billing_country` / `service_country` con el país del dueño
+      (quedaban NULL; swift-slate los escribe desde el formulario). Va en el submit del
+      formulario, no en el service, para no tocar la columna en updates que no editan
+      dirección. Requiere cast: las columnas no están en los tipos locales
+
+### Suelto detectado
+- `src/config/maps.config.ts` es código muerto (una integración de Mapbox que no existe)
+  y define `DEFAULT_MAP_CENTER` en el centro de EE. UU. Nadie lo importa; conviene borrarlo
+  antes de que alguien lo use
+
+### Fuera de alcance (decidido)
+- **Teléfono/SMS**: `PhoneInput` es NANP puro (fuerza `(XXX)XXX-XXXX`, corta a 10 dígitos)
+  y el backend normaliza a `+1`. Un dueño no-US no puede guardar bien un teléfono local,
+  no solo "no recibe SMS". Fase propia, requiere backend
+- **Moneda**: `formatCurrency` + `$` + Stripe en USD
+- **Timezone**: país ≠ timezone (EE. UU. tiene 6)
+- **Etiquetas**: "ZIP Code" / "State" se mantienen por paridad con swift-slate → F16 (i18n)
+
+### Lo que puso el backend ✅
+Migración `20260929180000_lock_user_registration_country.sql` + `docs/user-country.md`
+en `thunder_supabase` (commit `5f4c990`):
+- `profiles.company_country` **congelado**: el trigger `tr_lock_profile_company_country`
+  descarta cualquier valor nuevo en un UPDATE. El frontend ya no lo envía
+- `tr_sync_auth_user_country` copia `country` + `country_name` a
+  `auth.users.raw_user_meta_data` → de ahí sale el claim de la sesión
+- `get_my_country()`, `get_user_country(uuid)`, `resolve_entity_country(sent, user_id)`
+- Columnas de país añadidas a `clients`, `employees`, `jobs`, `invoices`, `estimates`,
+  `leads`, `bookings`, `walkthroughs`, `client_properties`, `contracts`, con triggers
+  `zz_enforce_country_*` BEFORE INSERT/UPDATE que las rellenan. **El frontend no manda
+  el país en ningún create/update**: enviarlo es opcional y duplicaría la lógica
+- `get_public_company_profile` devuelve `company_country` y `company_country_name`
+- Edge functions nuevas: `me-country`, `geocode-address` (restringe por país y
+  responde 422 si Google devuelve otro)
+
+Correcciones en el dashboard a raíz de esto:
+- [x] `updateCompanyInfo` deja de enviar `company_country` (la DB lo ignora)
+- [x] `ClientForm` deja de enviar `billing_country` / `service_country` (lo hace el trigger)
+- [x] `PropertyForm` + `clientPropertyService` + `ClientPropertyFormData`: fuera `country`
+- [x] `publicAccess`: `company_country` / `company_country_name` en el perfil público
+
+### Pendiente de decidir
+- [x] `jobsService.resolveSiteCoords` pasa por la edge function `geocode-address`
+      (2026-10-02). `geocodeAddress()` en `googleMaps.service` ya no usa la API JS:
+      manda `{ street, city, state, zip }` y devuelve `GeocodeOutcome` (`ok` + coords, o
+      el motivo), así que el log del job dice si Google no la encontró (404) o la situó
+      en otro país (422). Los marcadores de los mapas siguen en cliente con
+      `geocodeRequest()` — necesitan objetos `LatLng`, lotes y caché.
+- [x] Toast cuando el sitio no se puede situar (2026-10-02). `jobsService.create`/`update`
+      devuelven `JobWriteResult` (`{ job, siteGeocodeError }`) y `updateRecurring`
+      `{ siteGeocodeError }`; los tres hooks de mutación muestran
+      `toast.warning("Job saved, but the job site location could not be verified — employees
+      may not be able to clock in")` después del toast de éxito. El motivo exacto (404 / 422)
+      se queda en consola: al usuario le importa la consecuencia. ⚠️ Texto nuevo, sin
+      original en swift-slate (allí el fallo solo va a `console.warn`)
+      ⚠️ **Antes de desplegar**: la función necesita el secreto `GOOGLE_MAPS_API_KEY`
+      (o `GOOGLE_GEOCODING_API_KEY`) en Supabase. Sin él responde 500, el job se crea sin
+      coordenadas y la app de empleados bloquea el fichaje con "Couldn't verify the job
+      site location". Antes esto iba con la key del frontend; ahora depende del servidor
+- [ ] El formulario público `/booking/:userId` no tiene autocomplete de direcciones
+      (swift-slate sí, con `AddressFields`). Ahora que el RPC expone el país se podría
+      añadir atado a él
+- [ ] `clientPropertyService` inserta directo en `client_properties` aunque existe la edge
+      function `manage-client-property`. Desviación previa a esta fase
+- [ ] ⚠️ El backfill de la migración normaliza con `normalize_country_code`, que devuelve
+      `us` para cualquier valor desconocido o NULL. Toda cuenta vieja sin país quedó en
+      `us` **y congelada**: si alguna opera en otro país, solo el backend puede corregirla
+
+---
+
 > **¿Cómo continuar en una nueva sesión?**
 > Abre Claude Code desde `/Users/diegoparedes/Documents/Desarrollo/thunder_dashboard`, escribe "continúa con el plan" y leeré este archivo para retomar desde donde quedamos.

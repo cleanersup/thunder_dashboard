@@ -29,6 +29,9 @@ import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { toast }          from "sonner";
 import { supabase }       from "@/integrations/supabase/client";
 import { useGoogleMaps }  from "@/shared/hooks/useGoogleMaps";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
+import { countryCenter } from "@/shared/constants/countries";
+import { geocodeRequest, withCountrySuffix, toRegion } from "@/shared/services/googleMaps.service";
 import { QK }             from "@/shared/config/queryKeys";
 import { useDeleteAppointment } from "../hooks/useAppointments";
 import { resolveStorageUrl, downloadAppointmentFile } from "../services/appointmentsService";
@@ -94,6 +97,7 @@ export function AppointmentDetailPanel({
   const dirRendererRef  = useRef<any>(null);
 
   const { loaded: mapsLoaded, google } = useGoogleMaps();
+  const { country } = useOwnerCountry();
   const { mutate: deleteAppointment, isPending: isDeleting } = useDeleteAppointment();
 
   const isRecurring = !!appointment?.recurring_frequency;
@@ -145,7 +149,7 @@ export function AppointmentDetailPanel({
 
       if (!mapInstanceRef.current) {
         mapInstanceRef.current = new google.maps.Map(mapContainerRef.current, {
-          center: { lat: 39.8283, lng: -98.5795 },
+          center: countryCenter(country),
           zoom: 12,
           mapTypeControl:    false,
           streetViewControl: false,
@@ -161,7 +165,12 @@ export function AppointmentDetailPanel({
 
       const directionsService = new google.maps.DirectionsService();
       directionsService.route(
-        { origin: companyAddress, destination: clientAddress, travelMode: google.maps.TravelMode.DRIVING },
+        {
+          origin:      withCountrySuffix(companyAddress, country),
+          destination: withCountrySuffix(clientAddress, country),
+          travelMode:  google.maps.TravelMode.DRIVING,
+          region:      toRegion(country),
+        },
         (result: any, status: any) => {
           if (status === "OK" && result) {
             dirRendererRef.current?.setDirections(result);
@@ -170,7 +179,7 @@ export function AppointmentDetailPanel({
           } else {
             setRouteInfo(null);
             const geocoder = new google.maps.Geocoder();
-            geocoder.geocode({ address: clientAddress }, (results: any, gs: any) => {
+            geocoder.geocode(geocodeRequest(clientAddress, country), (results: any, gs: any) => {
               if (gs === "OK" && results?.[0]) {
                 mapInstanceRef.current?.setCenter(results[0].geometry.location);
                 mapInstanceRef.current?.setZoom(15);
@@ -182,7 +191,7 @@ export function AppointmentDetailPanel({
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [open, mapsLoaded, google, appointment, companyAddress]);
+  }, [open, mapsLoaded, google, appointment, companyAddress, country]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 

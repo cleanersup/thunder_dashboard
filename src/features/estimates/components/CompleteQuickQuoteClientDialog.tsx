@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { FormSheet, FormBand, FloatingInput } from "@/shared/components/forms";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { AddressAutocomplete, type AddressComponents } from "@/shared/components/AddressAutocomplete";
+import { postalRule, stateRule } from "@/shared/constants/countries";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
 import { withRequiredMark } from "@/shared/utils/formLabel";
 import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
 import { resolveQuickQuoteClient } from "../services/quickQuoteService";
@@ -72,6 +74,11 @@ export function CompleteQuickQuoteClientDialog({
   subtitle = "A job needs the full service address. Saving also adds this person to your clients.",
   submitLabel = "Save and Convert to Job",
 }: CompleteQuickQuoteClientDialogProps) {
+  // El cliente que se completa aquí vive en el país de operación del dueño.
+  const { country } = useOwnerCountry();
+  const postal      = postalRule(country);
+  const stateFormat = stateRule(country);
+
   const [form,      setForm]      = useState<FormState>(EMPTY);
   const [errors,    setErrors]    = useState<Record<string, boolean>>({});
   const [isSaving,  setIsSaving]  = useState(false);
@@ -194,6 +201,7 @@ export function CompleteQuickQuoteClientDialog({
           value={form.street}
           onChange={(v) => patch("street", v)}
           onAddressSelect={handleAddressSelect}
+          country={country}
           placeholder={withRequiredMark("Street address", true)}
           error={errors.street}
         />
@@ -215,15 +223,17 @@ export function CompleteQuickQuoteClientDialog({
           <FloatingInput
             id="qq-client-state"
             label="State"
+            maxLength={stateFormat.maxLength}
             value={form.state}
-            onChange={(v) => patch("state", v)}
+            onChange={(v) => patch("state", stateFormat.uppercase ? v.toUpperCase() : v)}
             required
             error={errors.state}
           />
           <FloatingInput
             id="qq-client-zip"
             label="ZIP"
-            type="integer"
+            type={postal.numeric ? "integer" : "text"}
+            maxLength={postal.maxLength}
             value={form.zip}
             onChange={(v) => patch("zip", v)}
             required

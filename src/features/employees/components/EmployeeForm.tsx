@@ -15,7 +15,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/
 import { Calendar } from "@/shared/components/ui/calendar";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
-import { COUNTRY_OPTIONS } from "@/shared/constants/countries";
+import { postalRule, stateRule } from "@/shared/constants/countries";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
 import { cn } from "@/shared/utils/cn";
 import { employeeSchema, type EmployeeFormData } from "../schemas/employeeSchema";
 
@@ -95,11 +96,13 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
   const [availableDays, setAvailableDays] = useState<AvailableDays>(makeDefaultDays());
   const [docFiles, setDocFiles]           = useState<File[]>([]);
   const [existingDocs, setExistingDocs]   = useState<string[]>([]);
-  const [country, setCountry]           = useState("us");
   const [dragOver, setDragOver]           = useState(false);
   const fileInputRef                      = useRef<HTMLInputElement>(null);
 
-  const autocompleteCountry = country === "all" ? "" : country;
+  // El empleado vive en el país de operación del dueño: no se pregunta.
+  const { country } = useOwnerCountry();
+  const postal      = postalRule(country);
+  const stateFormat = stateRule(country);
 
   // Reset and prefill when the modal opens
   useEffect(() => {
@@ -144,14 +147,12 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
 
       setExistingDocs(existingEmployee.documents ?? []);
       setDocFiles([]);
-      setCountry("us");
     } else {
       reset();
       setBirthdayDate(undefined);
       setAvailableDays(makeDefaultDays());
       setDocFiles([]);
       setExistingDocs([]);
-      setCountry("us");
     }
   }, [open, isEdit, existingEmployee, reset]);
 
@@ -309,13 +310,6 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
               />
             </div>
 
-            <SelectField
-              placeholder="Country"
-              value={country}
-              onChange={setCountry}
-              options={COUNTRY_OPTIONS}
-            />
-
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <AddressAutocomplete
@@ -327,7 +321,7 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
                     setValue("state", c.state);
                     setValue("zip", c.zip);
                   }}
-                  country={autocompleteCountry}
+                  country={country}
                   placeholder="Street"
                 />
               </div>
@@ -357,14 +351,22 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
                 control={control}
                 name="state"
                 render={({ field }) => (
-                  <FloatingInput id="employee-state" label="State" value={field.value ?? ""} onChange={field.onChange} />
+                  <FloatingInput
+                    id="employee-state" label="State" maxLength={stateFormat.maxLength}
+                    value={field.value ?? ""}
+                    onChange={(v) => field.onChange(stateFormat.uppercase ? v.toUpperCase() : v)}
+                  />
                 )}
               />
               <Controller
                 control={control}
                 name="zip"
                 render={({ field }) => (
-                  <FloatingInput id="employee-zip" label="Zip Code" type="integer" value={field.value ?? ""} onChange={field.onChange} />
+                  <FloatingInput
+                    id="employee-zip" label="Zip Code"
+                    type={postal.numeric ? "integer" : "text"} maxLength={postal.maxLength}
+                    value={field.value ?? ""} onChange={field.onChange}
+                  />
                 )}
               />
             </div>

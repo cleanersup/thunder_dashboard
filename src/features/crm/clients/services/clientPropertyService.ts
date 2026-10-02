@@ -58,7 +58,6 @@ export const clientPropertyService = {
         city:      form.city,
         state:     form.state,
         zip_code:  form.zip_code,
-        country:   form.country || null,
         is_primary: form.is_primary,
       })
       .select()
@@ -92,7 +91,6 @@ export const clientPropertyService = {
         city:      form.city,
         state:     form.state,
         zip_code:  form.zip_code,
-        country:   form.country || null,
         is_primary: form.is_primary,
       })
       .eq("id", id)

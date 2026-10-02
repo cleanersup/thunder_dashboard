@@ -28,8 +28,16 @@ interface AddressAutocompleteProps {
   error?:          boolean;
   disabled?:       boolean;
   className?:      string;
-  /** ISO alpha-2 country code to restrict suggestions. Empty string = no restriction. Defaults to "us". */
-  country?:        string;
+  /**
+   * ISO alpha-2 en minúsculas: restringe las sugerencias a ese país. Cadena
+   * vacía = sin restricción.
+   *
+   * Es obligatorio a propósito. Un dueño solo opera en su país, así que el valor
+   * sale siempre de `useOwnerCountry()`; con un valor por omisión, el formulario
+   * que se olvidara de pasarlo seguiría sugiriendo direcciones de EE. UU. sin
+   * que nadie lo notara.
+   */
+  country:         string;
 }
 
 export function AddressAutocomplete({
@@ -40,7 +48,7 @@ export function AddressAutocomplete({
   error       = false,
   disabled    = false,
   className   = "",
-  country     = "us",
+  country,
 }: AddressAutocompleteProps) {
   const inputRef        = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);

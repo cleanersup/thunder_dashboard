@@ -310,7 +310,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
       });
     } else {
       createJob({ input, propertyId }, {
-        onSuccess: (job) => {
+        onSuccess: ({ job }) => {
           updateStatus({ id: job.id, status: "Upcoming" });
           onClose();
           navigate("/jobs", { state: { openId: job.id } });

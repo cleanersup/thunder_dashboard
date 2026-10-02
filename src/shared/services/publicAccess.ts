@@ -30,6 +30,9 @@ export interface PublicCompanyProfile {
   company_city?: string | null;
   company_state?: string | null;
   company_zip?: string | null;
+  /** País de operación del dueño (ISO alpha-2 minúsculas) — lo resuelve el RPC. */
+  company_country?: string | null;
+  company_country_name?: string | null;
 }
 
 export interface InvoiceMerchantProfile {
@@ -57,7 +60,7 @@ export async function getPublicCompanyProfile(userId: string): Promise<PublicCom
   const { data: row, error: fallbackError } = await supabase
     .from("profiles")
     .select(
-      "first_name, last_name, company_name, company_logo, company_email, company_phone, company_address, company_apt_suite, company_city, company_state, company_zip",
+      "first_name, last_name, company_name, company_logo, company_email, company_phone, company_address, company_apt_suite, company_city, company_state, company_zip, company_country",
     )
     .eq("user_id", userId)
     .maybeSingle();

@@ -9,25 +9,21 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/components/ui/select";
+import { ReadOnlyField } from "@/shared/components/forms";
 import { toast } from "@/shared/components/ui/use-toast";
 import { useProfile } from "@/shared/hooks/useProfile";
-import { COUNTRY_OPTIONS } from "@/shared/constants/countries";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
+import { postalRule, stateRule } from "@/shared/constants/countries";
 import { useUpdateCompanyInfo } from "../hooks/useSettings";
-import { editCompanySchema, type EditCompanyFormData } from "../schemas/settingsSchemas";
-
-const REGISTRATION_COUNTRIES = COUNTRY_OPTIONS.filter((c) => c.value !== "all");
+import { buildEditCompanySchema, type EditCompanyFormData } from "../schemas/settingsSchemas";
 
 export function EditCompanyInfoPage() {
   const navigate = useNavigate();
   const { data: profile } = useProfile();
   const { mutate: updateCompany, isPending } = useUpdateCompanyInfo();
+  const { country, countryName } = useOwnerCountry();
+  const postal = postalRule(country);
+  const stateFormat = stateRule(country);
 
   const {
     register,
@@ -37,7 +33,7 @@ export function EditCompanyInfoPage() {
     watch,
     formState: { errors, isDirty },
   } = useForm<EditCompanyFormData>({
-    resolver: zodResolver(editCompanySchema),
+    resolver: zodResolver(buildEditCompanySchema(country)),
     defaultValues: {
       companyName: "",
       companyEmail: "",
@@ -47,16 +43,12 @@ export function EditCompanyInfoPage() {
       city: "",
       state: "",
       zip: "",
-      companyCountry: "",
     },
   });
-
-  const companyCountry = watch("companyCountry") ?? "";
 
   // Pre-fill form when profile loads
   useEffect(() => {
     if (profile) {
-      const savedCountry = (profile as { company_country?: string | null }).company_country ?? "";
       reset({
         companyName: profile.company_name ?? "",
         companyEmail: profile.company_email ?? "",
@@ -66,7 +58,6 @@ export function EditCompanyInfoPage() {
         city: profile.company_city ?? "",
         state: profile.company_state ?? "",
         zip: profile.company_zip ?? "",
-        companyCountry: savedCountry,
       });
     }
   }, [profile, reset]);
@@ -117,33 +108,9 @@ export function EditCompanyInfoPage() {
               )}
             </div>
 
-            {/* Country — same options as the register form */}
-            <div className="space-y-1.5">
-              <Label htmlFor="companyCountry">Country</Label>
-              <Select
-                value={companyCountry || undefined}
-                onValueChange={(val) => {
-                  setValue("companyCountry", val, { shouldValidate: true, shouldDirty: true });
-                }}
-              >
-                <SelectTrigger
-                  id="companyCountry"
-                  className={errors.companyCountry ? "border-destructive" : ""}
-                >
-                  <SelectValue placeholder="Country *" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px] bg-white z-50">
-                  {REGISTRATION_COUNTRIES.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.companyCountry && (
-                <p className="text-xs text-destructive">{errors.companyCountry.message}</p>
-              )}
-            </div>
+            {/* El país se fija en el registro y manda sobre el resto de
+                direcciones de la cuenta: aquí solo se muestra. */}
+            <ReadOnlyField label="Country" value={countryName} />
 
             {/* Company Email */}
             <div className="space-y-1.5">
@@ -184,7 +151,7 @@ export function EditCompanyInfoPage() {
                   setValue("state", components.state, { shouldDirty: true });
                   setValue("zip", components.zip, { shouldDirty: true });
                 }}
-                country={companyCountry}
+                country={country}
                 error={!!errors.address}
               />
               {errors.address && (
@@ -223,11 +190,11 @@ export function EditCompanyInfoPage() {
                 <Input
                   id="state"
                   placeholder="CA"
-                  maxLength={2}
-                  className={`uppercase ${errors.state ? "border-destructive" : ""}`}
+                  maxLength={stateFormat.maxLength}
+                  className={`${stateFormat.uppercase ? "uppercase" : ""} ${errors.state ? "border-destructive" : ""}`}
                   {...register("state", {
                     onChange: (e) => {
-                      e.target.value = e.target.value.toUpperCase();
+                      if (stateFormat.uppercase) e.target.value = e.target.value.toUpperCase();
                     },
                   })}
                 />
@@ -241,7 +208,8 @@ export function EditCompanyInfoPage() {
                 <Input
                   id="zip"
                   placeholder="90210"
-                  maxLength={5}
+                  inputMode={postal.numeric ? "numeric" : "text"}
+                  maxLength={postal.maxLength}
                   {...register("zip")}
                   className={errors.zip ? "border-destructive" : ""}
                 />

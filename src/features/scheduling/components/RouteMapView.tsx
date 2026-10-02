@@ -5,6 +5,9 @@
  */
 import { useEffect, useRef } from "react";
 import { useGoogleMaps } from "@/shared/hooks/useGoogleMaps";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
+import { countryCenter } from "@/shared/constants/countries";
+import { geocodeRequest } from "@/shared/services/googleMaps.service";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import type { AppointmentWithClient } from "../types/scheduling.types";
 
@@ -21,6 +24,8 @@ interface RouteMapViewProps {
 
 export function RouteMapView({ appointments, className = "h-64" }: RouteMapViewProps) {
   const { loaded, error, google } = useGoogleMaps();
+  // El mapa abre sobre el país del dueño, no sobre el centro de EE. UU.
+  const { country, isLoading: countryLoading } = useOwnerCountry();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -28,9 +33,10 @@ export function RouteMapView({ appointments, className = "h-64" }: RouteMapViewP
 
   // Init map
   useEffect(() => {
+    if (countryLoading) return;
     if (!loaded || !google || !mapRef.current || mapInstanceRef.current) return;
     mapInstanceRef.current = new google.maps.Map(mapRef.current, {
-      center: { lat: 39.8283, lng: -98.5795 },
+      center: countryCenter(country),
       zoom: 4,
       streetViewControl: false,
       mapTypeControl: false,
@@ -41,7 +47,7 @@ export function RouteMapView({ appointments, className = "h-64" }: RouteMapViewP
         position: google.maps.ControlPosition.RIGHT_BOTTOM,
       },
     });
-  }, [loaded, google]);
+  }, [loaded, google, country, countryLoading]);
 
   // Build route when appointments change
   useEffect(() => {
@@ -77,7 +83,7 @@ export function RouteMapView({ appointments, className = "h-64" }: RouteMapViewP
       const letter = String.fromCharCode(65 + idx);
       const color = PIN_COLORS[idx % PIN_COLORS.length];
 
-      geocoder.geocode({ address }, (results: any, status: any) => {
+      geocoder.geocode(geocodeRequest(address, country), (results: any, status: any) => {
         if (status === "OK" && results?.[0]) {
           const pos = results[0].geometry.location;
           geocoded.push({ position: pos, label: letter, color, client });
@@ -145,7 +151,7 @@ export function RouteMapView({ appointments, className = "h-64" }: RouteMapViewP
         mapInstanceRef.current.fitBounds(bounds, 40);
       }
     }
-  }, [appointments, loaded, google]);
+  }, [appointments, loaded, google, country]);
 
   if (error) {
     return (

@@ -17,15 +17,26 @@ export function useUpdateJobStatus() {
   });
 }
 
+/**
+ * Aviso cuando el job se guardó pero su sitio no se pudo situar: sin coordenadas la
+ * app de empleados bloquea el fichaje, así que no puede quedarse detrás del
+ * "Job created successfully". El motivo exacto está en consola.
+ */
+function warnIfSiteUnresolved(siteGeocodeError: string | null): void {
+  if (!siteGeocodeError) return;
+  toast.warning("Job saved, but the job site location could not be verified — employees may not be able to clock in");
+}
+
 export function useCreateJob() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ input, propertyId }: { input: CreateJobInput; propertyId?: string | null }) =>
       jobsService.create(input, propertyId),
-    onSuccess: (job) => {
+    onSuccess: ({ job, siteGeocodeError }) => {
       qc.invalidateQueries({ queryKey: QK.jobs });
       qc.invalidateQueries({ queryKey: QK.job(job.id) });
       toast.success("Job created successfully");
+      warnIfSiteUnresolved(siteGeocodeError);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to create job"),
   });
@@ -43,7 +54,7 @@ export function useUpdateJob() {
       updates: UpdateJobInput;
       propertyId?: string | null;
     }) => jobsService.update(id, updates, propertyId),
-    onSuccess: (job) => {
+    onSuccess: ({ job, siteGeocodeError }) => {
       qc.setQueryData(QK.job(job.id), job);
       qc.setQueryData<import("../types/job.types").Job[]>(QK.jobs, (old) =>
         old?.map((j) => (j.id === job.id ? job : j)) ?? [job],
@@ -51,6 +62,7 @@ export function useUpdateJob() {
       qc.invalidateQueries({ queryKey: QK.jobs });
       qc.invalidateQueries({ queryKey: QK.job(job.id) });
       toast.success("Job updated successfully");
+      warnIfSiteUnresolved(siteGeocodeError);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to update job"),
   });
@@ -96,10 +108,11 @@ export function useUpdateRecurringJob() {
       propertyId?: string | null;
       scope: RecurringScope;
     }) => jobsService.updateRecurring(id, updates, propertyId, scope),
-    onSuccess: (_data, { id }) => {
+    onSuccess: ({ siteGeocodeError }, { id }) => {
       qc.invalidateQueries({ queryKey: QK.jobs });
       qc.invalidateQueries({ queryKey: QK.job(id) });
       toast.success("Job updated successfully");
+      warnIfSiteUnresolved(siteGeocodeError);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to update job"),
   });

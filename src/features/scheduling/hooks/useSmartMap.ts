@@ -10,6 +10,8 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useGoogleMaps } from "@/shared/hooks/useGoogleMaps";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
+import { geocodeRequest } from "@/shared/services/googleMaps.service";
 import type { MapMarker } from "../types/scheduling.types";
 import { QK } from "@/shared/config/queryKeys";
 
@@ -63,6 +65,7 @@ function useEmployeesForMap() {
 
 export function useSmartMap() {
   const { loaded: mapsLoaded, google } = useGoogleMaps();
+  const { country } = useOwnerCountry();
   const [markers,         setMarkers]         = useState<MapMarker[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<string[]>(["all"]);
   const [isGeocoding,     setIsGeocoding]     = useState(false);
@@ -161,7 +164,7 @@ export function useSmartMap() {
         if (--pending === 0) { setMarkers([...geocoded]); setIsGeocoding(false); }
         return;
       }
-      geocoder.geocode({ address: marker.address }, (results: any, status: any) => {
+      geocoder.geocode(geocodeRequest(marker.address, country), (results: any, status: any) => {
         if (status === "OK" && results?.[0]) {
           const loc = results[0].geometry.location;
           const lat = loc.lat(), lng = loc.lng();
@@ -173,7 +176,7 @@ export function useSmartMap() {
         if (--pending === 0) { setMarkers([...geocoded]); setIsGeocoding(false); }
       });
     });
-  }, [leads, clients, employees, selectedFilters, mapsLoaded, google, leadsLoading, clientsLoading, empLoading]);
+  }, [leads, clients, employees, selectedFilters, mapsLoaded, google, country, leadsLoading, clientsLoading, empLoading]);
 
   const counts = {
     leads:     leads.length,

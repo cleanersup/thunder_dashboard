@@ -15,6 +15,8 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useGoogleMaps } from "@/shared/hooks/useGoogleMaps";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
+import { geocodeRequest } from "@/shared/services/googleMaps.service";
 import type { ScheduleEvent } from "../types/scheduleEvent";
 
 export interface LatLng { lat: number; lng: number }
@@ -30,6 +32,7 @@ const key = (address: string) => address.trim().toLowerCase();
  */
 export function useScheduleGeocode(events: ScheduleEvent[]) {
   const { loaded, google } = useGoogleMaps();
+  const { country } = useOwnerCountry();
   const [coords, setCoords] = useState<Map<string, LatLng>>(new Map());
   const [isGeocoding, setIsGeocoding] = useState(false);
 
@@ -67,7 +70,7 @@ export function useScheduleGeocode(events: ScheduleEvent[]) {
       const k = key(address);
       requestedRef.current.add(k);
 
-      geocoder.geocode({ address }, (results: any, status: any) => {
+      geocoder.geocode(geocodeRequest(address, country), (results: any, status: any) => {
         if (status === "OK" && results?.[0]) {
           const loc = results[0].geometry.location;
           cache.set(k, { lat: loc.lat(), lng: loc.lng() });
@@ -93,7 +96,7 @@ export function useScheduleGeocode(events: ScheduleEvent[]) {
     // `addresses` resume las direcciones: basta con volver a geocodificar cuando
     // cambian, no en cada render de la lista.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addresses, loaded, google]);
+  }, [addresses, loaded, google, country]);
 
   return { coords, isGeocoding };
 }

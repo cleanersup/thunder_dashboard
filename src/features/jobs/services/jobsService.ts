@@ -24,6 +24,7 @@ import {
   type CreateJobInput,
   type UpdateJobInput,
   type RecurringScope,
+  type JobWriteResult,
   dbToJob,
   jobStatusToDb,
   normalizeJobEmployeeIds,
@@ -80,6 +81,12 @@ async function fetchPropertyAddress(propertyId: string) {
   };
 }
 
+interface SiteCoordsResult {
+  coords: GeoCoords | null;
+  /** Motivo por el que no se pudieron resolver, o `null` si no había dirección. */
+  error:  string | null;
+}
+
 interface SiteAddress {
   propertyStreet?: string | null;
   propertyCity?:   string | null;
@@ -93,17 +100,33 @@ interface SiteAddress {
  * the job site location"), and the backend skips its own geofence check. The apt/
  * suite is left out on purpose — unit numbers degrade geocoding accuracy.
  *
+ * Va por la edge function `geocode-address`: estas coordenadas se guardan, así que
+ * importa que el backend verifique que el punto cae en el país de registro del
+ * dueño en vez de aceptar lo primero que devuelva Google.
+ *
  * @param addr - Property address fields resolved for the job
  * @returns Coordinates, or `null` when there is no address or it can't be resolved
  */
-async function resolveSiteCoords(addr: SiteAddress): Promise<GeoCoords | null> {
-  const cityLine = [addr.propertyCity, addr.propertyState].filter(Boolean).join(", ");
-  const address  = [addr.propertyStreet, cityLine, addr.propertyZip].filter(Boolean).join(", ");
-  if (!address) return null;
+async function resolveSiteCoords(addr: SiteAddress): Promise<SiteCoordsResult> {
+  if (!addr.propertyStreet && !addr.propertyCity && !addr.propertyZip) {
+    return { coords: null, error: null };
+  }
 
-  const coords = await geocodeAddress(address);
-  if (!coords) console.warn(`Could not geocode job site address: "${address}"`);
-  return coords;
+  const result = await geocodeAddress({
+    street: addr.propertyStreet,
+    city:   addr.propertyCity,
+    state:  addr.propertyState,
+    zip:    addr.propertyZip,
+  });
+
+  if (!result.ok) {
+    // El motivo exacto (no encontrada / fuera del país) se queda en consola: a quien
+    // guarda el job le importa la consecuencia, que es la que va al toast.
+    console.warn(`Could not geocode job site address: ${result.reason}`);
+    return { coords: null, error: result.reason };
+  }
+
+  return { coords: result.coords, error: null };
 }
 
 async function fetchContactForJob(
@@ -272,7 +295,7 @@ export const jobsService = {
    * @param input - Job creation data
    * @param propertyId - Optional client property ID (overrides default service address)
    */
-  async create(input: CreateJobInput, propertyId?: string | null): Promise<Job> {
+  async create(input: CreateJobInput, propertyId?: string | null): Promise<JobWriteResult> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
 
@@ -335,10 +358,10 @@ export const jobsService = {
     };
     mapDepositFieldsToDb(payload, input);
 
-    const coords = await resolveSiteCoords(contact);
-    if (coords) {
-      payload.site_latitude  = coords.lat;
-      payload.site_longitude = coords.lng;
+    const site = await resolveSiteCoords(contact);
+    if (site.coords) {
+      payload.site_latitude  = site.coords.lat;
+      payload.site_longitude = site.coords.lng;
     }
 
     const { data, error } = await db
@@ -353,10 +376,10 @@ export const jobsService = {
         .select()
         .single();
       if (retryError) throw retryError;
-      return dbToJob(retryData as DbJob);
+      return { job: dbToJob(retryData as DbJob), siteGeocodeError: site.error };
     }
     if (error) throw error;
-    return dbToJob(data as DbJob);
+    return { job: dbToJob(data as DbJob), siteGeocodeError: site.error };
   },
 
   /**
@@ -399,15 +422,17 @@ export const jobsService = {
    * @param updates - Partial update payload
    * @param propertyId - Optional property to override service address
    */
-  async update(id: string, updates: UpdateJobInput, propertyId?: string | null): Promise<Job> {
+  async update(id: string, updates: UpdateJobInput, propertyId?: string | null): Promise<JobWriteResult> {
     const { partial, newSiteAddress } = await buildJobUpdatePayload(updates, propertyId);
+    let siteGeocodeError: string | null = null;
 
     if (newSiteAddress) {
       // Address changed: re-geocode. On failure the old coordinates must go too,
       // or the employee app would geofence against the previous property.
-      const coords = await resolveSiteCoords(newSiteAddress);
-      partial.site_latitude  = coords?.lat ?? null;
-      partial.site_longitude = coords?.lng ?? null;
+      const site = await resolveSiteCoords(newSiteAddress);
+      partial.site_latitude  = site.coords?.lat ?? null;
+      partial.site_longitude = site.coords?.lng ?? null;
+      siteGeocodeError = site.error;
     } else {
       // Same address: fill in coordinates for jobs saved before geocoding existed.
       const { data: current, error: currentErr } = await db
@@ -416,16 +441,17 @@ export const jobsService = {
         .eq("id", id)
         .single();
       if (!currentErr && current && current.site_latitude == null) {
-        const coords = await resolveSiteCoords({
+        const site = await resolveSiteCoords({
           propertyStreet: current.property_street,
           propertyCity:   current.property_city,
           propertyState:  current.property_state,
           propertyZip:    current.property_zip,
         });
-        if (coords) {
-          partial.site_latitude  = coords.lat;
-          partial.site_longitude = coords.lng;
+        if (site.coords) {
+          partial.site_latitude  = site.coords.lat;
+          partial.site_longitude = site.coords.lng;
         }
+        siteGeocodeError = site.error;
       }
     }
 
@@ -443,10 +469,10 @@ export const jobsService = {
         .select()
         .single();
       if (retryError) throw retryError;
-      return dbToJob(retryData as DbJob);
+      return { job: dbToJob(retryData as DbJob), siteGeocodeError };
     }
     if (error) throw error;
-    return dbToJob(data as DbJob);
+    return { job: dbToJob(data as DbJob), siteGeocodeError };
   },
 
   /**
@@ -482,14 +508,17 @@ export const jobsService = {
     updates: UpdateJobInput,
     propertyId: string | null | undefined,
     scope: RecurringScope,
-  ): Promise<void> {
+  ): Promise<{ siteGeocodeError: string | null }> {
     const { partial: payload, newSiteAddress } = await buildJobUpdatePayload(updates, propertyId);
+    let siteGeocodeError: string | null = null;
+
     if (newSiteAddress) {
       // Misma regla que update(): si la dirección cambia, las coordenadas viejas no
       // pueden quedarse o el geofence de la app de empleados apuntaría a la anterior.
-      const coords = await resolveSiteCoords(newSiteAddress);
-      payload.site_latitude  = coords?.lat ?? null;
-      payload.site_longitude = coords?.lng ?? null;
+      const site = await resolveSiteCoords(newSiteAddress);
+      payload.site_latitude  = site.coords?.lat ?? null;
+      payload.site_longitude = site.coords?.lng ?? null;
+      siteGeocodeError = site.error;
     }
     // Campos no soportados por el payload de la RPC (obsoletos / no editables por scope).
     delete payload.job_type;
@@ -502,6 +531,8 @@ export const jobsService = {
       p_payload: payload,
     });
     if (error) throw error;
+
+    return { siteGeocodeError };
   },
 
   /** Elimina una serie recurrente según el alcance. */
