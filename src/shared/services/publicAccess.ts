@@ -160,6 +160,9 @@ export async function getPublicContract(token: string): Promise<Record<string, u
     return data;
   }
 
+  // `contracts` no está en los tipos generados de Supabase, igual que `jobs` o
+  // `client_properties`. El cast es el mismo que usa `jobsService`.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: row, error: fallbackError } = await (supabase as any)
     .from("contracts")
     .select("*")
