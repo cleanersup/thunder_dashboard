@@ -16,6 +16,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigation } from "lucide-react";
 import { useGoogleMaps } from "@/shared/hooks/useGoogleMaps";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
+import { countryCenter } from "@/shared/constants/countries";
+import { geocodeRequest, withCountrySuffix, toRegion } from "@/shared/services/googleMaps.service";
 import { LoadingSpinner } from "./LoadingSpinner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -45,6 +48,7 @@ export function AddressRouteMap({
   showRouteInfo = true,
 }: AddressRouteMapProps) {
   const { loaded, error, google } = useGoogleMaps();
+  const { country } = useOwnerCountry();
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const dirRendererRef = useRef<any>(null);
@@ -58,7 +62,7 @@ export function AddressRouteMap({
     // Init map once per mount
     if (!mapInstanceRef.current) {
       mapInstanceRef.current = new google.maps.Map(mapRef.current, {
-        center: { lat: 39.8283, lng: -98.5795 },
+        center: countryCenter(country),
         zoom: 12,
         mapTypeControl:    false,
         streetViewControl: false,
@@ -82,7 +86,12 @@ export function AddressRouteMap({
       dirRendererRef.current = renderer;
 
       new google.maps.DirectionsService().route(
-        { origin: companyAddress, destination: targetAddress, travelMode: google.maps.TravelMode.DRIVING },
+        {
+          origin:      withCountrySuffix(companyAddress, country),
+          destination: withCountrySuffix(targetAddress, country),
+          travelMode:  google.maps.TravelMode.DRIVING,
+          region:      toRegion(country),
+        },
         (result: any, status: any) => {
           if (status === "OK" && result) {
             renderer.setDirections(result);
@@ -90,15 +99,15 @@ export function AddressRouteMap({
             if (leg) setRouteInfo({ distance: leg.distance.text, duration: leg.duration.text });
           } else {
             // Directions failed — fall back to single marker
-            geocodeAndPin(google, map, targetAddress);
+            geocodeAndPin(google, map, targetAddress, country);
           }
         },
       );
     } else {
       // ── Single-marker mode ────────────────────────────────────────────────
-      geocodeAndPin(google, map, targetAddress);
+      geocodeAndPin(google, map, targetAddress, country);
     }
-  }, [loaded, google, targetAddress, companyAddress]);
+  }, [loaded, google, targetAddress, companyAddress, country]);
 
   // Cleanup on unmount
   useEffect(() => () => {
@@ -106,8 +115,8 @@ export function AddressRouteMap({
     markerRef.current?.setMap(null);
   }, []);
 
-  function geocodeAndPin(g: any, map: any, address: string) {
-    new g.maps.Geocoder().geocode({ address }, (results: any, status: any) => {
+  function geocodeAndPin(g: any, map: any, address: string, countryCode: string) {
+    new g.maps.Geocoder().geocode(geocodeRequest(address, countryCode), (results: any, status: any) => {
       if (status === "OK" && results?.[0]) {
         const loc = results[0].geometry.location;
         map.setCenter(loc);

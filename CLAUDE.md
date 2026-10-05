@@ -5,12 +5,13 @@
 
 ---
 
-## Estado del proyecto (actualizado 2026-06-16)
+## Estado del proyecto (actualizado 2026-10-05)
 
-**Fases completadas:** F0 (parcial), F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F14, F15, F19, F20, F21
+**Fases completadas:** F0 (parcial), F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F14, F15, F19, F20, F21, F23
 **New Workflow completado:** Booking→Requests, CRM separado (Leads/Clients/Tasks), Client Properties, ContactPicker, Jobs (infra+UI+PDF), Flujo de conversión Request→Estimate/Walkthrough→Job, AddRequest manual, limpieza de código muerto
 **Fase activa:** ninguna — next: F19 Time Clock items faltantes (TimeLineView, ShiftDetails) o features menores
 **Pendientes bloqueadas:** F13 (suscripciones — decisiones negocio), F16 (i18n), F17 (testing), F18 (CI/CD AWS)
+**Cancelada:** F22 (Auto Generate con Claude Haiku) — el número no se reutiliza
 
 ---
 
@@ -56,6 +57,20 @@
   import { toIntegerString, toDecimalString } from "@/shared/utils/numericInput";
   <Input type="text" inputMode="numeric" value={val} onChange={(e) => setVal(toIntegerString(e.target.value))} />
   ```
+
+### País de operación (F23)
+- Un dueño presta servicio **solo en el país con el que se registró**: no hay clientes, propiedades, empleados ni direcciones en otro país
+- **El país no se pregunta en ningún formulario.** El único select de país está en el registro (`SignupForm`)
+- Para leerlo, siempre `useOwnerCountry()` → `{ country, countryName, isLoading }`. Nunca `profiles.company_country` ni un `"us"` por defecto
+- **El frontend no envía el país en ningún create/update.** Los triggers `zz_enforce_country_*` rellenan la columna de país de las 10 tablas con dirección, y `tr_lock_profile_company_country` congela `profiles.company_country` (descarta en silencio cualquier valor nuevo)
+- `AddressAutocomplete.country` es obligatorio: sin valor por omisión, ningún formulario puede heredar EE. UU. en silencio
+- Formato de estado y código postal: `postalRule(country)` / `stateRule(country)` de `shared/constants/countries.ts`. Nunca volver a fijar 2 letras de estado ni 5 dígitos de ZIP a mano — dejaba a un dueño no-US sin poder guardar
+- Dos geocodings que **no** son intercambiables:
+  - `geocodeRequest(address, country)` → lo que se pinta en un mapa (API JS, en el navegador, en lote y con caché)
+  - `geocodeAddress({ street, city, state, zip })` → coordenadas que **se guardan**; va por la edge function `geocode-address`, que verifica que el punto cae en el país y deja la API key en el servidor
+- Centro inicial de cualquier mapa: `countryCenter(country)`, nunca coordenadas a fuego
+- ⚠️ `user_metadata.country` lo puede escribir el propio usuario desde el cliente: sirve para sesgar sugerencias y elegir formatos, **no** para hacer cumplir nada
+- Probar como dueño de otro país: `VITE_OWNER_COUNTRY=co npm run dev`
 
 ### Colores y estilos
 - Usar siempre las variables CSS del theme (`text-primary`, `bg-muted`, `text-foreground`, etc.)
@@ -126,7 +141,9 @@ Si no existe, se crea en `shared/`, no dentro de la feature.
 - `ErrorBoundary` → `src/shared/components/common/ErrorBoundary.tsx`
 - `EntityPickerField` → `src/shared/components/common/EntityPickerField.tsx` (multi/single picker con búsqueda)
 - `Avatar` / `InitialsAvatar` → `src/shared/components/common/Avatar.tsx`
+- `ReadOnlyField` → `src/shared/components/forms/ReadOnlyField.tsx` (dato fijo dentro de un formulario; no es un input deshabilitado)
 - `useGoogleMaps` → `src/shared/hooks/useGoogleMaps.ts`
+- `useOwnerCountry` → `src/shared/hooks/useOwnerCountry.ts` (país del dueño; resolución en `shared/services/ownerCountry.service.ts`)
 - `useProfile` + `getCompanyAddress` → `src/shared/hooks/useProfile.ts`
 - `useAuth` → `src/shared/hooks/useAuth.ts`
 - `EmployeeForm` (modal reutilizable) → `src/features/employees/components/EmployeeForm.tsx`
@@ -150,6 +167,8 @@ Si no existe, se crea en `shared/`, no dentro de la feature.
   - `create-booking` (crea request desde dashboard o form público)
   - `send-booking-emails` (confirmación al lead + notificación al dueño al crear booking)
   - `send-job-status-emails` (notifica cambio de status de job)
+  - `geocode-address` (geocoding verificado contra el país del dueño: 404 si no la encuentra, 422 si cae en otro país)
+  - `me-country` (país del dueño; equivalente al RPC `get_my_country`)
 
 ### RLS en tabla `bookings` — regla crítica
 - La tabla `bookings` solo permite **INSERT** a usuarios anónimos, NO SELECT
@@ -172,7 +191,8 @@ Al hacer submit del form público (`/booking/:userId`):
 
 ### Tabla `jobs` (no está en tipos locales de Supabase)
 - Usar `(supabase as any).from('jobs')` en `jobsService.ts`
-- Lo mismo para `client_properties` y `client_property_contacts`
+- Lo mismo para `client_properties`, `client_property_contacts` y `contracts`
+- Los tipos locales están desfasados: tampoco traen `profiles.company_country` ni las columnas de país que la migración `20260929180000` añadió a `clients`, `employees`, `jobs`, `invoices`, `estimates`, `leads`, `bookings`, `walkthroughs`, `client_properties` y `contracts`
 
 ### Tabla `bookings` — campos extendidos (migración aplicada)
 - `client_id`, `lead_id`, `contact_type` ('client'|'lead'|'anonymous'), `client_property_id`

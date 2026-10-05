@@ -24,6 +24,8 @@ const CONTACT_PREFERENCE_OPTIONS = [
   { value: "whatsapp", label: "WhatsApp" },
 ] as const;
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
+import { postalRule, stateRule } from "@/shared/constants/countries";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
 import { useCreateClient, useUpdateClient } from "../hooks/useClients";
@@ -47,6 +49,11 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
   const { mutate: create, isPending: creating } = useCreateClient();
   const { mutate: update, isPending: updating } = useUpdateClient();
   const isPending = creating || updating;
+
+  // Un cliente solo puede estar en el país de operación del dueño.
+  const { country } = useOwnerCountry();
+  const postal      = postalRule(country);
+  const stateFormat = stateRule(country);
 
   const [sameAsBilling, setSameAsBilling] = useState(true);
 
@@ -128,6 +135,8 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   const onSubmit = (data: ClientFormData) => {
+    // `billing_country` y `service_country` no se envían: el trigger
+    // `zz_enforce_country_clients` los rellena con el país de registro.
     if (isEdit && client) {
       update({ id: client.id, payload: data }, { onSuccess: onClose });
     } else {
@@ -207,6 +216,7 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
                   syncOnBillingChange("billing_state",  c.state);
                   syncOnBillingChange("billing_zip",    c.zip);
                 }}
+                country={country}
                 placeholder={withRequiredMark("Street", true)}
                 error={!!errors.billing_street}
               />
@@ -235,15 +245,17 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
               <FloatingInput
                 id="client-billing-state"
                 label="State"
+                maxLength={stateFormat.maxLength}
                 value={watch("billing_state") ?? ""}
-                onChange={(v) => { setValue("billing_state", v, { shouldValidate: true }); syncOnBillingChange("billing_state", v); }}
+                onChange={(v) => { const next = stateFormat.uppercase ? v.toUpperCase() : v; setValue("billing_state", next, { shouldValidate: true }); syncOnBillingChange("billing_state", next); }}
                 required
                 error={errors.billing_state?.message}
               />
               <FloatingInput
                 id="client-billing-zip"
                 label="Zip Code"
-                type="integer"
+                type={postal.numeric ? "integer" : "text"}
+                maxLength={postal.maxLength}
                 value={watch("billing_zip") ?? ""}
                 onChange={(v) => { setValue("billing_zip", v, { shouldValidate: true }); syncOnBillingChange("billing_zip", v); }}
                 required
@@ -298,8 +310,9 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
                 <FloatingInput
                   id="client-service-state"
                   label="State"
+                  maxLength={stateFormat.maxLength}
                   value={watch("service_state") ?? ""}
-                  onChange={(v) => setValue("service_state", v, { shouldValidate: true })}
+                  onChange={(v) => setValue("service_state", stateFormat.uppercase ? v.toUpperCase() : v, { shouldValidate: true })}
                   required
                   disabled={sameAsBilling}
                   error={errors.service_state?.message}
@@ -307,7 +320,8 @@ export function ClientForm({ open, onClose, client, onSuccess }: ClientFormProps
                 <FloatingInput
                   id="client-service-zip"
                   label="Zip Code"
-                  type="integer"
+                  type={postal.numeric ? "integer" : "text"}
+                  maxLength={postal.maxLength}
                   value={watch("service_zip") ?? ""}
                   onChange={(v) => setValue("service_zip", v, { shouldValidate: true })}
                   required

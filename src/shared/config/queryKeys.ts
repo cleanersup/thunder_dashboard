@@ -54,6 +54,7 @@ export const QK = {
   todayRoutes:               (date: string) => ["today-routes", date] as const,
   routeAppointmentsByDate:   (routeId: string, date: string) => ["route-appointments-by-date", routeId, date] as const,
   currentUserId:             ["current-user-id"]               as const,
+  ownerCountry:              ["owner-country"]                 as const,
   smartMapLeads:             ["smart-map-leads"]               as const,
   smartMapClients:           ["smart-map-clients"]             as const,
   smartMapEmployees:         ["smart-map-employees"]           as const,

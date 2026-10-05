@@ -37,6 +37,10 @@ export interface ClientProperty {
   client_property_contacts?: ClientPropertyContact[];
 }
 
+/**
+ * Lo que manda el formulario. Sin `country`: lo rellena el trigger
+ * `zz_enforce_country_client_properties` con el país de registro del dueño.
+ */
 export interface ClientPropertyFormData {
   title: string;
   street: string;
@@ -44,6 +48,5 @@ export interface ClientPropertyFormData {
   city: string;
   state: string;
   zip_code: string;
-  country: string;
   is_primary: boolean;
 }

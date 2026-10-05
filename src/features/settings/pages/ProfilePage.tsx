@@ -22,7 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avat
 import { Button } from "@/shared/components/ui/button";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
-import { FormSection, FloatingInput, SelectField } from "@/shared/components/forms";
+import { FormSection, FloatingInput, ReadOnlyField } from "@/shared/components/forms";
 import { FORM_SECTION_GAP } from "@/shared/constants/formTokens";
 import { toast } from "@/shared/components/ui/use-toast";
 import { Card, CardContent } from "@/shared/components/ui/card";
@@ -40,19 +40,19 @@ import {
 } from "../hooks/useSettings";
 import {
   editProfileSchema,
-  editCompanySchema,
+  buildEditCompanySchema,
   securitySchema,
   type EditProfileFormData,
   type EditCompanyFormData,
   type SecurityFormData,
 } from "../schemas/settingsSchemas";
 import { cn } from "@/shared/utils/cn";
-import { COUNTRY_OPTIONS } from "@/shared/constants/countries";
+import { postalRule, stateRule } from "@/shared/constants/countries";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
 import type { Database } from "@/integrations/supabase/types";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
-const REGISTRATION_COUNTRIES = COUNTRY_OPTIONS.filter((c) => c.value !== "all");
 type SettingsSection =
   | "edit-profile"
   | "company-info"
@@ -172,13 +172,15 @@ function EditProfileSection({ profile }: { profile: Profile }) {
 
 function CompanyInfoSection({ profile }: { profile: Profile }) {
   const { mutate: updateCompany, isPending } = useUpdateCompanyInfo();
+  const { country, countryName } = useOwnerCountry();
+  const postal = postalRule(country);
+  const state  = stateRule(country);
+
   const { handleSubmit, reset, setValue, watch, formState: { errors, isDirty } } =
     useForm<EditCompanyFormData>({
-      resolver: zodResolver(editCompanySchema),
-      defaultValues: { companyName: "", companyEmail: "", companyPhone: "", address: "", aptSuite: "", city: "", state: "", zip: "", companyCountry: "" },
+      resolver: zodResolver(buildEditCompanySchema(country)),
+      defaultValues: { companyName: "", companyEmail: "", companyPhone: "", address: "", aptSuite: "", city: "", state: "", zip: "" },
     });
-
-  const companyCountry = watch("companyCountry") ?? "";
 
   useEffect(() => {
     reset({
@@ -190,7 +192,6 @@ function CompanyInfoSection({ profile }: { profile: Profile }) {
       city: profile.company_city ?? "",
       state: profile.company_state ?? "",
       zip: profile.company_zip ?? "",
-      companyCountry: (profile as { company_country?: string | null }).company_country ?? "",
     });
   }, [profile.id, reset]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -219,13 +220,8 @@ function CompanyInfoSection({ profile }: { profile: Profile }) {
             onChange={(v) => setValue("companyName", v, { shouldDirty: true, shouldValidate: true })}
             error={errors.companyName?.message}
           />
-          <SelectField
-            placeholder="Country" required
-            value={companyCountry}
-            onChange={(val) => setValue("companyCountry", val, { shouldValidate: true, shouldDirty: true })}
-            options={REGISTRATION_COUNTRIES}
-            error={errors.companyCountry?.message}
-          />
+          {/* El país se fija en el registro: aquí solo se muestra. */}
+          <ReadOnlyField label="Country" value={countryName} />
           <FloatingInput
             id="ci-email" label="Company Email" type="email" required
             value={watch("companyEmail") ?? ""}
@@ -250,7 +246,7 @@ function CompanyInfoSection({ profile }: { profile: Profile }) {
               setValue("state", c.state, { shouldDirty: true });
               setValue("zip", c.zip, { shouldDirty: true });
             }}
-            country={companyCountry}
+            country={country}
             error={!!errors.address}
           />
           {errors.address && <p className="text-xs text-destructive">{errors.address.message}</p>}
@@ -269,13 +265,15 @@ function CompanyInfoSection({ profile }: { profile: Profile }) {
 
           <div className="grid grid-cols-2 gap-3">
             <FloatingInput
-              id="ci-state" label="State" required maxLength={2}
+              id="ci-state" label="State" required maxLength={state.maxLength}
               value={watch("state") ?? ""}
-              onChange={(v) => setValue("state", v.toUpperCase(), { shouldDirty: true, shouldValidate: true })}
+              onChange={(v) => setValue("state", state.uppercase ? v.toUpperCase() : v, { shouldDirty: true, shouldValidate: true })}
               error={errors.state?.message}
             />
             <FloatingInput
-              id="ci-zip" label="ZIP Code" required maxLength={5}
+              id="ci-zip" label="ZIP Code" required
+              type={postal.numeric ? "integer" : "text"}
+              maxLength={postal.maxLength}
               value={watch("zip") ?? ""}
               onChange={(v) => setValue("zip", v, { shouldDirty: true, shouldValidate: true })}
               error={errors.zip?.message}

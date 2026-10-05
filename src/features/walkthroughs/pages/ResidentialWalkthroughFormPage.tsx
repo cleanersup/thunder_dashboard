@@ -1,15 +1,9 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  Home,
-  Bed,
-  Plus,
-  Camera,
-  X,
+  Home, Bed, Plus, Camera, X, Package, PawPrint, FileText,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent } from "@/shared/components/ui/card";
-import { Textarea } from "@/shared/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -18,8 +12,15 @@ import {
 } from "@/shared/components/ui/dialog";
 import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { toast } from "sonner";
-import { cn } from "@/shared/utils/cn";
-import { FloatingInput } from "@/shared/components/forms";
+import {
+  FormSection, FloatingInput, TextareaField, OptionGrid,
+} from "@/shared/components/forms";
+
+/** Sí/no de mascotas — el valor que guarda la columna, no la etiqueta. */
+const PETS_OPTIONS = [
+  { value: "yes", label: "Yes, I have pets" },
+  { value: "no",  label: "No pets" },
+];
 import { PickerDialog } from "../components/PickerDialog";
 import { WalkthroughContactCard } from "../components/WalkthroughContactCard";
 import {
@@ -70,12 +71,6 @@ export function ResidentialWalkthroughFormPage() {
   const [showServiceTypeDialog,  setShowServiceTypeDialog]  = useState(false);
   const [showCancelDialog,       setShowCancelDialog]       = useState(false);
   const [showCompletionDialog,   setShowCompletionDialog]   = useState(false);
-
-  function toggleExtra(service: string) {
-    setExtraServices((prev) =>
-      prev.includes(service) ? prev.filter((s) => s !== service) : [...prev, service]
-    );
-  }
 
   async function handleFinish() {
     if (!id) return;
@@ -156,27 +151,18 @@ export function ResidentialWalkthroughFormPage() {
           )}
 
           {/* Property */}
-          <Card>
-            <CardContent className="p-5 space-y-3">
-              <h2 className="text-base font-semibold flex items-center gap-2">
-                <Home className="w-4 h-4" /> Property
-              </h2>
-              <Button variant="outline" className="w-full justify-start h-10" onClick={() => setShowPropertyTypeDialog(true)}>
+          <FormSection icon={Home} title="Property" subtitle="Type of property and how big it is">
+              <Button variant="field" className="w-full justify-start" onClick={() => setShowPropertyTypeDialog(true)}>
                 {propertyType || "Select Property Type"}
               </Button>
-              <Button variant="outline" className="w-full justify-start h-10" onClick={() => setShowServiceTypeDialog(true)}>
+              <Button variant="field" className="w-full justify-start" onClick={() => setShowServiceTypeDialog(true)}>
                 {serviceType || "Service Type"}
               </Button>
               <FloatingInput type="integer" id="sqft" label="Enter Square Footage" value={squareFootage} onChange={setSquareFootage} />
-            </CardContent>
-          </Card>
+          </FormSection>
 
           {/* Main Data */}
-          <Card>
-            <CardContent className="p-5 space-y-4">
-              <h2 className="text-base font-semibold flex items-center gap-2">
-                <Bed className="w-4 h-4" /> Main Data
-              </h2>
+          <FormSection icon={Bed} title="Main Data" subtitle="Rooms included in the service">
               <div className="grid grid-cols-2 gap-3">
                 <FloatingInput type="integer" id="bedrooms"   label="Bedrooms"    value={bedrooms}   onChange={setBedrooms} />
                 <FloatingInput type="integer" id="kitchen"    label="Kitchen"     value={kitchen}    onChange={setKitchen} />
@@ -186,15 +172,10 @@ export function ResidentialWalkthroughFormPage() {
                 <FloatingInput type="integer" id="fullBath"   label="Full Bath"   value={fullBath}   onChange={setFullBath} />
                 <FloatingInput type="integer" id="halfBath"   label="Half Bath"   value={halfBath}   onChange={setHalfBath} />
               </div>
-            </CardContent>
-          </Card>
+          </FormSection>
 
           {/* Additional */}
-          <Card>
-            <CardContent className="p-5 space-y-4">
-              <h2 className="text-base font-semibold flex items-center gap-2">
-                <Plus className="w-4 h-4" /> Additional
-              </h2>
+          <FormSection icon={Plus} title="Additional" subtitle="Items priced per unit">
               <div className="grid grid-cols-2 gap-3">
                 <FloatingInput type="integer" id="fans"           label="Fans"            value={fans}           onChange={setFans} />
                 <FloatingInput type="integer" id="oven"           label="Oven"            value={oven}           onChange={setOven} />
@@ -203,75 +184,35 @@ export function ResidentialWalkthroughFormPage() {
                 <FloatingInput type="integer" id="windowsInside"  label="Windows Inside"  value={windowsInside}  onChange={setWindowsInside} />
                 <FloatingInput type="integer" id="windowsOutside" label="Windows Outside" value={windowsOutside} onChange={setWindowsOutside} />
               </div>
-            </CardContent>
-          </Card>
+          </FormSection>
 
           {/* Extra */}
-          <Card>
-            <CardContent className="p-5 space-y-4">
-              <h2 className="text-base font-semibold">Extra</h2>
-              <div className="grid grid-cols-2 gap-3">
-                {RESIDENTIAL_EXTRA_SERVICES.map((service) => (
-                  <Button
-                    key={service}
-                    variant="outline"
-                    className={cn(
-                      "h-10 justify-center",
-                      extraServices.includes(service) && "bg-accent text-accent-foreground border-accent-foreground/30"
-                    )}
-                    onClick={() => toggleExtra(service)}
-                  >
-                    {service}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <FormSection icon={Package} title="Extra" subtitle="Areas that add labor to the service">
+              <OptionGrid
+                multiple
+                options={RESIDENTIAL_EXTRA_SERVICES}
+                value={extraServices}
+                onChange={setExtraServices}
+              />
+          </FormSection>
 
           {/* Pets */}
-          <Card>
-            <CardContent className="p-5 space-y-4">
-              <h2 className="text-base font-semibold">Pets</h2>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { val: "yes", label: "Yes, I have pets" },
-                  { val: "no",  label: "No pets" },
-                ].map(({ val, label }) => (
-                  <Button
-                    key={val}
-                    variant="outline"
-                    className={cn(
-                      "h-10 justify-center",
-                      hasPets === val && "bg-accent text-accent-foreground border-accent-foreground/30"
-                    )}
-                    onClick={() => setHasPets(val)}
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <FormSection icon={PawPrint} title="Pets" subtitle="Whether there are animals at the property">
+              <OptionGrid options={PETS_OPTIONS} value={hasPets} onChange={setHasPets} />
+          </FormSection>
 
           {/* Notes */}
-          <Card>
-            <CardContent className="p-5 space-y-4">
-              <h2 className="text-base font-semibold">Notes</h2>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+          <FormSection icon={FileText} title="Notes" subtitle="Anything worth recording from the visit">
+              <TextareaField
+                id="walkthrough-notes"
                 placeholder="Add your notes here..."
-                className="min-h-[100px]"
+                value={notes}
+                onChange={setNotes}
               />
-            </CardContent>
-          </Card>
+          </FormSection>
 
           {/* Photos */}
-          <Card>
-            <CardContent className="p-5 space-y-4">
-              <h2 className="text-base font-semibold flex items-center gap-2">
-                <Camera className="w-4 h-4" /> Photos
-              </h2>
+          <FormSection icon={Camera} title="Photos" subtitle="Capture images of the property for reference">
               {photos.length > 0 && (
                 <div className="grid grid-cols-3 gap-3">
                   {photos.map((photo, index) => (
@@ -292,8 +233,7 @@ export function ResidentialWalkthroughFormPage() {
                 <Camera className="w-4 h-4" /> Add Photos
               </Button>
               <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoCapture} />
-            </CardContent>
-          </Card>
+          </FormSection>
 
           {/* Footer */}
           <div className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">

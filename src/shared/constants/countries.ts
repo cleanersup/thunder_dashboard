@@ -1,7 +1,11 @@
 /**
  * ISO 3166-1 alpha-2 country codes for address autocomplete.
- * Used by Google Places API componentRestrictions and country dropdowns.
+ * Used by Google Places API componentRestrictions and the signup country dropdown.
  * Mirrors swift-slate/src/lib/countries.ts (COUNTRY_OPTIONS).
+ *
+ * El país ya no se elige en los formularios de la app: un dueño opera solo en el
+ * país con el que se registró y ese país se lee de `useOwnerCountry()`. La única
+ * pantalla que muestra este listado es el registro.
  */
 export const COUNTRY_OPTIONS = [
   { value: "us", label: "United States" },
@@ -154,4 +158,125 @@ export const STATES_BY_COUNTRY: Record<string, string[]> = {
     "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry",
   ],
 };
+
+/**
+ * Centro del mapa por país — vista inicial antes de tener marcadores que encuadrar.
+ * Mirrors swift-slate/src/lib/countries.ts (COUNTRY_CENTER).
+ */
+export const COUNTRY_CENTER: Record<string, { lat: number; lng: number }> = {
+  us: { lat: 39.8283, lng: -98.5795 },
+  ca: { lat: 56.13,   lng: -106.35 },
+  mx: { lat: 23.63,   lng: -102.55 },
+  gb: { lat: 54.0,    lng: -2.5 },
+  au: { lat: -25.27,  lng: 133.77 },
+  de: { lat: 51.16,   lng: 10.45 },
+  fr: { lat: 46.23,   lng: 2.21 },
+  es: { lat: 40.46,   lng: -3.75 },
+  it: { lat: 41.87,   lng: 12.57 },
+  nl: { lat: 52.13,   lng: 5.29 },
+  br: { lat: -14.24,  lng: -51.93 },
+  ar: { lat: -38.42,  lng: -63.62 },
+  co: { lat: 4.57,    lng: -74.3 },
+  cl: { lat: -35.68,  lng: -71.54 },
+  pe: { lat: -9.19,   lng: -75.02 },
+  ec: { lat: -1.83,   lng: -78.18 },
+  ie: { lat: 53.14,   lng: -7.69 },
+  nz: { lat: -40.9,   lng: 174.89 },
+  jp: { lat: 36.2,    lng: 138.25 },
+  in: { lat: 20.59,   lng: 78.96 },
+};
+
+/** Centro inicial del mapa para el país del dueño. */
+export function countryCenter(country: string): { lat: number; lng: number } {
+  return COUNTRY_CENTER[country] ?? COUNTRY_CENTER.us;
+}
+
+/**
+ * Nombre del país que se añade a la dirección antes de geocodificarla.
+ *
+ * Las direcciones se guardan sin país (calle, ciudad, estado, código postal),
+ * así que Google las interpreta en EE. UU. por defecto: "Calle 100, Bogotá"
+ * puede caer en cualquier parte. EE. UU. no lleva sufijo porque es el caso que
+ * Google ya resuelve sin ayuda.
+ *
+ * Mirrors swift-slate/src/components/MapView.tsx (COUNTRY_SUFFIX).
+ */
+export const COUNTRY_SUFFIX: Record<string, string> = {
+  ca: "Canada", mx: "Mexico", gb: "United Kingdom", au: "Australia",
+  de: "Germany", fr: "France", es: "Spain", it: "Italy", nl: "Netherlands",
+  br: "Brazil", ar: "Argentina", co: "Colombia", cl: "Chile", pe: "Peru",
+  ec: "Ecuador", ie: "Ireland", nz: "New Zealand", jp: "Japan", in: "India",
+};
+
+/**
+ * Nombre legible de un país.
+ * @param code - ISO alpha-2 en minúsculas
+ * @param name - Nombre que ya vino del backend (`country_name`), si lo hay
+ */
+export function countryLabel(code: string, name?: string | null): string {
+  if (name) return name;
+  return COUNTRY_OPTIONS.find((c) => c.value === code)?.label ?? code.toUpperCase();
+}
+
+// ─── Reglas de dirección por país ─────────────────────────────────────────────
+// El formato de código postal y de región cambia por país, y hasta ahora el
+// dashboard asumía el de EE. UU. en todas partes (cinco dígitos, estado de dos
+// letras). Con el país del dueño como dato fijo, cada regla se resuelve a partir
+// de él.
+//
+// Solo EE. UU. lleva regla estricta: es la que ya existía y la que cubre la data
+// histórica. Para el resto se usa una regla tolerante a propósito — una regex
+// equivocada bloquea a un usuario real, mientras que una permisiva solo deja
+// pasar un typo. Si un país concreto necesita su formato exacto, se añade aquí.
+
+export interface PostalRule {
+  /** `true` → el control solo acepta dígitos. */
+  numeric:   boolean;
+  pattern:   RegExp;
+  message:   string;
+  maxLength: number;
+}
+
+const US_POSTAL: PostalRule = {
+  numeric:   true,
+  pattern:   /^\d{5}$/,
+  message:   "ZIP must be 5 digits",
+  maxLength: 5,
+};
+
+const GENERIC_POSTAL: PostalRule = {
+  numeric:   false,
+  pattern:   /^[A-Za-z0-9][A-Za-z0-9 -]{1,11}$/,
+  message:   "Enter a valid postal code",
+  maxLength: 12,
+};
+
+/** Regla de código postal del país. */
+export function postalRule(country: string): PostalRule {
+  return country === "us" ? US_POSTAL : GENERIC_POSTAL;
+}
+
+export interface StateRule {
+  maxLength: number;
+  /** `true` → el valor se guarda en mayúsculas (códigos de estado de EE. UU.). */
+  uppercase: boolean;
+  message:   string;
+}
+
+const US_STATE: StateRule = {
+  maxLength: 2,
+  uppercase: true,
+  message:   "Enter the 2-letter state code",
+};
+
+const GENERIC_STATE: StateRule = {
+  maxLength: 100,
+  uppercase: false,
+  message:   "State is too long",
+};
+
+/** Regla del campo State/Province/Region del país. */
+export function stateRule(country: string): StateRule {
+  return country === "us" ? US_STATE : GENERIC_STATE;
+}
 

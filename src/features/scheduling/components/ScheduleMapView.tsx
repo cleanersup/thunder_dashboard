@@ -13,6 +13,8 @@
  */
 import { useEffect, useRef } from "react";
 import { useGoogleMaps } from "@/shared/hooks/useGoogleMaps";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
+import { countryCenter } from "@/shared/constants/countries";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { resolveCssColor } from "@/shared/utils/cssColor";
 import { eventPalette, type ScheduleEvent } from "../types/scheduleEvent";
@@ -55,6 +57,8 @@ export function ScheduleMapView({
   events, coords, stopNumbers, selectedId, onSelect, className = "h-full w-full",
 }: ScheduleMapViewProps) {
   const { loaded, error, google } = useGoogleMaps();
+  // El mapa abre sobre el país del dueño, no sobre el centro de EE. UU.
+  const { country, isLoading: countryLoading } = useOwnerCountry();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef       = useRef<any>(null);
   const markersRef   = useRef<Map<string, any>>(new Map());
@@ -63,9 +67,10 @@ export function ScheduleMapView({
   const fittedRef    = useRef(false);
 
   useEffect(() => {
+    if (countryLoading) return;
     if (!loaded || !google || !containerRef.current || mapRef.current) return;
     mapRef.current = new google.maps.Map(containerRef.current, {
-      center: { lat: 39.8283, lng: -98.5795 },
+      center: countryCenter(country),
       zoom: 4,
       streetViewControl: false,
       mapTypeControl: false,
@@ -75,7 +80,7 @@ export function ScheduleMapView({
       zoomControlOptions:       { position: google.maps.ControlPosition.RIGHT_BOTTOM },
       styles: [{ featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }],
     });
-  }, [loaded, google]);
+  }, [loaded, google, country, countryLoading]);
 
   // Chinchetas
   useEffect(() => {

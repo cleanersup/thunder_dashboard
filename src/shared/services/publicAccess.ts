@@ -30,6 +30,9 @@ export interface PublicCompanyProfile {
   company_city?: string | null;
   company_state?: string | null;
   company_zip?: string | null;
+  /** País de operación del dueño (ISO alpha-2 minúsculas) — lo resuelve el RPC. */
+  company_country?: string | null;
+  company_country_name?: string | null;
 }
 
 export interface InvoiceMerchantProfile {
@@ -57,7 +60,7 @@ export async function getPublicCompanyProfile(userId: string): Promise<PublicCom
   const { data: row, error: fallbackError } = await supabase
     .from("profiles")
     .select(
-      "first_name, last_name, company_name, company_logo, company_email, company_phone, company_address, company_apt_suite, company_city, company_state, company_zip",
+      "first_name, last_name, company_name, company_logo, company_email, company_phone, company_address, company_apt_suite, company_city, company_state, company_zip, company_country",
     )
     .eq("user_id", userId)
     .maybeSingle();
@@ -163,6 +166,9 @@ export async function getPublicContract(token: string): Promise<Record<string, u
     return data;
   }
 
+  // `contracts` no está en los tipos generados de Supabase, igual que `jobs` o
+  // `client_properties`. El cast es el mismo que usa `jobsService`.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: row, error: fallbackError } = await (supabase as any)
     .from("contracts")
     .select("*")

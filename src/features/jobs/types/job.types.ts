@@ -165,6 +165,20 @@ export interface Job {
 export type CreateJobInput = Omit<Job, "id" | "jobNumber" | "userId" | "createdAt" | "updatedAt">;
 export type UpdateJobInput = Partial<Omit<Job, "id" | "jobNumber" | "userId" | "createdAt">>;
 
+/**
+ * Resultado de guardar un job.
+ *
+ * El job se guarda aunque no se puedan resolver las coordenadas del sitio, pero sin
+ * ellas la app de empleados no tiene contra qué hacer geofence y bloquea el fichaje.
+ * Es un fallo parcial que el usuario tiene que ver, así que viaja con el resultado
+ * en vez de quedarse en un `console.warn`.
+ */
+export interface JobWriteResult {
+  job: Job;
+  /** Motivo por el que no se situó el sitio de trabajo, o `null` si todo fue bien. */
+  siteGeocodeError: string | null;
+}
+
 /** Normalize jobs.assigned_employees JSONB (string ids or {id,name} objects) to UUID strings. */
 export function normalizeJobEmployeeIds(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];

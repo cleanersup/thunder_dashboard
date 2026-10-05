@@ -5,6 +5,8 @@
  */
 import { useEffect, useRef } from "react";
 import { useGoogleMaps } from "@/shared/hooks/useGoogleMaps";
+import { useOwnerCountry } from "@/shared/hooks/useOwnerCountry";
+import { countryCenter } from "@/shared/constants/countries";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import type { MapMarker } from "../types/scheduling.types";
 
@@ -22,15 +24,18 @@ interface SmartMapViewProps {
 
 export function SmartMapView({ markers, className = "h-full w-full", style }: SmartMapViewProps) {
   const { loaded, error, google } = useGoogleMaps();
+  // El mapa abre sobre el país del dueño, no sobre el centro de EE. UU.
+  const { country, isLoading: countryLoading } = useOwnerCountry();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
 
   // Init map
   useEffect(() => {
+    if (countryLoading) return;
     if (!loaded || !google || !mapRef.current || mapInstanceRef.current) return;
     mapInstanceRef.current = new google.maps.Map(mapRef.current, {
-      center: { lat: 39.8283, lng: -98.5795 },
+      center: countryCenter(country),
       zoom: 4,
       streetViewControl: false,
       mapTypeControl: true,
@@ -49,7 +54,7 @@ export function SmartMapView({ markers, className = "h-full w-full", style }: Sm
         { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
       ],
     });
-  }, [loaded, google]);
+  }, [loaded, google, country, countryLoading]);
 
   // Place markers when data changes
   useEffect(() => {
