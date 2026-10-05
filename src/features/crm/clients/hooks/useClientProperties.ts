@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { clientPropertyService } from "../services/clientPropertyService";
-import type { ClientPropertyFormData, ClientPropertyContactFormData } from "../types/clientProperty.types";
+import type { ClientProperty, ClientPropertyFormData, ClientPropertyContactFormData } from "../types/clientProperty.types";
 import { QK } from "@/shared/config/queryKeys";
 
 export function useClientProperties(clientId: string | undefined) {
@@ -17,7 +17,15 @@ export function useCreateClientProperty(clientId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (form: ClientPropertyFormData) => clientPropertyService.create(clientId, form),
-    onSuccess: () => {
+    onSuccess: (created) => {
+      // La fila nueva entra en la caché antes de invalidar. Quien acaba de crear
+      // la propiedad la deja seleccionada en el acto, y los selectores que
+      // comprueban "¿está esta propiedad en la lista?" la encuentran: con solo
+      // invalidar, durante el refetch la lista seguía sin ella y la selección se
+      // perdía a favor de la primaria.
+      qc.setQueryData<ClientProperty[]>(QK.clientProperties(clientId), (prev) =>
+        prev ? [...prev, created] : [created],
+      );
       qc.invalidateQueries({ queryKey: QK.clientProperties(clientId) });
       toast.success("Property added");
     },

@@ -2,17 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
-import { formatDisplayDateShort } from "@/shared/utils/formatters";
-import { CalendarIcon, Download, Upload, X } from "lucide-react";
+import { Download, Upload, X } from "lucide-react";
 import {
-  FormSheet, FormBand, FloatingInput, SelectField, TextareaField,
+  FormSheet, FormBand, FloatingInput, SelectField, TextareaField, DateField,
 } from "@/shared/components/forms";
-import { Button } from "@/shared/components/ui/button";
-import { Label } from "@/shared/components/ui/label";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { withRequiredMark } from "@/shared/utils/formLabel";
-import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
-import { Calendar } from "@/shared/components/ui/calendar";
 import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
 import { postalRule, stateRule } from "@/shared/constants/countries";
@@ -92,7 +87,6 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
 
   // Local state for complex fields
   const [birthdayDate, setBirthdayDate]   = useState<Date | undefined>(undefined);
-  const [birthdayOpen, setBirthdayOpen]   = useState(false);
   const [availableDays, setAvailableDays] = useState<AvailableDays>(makeDefaultDays());
   const [docFiles, setDocFiles]           = useState<File[]>([]);
   const [existingDocs, setExistingDocs]   = useState<string[]>([]);
@@ -389,47 +383,20 @@ export function EmployeeForm({ open, onClose, employeeId, onCreated, onUpdated }
                   />
                 )}
               />
-              {/* La fecha de nacimiento necesita saltar décadas atrás, así que
-                  conserva el calendario con selector de año en vez de `DateField`. */}
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium">{withRequiredMark("Date of Birth", true)}</Label>
-                <Popover open={birthdayOpen} onOpenChange={setBirthdayOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="field"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !birthdayDate && "text-muted-foreground",
-                        errors.birthday && "border-destructive",
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {birthdayDate ? formatDisplayDateShort(birthdayDate) : "Select date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={birthdayDate}
-                      onSelect={(d) => {
-                        if (d) {
-                          setBirthdayDate(d);
-                          setValue("birthday", format(d, "yyyy-MM-dd"), { shouldValidate: true });
-                          setBirthdayOpen(false);
-                        }
-                      }}
-                      captionLayout="dropdown-buttons"
-                      fromYear={1950}
-                      toYear={new Date().getFullYear()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                {errors.birthday && (
-                  <p className="text-xs text-destructive">{errors.birthday.message}</p>
-                )}
-              </div>
+              {/* La fecha de nacimiento salta décadas atrás, de ahí el rango de
+                  años: `DateField` lo convierte en desplegables de cabecera. */}
+              <DateField
+                placeholder="Date of Birth"
+                required
+                value={birthdayDate}
+                onChange={(d) => {
+                  setBirthdayDate(d);
+                  setValue("birthday", d ? format(d, "yyyy-MM-dd") : "", { shouldValidate: true });
+                }}
+                fromYear={1950}
+                toYear={new Date().getFullYear()}
+                error={errors.birthday?.message}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">

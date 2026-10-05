@@ -25,6 +25,8 @@ import type { JobServiceItem, CreateJobInput, RecurrenceFrequency } from "../typ
 import { SERVICE_TYPE_OPTIONS, defaultRecurrenceEnd } from "../config/jobRecurrence";
 import { RecurrenceFields } from "../components/RecurrenceFields";
 import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
+import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
+import { matchPropertyByAddress } from "@/shared/utils/matchPropertyByAddress";
 import { toast } from "sonner";
 
 /** Tipo y valor del descuento/depósito comparten forma: porcentaje o monto. */
@@ -55,6 +57,25 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
   // ─── Contact ──────────────────────────────────────────────────────────
   const [contact, setContact] = useState<ContactPickerValue>(EMPTY_CONTACT);
   const [selectedProperty, setSelectedProperty] = useState<ClientProperty | null>(null);
+
+  /**
+   * Propiedad del job al reabrirlo. La fila guarda la dirección copiada, no el id
+   * de la propiedad, así que se reconoce por la dirección; sin esto el selector
+   * caía en la propiedad primaria del cliente y cambiaba la dirección del job por
+   * la cara — que es lo que se veía al convertir un estimate.
+   */
+  const { data: jobProperties = [] } = useClientProperties(
+    isEdit ? existingJob?.clientId ?? undefined : undefined,
+  );
+  const preferredPropertyId = useMemo(
+    () =>
+      matchPropertyByAddress(jobProperties, {
+        street: existingJob?.propertyStreet,
+        city:   existingJob?.propertyCity,
+        zip:    existingJob?.propertyZip,
+      })?.id ?? null,
+    [jobProperties, existingJob?.propertyStreet, existingJob?.propertyCity, existingJob?.propertyZip],
+  );
 
   // ─── Employees ────────────────────────────────────────────────────────
   const [employeeIds, setEmployeeIds] = useState<string[]>([]);
@@ -361,6 +382,7 @@ export function AddJobPage({ open, onClose, jobId }: AddJobPageProps) {
                     setErrors((e) => ({ ...e, contact: false }));
                   }}
                   error={errors.contact}
+                  preferredPropertyId={preferredPropertyId}
                   clientIdFromUrl={isEdit && existingJob?.contactType === "client" ? existingJob.clientId : undefined}
                   leadIdFromUrl={isEdit && existingJob?.contactType === "lead" ? existingJob.leadId : undefined}
                 />

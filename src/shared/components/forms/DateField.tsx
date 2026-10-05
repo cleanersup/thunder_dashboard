@@ -15,6 +15,13 @@ export interface DateFieldProps {
   onChange:    (date: Date | undefined) => void;
   /** Restringe el calendario (ej. no permitir fechas pasadas). */
   disabledDates?: (date: Date) => boolean;
+  /**
+   * Rango de años navegable con desplegable en la cabecera. Para fechas lejanas
+   * —un cumpleaños— ir mes a mes es inviable; sin estas props el calendario se
+   * mueve mes a mes, que es lo que quiere una fecha cercana.
+   */
+  fromYear?: number;
+  toYear?:   number;
   required?:   boolean;
   error?:      boolean | string;
   disabled?:   boolean;
@@ -32,6 +39,8 @@ export function DateField({
   value,
   onChange,
   disabledDates,
+  fromYear,
+  toYear,
   required = false,
   error,
   disabled = false,
@@ -65,6 +74,9 @@ export function DateField({
             selected={value}
             onSelect={(date) => { onChange(date); if (date) setOpen(false); }}
             disabled={disabledDates}
+            captionLayout={fromYear || toYear ? "dropdown-buttons" : undefined}
+            fromYear={fromYear}
+            toYear={toYear}
             initialFocus
             className="pointer-events-auto"
           />

@@ -86,12 +86,20 @@ export function ContactPicker({
   }, [leads, leadIdFromUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lead flow retired from the UI (matches swift-slate): default new pickers to
-  // "client". Skip when a lead is being restored from URL (edit) so it's preserved.
+  // "client".
+  //
+  // Se queda quieto mientras haya un contacto restaurable por id: al abrir un job
+  // en edición los dos efectos corren en el mismo commit y ambos leen el mismo
+  // `value`, así que sin esta guarda este sobrescribía con `client: null` el
+  // cliente que el efecto de arriba acababa de poner — y el formulario aparecía
+  // sin cliente. Solo pasaba con la lista ya en caché; con la query aún cargando
+  // el orden salía al revés, de ahí que fuera intermitente.
   useEffect(() => {
-    if (value.contactType == null && !leadIdFromUrl) {
-      onChange({ contactType: "client", client: null, lead: null, property: null });
-    }
-  }, [value.contactType, leadIdFromUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (value.contactType != null) return;
+    if (clientIdFromUrl && allClients.some((c) => c.id === clientIdFromUrl)) return;
+    if (leadIdFromUrl   && leads.some((l) => l.id === leadIdFromUrl)) return;
+    onChange({ contactType: "client", client: null, lead: null, property: null });
+  }, [value.contactType, clientIdFromUrl, leadIdFromUrl, allClients, leads]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 

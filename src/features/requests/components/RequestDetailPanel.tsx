@@ -25,6 +25,7 @@ import { AddWalkthroughPage }   from "@/features/walkthroughs/pages/AddWalkthrou
 import { useWalkthrough }       from "@/features/walkthroughs/hooks/useWalkthroughs";
 import { useEstimate }          from "@/features/estimates/hooks/useEstimates";
 import { useClientProperties }  from "@/features/crm/clients/hooks/useClientProperties";
+import { matchPropertyByAddress } from "@/shared/utils/matchPropertyByAddress";
 import {
   useCancelRequest, useDeleteRequest,
   useArchiveRequest, useRestoreRequest,
@@ -147,16 +148,13 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
 
   // ── Property lookup (must be above the guard) ──────────────────────────────
   const { data: clientProperties = [] } = useClientProperties(booking?.client_id ?? undefined);
-  // Match by the booking's denormalized address first — the persisted client_property_id
-  // FK is unreliable (a backend trigger normalizes it to the primary property), whereas
-  // the address is copied untouched from the property the user selected on the request.
+  // La dirección manda sobre el FK: ver `matchPropertyByAddress`.
   const matchedProperty =
-    clientProperties.find(
-      (p) =>
-        p.street.toLowerCase().trim() === (booking?.street ?? "").toLowerCase().trim() &&
-        p.city.toLowerCase().trim()   === (booking?.city   ?? "").toLowerCase().trim() &&
-        p.zip_code.trim()             === (booking?.zip_code ?? "").trim()
-    ) ??
+    matchPropertyByAddress(clientProperties, {
+      street: booking?.street,
+      city:   booking?.city,
+      zip:    booking?.zip_code,
+    }) ??
     (booking?.client_property_id
       ? clientProperties.find((p) => p.id === booking.client_property_id)
       : undefined);
