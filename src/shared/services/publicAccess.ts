@@ -133,6 +133,9 @@ export async function getPublicQuickQuote(token: string): Promise<Record<string,
   }
 
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
+  // `quick_quotes` no está en los tipos generados de Supabase, igual que `jobs`
+  // o `contracts`. El cast es el mismo que usa `quickQuoteService`.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase as any).from("quick_quotes").select("*");
   query = isUuid ? query.or(`public_share_token.eq.${token},id.eq.${token}`) : query.eq("public_share_token", token);
   const { data: row, error: fallbackError } = await query.maybeSingle();
