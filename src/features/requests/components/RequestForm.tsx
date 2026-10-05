@@ -28,6 +28,11 @@ import type { CustomQuestion } from "../hooks/useCustomQuestions";
 import type { Client } from "@/features/crm/types/crm.types";
 import type { ClientEntity } from "@/shared/types/entities";
 import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
+import {
+  clearRequestAttachmentFiles,
+  readRequestAttachmentFiles,
+  writeRequestAttachmentFiles,
+} from "../utils/requestAttachmentDraft";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -117,6 +122,8 @@ export interface RequestFormProps {
   isSaving:         boolean;
   onSave:           (payload: RequestPayload) => void;
   onCancel:         () => void;
+  /** Survives remounts from nested client Dialog/Sheet. */
+  attachmentDraftKey?: string;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -130,6 +137,7 @@ export function RequestForm({
   isSaving,
   onSave,
   onCancel,
+  attachmentDraftKey = "create",
 }: RequestFormProps) {
 
   // ── Contact ───────────────────────────────────────────────────────────────
@@ -152,8 +160,12 @@ export function RequestForm({
 
   // ── Attachments ───────────────────────────────────────────────────────────
   const [keptAttachments,    setKeptAttachments]    = useState<BookingAttachmentMeta[]>(initialValues?.existingAttachments ?? []);
-  const [attachmentFiles,    setAttachmentFiles]    = useState<File[]>([]);
+  const [attachmentFiles,    setAttachmentFiles]    = useState<File[]>(() => readRequestAttachmentFiles(attachmentDraftKey));
   const [isProcessingFiles,  setIsProcessingFiles]  = useState(false);
+
+  useEffect(() => {
+    writeRequestAttachmentFiles(attachmentDraftKey, attachmentFiles);
+  }, [attachmentDraftKey, attachmentFiles]);
 
   // ── Validation errors ─────────────────────────────────────────────────────
   const [errors, setErrors] = useState({ client: false, serviceType: false });
@@ -193,29 +205,44 @@ export function RequestForm({
     }
 
     setIsProcessingFiles(true);
-    const result: File[] = [];
-    for (const file of toProcess) {
-      if (file.type.startsWith("image/")) {
-        if (file.size <= MAX_FILE_BYTES) {
-          result.push(file);
-        } else {
-          try {
-            const compressed = await compressImage(file);
-            result.push(compressed);
-          } catch {
-            toast.error(`Could not compress "${file.name}" — file skipped.`);
+    // Commit immediately so nested client pickers cannot wipe the selection
+    // while images are still compressing.
+    setAttachmentFiles((prev) => {
+      const next = [...prev, ...toProcess];
+      writeRequestAttachmentFiles(attachmentDraftKey, next);
+      return next;
+    });
+    const processed: File[] = [];
+    try {
+      for (const file of toProcess) {
+        if (file.type.startsWith("image/")) {
+          if (file.size <= MAX_FILE_BYTES) {
+            processed.push(file);
+          } else {
+            try {
+              const compressed = await compressImage(file);
+              processed.push(compressed);
+            } catch {
+              toast.error(`Could not compress "${file.name}" — file skipped.`);
+            }
+          }
+        } else if (file.type === "application/pdf") {
+          if (file.size > MAX_FILE_BYTES) {
+            toast.error(`"${file.name}" exceeds 2 MB. PDFs cannot be compressed.`);
+          } else {
+            processed.push(file);
           }
         }
-      } else if (file.type === "application/pdf") {
-        if (file.size > MAX_FILE_BYTES) {
-          toast.error(`"${file.name}" exceeds 2 MB. PDFs cannot be compressed.`);
-        } else {
-          result.push(file);
-        }
       }
+      setAttachmentFiles((prev) => {
+        const withoutOptimistic = prev.filter((f) => !toProcess.includes(f));
+        const next = [...withoutOptimistic, ...processed];
+        writeRequestAttachmentFiles(attachmentDraftKey, next);
+        return next;
+      });
+    } finally {
+      setIsProcessingFiles(false);
     }
-    if (result.length) setAttachmentFiles((prev) => [...prev, ...result]);
-    setIsProcessingFiles(false);
   };
 
   // ── Build and emit payload ────────────────────────────────────────────────
@@ -227,6 +254,11 @@ export function RequestForm({
       return;
     }
     emitPayload(selectedClient);
+  };
+
+  const handleCancel = () => {
+    clearRequestAttachmentFiles(attachmentDraftKey);
+    onCancel();
   };
 
   const emitPayload = (client: Client) => {
@@ -276,7 +308,7 @@ export function RequestForm({
         <div className="bg-card px-4 py-3 sticky top-0 z-10 border-b border-border/50">
           <div className="flex items-center justify-between">
             <button
-              onClick={onCancel}
+              onClick={handleCancel}
               className="p-2 -ml-2 hover:bg-secondary rounded-lg transition-colors"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -446,7 +478,7 @@ export function RequestForm({
         {/* ── Actions ──────────────────────────────────────────────── */}
         {isModal ? (
           <div className="bg-card p-4 flex items-center justify-between gap-3">
-            <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
+            <Button variant="outline" size="sm" onClick={handleCancel}>Cancel</Button>
             <Button size="sm" onClick={handleSave} disabled={isSaving}>
               {isSaving ? "Saving..." : "Save"}
             </Button>
@@ -454,7 +486,7 @@ export function RequestForm({
         ) : (
           <Card className={cn(!isModal && "rounded-none border-0")}>
             <CardContent className="px-4 pt-4 pb-4 grid grid-cols-2 gap-3">
-              <Button variant="outline" onClick={onCancel}>Cancel</Button>
+              <Button variant="outline" onClick={handleCancel}>Cancel</Button>
               <Button onClick={handleSave} disabled={isSaving}>
                 {isSaving ? "Saving..." : "Save"}
               </Button>

@@ -9,6 +9,7 @@ import { RequestForm } from "../components/RequestForm";
 import { useRequest, useUpdateRequest } from "../hooks/useRequests";
 import { useCustomQuestions } from "../hooks/useCustomQuestions";
 import type { RequestPayload, BookingAttachmentMeta } from "../types/request.types";
+import { clearRequestAttachmentFiles } from "../utils/requestAttachmentDraft";
 
 interface EditRequestPageProps {
   bookingId: string | null;
@@ -17,17 +18,22 @@ interface EditRequestPageProps {
 }
 
 export function EditRequestPage({ bookingId, open, onClose }: EditRequestPageProps) {
-  const { data: request, isLoading } = useRequest(bookingId ?? undefined);
+  const { data: request } = useRequest(bookingId ?? undefined);
   const { data: customQuestions = [] } = useCustomQuestions();
   const { mutate: update, isPending } = useUpdateRequest();
 
+  const handleClose = () => {
+    if (bookingId) clearRequestAttachmentFiles(`edit:${bookingId}`);
+    onClose();
+  };
+
   const handleSave = (payload: RequestPayload) => {
     if (!bookingId) return;
-    update({ id: bookingId, payload }, { onSuccess: onClose });
+    update({ id: bookingId, payload }, { onSuccess: handleClose });
   };
 
   return (
-    <FullScreenModal open={open} onClose={onClose}>
+    <FullScreenModal open={open} onClose={handleClose}>
       {/* Header */}
       <div className="flex-shrink-0 bg-card">
         <div className="max-w-2xl mx-auto">
@@ -37,7 +43,7 @@ export function EditRequestPage({ bookingId, open, onClose }: EditRequestPagePro
               <h1 className="font-semibold text-base leading-tight">Edit Request</h1>
             </div>
             <div className="flex items-center w-1/3 justify-end">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleClose}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -47,7 +53,7 @@ export function EditRequestPage({ bookingId, open, onClose }: EditRequestPagePro
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto bg-muted/40">
-        {isLoading || !request ? (
+        { !request ? (
           <div className="flex justify-center py-16">
             <LoadingSpinner />
           </div>
@@ -57,6 +63,7 @@ export function EditRequestPage({ bookingId, open, onClose }: EditRequestPagePro
               isModal
               title="Edit Request"
               mode="edit"
+              attachmentDraftKey={bookingId ?? "edit"}
               initialValues={{
                 serviceType:        request.service_type ?? "",
                 selectedDate:       request.preferred_date ? parseISO(request.preferred_date) : undefined,
@@ -80,7 +87,7 @@ export function EditRequestPage({ bookingId, open, onClose }: EditRequestPagePro
               customQuestions={customQuestions}
               isSaving={isPending}
               onSave={handleSave}
-              onCancel={onClose}
+              onCancel={handleClose}
             />
           </div>
         )}

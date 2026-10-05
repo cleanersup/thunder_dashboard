@@ -128,7 +128,13 @@ export async function getPublicQuickQuote(token: string): Promise<Record<string,
     if (error) throw error;
     return data;
   }
-  return null;
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
+  let query = (supabase as any).from("quick_quotes").select("*");
+  query = isUuid ? query.or(`public_share_token.eq.${token},id.eq.${token}`) : query.eq("public_share_token", token);
+  const { data: row, error: fallbackError } = await query.maybeSingle();
+  if (fallbackError) throw fallbackError;
+  return row as Record<string, unknown> | null;
 }
 
 export async function getPublicEstimate(token: string): Promise<Record<string, unknown> | null> {

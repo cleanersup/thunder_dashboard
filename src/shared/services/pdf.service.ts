@@ -146,11 +146,13 @@ async function generateEstimatePDF(data: EstimatePDFData): Promise<jsPDF> {
   doc.setFont("helvetica", "normal");
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(9);
-  doc.text(data.clientName, col2X, rightY); rightY += 5;
-  doc.text(data.clientPhone, col2X, rightY); rightY += 5;
-  doc.text(data.clientEmail, col2X, rightY); rightY += 5;
-  const addr = `${data.clientAddress}${data.clientApt ? " " + data.clientApt : ""}, ${data.clientCity}, ${data.clientState} ${data.clientZip}`;
-  doc.splitTextToSize(addr, colW).forEach((l: string) => { doc.text(l, col2X, rightY); rightY += 5; });
+  if (data.clientName) { doc.text(data.clientName, col2X, rightY); rightY += 5; }
+  if (data.clientPhone) { doc.text(data.clientPhone, col2X, rightY); rightY += 5; }
+  if (data.clientEmail) { doc.text(data.clientEmail, col2X, rightY); rightY += 5; }
+  if (data.clientAddress || data.clientApt || data.clientCity || data.clientState || data.clientZip) {
+    const addr = `${data.clientAddress}${data.clientApt ? " " + data.clientApt : ""}, ${data.clientCity}, ${data.clientState} ${data.clientZip}`;
+    doc.splitTextToSize(addr, colW).forEach((l: string) => { doc.text(l, col2X, rightY); rightY += 5; });
+  }
   yPos = Math.max(leftY, rightY) + 3;
 
   // Service Details

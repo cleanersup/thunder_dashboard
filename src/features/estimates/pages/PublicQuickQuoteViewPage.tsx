@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { fetchEstimateProfile } from "../services/estimatesService";
@@ -17,9 +17,14 @@ export function PublicQuickQuoteViewPage() {
   const { token }  = useParams<{ token: string }>();
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
+  const [pdfUrl,   setPdfUrl]   = useState<string | null>(null);
+
+  const pdfUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!token) { setError("Invalid token"); setLoading(false); return; }
+
+    let cancelled = false;
 
     (async () => {
       try {
@@ -60,17 +65,33 @@ export function PublicQuickQuoteViewPage() {
           total:          quote.total,
         });
 
-        const blob    = doc.output("blob");
+        // Keep the PDF on this page. Navigating to a blob URL unmounts the SPA
+        // and often shows a blank tab in in-app / email browsers.
+        const blob = doc.output("blob");
         const blobUrl = URL.createObjectURL(blob);
-        window.location.href = blobUrl;
-
+        if (cancelled) {
+          URL.revokeObjectURL(blobUrl);
+          return;
+        }
+        if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+        pdfUrlRef.current = blobUrl;
+        setPdfUrl(blobUrl);
         setLoading(false);
       } catch (err: any) {
+        if (cancelled) return;
         console.error("Error loading quick quote:", err);
         setError(err.message ?? "Failed to load quote");
         setLoading(false);
       }
     })();
+
+    return () => {
+      cancelled = true;
+      if (pdfUrlRef.current) {
+        URL.revokeObjectURL(pdfUrlRef.current);
+        pdfUrlRef.current = null;
+      }
+    };
   }, [token]);
 
   if (loading) {
@@ -91,7 +112,15 @@ export function PublicQuickQuoteViewPage() {
     );
   }
 
-  return null;
+  if (!pdfUrl) return null;
+
+  return (
+    <iframe
+      src={pdfUrl}
+      title="Quote PDF"
+      className="h-screen w-full border-0"
+    />
+  );
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

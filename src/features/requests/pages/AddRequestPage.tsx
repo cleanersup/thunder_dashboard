@@ -11,6 +11,7 @@ import { FullScreenModal } from "@/shared/components/common/FullScreenModal";
 import { Button } from "@/shared/components/ui/button";
 import { QK } from "@/shared/config/queryKeys";
 import type { RequestPayload } from "../types/request.types";
+import { clearRequestAttachmentFiles } from "../utils/requestAttachmentDraft";
 
 interface AddRequestPageProps {
   open?: boolean;
@@ -26,6 +27,7 @@ export function AddRequestPage({ open, onClose }: AddRequestPageProps = {}) {
   const isModal = onClose !== undefined;
 
   const handleClose = () => {
+    clearRequestAttachmentFiles("create");
     if (isModal) onClose?.();
     else navigate("/requests");
   };
@@ -74,6 +76,7 @@ export function AddRequestPage({ open, onClose }: AddRequestPageProps = {}) {
               isModal
               title="New Request"
               mode="create"
+              attachmentDraftKey="create"
               customQuestions={customQuestions}
               isSaving={isSaving}
               onSave={handleSave}
@@ -89,6 +92,7 @@ export function AddRequestPage({ open, onClose }: AddRequestPageProps = {}) {
     <RequestForm
       title="New Request"
       mode="create"
+      attachmentDraftKey="create"
       customQuestions={customQuestions}
       isSaving={isSaving}
       onSave={handleSave}
