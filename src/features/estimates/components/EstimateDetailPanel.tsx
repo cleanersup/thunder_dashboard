@@ -49,25 +49,12 @@ import { PDFService } from "@/shared/services/pdf.service";
 import { SidePanel } from "@/shared/components/common/SidePanel";
 import { buildContractPrefillFromEstimate } from "../utils/buildContractPrefillFromEstimate";
 import { restoreDepositFromAdditionalData } from "../utils/estimateDeposit";
+import { additionalItemEntries } from "../utils/additionalData";
 import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
 import { useConvertEstimateToJob } from "@/features/jobs/hooks/useConvertEstimateToJob";
 import { fetchLead, updateLead, convertLeadToClient, checkClientDuplicate } from "@/features/crm/leads/services/leadsService";
 
 // ─── Local helpers ────────────────────────────────────────────────────────────
-
-/**
- * Keys in `additional_data` that are NOT "additional item" counts and must be
- * excluded from the generic Additional Items dump — deposit flags are rendered
- * in their own Deposit section, and propertyId is internal metadata.
- */
-const ADDITIONAL_ITEMS_EXCLUDED = new Set([
-  "deposit_required",
-  "deposit_type",
-  "deposit_value",
-  "use_custom_price",
-  "custom_price",
-  "propertyId",
-]);
 
 function formatPhone(phone: string) {
   const c = phone.replace(/\D/g, "");
@@ -1210,9 +1197,7 @@ export function EstimateDetailPanel({
 
                 {/* Additional Items */}
                 {(() => {
-                  const items = Object.entries(f.additionalData).filter(
-                    ([key, value]) => !ADDITIONAL_ITEMS_EXCLUDED.has(key) && Number(value) > 0,
-                  );
+                  const items = additionalItemEntries(f.additionalData);
                   return items.length > 0 ? (
                     <Card className="border border-border/50">
                       <CardContent className="p-4">

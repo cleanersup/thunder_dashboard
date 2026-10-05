@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import {
   Mail, Phone, User, Zap, Edit, Trash2, Briefcase, CheckCircle,
   MoreHorizontal, X, Send, Clock, FileText, MessageSquare, Share, Download, ThumbsDown,
-  ChevronRight,
+  ChevronRight, DollarSign, Calendar, Users, Box, TrendingUp,
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -38,6 +38,7 @@ import { PDFService } from "@/shared/services/pdf.service";
 import { useQuickQuote, useUpdateQuickQuoteStatus, useDeleteQuickQuote } from "../hooks/useQuickQuotes";
 import { convertQuickQuoteToJob, convertQuickQuoteToInvoice, sendQuickQuoteEmail, sendQuickQuoteSMS, buildQuickQuotePublicUrl } from "../services/quickQuoteService";
 import type { QuickQuoteRow } from "../types/quickQuote.types";
+import { additionalItemEntries } from "../utils/additionalData";
 import { supabase } from "@/integrations/supabase/client";
 import {
   CompleteQuickQuoteClientDialog, type QuickQuoteJobOverrides,
@@ -344,10 +345,32 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
   const colors = statusColors(status);
   const isAccepted  = status === "Accepted";
   const isAwaiting  = status === "Pending" || status === "Viewed" || status === "Sent";
+  const isDraft     = status === "Draft";
   const isConverted = !!quote?.job_id;
   const isInvoiced  = !!quote?.invoice_id;
   const hasEmail    = !!quote?.recipient_email;
   const hasPhone    = !!quote?.recipient_phone;
+
+  // Costos internos. Cuando la fila no los trae se estiman sobre el total con
+  // los mismos porcentajes que swift-slate (45/5/10, 60 en total): el dueño ve
+  // la misma cifra en el móvil y en el dashboard.
+  const total        = quote?.total ?? 0;
+  const laborCost    = quote?.labor_cost           ?? total * 0.45;
+  const suppliesCost = quote?.supplies_cost        ?? total * 0.05;
+  const overheadCost = quote?.overhead_cost        ?? total * 0.10;
+  const operationCost = quote?.total_operation_cost ?? total * 0.60;
+
+  const roomEntries = Object.entries(quote?.main_data ?? {})
+    .map(([key, value]) => [key, Number(value)] as [string, number])
+    .filter(([, value]) => value > 0);
+  const additionalItems = additionalItemEntries(quote?.additional_data);
+  const extraServices   = Object.entries(quote?.extra_services ?? {})
+    .filter(([, value]) => Boolean(value))
+    .map(([key]) => key);
+
+  const showPets     = !!quote?.pets    && quote.pets !== "No"    && quote.pets !== "No pets";
+  const showLaundry  = !!quote?.laundry && quote.laundry !== "No";
+  const hasDiscount  = !!quote?.discount_type && !!quote?.discount_value;
 
   const awaitingMenu = quote ? (
     <DropdownMenu>
@@ -381,7 +404,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
           <ThumbsDown className="w-4 h-4 mr-2 text-orange-500" /> Decline
         </DropdownMenuItem>
         <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setIsCancelOpen(true)}>
-          <X className="w-4 h-4 mr-2" /> Cancel Estimate
+          <X className="w-4 h-4 mr-2" /> Cancel Quote
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -405,9 +428,62 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
     </DropdownMenu>
   ) : null;
 
+  /** Convertido a job y/o invoice: ya no hay nada que decidir, pero el quote se
+   *  sigue pudiendo abrir, descargar y compartir — igual que en swift-slate. */
+  const convertedMenu = quote ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="outline" className="px-2.5">
+          <MoreHorizontal className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        {quote.job_id && (
+          <DropdownMenuItem onClick={() => { onClose(); navigate("/jobs", { state: { openId: quote.job_id } }); }}>
+            <Briefcase className="w-4 h-4 mr-2" /> View Job
+          </DropdownMenuItem>
+        )}
+        {quote.invoice_id && (
+          <DropdownMenuItem onClick={() => { onClose(); navigate("/invoices", { state: { openId: quote.invoice_id } }); }}>
+            <FileText className="w-4 h-4 mr-2" /> View Invoice
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onClick={handleDownloadPDF} disabled={isDownloadingPDF}>
+          <Download className="w-4 h-4 mr-2" /> {isDownloadingPDF ? "Downloading…" : "Download PDF"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleShare} disabled={isGeneratingLink}>
+          <Share className="w-4 h-4 mr-2" /> {isGeneratingLink ? "Generating…" : "Share"}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
+
   const isTerminalConverted = status === "Converted" || status === "Invoiced" || (isConverted && isInvoiced);
 
-  const footer = !quote || isTerminalConverted ? undefined : isAwaiting ? (
+  const footer = !quote ? undefined : isTerminalConverted ? (
+    <div className="flex items-center justify-end">{convertedMenu}</div>
+  ) : isDraft ? (
+    <div className="flex items-center gap-2">
+      <Button size="sm" className="flex-1" onClick={() => { onClose(); onEdit?.(quote.id); }}>
+        <Edit className="w-4 h-4 mr-1.5" /> Continue
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="outline" className="px-2.5">
+            <MoreHorizontal className="w-4 h-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() => setIsDeleteOpen(true)}
+          >
+            <Trash2 className="w-4 h-4 mr-2" /> Delete Draft
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  ) : isAwaiting ? (
     <div className="flex items-center gap-2">
       <Button
         size="sm"
@@ -460,7 +536,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setIsCancelOpen(true)}>
-            <X className="w-4 h-4 mr-2" /> Cancel Estimate
+            <X className="w-4 h-4 mr-2" /> Cancel Quote
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -478,7 +554,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
             className="text-destructive focus:text-destructive"
             onClick={() => setIsDeleteOpen(true)}
           >
-            <Trash2 className="w-4 h-4 mr-2" /> Delete
+            <Trash2 className="w-4 h-4 mr-2" /> Delete Quote
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -607,30 +683,209 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
               </CardContent>
             </Card>
 
-            {/* Servicio y precio */}
+            {/* Total y beneficio — mismo bloque que EstimateDetailPanel: el
+                desglose interno es lo primero que el dueño mira. */}
             <Card className="border border-border/50">
-              <CardContent className="p-4 space-y-2">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Service
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1">Total Amount</p>
+                <p className="text-3xl font-bold mb-3" style={{ color: colors.color }}>
+                  ${formatCurrency(quote.total)}
                 </p>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Type</span>
-                  <span className="font-medium">{quote.service_sub_type || quote.service_type}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Date</span>
-                  <span className="font-medium">{formatDateOnly(quote.quote_date, "MMMM d, yyyy")}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">${formatCurrency(quote.subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-base pt-1 border-t border-border/50">
-                  <span className="font-semibold">Total</span>
-                  <span className="font-bold">${formatCurrency(quote.total)}</span>
+                {hasDiscount && (
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Subtotal ${formatCurrency(quote.subtotal)}
+                  </p>
+                )}
+                <div
+                  className="flex justify-between items-center p-3 rounded-lg"
+                  style={{ backgroundColor: "hsl(var(--green-vibrant) / 0.05)" }}
+                >
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" style={{ color: "hsl(var(--green-vibrant))" }} />
+                    <span className="text-sm font-semibold" style={{ color: "hsl(var(--green-vibrant))" }}>
+                      Net Profit
+                    </span>
+                  </div>
+                  <span className="text-lg font-bold" style={{ color: "hsl(var(--green-vibrant))" }}>
+                    ${formatCurrency(quote.total - operationCost)}
+                  </span>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Servicio */}
+            <Card className="border border-border/50">
+              <CardContent className="p-4">
+                <h4 className="text-sm font-semibold mb-3">Service Details</h4>
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-4 h-4 shrink-0 text-primary" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Service Type</p>
+                      <p className="text-sm font-medium capitalize">{quote.service_type}</p>
+                    </div>
+                  </div>
+                  {!!quote.service_sub_type && (
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-4 h-4 shrink-0 text-primary" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Sub Type</p>
+                        <p className="text-sm font-medium">{quote.service_sub_type}</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <Calendar className="w-4 h-4 shrink-0 text-purple-vibrant" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Quote Date</p>
+                      <p className="text-sm font-medium">
+                        {formatDateOnly(quote.quote_date, "MMMM d, yyyy")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Costos internos — nunca viajan al destinatario, solo se ven aquí. */}
+            <Card className="border border-border/50">
+              <CardContent className="p-4">
+                <h4 className="text-sm font-semibold mb-3">Operation Cost Breakdown</h4>
+                <div className="space-y-2.5">
+                  {[
+                    { Icon: Users,      label: "Labor Cost",           val: laborCost },
+                    { Icon: Box,        label: "Supplies & Materials", val: suppliesCost },
+                    { Icon: TrendingUp, label: "Overhead",             val: overheadCost },
+                  ].map(({ Icon, label, val }) => (
+                    <div key={label} className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4 text-primary" />
+                        <span className="text-sm text-muted-foreground">{label}</span>
+                      </div>
+                      <span className="text-sm font-semibold">${formatCurrency(val)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-border/50 pt-2.5 flex justify-between items-center">
+                    <span className="text-sm font-semibold">Total Operating Cost</span>
+                    <span className="text-sm font-bold">${formatCurrency(operationCost)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Conteos del formulario */}
+            {roomEntries.length > 0 && (
+              <Card className="border border-border/50">
+                <CardContent className="p-4">
+                  <h4 className="text-sm font-semibold mb-3">Rooms Breakdown</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {roomEntries.map(([key, value]) => (
+                      <div key={key} className="flex justify-between items-center p-2 bg-secondary/30 rounded-md">
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {key.replace(/([A-Z])/g, " $1")}
+                        </span>
+                        <span className="text-sm font-semibold">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {additionalItems.length > 0 && (
+              <Card className="border border-border/50">
+                <CardContent className="p-4">
+                  <h4 className="text-sm font-semibold mb-3">Additional Items</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {additionalItems.map(([key, value]) => (
+                      <div key={key} className="flex justify-between items-center p-2 bg-secondary/30 rounded-md">
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {key.replace(/([A-Z])/g, " $1")}
+                        </span>
+                        <span className="text-sm font-semibold">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {(showPets || showLaundry) && (
+              <Card className="border border-border/50">
+                <CardContent className="p-4">
+                  <h4 className="text-sm font-semibold mb-3">Additional Info</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {showPets && (
+                      <div className="p-2 bg-secondary/30 rounded-md">
+                        <p className="text-xs text-muted-foreground mb-1">Pets</p>
+                        <span className="text-sm font-semibold">{quote.pets}</span>
+                      </div>
+                    )}
+                    {showLaundry && (
+                      <div className="p-2 bg-secondary/30 rounded-md">
+                        <p className="text-xs text-muted-foreground mb-1">Laundry</p>
+                        <span className="text-sm font-semibold">{quote.laundry}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {!!quote.service_scope && (
+              <Card className="border border-border/50">
+                <CardContent className="p-4">
+                  <h4 className="text-sm font-semibold mb-3">Service Scope</h4>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{quote.service_scope}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {extraServices.length > 0 && (
+              <Card className="border border-border/50">
+                <CardContent className="p-4">
+                  <h4 className="text-sm font-semibold mb-3">Extra Services</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {extraServices.map((key) => (
+                      <div key={key} className="flex items-center gap-2 p-2 bg-secondary/30 rounded-md">
+                        <span className="text-xs text-muted-foreground flex-1 capitalize">
+                          {key.replace(/([A-Z])/g, " $1")}
+                        </span>
+                        <CheckCircle className="w-4 h-4 shrink-0" style={{ color: "hsl(var(--green-vibrant))" }} />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {hasDiscount && (
+              <Card className="border border-border/50">
+                <CardContent className="p-4">
+                  <h4 className="text-sm font-semibold mb-3">Discount Applied</h4>
+                  <div className="flex items-center justify-between p-3 bg-destructive/10 rounded-md">
+                    <span className="text-sm font-semibold">Discount</span>
+                    <span className="text-sm font-bold text-destructive">
+                      {quote.discount_type === "percentage"
+                        ? `${quote.discount_value}% off`
+                        : `-$${formatCurrency(Number(quote.discount_value))}`}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="pt-2 space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timeline</p>
+              <p className="text-xs text-muted-foreground">
+                Created {formatDisplayDateTime(quote.created_at)}
+              </p>
+              {quote.updated_at !== quote.created_at && (
+                <p className="text-xs text-muted-foreground">
+                  Updated {formatDisplayDateTime(quote.updated_at)}
+                </p>
+              )}
+            </div>
           </div>
         )}
       </SidePanel>
@@ -728,7 +983,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
       <AlertDialog open={isCancelOpen} onOpenChange={setIsCancelOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Estimate</AlertDialogTitle>
+            <AlertDialogTitle>Cancel Quote</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure? This action cannot be undone.
             </AlertDialogDescription>
@@ -736,7 +991,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
           <AlertDialogFooter>
             <AlertDialogCancel>Keep</AlertDialogCancel>
             <AlertDialogAction onClick={handleCancel} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Cancel Estimate
+              Cancel Quote
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
