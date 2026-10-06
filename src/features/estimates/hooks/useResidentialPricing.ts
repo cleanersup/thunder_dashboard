@@ -43,6 +43,14 @@ export interface ResidentialPricingInput {
   selectedService: string;
   // State adjustment
   userState: string;
+  /**
+   * Quick Quote only. Regular estimates keep the room-based engine even for
+   * Post Construction. When true, Post Construction uses the same sqft/debris
+   * formula as swift-slate (`calculateResidentialBasePrice`).
+   */
+  quickQuote?: boolean;
+  postConstructionType?: string | null;
+  squareFootage?: string;
   // Custom price / discount
   useCustomPrice: boolean;
   customPrice:    string;
@@ -69,15 +77,70 @@ export interface ResidentialPricingOutput {
   crewPlanning:  CrewPlan;
 }
 
+/**
+ * Post Construction Quick Quote — copied from swift-slate
+ * `calculateResidentialBasePrice`. No wage/state adjustment.
+ */
+function calcQuickQuotePostConstruction(input: {
+  postConstructionType: string | null;
+  squareFootage: string;
+  windowsInside: number;
+  windowsOutside: number;
+  basement: boolean;
+  patio: boolean;
+}): number {
+  const sqft = parseFloat(input.squareFootage) || 0;
+  if (sqft <= 0) return 0;
+
+  let baseRate = 0;
+
+  if (input.postConstructionType === "Rough Cleaning or Initial Cleaning") {
+    if (sqft < 1000) baseRate = 0.325;
+    else if (sqft >= 1000 && sqft < 2000) baseRate = 0.275;
+    else baseRate = 0.225;
+  } else if (input.postConstructionType === "Light Cleaning or Second Cleaning") {
+    if (sqft < 1000) baseRate = 0.60;
+    else if (sqft >= 1000 && sqft < 2000) baseRate = 0.50;
+    else baseRate = 0.40;
+  } else if (input.postConstructionType === "Touch-Up or Final Cleaning") {
+    if (sqft < 1000) baseRate = 0.235;
+    else if (sqft >= 1000 && sqft < 2000) baseRate = 0.20;
+    else baseRate = 0.165;
+  }
+
+  // Debris is not collected on the dashboard Quick Quote form. Unset matches
+  // swift-slate's null/low path: no extra sqft charge.
+  let baseTotal = sqft * baseRate;
+
+  if (input.windowsInside > 0) baseTotal += input.windowsInside * 15;
+  if (input.windowsOutside > 0) baseTotal += input.windowsOutside * 15;
+  if (input.basement) baseTotal += 40;
+  if (input.patio) baseTotal += 40;
+
+  return baseTotal;
+}
+
 export function useResidentialPricing(input: ResidentialPricingInput): ResidentialPricingOutput {
   const {
     bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths,
     fans, oven, refrigerator, blinds, windowsInside, windowsOutside,
     extras, pets, laundryService, laundryPounds, selectedService, userState,
+    quickQuote = false, postConstructionType = null, squareFootage = "",
     useCustomPrice, customPrice, applyDiscount, discountType, discountValue,
   } = input;
 
   function calcBasePrice(): number {
+    if (quickQuote && selectedService === "Post Construction") {
+      return calcQuickQuotePostConstruction({
+        postConstructionType,
+        squareFootage,
+        windowsInside,
+        windowsOutside,
+        basement: extras.basement,
+        patio: extras.patio,
+      });
+    }
+
     let t = 0;
     t += bedrooms    * ROOM_PRICES.bedrooms;
     t += kitchens    * ROOM_PRICES.kitchen;

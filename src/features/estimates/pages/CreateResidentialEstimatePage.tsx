@@ -241,6 +241,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
 
         const md = (q.main_data ?? {}) as Record<string, any>;
         setSquareFootage(md.squareFootage ?? "");
+        setPostConstructionType(md.postConstructionType ?? null);
         setBedrooms(md.bedrooms ?? 0); setKitchens(md.kitchens ?? 0); setLivingRooms(md.livingRooms ?? 0);
         setDiningRooms(md.diningRooms ?? 0); setOffices(md.offices ?? 0);
         setFullBaths(md.fullBaths ?? 0); setHalfBaths(md.halfBaths ?? 0);
@@ -515,7 +516,13 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   const pricing = useResidentialPricing({
     bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths,
     fans, oven, refrigerator, blinds, windowsInside, windowsOutside,
-    extras, pets, laundryService, laundryPounds, selectedService, userState,
+    extras, pets, laundryService, laundryPounds, selectedService,
+    // Quick Quote reads company_state directly (swift-slate). Estimates keep
+    // the delayed `userState` so their totals do not change.
+    userState: quickQuote ? (profile?.company_state ?? "") : userState,
+    quickQuote,
+    postConstructionType,
+    squareFootage,
     useCustomPrice, customPrice, applyDiscount, discountType, discountValue,
   });
 
@@ -582,7 +589,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       recipient_phone: phone ? phone.replace(/\D/g, "") : null,
       service_sub_type: selectedService,
       service_scope:    scope || null,
-      main_data:       { squareFootage, bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths },
+      main_data:       { squareFootage, postConstructionType, bedrooms, kitchens, livingRooms, diningRooms, offices, fullBaths, halfBaths },
       additional_data: { fans, oven, refrigerator, blinds, windowsInside, windowsOutside },
       extra_services:  { ...extras } as Record<string, boolean>,
       pets:    pets === "yes" ? "Yes" : "No",
@@ -698,13 +705,21 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
   // Todas las secciones requeridas se validan juntas al pulsar "Review", no una
   // por una: el usuario ve de golpe qué le falta en vez de descubrirlo paso a paso.
   const roomsComplete = (bedrooms + kitchens + livingRooms + diningRooms + offices + fullBaths + halfBaths) > 0;
+  // Quick Quote Post Construction: same required inputs as swift-slate pricing
+  // (subtype + sqft). Rooms are not part of that engine.
+  const isQuickQuotePc = quickQuote && selectedService === "Post Construction";
+  const qqPcComplete = !!postConstructionType && (parseFloat(squareFootage) || 0) > 0;
 
   function validateAll(): boolean {
     const errs: Record<string, boolean> = {};
     // El quick quote no tiene sección de cliente que validar.
     if (!quickQuote && !selectedClient && !selectedLead) errs.selectedEntity = true;
     if (!selectedService) errs.selectedService = true;
-    if (!roomsComplete)   errs.rooms           = true;
+    if (isQuickQuotePc) {
+      if (!qqPcComplete) errs.selectedService = true;
+    } else if (!roomsComplete) {
+      errs.rooms = true;
+    }
     setStepErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -853,7 +868,8 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         )}
       </FormSection>
 
-      {/* Project (requerido) */}
+      {/* Project (requerido). Quick Quote Post Construction prices by sqft, not rooms. */}
+      {!isQuickQuotePc && (
       <FormSection
         icon={Home}
         title="Project"
@@ -872,6 +888,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
           />
         )}
       </FormSection>
+      )}
 
       {/* Additional */}
       <FormSection
@@ -901,6 +918,8 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         )}
       </FormSection>
 
+      {!isQuickQuotePc && (
+      <>
       {/* Pets */}
       <FormSection
         icon={PawPrint}
@@ -928,6 +947,8 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
           <SelectorRow label="+ Add Laundry" onClick={() => openSectionModal("laundry")} />
         )}
       </FormSection>
+      </>
+      )}
 
     </>
   );
@@ -940,7 +961,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
         onCancel={cancelSection}
         title="Service"
         onSave={() => setOpenSection(null)}
-        saveDisabled={!selectedService}
+        saveDisabled={!selectedService || (isQuickQuotePc && !postConstructionType)}
       >
         <ResServiceStep
           service={selectedService} squareFootage={squareFootage}
