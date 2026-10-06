@@ -413,7 +413,9 @@ export const jobsService = {
       if (emailErr) console.error("send-job-status-emails failed:", emailErr);
     }
 
-    return dbToJob(data as DbJob);
+    // AFTER trigger may attach deposit_invoice_id in a nested UPDATE; RETURNING
+    // does not include that, so reload before the UI decides whether to show it.
+    return (await this.fetchById(id)) ?? dbToJob(data as DbJob);
   },
 
   /**
@@ -469,10 +471,12 @@ export const jobsService = {
         .select()
         .single();
       if (retryError) throw retryError;
-      return { job: dbToJob(retryData as DbJob), siteGeocodeError };
+      const job = (await this.fetchById(id)) ?? dbToJob(retryData as DbJob);
+      return { job, siteGeocodeError };
     }
     if (error) throw error;
-    return { job: dbToJob(data as DbJob), siteGeocodeError };
+    const job = (await this.fetchById(id)) ?? dbToJob(data as DbJob);
+    return { job, siteGeocodeError };
   },
 
   /**
