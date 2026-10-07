@@ -26,7 +26,7 @@ import { RecurringScopeDialog } from "./RecurringScopeDialog";
 import { AddJobPage }         from "../pages/AddJobPage";
 import { useJob }             from "../hooks/useJobs";
 import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
-import { useInvoice } from "@/features/invoices/hooks/useInvoices";
+import { useJobInvoices } from "../hooks/useJobInvoices";
 import { INVOICE_STATUS_BADGE } from "@/features/invoices/utils/invoiceStatusHelpers";
 import type { InvoiceStatus } from "@/features/invoices/types/invoice.types";
 import { useDeleteJob, useUpdateJobStatus, useDeleteRecurringJob, useCancelRecurringJob } from "../hooks/useJobMutations";
@@ -73,10 +73,21 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
   const { data: profile }           = useProfile();
   const { data: clientProperties = [] } = useClientProperties(job?.clientId ?? undefined);
 
-  // Deposit invoice is auto-created (as a Draft) by a backend trigger when a job
-  // with a deposit is published. Surface a reminder while it's still unsent (Draft)
-  // so the user doesn't forget to send it.
-  const { data: depositInvoice } = useInvoice(job?.depositInvoiceId ?? undefined);
+  // A job can have several invoices (deposit + balance/final), all listed in
+  // jobs.invoice_ids. The deposit invoice is auto-created (as a Draft) by a backend
+  // trigger when a job with a deposit is published; surface a reminder while it's
+  // still unsent (Draft) so the user doesn't forget to send it.
+  const invoiceIds = useMemo(() => {
+    const ids = job?.invoiceIds ?? [];
+    return job?.depositInvoiceId && !ids.includes(job.depositInvoiceId)
+      ? [...ids, job.depositInvoiceId]
+      : ids;
+  }, [job?.invoiceIds, job?.depositInvoiceId]);
+
+  const { invoices: jobInvoices, depositInvoice } = useJobInvoices(
+    invoiceIds,
+    job?.depositInvoiceId,
+  );
   const depositInvoicePending =
     job?.applyDeposit && depositInvoice?.status?.toLowerCase() === "draft";
 
@@ -208,7 +219,12 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
     ? { label: effectiveStatus, color: badgeColor, bg: badgeBg }
     : undefined;
 
-  const firstInvoiceId = job?.invoiceIds?.[0] ?? null;
+  // "View Invoice" opens the final (balance) invoice, not the deposit one — same
+  // selection swift-slate makes in handleViewInvoice().
+  const finalInvoiceId =
+    jobInvoices.find((inv) => inv.id !== job?.depositInvoiceId)?.id ??
+    jobInvoices[0]?.id ??
+    null;
 
   // ── Footer actions by status ───────────────────────────────────────────────
   const footer = (() => {
@@ -285,8 +301,8 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
             <Button size="sm" variant="outline" className="px-2.5"><MoreHorizontal className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            {firstInvoiceId && (
-              <DropdownMenuItem onClick={() => { onClose(); navigate("/invoices", { state: { openId: firstInvoiceId } }); }}>
+            {finalInvoiceId && (
+              <DropdownMenuItem onClick={() => { onClose(); navigate("/invoices", { state: { openId: finalInvoiceId } }); }}>
                 <Receipt className="h-4 w-4 mr-2" /> View Invoice
               </DropdownMenuItem>
             )}
@@ -460,29 +476,34 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
               </>
             )}
 
-            {/* ── Deposit invoice ───────────────────────────────────────── */}
-            {job.applyDeposit && job.depositInvoiceId && depositInvoice && (
+            {/* ── Invoices ──────────────────────────────────────────────── */}
+            {jobInvoices.length > 0 && (
               <>
                 <Divider />
                 <section className="space-y-2">
-                  <SectionTitle>Deposit Invoice</SectionTitle>
-                  <button
-                    type="button"
-                    onClick={() => { onClose(); navigate("/invoices", { state: { openId: job.depositInvoiceId } }); }}
-                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-secondary/50 transition-colors text-left"
-                  >
-                    <div className="p-2 rounded bg-blue-500/10 flex-shrink-0">
-                      <Receipt className="w-4 h-4 text-blue-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{depositInvoice.invoice_number ?? "Invoice"}</p>
-                      <p className="text-xs text-muted-foreground">${job.depositAmount.toFixed(2)}</p>
-                    </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full border ${INVOICE_STATUS_BADGE[(depositInvoice.status as InvoiceStatus) ?? "Draft"]}`}>
-                      {depositInvoice.status}
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                  </button>
+                  <SectionTitle>Invoices</SectionTitle>
+                  {jobInvoices.map((inv) => (
+                    <button
+                      key={inv.id}
+                      type="button"
+                      onClick={() => { onClose(); navigate("/invoices", { state: { openId: inv.id } }); }}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-secondary/50 transition-colors text-left"
+                    >
+                      <div className="p-2 rounded bg-blue-500/10 flex-shrink-0">
+                        <Receipt className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{inv.invoice_number ?? "Invoice"}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {inv.invoice_name ? `${inv.invoice_name} · ` : ""}${(inv.total ?? 0).toFixed(2)}
+                        </p>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full border ${INVOICE_STATUS_BADGE[(inv.status as InvoiceStatus) ?? "Draft"]}`}>
+                        {inv.status}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                    </button>
+                  ))}
                   {depositInvoicePending && (
                     <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5">
                       <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />

@@ -15,6 +15,9 @@ export function useJob(id: string | undefined) {
     queryKey: QK.job(id!),
     queryFn:  () => jobsService.fetchById(id!),
     enabled:  !!id,
-    staleTime: 30 * 1000,
+    // invoice_ids / deposit sync are written by backend triggers after the job row
+    // was last read, so the detail view always reads fresh (same as swift-slate).
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 }

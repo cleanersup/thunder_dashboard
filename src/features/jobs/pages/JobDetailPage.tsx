@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AddJobPage } from "./AddJobPage";
 import { format, parseISO } from "date-fns";
 import {
-  ChevronLeft, Edit, MapPin, User, Calendar, Clock,
+  ChevronLeft, ChevronRight, Edit, MapPin, User, Calendar, Clock,
   Briefcase, CheckCircle, XCircle, Trash2, Download,
-  Play, CalendarClock, MoreHorizontal, Receipt,
+  Play, CalendarClock, MoreHorizontal, Receipt, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
@@ -18,6 +18,9 @@ import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import { JobStatusBadge } from "../components/JobStatusBadge";
 import { JobCompleteDialog } from "../components/JobCompleteDialog";
 import { useJob } from "../hooks/useJobs";
+import { useJobInvoices } from "../hooks/useJobInvoices";
+import { INVOICE_STATUS_BADGE } from "@/features/invoices/utils/invoiceStatusHelpers";
+import type { InvoiceStatus } from "@/features/invoices/types/invoice.types";
 import { useDeleteJob, useUpdateJobStatus } from "../hooks/useJobMutations";
 import { generateJobPDF } from "../services/generateJobPDF";
 import { useProfile } from "@/shared/hooks/useProfile";
@@ -45,6 +48,24 @@ export function JobDetailPage() {
   const { mutate: updateStatus, isPending: updating } = useUpdateJobStatus();
   const { data: profile }           = useProfile();
   const { data: allEmployees = [] } = useAllEmployees();
+
+  // A job can have several invoices (deposit + balance/final), all listed in
+  // jobs.invoice_ids. The deposit invoice is auto-created (as a Draft) by a backend
+  // trigger when a job with a deposit is published; surface a reminder while it's
+  // still unsent (Draft) so the user doesn't forget to send it.
+  const invoiceIds = useMemo(() => {
+    const ids = job?.invoiceIds ?? [];
+    return job?.depositInvoiceId && !ids.includes(job.depositInvoiceId)
+      ? [...ids, job.depositInvoiceId]
+      : ids;
+  }, [job?.invoiceIds, job?.depositInvoiceId]);
+
+  const { invoices: jobInvoices, depositInvoice } = useJobInvoices(
+    invoiceIds,
+    job?.depositInvoiceId,
+  );
+  const depositInvoicePending =
+    job?.applyDeposit && depositInvoice?.status?.toLowerCase() === "draft";
 
   const [showComplete,   setShowComplete]   = useState(false);
   const [showDelete,     setShowDelete]     = useState(false);
@@ -88,7 +109,12 @@ export function JobDetailPage() {
   const effectiveStatus = getEffectiveJobStatus(job);
   const propertyAddress = [job.propertyStreet, job.propertyApt, job.propertyCity, job.propertyState, job.propertyZip]
     .filter(Boolean).join(", ");
-  const firstInvoiceId = job.invoiceIds?.[0] ?? null;
+  // "View Invoice" opens the final (balance) invoice, not the deposit one — same
+  // selection swift-slate makes in handleViewInvoice().
+  const finalInvoiceId =
+    jobInvoices.find((inv) => inv.id !== job.depositInvoiceId)?.id ??
+    jobInvoices[0]?.id ??
+    null;
 
   // ── Footer actions by status (primary + ... dropdown) ────────────────────
   const renderActions = () => {
@@ -172,8 +198,8 @@ export function JobDetailPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              {firstInvoiceId && (
-                <DropdownMenuItem onClick={() => navigate("/invoices", { state: { openId: firstInvoiceId } })}>
+              {finalInvoiceId && (
+                <DropdownMenuItem onClick={() => navigate("/invoices", { state: { openId: finalInvoiceId } })}>
                   <Receipt className="h-4 w-4 mr-2" /> View Invoice
                 </DropdownMenuItem>
               )}
@@ -351,6 +377,45 @@ export function JobDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Invoices */}
+          {jobInvoices.length > 0 && (
+            <Card className="border border-border/50 shadow-none">
+              <CardHeader className="pb-2"><CardTitle className="text-base">Invoices</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {jobInvoices.map((inv) => (
+                  <button
+                    key={inv.id}
+                    type="button"
+                    onClick={() => navigate("/invoices", { state: { openId: inv.id } })}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-secondary/50 transition-colors text-left"
+                  >
+                    <div className="p-2 rounded bg-blue-500/10 flex-shrink-0">
+                      <Receipt className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{inv.invoice_number ?? "Invoice"}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {inv.invoice_name ? `${inv.invoice_name} · ` : ""}${(inv.total ?? 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full border ${INVOICE_STATUS_BADGE[(inv.status as InvoiceStatus) ?? "Draft"]}`}>
+                      {inv.status}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                  </button>
+                ))}
+                {depositInvoicePending && (
+                  <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      This deposit invoice hasn't been sent yet — open it to send so the client can pay.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Notes */}
           {job.notes && (
