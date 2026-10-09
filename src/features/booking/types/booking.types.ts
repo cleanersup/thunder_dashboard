@@ -30,4 +30,7 @@ export interface PublicCompanyProfile {
   company_name: string | null;
   company_logo: string | null;
   company_email: string | null;
+  /** País de operación del dueño — lo resuelve `get_public_company_profile`. */
+  company_country?: string | null;
+  company_country_name?: string | null;
 }

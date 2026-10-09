@@ -330,10 +330,12 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
       qc.invalidateQueries({ queryKey: QK.quickQuotes });
       qc.invalidateQueries({ queryKey: QK.quickQuote(quote.id) });
       qc.invalidateQueries({ queryKey: QK.clients });
+      qc.invalidateQueries({ queryKey: QK.clientProperties(overrides.client_id) });
+      await qc.refetchQueries({ queryKey: QK.clients });
       setConvertTarget(null);
       onClose();
       toast.success("Invoice created from quick quote");
-      navigate("/invoices", { state: { openEditId: invoiceId } });
+      navigate("/invoices", { state: { openEditId: invoiceId, clientId: overrides.client_id } });
     } catch (err: any) {
       toast.error(err?.message ?? "Failed to convert quick quote");
     } finally {

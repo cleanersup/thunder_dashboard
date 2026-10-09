@@ -16,6 +16,8 @@ export async function fetchPublicProfile(userId: string): Promise<PublicCompanyP
     company_name: data.company_name,
     company_logo: data.company_logo,
     company_email: data.company_email,
+    company_country: data.company_country,
+    company_country_name: data.company_country_name,
   };
 }
 

@@ -29,7 +29,7 @@ import type { WalkthroughFormData } from "../schemas/walkthroughSchema";
 import { useCreateWalkthrough, useUpdateWalkthrough, useWalkthrough } from "../hooks/useWalkthroughs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAllEmployees } from "@/features/employees/hooks/useEmployees";
-import { useClients } from "@/features/crm/clients/hooks/useClients";
+import { useClient, useClients } from "@/features/crm/clients/hooks/useClients";
 import type { ClientEntity } from "@/shared/types/entities";
 import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
 
@@ -103,6 +103,8 @@ export function AddWalkthroughPage({
   const { data: existing }                                     = useWalkthrough(walkthroughId);
   const { data: employees = [] } = useAllEmployees();
   const { data: allClients = [] } = useClients();
+  const clientIdToPrefill = prefillContactId ?? existing?.client_id ?? undefined;
+  const { data: prefillClient } = useClient(clientIdToPrefill);
 
   const { mutate: create, isPending: isCreating } = useCreateWalkthrough();
   const { mutate: update, isPending: isUpdating } = useUpdateWalkthrough();
@@ -134,9 +136,24 @@ export function AddWalkthroughPage({
   // ── Local UI state ────────────────────────────────────────────────────────
   const [confirmOpen, setConfirmOpen]               = useState(false);
   const [pendingPayload, setPendingPayload]         = useState<WalkthroughFormData | null>(null);
+  const [editPrefillDone, setEditPrefillDone] = useState(false);
+  const [clientPrefillDone, setClientPrefillDone] = useState(false);
+
+  // Este modal vive montado en RequestsPage: al convertir otro request hay que
+  // vaciar el estado del anterior. En la ruta de edit/create no se toca.
+  useEffect(() => {
+    if (!prefillContactId && !walkthroughEditId) return;
+    setSelectedClient(null);
+    setSelectedProperty(null);
+    setEditPrefillDone(false);
+    setClientPrefillDone(false);
+    if (prefillServiceType) setServiceType(prefillServiceType);
+    setSelectedDate(prefillDate ? parseDateOnly(prefillDate) : undefined);
+    setScheduledTime(prefillTime ?? "");
+    setNotes(prefillNotes ?? "");
+  }, [walkthroughEditId, prefillContactId, prefillServiceType, prefillDate, prefillTime, prefillNotes]);
 
   // ── Prefill en modo EDIT (incluye el draft creado al convertir un request) ─
-  const [editPrefillDone, setEditPrefillDone] = useState(false);
   useEffect(() => {
     if (!isEdit || editPrefillDone || !existing) return;
     setServiceType(existing.service_type ?? "residential");
@@ -148,18 +165,21 @@ export function AddWalkthroughPage({
     setEditPrefillDone(true);
   }, [isEdit, editPrefillDone, existing]);
 
-  // ── Cliente: se resuelve cuando carga la lista (edit y conversión) ────────
-  const [clientPrefillDone, setClientPrefillDone] = useState(false);
+  // ── Cliente: por id (conversión de form público) o desde la lista ─────────
   useEffect(() => {
-    if (clientPrefillDone || allClients.length === 0) return;
-    const clientId = isEdit ? existing?.client_id : prefillContactId;
-    if (!clientId) return;
-    const found = allClients.find((c) => c.id === clientId);
+    if (clientPrefillDone) return;
+    if (prefillClient) {
+      setSelectedClient(prefillClient as unknown as ClientEntity);
+      setClientPrefillDone(true);
+      return;
+    }
+    if (!clientIdToPrefill || allClients.length === 0) return;
+    const found = allClients.find((c) => c.id === clientIdToPrefill);
     if (found) {
       setSelectedClient(found as unknown as ClientEntity);
       setClientPrefillDone(true);
     }
-  }, [clientPrefillDone, allClients, isEdit, existing?.client_id, prefillContactId]);
+  }, [clientPrefillDone, prefillClient, allClients, clientIdToPrefill]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 

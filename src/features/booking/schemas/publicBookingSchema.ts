@@ -1,15 +1,17 @@
 import { z } from "zod";
+import { postalRule, stateRule } from "@/shared/constants/countries";
 
 /**
  * Formulario público de booking.
  *
- * El estado y el código postal se validan de forma tolerante: esta pantalla no
- * tiene sesión, así que no puede saber en qué país opera el dueño (el RPC
- * `get_public_company_profile` todavía no devuelve el país). Hasta que lo haga,
- * una regla de EE. UU. aquí rechazaría direcciones legítimas de cualquier otro
- * país.
+ * El país no se pide: sale del dueño vía `get_public_company_profile`
+ * (`company_country`) y solo sirve para validar estado y código postal.
+ * El insert no manda país — `create-booking` lo resuelve con el país de la cuenta.
  */
-export const publicBookingSchema = z.object({
+export function buildPublicBookingSchema(country: string) {
+  const postal = postalRule(country);
+  const state  = stateRule(country);
+  return z.object({
   lead_name:    z.string().min(1, "Name is required").max(100),
   email:        z.string().email("Valid email is required").max(255),
   phone:        z.string().min(10, "Valid phone is required").max(20),
@@ -17,8 +19,8 @@ export const publicBookingSchema = z.object({
   street:       z.string().min(1, "Street is required").max(255),
   apt_suite:    z.string().optional(),
   city:         z.string().min(1, "City is required").max(100),
-  state:        z.string().min(1, "State is required").max(100),
-  zip_code:     z.string().regex(/^[A-Za-z0-9][A-Za-z0-9 -]{1,11}$/, "Enter valid ZIP code"),
+  state:        z.string().min(1, "State is required").max(state.maxLength, state.message),
+  zip_code:     z.string().regex(postal.pattern, postal.message),
 
   // Residential
   bedrooms:            z.coerce.number().min(0).optional().nullable(),
@@ -35,6 +37,7 @@ export const publicBookingSchema = z.object({
   // Esquema nuevo (swift-slate). Los valores legacy am/pm se normalizan en lectura.
   time_preference:  z.enum(["anytime", "morning", "afternoon", "evening"]).optional().nullable(),
   custom_answers:   z.record(z.string()).optional(),
-});
+  });
+}
 
-export type PublicBookingFormData = z.infer<typeof publicBookingSchema>;
+export type PublicBookingFormData = z.infer<ReturnType<typeof buildPublicBookingSchema>>;

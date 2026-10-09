@@ -96,9 +96,10 @@ export function InvoicesPage() {
 
   // ── Auto-open panel from state (coming from job completion or linked record) ─
   useEffect(() => {
-    const state = location.state as { openId?: string; openEditId?: string } | null;
+    const state = location.state as { openId?: string; openEditId?: string; clientId?: string } | null;
     if (state?.openEditId) {
       setEditInvoiceId(state.openEditId);
+      setPrefillClientId(state.clientId);
       setShowEditModal(true);
       window.history.replaceState({}, "");
       return;
@@ -115,6 +116,7 @@ export function InvoicesPage() {
   const [isDetailOpen,   setIsDetailOpen]   = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editInvoiceId,  setEditInvoiceId]  = useState<string | undefined>(undefined);
+  const [prefillClientId, setPrefillClientId] = useState<string | undefined>(undefined);
   const [showEditModal,  setShowEditModal]  = useState(false);
 
   // ── Re-send pending links state ───────────────────────────────────────────────
@@ -846,8 +848,9 @@ export function InvoicesPage() {
       {showEditModal && (
         <CreateInvoicePage
           open={showEditModal}
-          onClose={() => { setShowEditModal(false); setEditInvoiceId(undefined); }}
+          onClose={() => { setShowEditModal(false); setEditInvoiceId(undefined); setPrefillClientId(undefined); }}
           editId={editInvoiceId}
+          initialClientId={prefillClientId}
         />
       )}
     </div>

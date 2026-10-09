@@ -41,12 +41,13 @@ export function ConvertRequestDialog({
   const serviceType = (request.service_type === "commercial" ? "commercial" : "residential") as
     "residential" | "commercial";
 
-  const invalidate = () => {
+  const invalidate = async () => {
     qc.invalidateQueries({ queryKey: QK.estimates });
     qc.invalidateQueries({ queryKey: QK.requests });
     qc.invalidateQueries({ queryKey: QK.request(request.id) });
     // La conversión puede crear un client nuevo desde un request anónimo.
     qc.invalidateQueries({ queryKey: QK.clients });
+    await qc.refetchQueries({ queryKey: QK.clients });
   };
 
   const handleConvert = async (target: "estimate" | "walkthrough") => {
@@ -143,7 +144,7 @@ export function ConvertRequestDialog({
           throw rpcErr;
         }
 
-        invalidate();
+        await invalidate();
         onOpenChange(false);
         toast.success("Draft estimate created", {
           description: "Contact pre-selected — complete the estimate",
@@ -201,7 +202,7 @@ export function ConvertRequestDialog({
           p_walkthrough_id: draft.id,
         });
 
-        invalidate();
+        await invalidate();
         onOpenChange(false);
 
         // Open form in EDIT mode — will UPDATE the draft (not INSERT new)
@@ -217,7 +218,7 @@ export function ConvertRequestDialog({
       }
 
       // ── Case B: no preferred_date — form handles finalize after save ──────
-      invalidate();
+      await invalidate();
       onOpenChange(false);
       onWalkthroughConvert({
         ...prefillBase,

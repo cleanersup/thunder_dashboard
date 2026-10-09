@@ -95,4 +95,6 @@ export interface PublicCompanyProfile {
   company_name: string | null;
   company_logo: string | null;
   company_email: string | null;
+  company_country?: string | null;
+  company_country_name?: string | null;
 }

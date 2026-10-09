@@ -72,13 +72,15 @@ export const SearchableSelect = React.forwardRef<
     const [searchQuery, setSearchQuery] = React.useState("");
     const isMobile = useIsMobile();
 
-    // Diálogo que contiene al select, si lo hay: el popover se monta dentro de él.
+    // Diálogo que contiene al select, si lo hay. El popover anclado se recorta
+    // dentro de un FullScreenModal (overflow + transform); en ese caso se usa
+    // el mismo diálogo de lista que en móvil.
     const triggerRef = React.useRef<HTMLButtonElement | null>(null);
     const [dialogContainer, setDialogContainer] = React.useState<HTMLElement | null>(null);
-    React.useEffect(() => {
-      if (!open) return;
+    React.useLayoutEffect(() => {
       setDialogContainer(triggerRef.current?.closest("[role=dialog]") as HTMLElement | null);
-    }, [open]);
+    });
+    const useDialogList = isMobile || !!dialogContainer;
 
     const isMulti = props.multiple === true;
 
@@ -233,7 +235,7 @@ export const SearchableSelect = React.forwardRef<
      * scroll-lock de Radix cancela los eventos de scroll que nacen fuera de su propio
      * subárbol, y la lista dejaría de responder a la rueda del ratón.
      */
-    if (!isMobile) {
+    if (!useDialogList) {
       return (
         <>
           <Popover open={open} onOpenChange={setOpen}>

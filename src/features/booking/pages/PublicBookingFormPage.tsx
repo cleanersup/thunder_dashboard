@@ -6,12 +6,17 @@ import { createNotification } from "@/features/notifications/services/notificati
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { FloatingInput, SelectField, DateField, TextareaField, OptionGrid } from "@/shared/components/forms";
+import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { usePublicProfile, usePublicBookingForms } from "../hooks/useBookings";
 import { submitPublicBooking } from "../services/bookingService";
 import { toast } from "sonner";
 import { toIntegerString } from "@/shared/utils/numericInput";
 import { TIME_PREFERENCE_OPTIONS } from "@/shared/utils/timePreference";
+import { withRequiredMark } from "@/shared/utils/formLabel";
+import { postalRule, stateRule } from "@/shared/constants/countries";
+import { normalizeCountryCode } from "@/shared/services/ownerCountry.service";
+import { FORM_CONTROL_HEIGHT } from "@/shared/constants/formTokens";
 import { format } from "date-fns";
 import type { CustomQuestion } from "../types/booking.types";
 
@@ -119,6 +124,10 @@ export function PublicBookingFormPage() {
     );
   }
 
+  const country     = normalizeCountryCode(profile.company_country) ?? "";
+  const postal      = postalRule(country);
+  const stateFormat = stateRule(country);
+
   if (submitted) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background px-4">
@@ -162,14 +171,41 @@ export function PublicBookingFormPage() {
           <CardContent className="p-4 space-y-6">
             <h3 className="text-base font-semibold">Address</h3>
             <div className="space-y-6">
-              <FloatingInput id="street" label="Street" required   value={street} onChange={setStreet} />
+              <AddressAutocomplete
+                value={street}
+                onChange={setStreet}
+                onAddressSelect={(c) => {
+                  setStreet(c.street);
+                  setCity(c.city);
+                  setState(c.state);
+                  setZip(c.zip);
+                }}
+                country={country}
+                placeholder={withRequiredMark("Street", true)}
+                className={FORM_CONTROL_HEIGHT}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <FloatingInput id="apt"  label="Apt/Suite" value={apt}  onChange={setApt} />
                 <FloatingInput id="city" label="City" required    value={city} onChange={setCity} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <FloatingInput id="state" label="State" required    value={state} onChange={setState} />
-                <FloatingInput id="zip"   label="Zip Code" required value={zip}   onChange={setZip} />
+                <FloatingInput
+                  id="state"
+                  label="State"
+                  required
+                  maxLength={stateFormat.maxLength}
+                  value={state}
+                  onChange={(v) => setState(stateFormat.uppercase ? v.toUpperCase() : v)}
+                />
+                <FloatingInput
+                  id="zip"
+                  label="Zip Code"
+                  required
+                  type={postal.numeric ? "integer" : "text"}
+                  maxLength={postal.maxLength}
+                  value={zip}
+                  onChange={setZip}
+                />
               </div>
             </div>
           </CardContent>

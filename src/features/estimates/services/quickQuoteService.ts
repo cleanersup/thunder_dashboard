@@ -247,6 +247,50 @@ async function findClientByNamePhone(name: string, phone: string, userId: string
 }
 
 /**
+ * Asegura una propiedad activa con la dirección del quote. Un cliente reutilizado
+ * puede no tener esa dirección; sin ella la factura/job abre sin address.
+ */
+async function ensureServiceProperty(
+  clientId: string,
+  userId: string,
+  input: Pick<QuickQuoteClientInput, "street" | "apt" | "city" | "state" | "zip">,
+): Promise<void> {
+  const { data } = await (supabase as any)
+    .from("client_properties")
+    .select("id, street, city, zip_code")
+    .eq("client_id", clientId)
+    .eq("user_id", userId)
+    .eq("is_active", true);
+
+  const norm = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
+  const match = (
+    data as Array<{ id: string; street: string; city: string; zip_code: string }> | null
+  )?.find(
+    (p) =>
+      norm(p.street) === norm(input.street) &&
+      norm(p.city) === norm(input.city) &&
+      norm(p.zip_code) === norm(input.zip),
+  );
+  if (match) return;
+
+  const { error } = await (supabase as any)
+    .from("client_properties")
+    .insert({
+      user_id:    userId,
+      client_id:  clientId,
+      title:      "Service property",
+      street:     input.street,
+      apt_suite:  input.apt || null,
+      city:       input.city,
+      state:      input.state,
+      zip_code:   input.zip,
+      is_primary: !(data && data.length > 0),
+      is_active:  true,
+    });
+  if (error) throw error;
+}
+
+/**
  * Resuelve el cliente del destinatario de un quick quote: reutiliza el que ya
  * exista o crea uno nuevo.
  *
@@ -264,35 +308,41 @@ export async function resolveQuickQuoteClient(
 
   let clientId = await findClientByEmail(input.email, user.id);
   if (!clientId) clientId = await findClientByNamePhone(input.fullName, input.phone, user.id);
-  if (clientId) return { clientId, reusedExisting: true };
+  let reusedExisting = false;
+  if (clientId) {
+    reusedExisting = true;
+  } else {
+    const { data, error } = await supabase
+      .from("clients")
+      .insert({
+        user_id:            user.id,
+        full_name:          input.fullName,
+        email:              input.email,
+        phone:              input.phone,
+        service_street:     input.street,
+        service_apt:        input.apt || null,
+        service_city:       input.city,
+        service_state:      input.state,
+        service_zip:        input.zip,
+        // Sin dirección de facturación propia: se copia la de servicio, igual que
+        // `createClientFromRequest` y `convertLeadToClient`.
+        billing_street:     input.street,
+        billing_apt:        input.apt || null,
+        billing_city:       input.city,
+        billing_state:      input.state,
+        billing_zip:        input.zip,
+        client_type:        "residential",
+        contact_preference: input.email ? "email" : "phone",
+        status:             "active",
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    clientId = data.id;
+  }
 
-  const { data, error } = await supabase
-    .from("clients")
-    .insert({
-      user_id:            user.id,
-      full_name:          input.fullName,
-      email:              input.email,
-      phone:              input.phone,
-      service_street:     input.street,
-      service_apt:        input.apt || null,
-      service_city:       input.city,
-      service_state:      input.state,
-      service_zip:        input.zip,
-      // Sin dirección de facturación propia: se copia la de servicio, igual que
-      // `createClientFromRequest` y `convertLeadToClient`.
-      billing_street:     input.street,
-      billing_apt:        input.apt || null,
-      billing_city:       input.city,
-      billing_state:      input.state,
-      billing_zip:        input.zip,
-      client_type:        "residential",
-      contact_preference: input.email ? "email" : "phone",
-      status:             "active",
-    })
-    .select("id")
-    .single();
-  if (error) throw error;
-  return { clientId: data.id, reusedExisting: false };
+  await ensureServiceProperty(clientId, user.id, input);
+  return { clientId, reusedExisting };
 }
 
 export interface ConvertQuickQuoteToJobInput {

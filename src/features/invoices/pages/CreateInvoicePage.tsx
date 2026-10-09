@@ -35,6 +35,7 @@ import { useAuth }   from "@/shared/hooks/useAuth";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { useInvoice, useCreateInvoice, useUpdateInvoice } from "../hooks/useInvoices";
 import { useClients } from "@/features/crm/clients/hooks/useClients";
+import { fetchClient } from "@/features/crm/clients/services/clientsService";
 import { useClientProperties } from "@/features/crm/clients/hooks/useClientProperties";
 import type { ClientProperty } from "@/features/crm/clients/types/clientProperty.types";
 import { labelFromClientProperty, matchClientProperty } from "@/shared/utils/bookingPropertyLabel";
@@ -109,9 +110,11 @@ interface CreateInvoicePageProps {
   onClose?: () => void;
   /** Pass an invoice ID to open in edit mode from a modal (no URL param needed). */
   editId?: string;
+  /** Cliente recién creado al convertir un quick quote — no depende de la caché. */
+  initialClientId?: string;
 }
 
-export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePageProps = {}) {
+export function CreateInvoicePage({ open, onClose, editId, initialClientId }: CreateInvoicePageProps = {}) {
   const navigate      = useNavigate();
   const { id: urlId } = useParams<{ id?: string }>();
   const id            = editId ?? urlId;
@@ -235,36 +238,50 @@ export function CreateInvoicePage({ open, onClose, editId }: CreateInvoicePagePr
     }
     setInvoicePropertyTitle(invoiceData.property_title ?? null);
 
+    const invoiceAddress = {
+      street: invoiceData.address,
+      city: invoiceData.city,
+      zip: invoiceData.zip,
+    };
+
+    const phoneDigits = (v: string | null | undefined) => (v ?? "").replace(/\D/g, "");
     const matchedClient = clientsRaw.find(
       (c) =>
-        (invoiceData.email && c.email === invoiceData.email) ||
-        (invoiceData.phone && c.phone === invoiceData.phone),
+        (invoiceData.email && c.email?.toLowerCase() === invoiceData.email.toLowerCase()) ||
+        (!!phoneDigits(invoiceData.phone) && phoneDigits(c.phone) === phoneDigits(invoiceData.phone)),
     );
 
-    if (matchedClient) {
-      setSelectedClient(matchedClient as unknown as ClientEntity);
-      setPendingInvoiceAddress({
-        street: invoiceData.address,
-        city: invoiceData.city,
-        zip: invoiceData.zip,
-      });
-    } else {
-      const fakeClient: ClientEntity = {
-        id: `invoice-client-${invoiceData.id}`,
-        full_name:      invoiceData.client_name,
-        company:        invoiceData.company_name ?? null,
-        email:          invoiceData.email,
-        phone:          invoiceData.phone,
-        service_street: invoiceData.address,
-        service_apt:    invoiceData.apt ?? null,
-        service_city:   invoiceData.city,
-        service_state:  invoiceData.state,
-        service_zip:    invoiceData.zip,
-      };
-      setSelectedClient(fakeClient);
-    }
-    setIsPrefilling(false);
-  }, [invoiceData, clientsRaw]); // eslint-disable-line react-hooks/exhaustive-deps
+    (async () => {
+      let client: ClientEntity | null = null;
+      if (initialClientId) {
+        try {
+          client = await fetchClient(initialClientId) as unknown as ClientEntity;
+        } catch { /* fall through to email/phone match */ }
+      }
+      if (!client && matchedClient) {
+        client = matchedClient as unknown as ClientEntity;
+      }
+      if (client) {
+        setSelectedClient(client);
+        setPendingInvoiceAddress(invoiceAddress);
+      } else {
+        setSelectedClient({
+          id: `invoice-client-${invoiceData.id}`,
+          full_name:      invoiceData.client_name,
+          company:        invoiceData.company_name ?? null,
+          email:          invoiceData.email,
+          phone:          invoiceData.phone,
+          service_street: invoiceData.address,
+          service_apt:    invoiceData.apt ?? null,
+          service_city:   invoiceData.city,
+          service_state:  invoiceData.state,
+          service_zip:    invoiceData.zip,
+        });
+        setPendingInvoiceAddress(invoiceAddress);
+      }
+      setIsPrefilling(false);
+    })();
+  }, [invoiceData, clientsRaw, initialClientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-generate invoice number (new only) ────────────────────────────────
   const { data: generatedNumber } = useInvoiceNumber(!isEditing);
