@@ -5,6 +5,7 @@ import { PublicRoute } from "./PublicRoute";
 import { ScrollToTop } from "@/shared/components/layout/ScrollToTop";
 import { ErrorBoundary } from "@/shared/components/common/ErrorBoundary";
 import { UpgradeGateProvider } from "@/features/subscriptions/context/UpgradeGateContext";
+import { WriteGate } from "@/shared/components/WriteGate";
 
 // ─── Loading fallback ────────────────────────────────────────────────────────
 function PageLoader() {
@@ -136,8 +137,8 @@ export function AppRouter() {
 
           {/* Phase 6 ✅ — Requests (renamed from Booking) */}
           <Route path="/requests"      element={<ProtectedRoute><RequestsPage /></ProtectedRoute>} />
-          <Route path="/requests/new"  element={<ProtectedRoute><AddRequestPage /></ProtectedRoute>} />
-          <Route path="/requests/edit" element={<ProtectedRoute><EditRequestFormPage /></ProtectedRoute>} />
+          <Route path="/requests/new"  element={<ProtectedRoute><WriteGate><AddRequestPage /></WriteGate></ProtectedRoute>} />
+          <Route path="/requests/edit" element={<ProtectedRoute><WriteGate><EditRequestFormPage /></WriteGate></ProtectedRoute>} />
           {/* Legacy redirect for old /booking route */}
           <Route path="/booking"      element={<Navigate to="/requests" replace />} />
           <Route path="/booking/edit" element={<Navigate to="/requests/edit" replace />} />
@@ -146,16 +147,16 @@ export function AppRouter() {
 
           {/* Phase 7 ✅ */}
           <Route path="/estimates" element={<ProtectedRoute><EstimatesPage /></ProtectedRoute>} />
-          <Route path="/estimates/new/residential" element={<ProtectedRoute><CreateResidentialEstimatePage /></ProtectedRoute>} />
-          <Route path="/estimates/new/commercial"  element={<ProtectedRoute><CreateCommercialEstimatePage /></ProtectedRoute>} />
+          <Route path="/estimates/new/residential" element={<ProtectedRoute><WriteGate><CreateResidentialEstimatePage /></WriteGate></ProtectedRoute>} />
+          <Route path="/estimates/new/commercial"  element={<ProtectedRoute><WriteGate><CreateCommercialEstimatePage /></WriteGate></ProtectedRoute>} />
           {/* Public — no auth required */}
           <Route path="/public/estimate/:token" element={<PublicEstimateViewPage />} />
           <Route path="/public/quick-quote/:token" element={<PublicQuickQuoteViewPage />} />
 
           {/* Phase 8 ✅ */}
           <Route path="/invoices"              element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
-          <Route path="/invoices/new"          element={<ProtectedRoute><CreateInvoicePage /></ProtectedRoute>} />
-          <Route path="/invoices/:id/edit"     element={<ProtectedRoute><CreateInvoicePage /></ProtectedRoute>} />
+          <Route path="/invoices/new"          element={<ProtectedRoute><WriteGate><CreateInvoicePage /></WriteGate></ProtectedRoute>} />
+          <Route path="/invoices/:id/edit"     element={<ProtectedRoute><WriteGate><CreateInvoicePage /></WriteGate></ProtectedRoute>} />
           <Route path="/invoices/:id/preview"  element={<ProtectedRoute><InvoicePreviewPage /></ProtectedRoute>} />
           {/* Public — no auth required */}
           <Route path="/invoice/payment/:token" element={<PublicInvoicePaymentPage />} />
@@ -164,7 +165,7 @@ export function AppRouter() {
           {/* Phase 9 ✅ */}
           <Route path="/schedule"               element={<ProtectedRoute><SchedulePage /></ProtectedRoute>} />
           <Route path="/create-route"           element={<ProtectedRoute><RoutesPage /></ProtectedRoute>} />
-          <Route path="/create-route/:id/edit"  element={<ProtectedRoute><AddAppointmentPage /></ProtectedRoute>} />
+          <Route path="/create-route/:id/edit"  element={<ProtectedRoute><WriteGate><AddAppointmentPage /></WriteGate></ProtectedRoute>} />
           <Route path="/smart-map"              element={<ProtectedRoute><SmartMapPage /></ProtectedRoute>} />
 
           {/* Phase 10 ✅ */}
@@ -172,11 +173,11 @@ export function AppRouter() {
 
           {/* Phase 11 ✅ */}
           <Route path="/walkthroughs"           element={<ProtectedRoute><WalkthroughsPage /></ProtectedRoute>} />
-          <Route path="/walkthroughs/new"       element={<ProtectedRoute><AddWalkthroughPage /></ProtectedRoute>} />
-          <Route path="/walkthroughs/:id/edit"  element={<ProtectedRoute><AddWalkthroughPage /></ProtectedRoute>} />
+          <Route path="/walkthroughs/new"       element={<ProtectedRoute><WriteGate><AddWalkthroughPage /></WriteGate></ProtectedRoute>} />
+          <Route path="/walkthroughs/:id/edit"  element={<ProtectedRoute><WriteGate><AddWalkthroughPage /></WriteGate></ProtectedRoute>} />
           {/* On-site assessment forms — authenticated */}
-          <Route path="/walkthrough/residential/:id" element={<ProtectedRoute><ResidentialWalkthroughFormPage /></ProtectedRoute>} />
-          <Route path="/walkthrough/commercial/:id"  element={<ProtectedRoute><CommercialWalkthroughFormPage /></ProtectedRoute>} />
+          <Route path="/walkthrough/residential/:id" element={<ProtectedRoute><WriteGate><ResidentialWalkthroughFormPage /></WriteGate></ProtectedRoute>} />
+          <Route path="/walkthrough/commercial/:id"  element={<ProtectedRoute><WriteGate><CommercialWalkthroughFormPage /></WriteGate></ProtectedRoute>} />
 
           {/* Phase 19 ✅ */}
           <Route path="/time-clock" element={<ProtectedRoute><TimeClockPage /></ProtectedRoute>} />
@@ -186,8 +187,8 @@ export function AppRouter() {
 
           {/* Phase 14 ✅ — Contracts (basic trial + essential + professional) */}
           <Route path="/contracts"          element={<ProtectedRoute><ContractsPage /></ProtectedRoute>} />
-          <Route path="/contracts/new"      element={<ProtectedRoute><CreateContractPage /></ProtectedRoute>} />
-          <Route path="/contracts/:id/edit" element={<ProtectedRoute><CreateContractPage /></ProtectedRoute>} />
+          <Route path="/contracts/new"      element={<ProtectedRoute><WriteGate><CreateContractPage /></WriteGate></ProtectedRoute>} />
+          <Route path="/contracts/:id/edit" element={<ProtectedRoute><WriteGate><CreateContractPage /></WriteGate></ProtectedRoute>} />
           {/* Legacy redirect */}
           <Route path="/contract"           element={<Navigate to="/contracts" replace />} />
           {/* Public — no auth required */}

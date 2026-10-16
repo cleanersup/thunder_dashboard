@@ -56,6 +56,7 @@ import { ContractTrialModal } from "../components/ContractTrialModal";
 import { wasContractTrialModalShown } from "../utils/contractTrialStorage";
 import { CONTRACT_CUTOFF_DATE }     from "../config/contracts.config";
 import type { Contract, ContractStatus } from "../types/contract.types";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -85,6 +86,14 @@ function freqSuffix(freq: string | null) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ContractsPage() {
+  const { requireFeature } = useUpgradeGate();
+
+  /** Abre el wizard de contrato (crear si no hay `id`). Gatea por plan. */
+  const openContractForm = (id?: string) => {
+    if (!requireFeature("contracts")) return;
+    setEditId(id);
+    setShowCreate(true);
+  };
   const navigate = useNavigate();
 
   // ── Filters ──────────────────────────────────────────────────────────────
@@ -534,7 +543,7 @@ export function ContractsPage() {
                 </PopoverContent>
               </Popover>
 
-              <Button className="h-9 text-[13px]" onClick={() => { setEditId(undefined); setShowCreate(true); }}>
+              <Button className="h-9 text-[13px]" onClick={() => openContractForm()}>
                 <Plus className="w-4 h-4 mr-1" />
                 New
               </Button>
@@ -592,7 +601,7 @@ export function ContractsPage() {
                       </p>
                     </div>
                     {allContracts.length === 0 && (
-                      <Button size="sm" onClick={() => setShowCreate(true)}>
+                      <Button size="sm" onClick={() => openContractForm()}>
                         <Plus className="w-4 h-4 mr-1" />
                         Create Contract
                       </Button>
@@ -668,7 +677,7 @@ export function ContractsPage() {
                         {/* Edit */}
                         {canEdit(contract.status) && (
                           <DropdownMenuItem
-                            onClick={(e) => { e.stopPropagation(); setEditId(contract.id); setShowCreate(true); }}
+                            onClick={(e) => { e.stopPropagation(); openContractForm(contract.id); }}
                           >
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
@@ -765,7 +774,7 @@ export function ContractsPage() {
         contract={viewContract}
         open={!!viewContract}
         onClose={() => setViewContract(null)}
-        onEdit={(c)     => { setViewContract(null); setEditId(c.id); setShowCreate(true); }}
+        onEdit={(c)     => { setViewContract(null); openContractForm(c.id); }}
         onRenew={(c)    => { setViewContract(null); setRenewTarget(c); }}
         onDownload={handleDownloadPDF}
         onDelete={(c)   => { setViewContract(null); setDeleteContract(c); }}

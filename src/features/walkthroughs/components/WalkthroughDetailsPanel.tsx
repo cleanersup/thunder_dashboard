@@ -39,6 +39,7 @@ import { QK } from "@/shared/config/queryKeys";
 import { buildWalkthroughPdfData } from "../utils/walkthroughPdfData";
 import { downloadWalkthroughPdf } from "../services/generateWalkthroughPDF";
 import { useProfile } from "@/shared/hooks/useProfile";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,7 @@ interface WalkthroughDetailsPanelProps {
 export function WalkthroughDetailsPanel({
   walkthrough, open, onClose, onUpdated,
 }: WalkthroughDetailsPanelProps) {
+  const { requireFeature } = useUpgradeGate();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
@@ -148,7 +150,7 @@ export function WalkthroughDetailsPanel({
     // Mirrors swift-slate: revert to Draft, then open the edit form so the user
     // can pick a new date and re-schedule (which re-notifies the client).
     updateStatus({ id: walkthrough.id, status: "Draft" }, {
-      onSuccess: () => { onUpdated(); setEditOpen(true); },
+      onSuccess: () => { onUpdated(); if (requireFeature("walkthrough")) setEditOpen(true); },
     });
   }
 
@@ -174,6 +176,7 @@ export function WalkthroughDetailsPanel({
 
   async function handleGenerateEstimate() {
     if (!walkthrough) return;
+    if (!requireFeature("estimates")) return;
     try {
       // Create the draft estimate immediately and finalize the conversion,
       // then open the form in EDIT mode so Discard can't delete the persisted draft.
@@ -204,7 +207,7 @@ export function WalkthroughDetailsPanel({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+              <DropdownMenuItem onClick={() => { if (requireFeature("walkthrough")) setEditOpen(true); }}>
                 <Edit className="h-4 w-4 mr-2" /> Edit
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -230,7 +233,7 @@ export function WalkthroughDetailsPanel({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+              <DropdownMenuItem onClick={() => { if (requireFeature("walkthrough")) setEditOpen(true); }}>
                 <Edit className="h-4 w-4 mr-2" /> Edit
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleReschedule()} disabled={isUpdating}>
@@ -258,7 +261,7 @@ export function WalkthroughDetailsPanel({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+              <DropdownMenuItem onClick={() => { if (requireFeature("walkthrough")) setEditOpen(true); }}>
                 <Edit className="h-4 w-4 mr-2" /> Edit
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => void handleDownloadPDF()}>
@@ -286,7 +289,7 @@ export function WalkthroughDetailsPanel({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+              <DropdownMenuItem onClick={() => { if (requireFeature("walkthrough")) setEditOpen(true); }}>
                 <Edit className="h-4 w-4 mr-2" /> Edit
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => void handleDownloadPDF()}>
@@ -304,7 +307,7 @@ export function WalkthroughDetailsPanel({
       {/* Cancelled */}
       {s === "Cancelled" && (
         <>
-          <Button size="sm" className="flex-1 gap-1.5" onClick={() => setEditOpen(true)}>
+          <Button size="sm" className="flex-1 gap-1.5" onClick={() => { if (requireFeature("walkthrough")) setEditOpen(true); }}>
             <CalendarClock className="h-3.5 w-3.5" /> Reschedule
           </Button>
           <DropdownMenu>

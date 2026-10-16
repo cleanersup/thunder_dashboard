@@ -38,6 +38,7 @@ import {
 import { EmployeeForm } from "./EmployeeForm";
 import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import type { Employee } from "../services/employeesService";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 function formatAddress(emp: Employee): string | null {
   const parts: string[] = [];
@@ -99,6 +100,7 @@ export function EmployeeDetailsModal({
   onOpenChange,
   onEmployeeUpdated,
 }: EmployeeDetailsModalProps) {
+  const { requireFeature } = useUpgradeGate();
   const { data: profile } = useProfile();
   const { mutate: updateStatus } = useUpdateEmployeeStatus();
   const { mutate: deleteEmployee, isPending: isDeleting } = useDeleteEmployee();
@@ -482,7 +484,7 @@ export function EmployeeDetailsModal({
                         <Button
                           variant="outline"
                           className="w-full justify-start rounded-lg h-12 border-border hover:bg-secondary/50"
-                          onClick={() => setEditOpen(true)}
+                          onClick={() => { if (requireFeature("employee")) setEditOpen(true); }}
                         >
                           <div className="flex items-center gap-3">
                             <div className="p-2 rounded-md bg-primary/10">

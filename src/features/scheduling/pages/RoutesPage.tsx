@@ -38,6 +38,7 @@ import { AppointmentDetailPanel } from "../components/AppointmentDetailPanel";
 import { RouteMapView } from "../components/RouteMapView";
 import { AddAppointmentPage, type FromEstimateData } from "./AddAppointmentPage";
 import type { AppointmentWithClient, Route } from "../types/scheduling.types";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 type MapViewMode = "calendar" | "map";
 
@@ -155,6 +156,7 @@ function RouteSuccessModal({ open, onClose }: { open: boolean; onClose: () => vo
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function RoutesPage() {
+  const { requireFeature } = useUpgradeGate();
   const location = useLocation();
   const [mapViewMode,     setMapViewMode]     = useState<MapViewMode>("calendar");
   const [calViewType,     setCalViewType]     = useState<CalendarViewType>("month");
@@ -218,6 +220,7 @@ export function RoutesPage() {
         : "all";
 
   function handleAddNewRoute() {
+    if (!requireFeature("routes")) return;
     const nextName = `Route ${routes.length + 1}`;
     const isFirst  = routes.length === 0;
     createRoute(nextName, {
@@ -337,6 +340,7 @@ export function RoutesPage() {
 
               <Button
                 onClick={() => {
+                  if (!requireFeature("routes")) return;
                   setAddApptRouteId(displayRouteId !== "all" ? displayRouteId : "");
                   setAddApptDate("");
                   setAddApptOpen(true);
