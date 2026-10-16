@@ -57,6 +57,7 @@ import { wasContractTrialModalShown } from "../utils/contractTrialStorage";
 import { CONTRACT_CUTOFF_DATE }     from "../config/contracts.config";
 import type { Contract, ContractStatus } from "../types/contract.types";
 import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
+import { useSubscription } from "@/features/subscriptions/context/SubscriptionContext";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -120,13 +121,7 @@ export function ContractsPage() {
   const sendEmail  = useSendContractEmail();
   const sendSMS    = useSendContractSMS();
   const { hasAccess, daysRemaining, reason } = useContractAccess();
-
-  // ── Redirect if access expired (basic_expired or no_plan) ──────────────
-  useEffect(() => {
-    if (!hasAccess && reason !== "basic_trial") {
-      navigate("/subscription-plans", { replace: true });
-    }
-  }, [hasAccess, reason, navigate]);
+  const { isLoading: isSubscriptionLoading } = useSubscription();
 
   // ── Trial modal: show once when basic user enters for the first time ────
   useEffect(() => {
@@ -318,7 +313,7 @@ export function ContractsPage() {
       )}
 
       {/* No access banner */}
-      {!hasAccess && (
+      {!hasAccess && !isSubscriptionLoading && (
         <div className="mb-2.5 flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-destructive/10 border border-destructive/20">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-destructive/15 flex items-center justify-center flex-shrink-0">
