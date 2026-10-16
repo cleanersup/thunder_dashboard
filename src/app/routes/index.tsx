@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./ProtectedRoute";
 import { PublicRoute } from "./PublicRoute";
 import { ScrollToTop } from "@/shared/components/layout/ScrollToTop";
 import { ErrorBoundary } from "@/shared/components/common/ErrorBoundary";
+import { UpgradeGateProvider } from "@/features/subscriptions/context/UpgradeGateContext";
 
 // ─── Loading fallback ────────────────────────────────────────────────────────
 function PageLoader() {
@@ -103,6 +104,7 @@ export function AppRouter() {
     <BrowserRouter>
       <ScrollToTop />
       <ErrorBoundary>
+        <UpgradeGateProvider>
         <Suspense fallback={<PageLoader />}>
           <Routes>
           {/* Root redirect → auth */}
@@ -214,6 +216,7 @@ export function AppRouter() {
           />
           </Routes>
         </Suspense>
+        </UpgradeGateProvider>
       </ErrorBoundary>
     </BrowserRouter>
   );

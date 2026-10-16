@@ -14,6 +14,7 @@ export type FeatureKey =
   | "time_clock"
   | "walkthrough"
   | "contracts"
+  | "tasks"
   | "jobs";
 
 export type GatingPlanTier = "basic" | "essential" | "professional";
@@ -21,12 +22,26 @@ export type GatingPlanTier = "basic" | "essential" | "professional";
 /**
  * Plan → feature matrix. Mirrors swift-slate/src/config/planFeatures.ts exactly.
  * Key-name differences vs swift: `routes` == swift `schedule`, `walkthrough` == swift `walkthroughs`.
- * `contracts` is intentionally NOT gated here — it has its own trial logic in useContractAccess.
- * Tasks reuse the `crm` feature (both are professional-only, same as swift `tasks`/`crm`).
+ *
+ * `contracts` unlocks at essential. Basic keeps a free window handled by
+ * `useContractAccess`, which is what the upgrade gate consults for that feature —
+ * the matrix only supplies the "minimum plan" label.
+ *
+ * `crm` is kept for parity with swift-slate but gates nothing: clients are
+ * available on every plan.
  */
 export const PLAN_FEATURES: Record<GatingPlanTier, FeatureKey[]> = {
   basic: ["estimates", "invoices", "employee"],
-  essential: ["estimates", "invoices", "employee", "requests", "walkthrough", "jobs", "routes"],
+  essential: [
+    "estimates",
+    "invoices",
+    "employee",
+    "requests",
+    "walkthrough",
+    "jobs",
+    "routes",
+    "contracts",
+  ],
   professional: [
     "estimates",
     "invoices",
@@ -35,7 +50,9 @@ export const PLAN_FEATURES: Record<GatingPlanTier, FeatureKey[]> = {
     "walkthrough",
     "jobs",
     "routes",
+    "contracts",
     "crm",
+    "tasks",
     "time_clock",
     "smart_map",
   ],
@@ -53,6 +70,7 @@ export const FEATURE_NAMES: Record<FeatureKey, string> = {
   time_clock: "Time Clock",
   walkthrough: "Walkthrough",
   contracts: "Contracts",
+  tasks: "Tasks",
   jobs: "Jobs",
 };
 
