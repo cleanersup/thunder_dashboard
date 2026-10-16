@@ -122,22 +122,22 @@ export function AppRouter() {
           <Route path="/home" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
 
           {/* Jobs ✅ */}
-          <Route path="/jobs"     element={<ProtectedRoute requireFeature="jobs"><JobsPage /></ProtectedRoute>} />
-          <Route path="/jobs/:id" element={<ProtectedRoute requireFeature="jobs"><JobDetailPage /></ProtectedRoute>} />
+          <Route path="/jobs"     element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
+          <Route path="/jobs/:id" element={<ProtectedRoute><JobDetailPage /></ProtectedRoute>} />
 
           {/* Phase 5 ✅ — CRM split into separate pages */}
           {/* CRM/Leads retired from the UI — both redirect to Clients (matches swift-slate). */}
           <Route path="/crm"     element={<Navigate to="/clients" replace />} />
           <Route path="/leads"   element={<Navigate to="/clients" replace />} />
           <Route path="/clients" element={<ProtectedRoute><ClientsPage /></ProtectedRoute>} />
-          <Route path="/tasks"   element={<ProtectedRoute requireFeature="crm"><TasksPage /></ProtectedRoute>} />
+          <Route path="/tasks"   element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
           <Route path="/client/wallet/:token" element={<ClientWalletPage />} />
           <Route path="/notifications" element={<ProtectedRoute requireSubscription={false}><NotificationsPage /></ProtectedRoute>} />
 
           {/* Phase 6 ✅ — Requests (renamed from Booking) */}
-          <Route path="/requests"      element={<ProtectedRoute requireFeature="requests"><RequestsPage /></ProtectedRoute>} />
-          <Route path="/requests/new"  element={<ProtectedRoute requireFeature="requests"><AddRequestPage /></ProtectedRoute>} />
-          <Route path="/requests/edit" element={<ProtectedRoute requireFeature="requests"><EditRequestFormPage /></ProtectedRoute>} />
+          <Route path="/requests"      element={<ProtectedRoute><RequestsPage /></ProtectedRoute>} />
+          <Route path="/requests/new"  element={<ProtectedRoute><AddRequestPage /></ProtectedRoute>} />
+          <Route path="/requests/edit" element={<ProtectedRoute><EditRequestFormPage /></ProtectedRoute>} />
           {/* Legacy redirect for old /booking route */}
           <Route path="/booking"      element={<Navigate to="/requests" replace />} />
           <Route path="/booking/edit" element={<Navigate to="/requests/edit" replace />} />
@@ -145,41 +145,41 @@ export function AppRouter() {
           <Route path="/booking/:userId" element={<PublicBookingFormPage />} />
 
           {/* Phase 7 ✅ */}
-          <Route path="/estimates" element={<ProtectedRoute requireFeature="estimates"><EstimatesPage /></ProtectedRoute>} />
-          <Route path="/estimates/new/residential" element={<ProtectedRoute requireFeature="estimates"><CreateResidentialEstimatePage /></ProtectedRoute>} />
-          <Route path="/estimates/new/commercial"  element={<ProtectedRoute requireFeature="estimates"><CreateCommercialEstimatePage /></ProtectedRoute>} />
+          <Route path="/estimates" element={<ProtectedRoute><EstimatesPage /></ProtectedRoute>} />
+          <Route path="/estimates/new/residential" element={<ProtectedRoute><CreateResidentialEstimatePage /></ProtectedRoute>} />
+          <Route path="/estimates/new/commercial"  element={<ProtectedRoute><CreateCommercialEstimatePage /></ProtectedRoute>} />
           {/* Public — no auth required */}
           <Route path="/public/estimate/:token" element={<PublicEstimateViewPage />} />
           <Route path="/public/quick-quote/:token" element={<PublicQuickQuoteViewPage />} />
 
           {/* Phase 8 ✅ */}
-          <Route path="/invoices"              element={<ProtectedRoute requireFeature="invoices"><InvoicesPage /></ProtectedRoute>} />
-          <Route path="/invoices/new"          element={<ProtectedRoute requireFeature="invoices"><CreateInvoicePage /></ProtectedRoute>} />
-          <Route path="/invoices/:id/edit"     element={<ProtectedRoute requireFeature="invoices"><CreateInvoicePage /></ProtectedRoute>} />
-          <Route path="/invoices/:id/preview"  element={<ProtectedRoute requireFeature="invoices"><InvoicePreviewPage /></ProtectedRoute>} />
+          <Route path="/invoices"              element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
+          <Route path="/invoices/new"          element={<ProtectedRoute><CreateInvoicePage /></ProtectedRoute>} />
+          <Route path="/invoices/:id/edit"     element={<ProtectedRoute><CreateInvoicePage /></ProtectedRoute>} />
+          <Route path="/invoices/:id/preview"  element={<ProtectedRoute><InvoicePreviewPage /></ProtectedRoute>} />
           {/* Public — no auth required */}
           <Route path="/invoice/payment/:token" element={<PublicInvoicePaymentPage />} />
           <Route path="/stripe/return" element={<ProtectedRoute requireSubscription={false}><StripeReturnPage /></ProtectedRoute>} />
 
           {/* Phase 9 ✅ */}
-          <Route path="/schedule"               element={<ProtectedRoute requireFeature="routes"><SchedulePage /></ProtectedRoute>} />
-          <Route path="/create-route"           element={<ProtectedRoute requireFeature="routes"><RoutesPage /></ProtectedRoute>} />
-          <Route path="/create-route/:id/edit"  element={<ProtectedRoute requireFeature="routes"><AddAppointmentPage /></ProtectedRoute>} />
-          <Route path="/smart-map"              element={<ProtectedRoute requireFeature="smart_map"><SmartMapPage /></ProtectedRoute>} />
+          <Route path="/schedule"               element={<ProtectedRoute><SchedulePage /></ProtectedRoute>} />
+          <Route path="/create-route"           element={<ProtectedRoute><RoutesPage /></ProtectedRoute>} />
+          <Route path="/create-route/:id/edit"  element={<ProtectedRoute><AddAppointmentPage /></ProtectedRoute>} />
+          <Route path="/smart-map"              element={<ProtectedRoute><SmartMapPage /></ProtectedRoute>} />
 
           {/* Phase 10 ✅ */}
-          <Route path="/employees" element={<ProtectedRoute requireFeature="employee"><EmployeesPage /></ProtectedRoute>} />
+          <Route path="/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
 
           {/* Phase 11 ✅ */}
-          <Route path="/walkthroughs"           element={<ProtectedRoute requireFeature="walkthrough"><WalkthroughsPage /></ProtectedRoute>} />
-          <Route path="/walkthroughs/new"       element={<ProtectedRoute requireFeature="walkthrough"><AddWalkthroughPage /></ProtectedRoute>} />
-          <Route path="/walkthroughs/:id/edit"  element={<ProtectedRoute requireFeature="walkthrough"><AddWalkthroughPage /></ProtectedRoute>} />
+          <Route path="/walkthroughs"           element={<ProtectedRoute><WalkthroughsPage /></ProtectedRoute>} />
+          <Route path="/walkthroughs/new"       element={<ProtectedRoute><AddWalkthroughPage /></ProtectedRoute>} />
+          <Route path="/walkthroughs/:id/edit"  element={<ProtectedRoute><AddWalkthroughPage /></ProtectedRoute>} />
           {/* On-site assessment forms — authenticated */}
-          <Route path="/walkthrough/residential/:id" element={<ProtectedRoute requireFeature="walkthrough"><ResidentialWalkthroughFormPage /></ProtectedRoute>} />
-          <Route path="/walkthrough/commercial/:id"  element={<ProtectedRoute requireFeature="walkthrough"><CommercialWalkthroughFormPage /></ProtectedRoute>} />
+          <Route path="/walkthrough/residential/:id" element={<ProtectedRoute><ResidentialWalkthroughFormPage /></ProtectedRoute>} />
+          <Route path="/walkthrough/commercial/:id"  element={<ProtectedRoute><CommercialWalkthroughFormPage /></ProtectedRoute>} />
 
           {/* Phase 19 ✅ */}
-          <Route path="/time-clock" element={<ProtectedRoute requireFeature="time_clock"><TimeClockPage /></ProtectedRoute>} />
+          <Route path="/time-clock" element={<ProtectedRoute><TimeClockPage /></ProtectedRoute>} />
 
           {/* Phase 13 ✅ */}
           <Route path="/subscription-plans" element={<ProtectedRoute requireSubscription={false}><SubscriptionPlansPage /></ProtectedRoute>} />
