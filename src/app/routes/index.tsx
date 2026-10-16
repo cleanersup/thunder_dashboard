@@ -169,12 +169,12 @@ export function AppRouter() {
           <Route path="/employees" element={<ProtectedRoute requireFeature="employee"><EmployeesPage /></ProtectedRoute>} />
 
           {/* Phase 11 ✅ */}
-          <Route path="/walkthroughs"           element={<ProtectedRoute><WalkthroughsPage /></ProtectedRoute>} />
-          <Route path="/walkthroughs/new"       element={<ProtectedRoute><AddWalkthroughPage /></ProtectedRoute>} />
-          <Route path="/walkthroughs/:id/edit"  element={<ProtectedRoute><AddWalkthroughPage /></ProtectedRoute>} />
+          <Route path="/walkthroughs"           element={<ProtectedRoute requireFeature="walkthrough"><WalkthroughsPage /></ProtectedRoute>} />
+          <Route path="/walkthroughs/new"       element={<ProtectedRoute requireFeature="walkthrough"><AddWalkthroughPage /></ProtectedRoute>} />
+          <Route path="/walkthroughs/:id/edit"  element={<ProtectedRoute requireFeature="walkthrough"><AddWalkthroughPage /></ProtectedRoute>} />
           {/* On-site assessment forms — authenticated */}
-          <Route path="/walkthrough/residential/:id" element={<ProtectedRoute><ResidentialWalkthroughFormPage /></ProtectedRoute>} />
-          <Route path="/walkthrough/commercial/:id"  element={<ProtectedRoute><CommercialWalkthroughFormPage /></ProtectedRoute>} />
+          <Route path="/walkthrough/residential/:id" element={<ProtectedRoute requireFeature="walkthrough"><ResidentialWalkthroughFormPage /></ProtectedRoute>} />
+          <Route path="/walkthrough/commercial/:id"  element={<ProtectedRoute requireFeature="walkthrough"><CommercialWalkthroughFormPage /></ProtectedRoute>} />
 
           {/* Phase 19 ✅ */}
           <Route path="/time-clock" element={<ProtectedRoute requireFeature="time_clock"><TimeClockPage /></ProtectedRoute>} />
