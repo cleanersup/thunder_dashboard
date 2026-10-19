@@ -47,6 +47,7 @@ const CreateCommercialEstimatePage  = lazy(() => import("@/features/estimates/pa
 const PublicEstimateViewPage        = lazy(() => import("@/features/estimates/pages/PublicEstimateViewPage").then((m) => ({ default: m.PublicEstimateViewPage })));
 const PublicQuickQuoteViewPage      = lazy(() => import("@/features/estimates/pages/PublicQuickQuoteViewPage").then((m) => ({ default: m.PublicQuickQuoteViewPage })));
 const PublicQuickQuoteByIdPage      = lazy(() => import("@/features/estimates/pages/PublicQuickQuoteViewPage").then((m) => ({ default: m.PublicQuickQuoteByIdPage })));
+const EstimateSheetPreviewPage      = lazy(() => import("@/features/estimates/pages/EstimateSheetPreviewPage").then((m) => ({ default: m.EstimateSheetPreviewPage })));
 
 // Phase 8 — Invoices ✅
 const InvoicesPage             = lazy(() => import("@/features/invoices/pages/InvoicesPage").then((m) => ({ default: m.InvoicesPage })));
@@ -149,6 +150,9 @@ export function AppRouter() {
           {/* Public — no auth required */}
           <Route path="/public/estimate/:token" element={<PublicEstimateViewPage />} />
           <Route path="/public/quick-quote/:token" element={<PublicQuickQuoteViewPage />} />
+          {import.meta.env.DEV && (
+            <Route path="/preview/estimate-sheet" element={<EstimateSheetPreviewPage />} />
+          )}
 
           {/* Phase 8 ✅ */}
           <Route path="/invoices"              element={<ProtectedRoute requireFeature="invoices"><InvoicesPage /></ProtectedRoute>} />

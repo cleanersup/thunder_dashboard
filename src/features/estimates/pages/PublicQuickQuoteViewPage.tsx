@@ -1,25 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { fetchEstimateProfile } from "../services/estimatesService";
 import { fetchQuickQuoteByToken } from "../services/quickQuoteService";
-import { PDFService } from "@/shared/services/pdf.service";
+import { PDFService, type EstimatePDFData } from "@/shared/services/pdf.service";
 import { formatDateOnly } from "@/shared/utils/formatters";
+import { EstimateSheetView } from "../components/EstimateSheetView";
+import { Button } from "@/shared/components/ui/button";
 
 /**
- * Public quick quote view — no auth. Same PDF viewer as estimates, but loaded
- * via `get_public_quick_quote` so `/public/estimate/:token` is untouched.
+ * Public quick quote view — no auth.
+ * The sheet matches the emailed PDF and stacks on a phone.
  *
  * Route: /public/quick-quote/:token
  */
 export function PublicQuickQuoteViewPage() {
-  const { token }  = useParams<{ token: string }>();
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
-  const [pdfUrl,   setPdfUrl]   = useState<string | null>(null);
-
-  const pdfUrlRef = useRef<string | null>(null);
+  const { token } = useParams<{ token: string }>();
+  const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<EstimatePDFData | null>(null);
 
   useEffect(() => {
     if (!token) { setError("Invalid token"); setLoading(false); return; }
@@ -32,8 +33,9 @@ export function PublicQuickQuoteViewPage() {
         if (!quote) { setError("Quote not found"); setLoading(false); return; }
 
         const profile = await fetchEstimateProfile(quote.user_id);
+        if (cancelled) return;
 
-        const doc = await PDFService.generateEstimatePDF({
+        setSheet({
           companyLogo:    profile?.company_logo    ?? undefined,
           companyName:    profile?.company_name    ?? "",
           companyPhone:   profile?.company_phone   ?? "",
@@ -64,18 +66,6 @@ export function PublicQuickQuoteViewPage() {
           discountValue:  quote.discount_value  ?? undefined,
           total:          quote.total,
         });
-
-        // Keep the PDF on this page. Navigating to a blob URL unmounts the SPA
-        // and often shows a blank tab in in-app / email browsers.
-        const blob = doc.output("blob");
-        const blobUrl = URL.createObjectURL(blob);
-        if (cancelled) {
-          URL.revokeObjectURL(blobUrl);
-          return;
-        }
-        if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
-        pdfUrlRef.current = blobUrl;
-        setPdfUrl(blobUrl);
         setLoading(false);
       } catch (err: any) {
         if (cancelled) return;
@@ -85,14 +75,21 @@ export function PublicQuickQuoteViewPage() {
       }
     })();
 
-    return () => {
-      cancelled = true;
-      if (pdfUrlRef.current) {
-        URL.revokeObjectURL(pdfUrlRef.current);
-        pdfUrlRef.current = null;
-      }
-    };
+    return () => { cancelled = true; };
   }, [token]);
+
+  const download = async () => {
+    if (!sheet) return;
+    setDownloading(true);
+    try {
+      const doc = await PDFService.generateEstimatePDF(sheet);
+      PDFService.downloadFromDoc(doc, `Quote_${sheet.estimateNumber}.pdf`);
+    } catch (err) {
+      console.error("Error downloading quote PDF:", err);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -103,23 +100,25 @@ export function PublicQuickQuoteViewPage() {
     );
   }
 
-  if (error) {
+  if (error || !sheet) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background px-4">
         <h1 className="text-2xl font-bold">Error</h1>
-        <p className="text-muted-foreground text-center">{error}</p>
+        <p className="text-muted-foreground text-center">{error ?? "Quote not found"}</p>
       </div>
     );
   }
 
-  if (!pdfUrl) return null;
-
   return (
-    <iframe
-      src={pdfUrl}
-      title="Quote PDF"
-      className="h-screen w-full border-0"
-    />
+    <div className="min-h-screen bg-muted pb-8">
+      <div className="sticky top-0 z-10 flex justify-end border-b border-border bg-background/95 px-3 py-2 backdrop-blur sm:px-6">
+        <Button size="sm" onClick={download} disabled={downloading}>
+          {downloading && <Loader2 className="h-4 w-4 animate-spin" />}
+          Download PDF
+        </Button>
+      </div>
+      <EstimateSheetView data={sheet} />
+    </div>
   );
 }
 

@@ -23,8 +23,8 @@ export function buildQuickQuotePublicUrl(quote: {
 }): string {
   const slug = quote.public_share_token || quote.id;
   const host = window.location.hostname;
-  if (host === "thunderpro.co" || host === "www.thunderpro.co" || host === "portal.thunderpro.co") {
-    return `https://thunderpro.co/public/quick-quote/${slug}`;
+  if (host === "thunderpro.co" || host === "www.thunderpro.co" || host === "portal.thunderpro.co" || host === "dashboard.thunderpro.co") {
+    return `https://dashboard.thunderpro.co/public/quick-quote/${slug}`;
   }
   if (host.includes("staging")) {
     return `https://staging.thunderpro.co/public/quick-quote/${slug}`;

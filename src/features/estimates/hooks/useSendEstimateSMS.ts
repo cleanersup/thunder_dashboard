@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { generateEstimateShareToken } from "../services/estimatesService";
+import { buildEstimatePublicUrl, generateEstimateShareToken } from "../services/estimatesService";
 
 interface SendEstimateSMSParams {
   phoneNumber:   string;
@@ -31,8 +31,7 @@ export function useSendEstimateSMS() {
     setIsSendingSMS(true);
     try {
       const token = await generateEstimateShareToken(estimateId);
-      const baseUrl = import.meta.env.VITE_PUBLIC_APP_URL ?? window.location.origin;
-      const estimateUrl = `${baseUrl}/public/estimate/${token}`;
+      const estimateUrl = buildEstimatePublicUrl(token);
 
       console.log("estimateUrl", estimateUrl);
 

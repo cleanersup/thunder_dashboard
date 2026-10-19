@@ -3,23 +3,28 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { fetchEstimateByToken, fetchEstimateProfile } from "../services/estimatesService";
-import { PDFService } from "@/shared/services/pdf.service";
+import { PDFService, type EstimatePDFData } from "@/shared/services/pdf.service";
 import { formatDateOnly } from "@/shared/utils/formatters";
+import { EstimateSheetView } from "../components/EstimateSheetView";
+import { Button } from "@/shared/components/ui/button";
 
 /**
- * Public estimate view page — accessible without authentication.
- * Fetches the estimate by its public share token, generates a PDF, and
- * redirects the browser to the PDF blob URL for immediate viewing/download.
+ * Public estimate view — no auth.
+ * Same sheet as the emailed PDF, readable on a phone.
  *
  * Route: /public/estimate/:token
  */
 export function PublicEstimateViewPage() {
-  const { token }  = useParams<{ token: string }>();
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
+  const { token } = useParams<{ token: string }>();
+  const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<EstimatePDFData | null>(null);
 
   useEffect(() => {
     if (!token) { setError("Invalid token"); setLoading(false); return; }
+
+    let cancelled = false;
 
     (async () => {
       try {
@@ -27,8 +32,9 @@ export function PublicEstimateViewPage() {
         if (!estimate) { setError("Estimate not found"); setLoading(false); return; }
 
         const profile = await fetchEstimateProfile(estimate.user_id);
+        if (cancelled) return;
 
-        const doc = await PDFService.generateEstimatePDF({
+        setSheet({
           companyLogo:    profile?.company_logo    ?? undefined,
           companyName:    profile?.company_name    ?? "",
           companyPhone:   profile?.company_phone   ?? "",
@@ -58,20 +64,30 @@ export function PublicEstimateViewPage() {
           discountValue:  estimate.discount_value  ?? undefined,
           total:          estimate.total,
         });
-
-        // Redirect browser to PDF blob URL
-        const blob    = doc.output("blob");
-        const blobUrl = URL.createObjectURL(blob);
-        window.location.href = blobUrl;
-
         setLoading(false);
       } catch (err: any) {
+        if (cancelled) return;
         console.error("Error loading estimate:", err);
         setError(err.message ?? "Failed to load estimate");
         setLoading(false);
       }
     })();
+
+    return () => { cancelled = true; };
   }, [token]);
+
+  const download = async () => {
+    if (!sheet) return;
+    setDownloading(true);
+    try {
+      const doc = await PDFService.generateEstimatePDF(sheet);
+      PDFService.downloadFromDoc(doc, `Estimate_${sheet.estimateNumber}.pdf`);
+    } catch (err) {
+      console.error("Error downloading estimate PDF:", err);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -82,16 +98,26 @@ export function PublicEstimateViewPage() {
     );
   }
 
-  if (error) {
+  if (error || !sheet) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background px-4">
         <h1 className="text-2xl font-bold">Error</h1>
-        <p className="text-muted-foreground text-center">{error}</p>
+        <p className="text-muted-foreground text-center">{error ?? "Estimate not found"}</p>
       </div>
     );
   }
 
-  return null;
+  return (
+    <div className="min-h-screen bg-muted pb-8">
+      <div className="sticky top-0 z-10 flex justify-end border-b border-border bg-background/95 px-3 py-2 backdrop-blur sm:px-6">
+        <Button size="sm" onClick={download} disabled={downloading}>
+          {downloading && <Loader2 className="h-4 w-4 animate-spin" />}
+          Download PDF
+        </Button>
+      </div>
+      <EstimateSheetView data={sheet} />
+    </div>
+  );
 }
 
 export default PublicEstimateViewPage;

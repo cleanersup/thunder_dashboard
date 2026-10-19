@@ -109,6 +109,19 @@ export async function deleteEstimate(id: string) {
  * @returns The share token string
  * @throws On RPC failure
  */
+/** Same public page the email button and the SMS link open. */
+export function buildEstimatePublicUrl(shareToken: string): string {
+  const configured = import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin;
+  let host = "";
+  try { host = new URL(configured).hostname; } catch { host = window.location.hostname; }
+  const path = `/public/estimate/${shareToken}`;
+  if (host === "thunderpro.co" || host === "www.thunderpro.co" || host === "portal.thunderpro.co" || host === "dashboard.thunderpro.co") {
+    return `https://dashboard.thunderpro.co${path}`;
+  }
+  if (host.includes("staging")) return `https://staging.thunderpro.co${path}`;
+  return `${String(configured).replace(/\/$/, "")}${path}`;
+}
+
 export async function generateEstimateShareToken(estimateId: string): Promise<string> {
   const { data, error } = await supabase.rpc("generate_estimate_share_token", {
     estimate_id: estimateId,
