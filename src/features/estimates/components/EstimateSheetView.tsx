@@ -7,8 +7,7 @@ function money(n: number): string {
 
 /**
  * On-screen copy of the estimate / quick-quote sheet.
- * The PDF uses the same fields; this layout stacks on a phone so the
- * customer can read it without pinching a letter page.
+ * Customer details and the quote number stay in two columns, including on a phone.
  */
 export function EstimateSheetView({ data }: { data: EstimatePDFData }) {
   const sheet = buildEstimateSheet(data);
@@ -40,21 +39,21 @@ export function EstimateSheetView({ data }: { data: EstimatePDFData }) {
         </div>
       </div>
 
-      <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:justify-between sm:gap-16">
-        <section className="text-sm">
-          <h2 className="text-sm font-bold sm:text-base">CUSTOMER INFORMATION</h2>
-          <p className="mt-2"><span className="font-bold">Name : </span>{data.clientName}</p>
+      <div className="mt-4 grid grid-cols-2 items-start gap-x-2 text-[10px] leading-tight sm:mt-6 sm:gap-x-8 sm:text-sm">
+        <section className="min-w-0">
+          <h2 className="text-[10px] font-bold sm:text-base">CUSTOMER INFORMATION</h2>
+          <p className="mt-1 sm:mt-2"><span className="font-bold">Name : </span>{data.clientName}</p>
           <p><span className="font-bold">Phone : </span>{formatPhoneDisplay(data.clientPhone)}</p>
           <p className="break-all"><span className="font-bold">Email : </span>{data.clientEmail}</p>
-          <p><span className="font-bold">Address : </span>{street}</p>
-          {clientCity && <p>{clientCity}</p>}
+          <p className="break-words"><span className="font-bold">Address : </span>{street}</p>
+          {clientCity && <p className="break-words">{clientCity}</p>}
         </section>
-        <section className="text-sm sm:ml-auto sm:shrink-0">
-          <h2 className="text-sm font-bold sm:text-base">{sheet.numberLabel} : {data.estimateNumber}</h2>
-          <h3 className="mt-3 text-sm font-bold">SERVICE DETAILS</h3>
+        <section className="min-w-0">
+          <h2 className="text-[10px] font-bold sm:text-base">{sheet.numberLabel} : {data.estimateNumber}</h2>
+          <h3 className="mt-2 text-[10px] font-bold sm:mt-3 sm:text-sm">SERVICE DETAILS</h3>
           <p className="mt-1"><span className="font-bold">Date : </span>{data.estimateDate}</p>
-          <p><span className="font-bold">Type of service : </span>{data.serviceType}</p>
-          {sheet.category && <p><span className="font-bold">Category : </span>{sheet.category}</p>}
+          <p className="break-words"><span className="font-bold">Type of service : </span>{data.serviceType}</p>
+          {sheet.category && <p className="break-words"><span className="font-bold">Category : </span>{sheet.category}</p>}
           {sheet.homeSize && <p><span className="font-bold">Home Size : </span>{sheet.homeSize}</p>}
         </section>
       </div>
@@ -107,6 +106,11 @@ export function EstimateSheetView({ data }: { data: EstimatePDFData }) {
           <span className="pr-2 text-right tabular-nums">{money(sheet.pending)}</span>
         </div>
       </div>
+
+      <footer className="mt-16 flex items-center justify-center gap-6 text-center text-[11px] text-[#123463] sm:text-sm">
+        <span>Service Provide By Thunder Pro Inc</span>
+        <a href="https://www.thunderpro.co" className="text-[#123463]">www.thunderpro.co</a>
+      </footer>
     </article>
   );
 }

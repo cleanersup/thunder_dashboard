@@ -241,8 +241,29 @@ async function generateEstimatePDF(data: EstimatePDFData): Promise<jsPDF> {
   if (data.companyWebsite) { doc.text(data.companyWebsite, textX, infoY); infoY += 5; }
   y = Math.max(y + logoSize, infoY) + 6;
 
-  const rightX = margin + contentWidth * 0.58;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  const numberLine = `${sheet.numberLabel} : ${data.estimateNumber}`;
+  let blockW = doc.getTextWidth(numberLine);
+  doc.setFontSize(10);
+  blockW = Math.max(blockW, doc.getTextWidth("SERVICE DETAILS"));
+  const pairW = (label: string, value: string) => {
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    const labelWidth = doc.getTextWidth(label);
+    doc.setFont("helvetica", "normal");
+    return labelWidth + doc.getTextWidth(value || "");
+  };
+  blockW = Math.max(
+    blockW,
+    pairW("Date : ", data.estimateDate),
+    pairW("Type of service : ", data.serviceType),
+    sheet.category ? pairW("Category : ", sheet.category) : 0,
+    sheet.homeSize ? pairW("Home Size : ", sheet.homeSize) : 0,
+  );
+  const rightX = Math.max(margin + 78, pageWidth - margin - blockW);
   const colW = pageWidth - margin - rightX;
+  const customerColW = Math.max(40, rightX - margin - 4);
   let leftY = y;
   let rightY = y;
 
@@ -252,10 +273,10 @@ async function generateEstimatePDF(data: EstimatePDFData): Promise<jsPDF> {
   leftY += 7;
   const street = [data.clientAddress, data.clientApt].filter(Boolean).join(" ");
   const clientCity = [data.clientCity, [data.clientState, data.clientZip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
-  labeled(doc, "Name : ", data.clientName, margin, leftY, colW); leftY += 5;
-  labeled(doc, "Phone : ", formatPhoneDisplay(data.clientPhone), margin, leftY, colW); leftY += 5;
-  labeled(doc, "Email : ", data.clientEmail, margin, leftY, colW); leftY += 5;
-  labeled(doc, "Address : ", street, margin, leftY, colW); leftY += 5;
+  labeled(doc, "Name : ", data.clientName, margin, leftY, customerColW); leftY += 5;
+  labeled(doc, "Phone : ", formatPhoneDisplay(data.clientPhone), margin, leftY, customerColW); leftY += 5;
+  labeled(doc, "Email : ", data.clientEmail, margin, leftY, customerColW); leftY += 5;
+  labeled(doc, "Address : ", street, margin, leftY, customerColW); leftY += 5;
   if (clientCity) { doc.setFont("helvetica", "normal"); doc.text(clientCity, margin, leftY); leftY += 5; }
 
   doc.setFont("helvetica", "bold");
@@ -355,8 +376,34 @@ async function generateEstimatePDF(data: EstimatePDFData): Promise<jsPDF> {
   y += 10;
   drawTotalRow("Deposit :", money(sheet.deposit));
   drawTotalRow("Pending :", money(sheet.pending));
+  drawSheetFooter(doc, pageWidth, pageHeight, navy, y);
 
   return doc;
+}
+
+function drawSheetFooter(
+  doc: jsPDF,
+  pageWidth: number,
+  pageHeight: number,
+  navy: [number, number, number],
+  contentBottom: number,
+) {
+  let footerY = pageHeight - 12;
+  if (contentBottom > footerY - 8) footerY = contentBottom + 10;
+  if (footerY > pageHeight - 8) {
+    doc.addPage();
+    footerY = pageHeight - 12;
+  }
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  const brand = "Service Provide By Thunder Pro Inc";
+  const site = "www.thunderpro.co";
+  const gap = 10;
+  const brandW = doc.getTextWidth(brand);
+  const x = (pageWidth - brandW - gap - doc.getTextWidth(site)) / 2;
+  doc.text(brand, x, footerY);
+  doc.textWithLink(site, x + brandW + gap, footerY, { url: "https://www.thunderpro.co" });
 }
 
 /**

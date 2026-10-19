@@ -109,17 +109,10 @@ export async function deleteEstimate(id: string) {
  * @returns The share token string
  * @throws On RPC failure
  */
-/** Same public page the email button and the SMS link open. */
+/** PDF the SMS link opens. The function returns the file inline. */
 export function buildEstimatePublicUrl(shareToken: string): string {
-  const configured = import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin;
-  let host = "";
-  try { host = new URL(configured).hostname; } catch { host = window.location.hostname; }
-  const path = `/public/estimate/${shareToken}`;
-  if (host === "thunderpro.co" || host === "www.thunderpro.co" || host === "portal.thunderpro.co" || host === "dashboard.thunderpro.co") {
-    return `https://dashboard.thunderpro.co${path}`;
-  }
-  if (host.includes("staging")) return `https://staging.thunderpro.co${path}`;
-  return `${String(configured).replace(/\/$/, "")}${path}`;
+  const base = String(import.meta.env.VITE_SUPABASE_URL ?? "").replace(/\/$/, "");
+  return `${base}/functions/v1/download-estimate-pdf?token=${encodeURIComponent(shareToken)}`;
 }
 
 export async function generateEstimateShareToken(estimateId: string): Promise<string> {
