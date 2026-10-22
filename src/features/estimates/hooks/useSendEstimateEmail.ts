@@ -8,6 +8,7 @@ interface SendEstimateEmailParams {
   estimateData:   Record<string, any>;
   recipientEmail: string;
   estimateType:   "residential" | "commercial";
+  isUpdate?:      boolean;
 }
 
 /**
@@ -22,6 +23,7 @@ export function useSendEstimateEmail() {
     estimateData,
     recipientEmail,
     estimateType,
+    isUpdate,
   }: SendEstimateEmailParams) => {
     setIsSending(true);
     try {
@@ -35,7 +37,7 @@ export function useSendEstimateEmail() {
       const sanitizedEmail = recipientEmail.trim().toLowerCase();
 
       const { data, error } = await supabase.functions.invoke("send-estimate-email", {
-        body: { estimateData, recipientEmail: sanitizedEmail, estimateType },
+        body: { estimateData, recipientEmail: sanitizedEmail, estimateType, isUpdate: !!isUpdate },
       });
 
       if (error) {
