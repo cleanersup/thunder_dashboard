@@ -9,6 +9,7 @@ import jsPDF from "jspdf";
 import { FileService } from "./file.service";
 import { formatPhoneDisplay } from "@/shared/utils/phoneInput";
 import { normalizeLogo } from "@/shared/utils/pdfLogoHelper";
+import { drawInitialsLogo } from "@/shared/services/pdfInitialsLogo";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -205,13 +206,18 @@ async function generateEstimatePDF(data: EstimatePDFData): Promise<jsPDF> {
   y += 16;
 
   const logoSize = 22;
+  let drewLogo = false;
   if (data.companyLogo) {
     try {
       const logo = await normalizeLogo(data.companyLogo);
-      if (logo) doc.addImage(logo.data, logo.format, margin, y, logoSize, logoSize);
-    } catch { /* ignore a logo the PDF library cannot draw */ }
+      if (logo) {
+        doc.addImage(logo.data, logo.format, margin, y, logoSize, logoSize);
+        drewLogo = true;
+      }
+    } catch { /* a logo the PDF library cannot draw falls through to initials */ }
   }
-  const textX = margin + (data.companyLogo ? logoSize + 4 : 0);
+  if (!drewLogo) drewLogo = drawInitialsLogo(doc, margin, y, logoSize, data.companyName || "");
+  const textX = margin + (drewLogo ? logoSize + 4 : 0);
   doc.setTextColor(0, 0, 0);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
