@@ -16,7 +16,7 @@ import type { Invoice } from "../types/invoice.types";
 export function useInvoicePDFDownload() {
   const { data: profile } = useProfile();
 
-  const downloadPDF = useCallback((invoice: Invoice) => {
+  const downloadPDF = useCallback(async (invoice: Invoice) => {
     if (!profile) {
       toast.error("Company profile not loaded");
       return;
@@ -36,7 +36,7 @@ export function useInvoicePDFDownload() {
         taxRate,
       });
 
-      const doc = generateInvoicePDF({
+      const doc = await generateInvoicePDF({
         companyLogo:    profile.company_logo   ?? undefined,
         companyName:    profile.company_name   ?? "",
         companyPhone:   profile.company_phone  ?? "",
@@ -48,6 +48,11 @@ export function useInvoicePDFDownload() {
         clientName:     invoice.client_name,
         clientPhone:    invoice.phone,
         clientEmail:    invoice.email,
+        clientAddress:  invoice.address,
+        clientApt:      invoice.apt ?? undefined,
+        clientCity:     invoice.city,
+        clientState:    invoice.state,
+        clientZip:      invoice.zip,
         invoiceNumber:  invoice.invoice_number,
         invoiceName:    invoice.invoice_name ?? undefined,
         invoiceDate:    formatDateOnly(invoice.invoice_date, "MMMM d, yyyy"),

@@ -29,7 +29,8 @@ export function useSendInvoiceSMS() {
 
     setIsSendingSMS(true);
     try {
-      const invoiceUrl = `${window.location.origin}/invoice/payment/${paymentToken}`;
+      const base = String(import.meta.env.VITE_SUPABASE_URL ?? "").replace(/\/$/, "");
+      const invoiceUrl = `${base}/functions/v1/download-invoice-pdf?token=${encodeURIComponent(paymentToken)}`;
 
       const { error } = await supabase.functions.invoke("send-invoice-sms", {
         body: { phoneNumber, clientName, invoiceUrl, invoiceTotal, isUpdate },
