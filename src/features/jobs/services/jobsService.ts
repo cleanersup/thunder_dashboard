@@ -5,6 +5,13 @@ import { geocodeAddress, type GeoCoords } from "@/shared/services/googleMaps.ser
 // jobs table is not in local Supabase types — use supabase as any for all jobs queries
 const db = supabase as any;
 
+function isJobPublishConfirmation(previousStatus: string, savedStatus: string): boolean {
+  const previous = previousStatus.toLowerCase();
+  const saved = savedStatus.toLowerCase();
+  if (saved !== "upcoming" && saved !== "today") return false;
+  return previous === "draft" || previous === "scheduled" || previous === "";
+}
+
 function isMissingSiteCoordColumn(error: { code?: string; message?: string } | null | undefined): boolean {
   return error?.code === "PGRST204" && /site_latitude|site_longitude/.test(error.message ?? "");
 }
@@ -383,9 +390,10 @@ export const jobsService = {
   },
 
   /**
-   * Updates status of a job and triggers status-change email when cancelled.
-   * @param id - Job UUID
-   * @param status - New status
+   * Updates status of a job.
+   * Publishing (draft or scheduled → upcoming or today) sends the confirmation
+   * email and SMS. A job dated today is stored as today by the database.
+   * Cancel also calls the status email function.
    */
   async updateStatus(id: string, status: JobStatus): Promise<Job> {
     const { data: current, error: fetchErr } = await db
@@ -406,9 +414,15 @@ export const jobsService = {
       .single();
     if (error) throw error;
 
-    if (newStatusDb === "cancelled") {
+    const savedStatus = String((data as { status?: string }).status || newStatusDb);
+    if (newStatusDb === "cancelled" || isJobPublishConfirmation(previousStatus, savedStatus)) {
       const { error: emailErr } = await supabase.functions.invoke("send-job-status-emails", {
-        body: { jobId: id, newStatus: newStatusDb, previousStatus, clientChannel: "email" },
+        body: {
+          jobId: id,
+          newStatus: newStatusDb === "cancelled" ? newStatusDb : savedStatus,
+          previousStatus,
+          ...(newStatusDb === "cancelled" ? { clientChannel: "email" } : {}),
+        },
       });
       if (emailErr) console.error("send-job-status-emails failed:", emailErr);
     }
