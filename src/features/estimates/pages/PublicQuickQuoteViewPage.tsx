@@ -1,125 +1,39 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { fetchEstimateProfile } from "../services/estimatesService";
-import { fetchQuickQuoteByToken } from "../services/quickQuoteService";
-import { PDFService } from "@/shared/services/pdf.service";
-import { formatDateOnly } from "@/shared/utils/formatters";
+import { env } from "@/config/env";
 
 /**
- * Public quick quote view — no auth. Same PDF viewer as estimates, but loaded
- * via `get_public_quick_quote` so `/public/estimate/:token` is untouched.
+ * Public quick quote link from SMS and email.
+ * Opens the PDF immediately. The file is served inline by download-estimate-pdf.
  *
  * Route: /public/quick-quote/:token
  */
 export function PublicQuickQuoteViewPage() {
-  const { token }  = useParams<{ token: string }>();
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
-  const [pdfUrl,   setPdfUrl]   = useState<string | null>(null);
-
-  const pdfUrlRef = useRef<string | null>(null);
+  const { token } = useParams<{ token: string }>();
 
   useEffect(() => {
-    if (!token) { setError("Invalid token"); setLoading(false); return; }
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const quote = await fetchQuickQuoteByToken(token);
-        if (!quote) { setError("Quote not found"); setLoading(false); return; }
-
-        const profile = await fetchEstimateProfile(quote.user_id);
-
-        const doc = await PDFService.generateEstimatePDF({
-          companyLogo:    profile?.company_logo    ?? undefined,
-          companyName:    profile?.company_name    ?? "",
-          companyPhone:   profile?.company_phone   ?? "",
-          companyEmail:   profile?.company_email   ?? "",
-          companyAddress: profile?.company_address ?? "",
-          companyCity:    profile?.company_city    ?? "",
-          companyState:   profile?.company_state   ?? "",
-          companyZip:     profile?.company_zip     ?? "",
-          clientName:     quote.recipient_name     ?? "",
-          clientPhone:    quote.recipient_phone    ?? "",
-          clientEmail:    quote.recipient_email    ?? "",
-          clientAddress:  "",
-          clientCity:     "",
-          clientState:    "",
-          clientZip:      "",
-          estimateNumber: quote.id.substring(0, 8).toUpperCase(),
-          estimateDate:   formatDateOnly(quote.quote_date, "MMMM dd, yyyy"),
-          documentTitle:  "PROFESSIONAL CLEANING QUOTE",
-          numberLabel:    "Quote #",
-          serviceType:    quote.service_type,
-          serviceSubType: quote.service_sub_type ?? undefined,
-          serviceScope:   quote.service_scope   ?? undefined,
-          mainData:       (quote.main_data       as Record<string, any>) ?? undefined,
-          additionalData: (quote.additional_data as Record<string, any>) ?? undefined,
-          extraServices:  (quote.extra_services  as Record<string, boolean>) ?? undefined,
-          subtotal:       quote.subtotal,
-          discountType:   quote.discount_type   ?? undefined,
-          discountValue:  quote.discount_value  ?? undefined,
-          total:          quote.total,
-        });
-
-        // Keep the PDF on this page. Navigating to a blob URL unmounts the SPA
-        // and often shows a blank tab in in-app / email browsers.
-        const blob = doc.output("blob");
-        const blobUrl = URL.createObjectURL(blob);
-        if (cancelled) {
-          URL.revokeObjectURL(blobUrl);
-          return;
-        }
-        if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
-        pdfUrlRef.current = blobUrl;
-        setPdfUrl(blobUrl);
-        setLoading(false);
-      } catch (err: any) {
-        if (cancelled) return;
-        console.error("Error loading quick quote:", err);
-        setError(err.message ?? "Failed to load quote");
-        setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      if (pdfUrlRef.current) {
-        URL.revokeObjectURL(pdfUrlRef.current);
-        pdfUrlRef.current = null;
-      }
-    };
+    if (!token) return;
+    const base = env.supabase.url.replace(/\/$/, "");
+    window.location.replace(
+      `${base}/functions/v1/download-estimate-pdf?token=${encodeURIComponent(token)}`,
+    );
   }, [token]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="text-muted-foreground">Loading quote...</p>
-      </div>
-    );
-  }
-
-  if (error) {
+  if (!token) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background px-4">
         <h1 className="text-2xl font-bold">Error</h1>
-        <p className="text-muted-foreground text-center">{error}</p>
+        <p className="text-muted-foreground text-center">Invalid token</p>
       </div>
     );
   }
 
-  if (!pdfUrl) return null;
-
   return (
-    <iframe
-      src={pdfUrl}
-      title="Quote PDF"
-      className="h-screen w-full border-0"
-    />
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background">
+      <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      <p className="text-muted-foreground">Opening quote...</p>
+    </div>
   );
 }
 

@@ -109,6 +109,12 @@ export async function deleteEstimate(id: string) {
  * @returns The share token string
  * @throws On RPC failure
  */
+/** PDF the SMS link opens. The function returns the file inline. */
+export function buildEstimatePublicUrl(shareToken: string): string {
+  const base = String(import.meta.env.VITE_SUPABASE_URL ?? "").replace(/\/$/, "");
+  return `${base}/functions/v1/download-estimate-pdf?token=${encodeURIComponent(shareToken)}`;
+}
+
 export async function generateEstimateShareToken(estimateId: string): Promise<string> {
   const { data, error } = await supabase.rpc("generate_estimate_share_token", {
     estimate_id: estimateId,

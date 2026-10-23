@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/shared/components/ui/card";
 import {
   FormSheet, FloatingInput, SelectField, DateField, TextareaField, OptionGrid,
 } from "@/shared/components/forms";
+import { PhoneInput } from "@/shared/components/ui/phone-input";
+import { withRequiredMark } from "@/shared/utils/formLabel";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { useRequestForms, useSaveRequestForms } from "../hooks/useRequests";
 import type { CustomQuestion, ServiceType } from "../types/request.types";
@@ -39,6 +41,19 @@ const TIME_PREFERENCE_PREVIEW = [
 function PreviewField({ id, label, type }: { id: string; label: string; type?: "text" | "email" }) {
   const [value, setValue] = useState("");
   return <FloatingInput id={id} label={label} type={type} value={value} onChange={setValue} />;
+}
+
+function PreviewPhone() {
+  const [value, setValue] = useState("");
+  return (
+    <PhoneInput
+      id="phone"
+      floatingLabel
+      label={withRequiredMark("Phone", true)}
+      value={value}
+      onChange={setValue}
+    />
+  );
 }
 
 /**
@@ -167,7 +182,7 @@ export function EditRequestFormPage() {
               <div className="space-y-6">
                 <PreviewField id="fullName" label="Full Name" />
                 <PreviewField id="email" label="Email" type="email" />
-                <PreviewField id="phone" label="Phone" />
+                <PreviewPhone />
               </div>
             </CardContent>
           </Card>

@@ -536,6 +536,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
           estimateData: { ...payload, id: finalId, company_logo: profile?.company_logo, company_name: profile?.company_name, company_email: profile?.company_email, company_phone: profile?.company_phone },
           recipientEmail: entity.email,
           estimateType: "commercial",
+          isUpdate: !!isEditing,
         });
       }
       // Send SMS when delivery method includes sms
@@ -825,7 +826,7 @@ export function CreateCommercialEstimatePage({ open, onClose, initialState }: Pr
       onSave={handleReviewSave}
       saveLabel={reviewSaveLabel}
       saveDisabled={reviewStep === "send" && !deliveryMethod}
-      secondaryLabel={reviewStep === "summary" ? "Cancel" : "Back"}
+      secondaryLabel="Back"
       onSecondary={reviewStep === "preview" ? () => setReviewStep("summary")
         : reviewStep === "send" ? () => setReviewStep("preview")
         : undefined}

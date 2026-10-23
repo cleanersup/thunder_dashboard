@@ -681,7 +681,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       if (deliveryMethod === "email" || deliveryMethod === "both") {
         await sendEstimateEmail({
           estimateData: { ...payload, id: savedId, company_logo: profile?.company_logo, company_name: profile?.company_name, company_email: profile?.company_email, company_phone: profile?.company_phone },
-          recipientEmail: client.email, estimateType: "residential",
+          recipientEmail: client.email, estimateType: "residential", isUpdate: !!isEditing,
         });
       }
       // Send SMS when delivery method includes sms
@@ -1090,7 +1090,7 @@ export function CreateResidentialEstimatePage({ open, onClose, initialState }: P
       saveDisabled={reviewStep === "send" && (quickQuote
         ? !isQuickQuoteContactComplete(quickContact, deliveryMethod)
         : !deliveryMethod)}
-      secondaryLabel={reviewStep === "summary" ? "Cancel" : "Back"}
+      secondaryLabel="Back"
       onSecondary={reviewStep === "preview" ? () => setReviewStep("summary")
         : reviewStep === "send" ? () => setReviewStep("preview")
         : undefined}

@@ -6,6 +6,7 @@ import { createNotification } from "@/features/notifications/services/notificati
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { FloatingInput, SelectField, DateField, TextareaField, OptionGrid } from "@/shared/components/forms";
+import { PhoneInput } from "@/shared/components/ui/phone-input";
 import { AddressAutocomplete } from "@/shared/components/AddressAutocomplete";
 import { LoadingSpinner } from "@/shared/components/common/LoadingSpinner";
 import { usePublicProfile, usePublicBookingForms } from "../hooks/useBookings";
@@ -73,14 +74,15 @@ export function PublicBookingFormPage() {
 
   const { mutate: submit, isPending } = useMutation({
     mutationFn: async () => {
-      if (!fullName || !email || !phone || !street || !city || !state || !zip || !serviceType) {
+      const phoneDigits = phone.replace(/\D/g, "");
+      if (!fullName || !email || phoneDigits.length < 10 || !street || !city || !state || !zip || !serviceType) {
         throw new Error("Please fill in all required fields.");
       }
 
       const booking = await submitPublicBooking(userId!, {
         lead_name:                fullName,
         email,
-        phone:                    phone.replace(/\D/g, ""),
+        phone:                    phoneDigits,
         street,
         apt_suite:                apt || null,
         city,
@@ -161,7 +163,13 @@ export function PublicBookingFormPage() {
             <div className="space-y-6">
               <FloatingInput id="fullName" label="Full Name" required value={fullName} onChange={setFullName} />
               <FloatingInput id="email"    label="Email" required     value={email}    onChange={setEmail}    type="email" />
-              <FloatingInput id="phone"    label="Phone" required     value={phone}    onChange={setPhone} />
+              <PhoneInput
+                id="phone"
+                floatingLabel
+                label={withRequiredMark("Phone", true)}
+                value={phone}
+                onChange={setPhone}
+              />
             </div>
           </CardContent>
         </Card>
