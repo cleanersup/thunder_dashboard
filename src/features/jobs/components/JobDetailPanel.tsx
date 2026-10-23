@@ -38,6 +38,7 @@ import { JOB_STATUS_BADGE }   from "../config/jobStatusConfig";
 import { generateJobPDF }     from "../services/generateJobPDF";
 import { useProfile }         from "@/shared/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -68,6 +69,7 @@ interface JobDetailPanelProps {
 }
 
 export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPanelProps) {
+  const { requireFeature } = useUpgradeGate();
   const navigate = useNavigate();
   const { data: job, isLoading }    = useJob(jobId ?? undefined);
   const { data: profile }           = useProfile();
@@ -240,7 +242,7 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
             <Button size="sm" variant="outline" className="px-2.5"><MoreHorizontal className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+            <DropdownMenuItem onClick={() => { if (requireFeature("jobs")) setShowEditModal(true); }}>
               <Edit className="h-4 w-4 mr-2" /> Edit Job
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -268,7 +270,7 @@ export function JobDetailPanel({ jobId, open, onClose, onUpdated }: JobDetailPan
             <Button size="sm" variant="outline" className="px-2.5"><MoreHorizontal className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+            <DropdownMenuItem onClick={() => { if (requireFeature("jobs")) setShowEditModal(true); }}>
               <Edit className="h-4 w-4 mr-2" /> Edit Job
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => {

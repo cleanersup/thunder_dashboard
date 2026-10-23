@@ -56,6 +56,8 @@ import { ContractTrialModal } from "../components/ContractTrialModal";
 import { wasContractTrialModalShown } from "../utils/contractTrialStorage";
 import { CONTRACT_CUTOFF_DATE }     from "../config/contracts.config";
 import type { Contract, ContractStatus } from "../types/contract.types";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
+import { useSubscription } from "@/features/subscriptions/context/SubscriptionContext";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -85,6 +87,14 @@ function freqSuffix(freq: string | null) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ContractsPage() {
+  const { requireFeature } = useUpgradeGate();
+
+  /** Abre el wizard de contrato (crear si no hay `id`). Gatea por plan. */
+  const openContractForm = (id?: string) => {
+    if (!requireFeature("contracts")) return;
+    setEditId(id);
+    setShowCreate(true);
+  };
   const navigate = useNavigate();
 
   // ── Filters ──────────────────────────────────────────────────────────────
@@ -111,13 +121,7 @@ export function ContractsPage() {
   const sendEmail  = useSendContractEmail();
   const sendSMS    = useSendContractSMS();
   const { hasAccess, daysRemaining, reason } = useContractAccess();
-
-  // ── Redirect if access expired (basic_expired or no_plan) ──────────────
-  useEffect(() => {
-    if (!hasAccess && reason !== "basic_trial") {
-      navigate("/subscription-plans", { replace: true });
-    }
-  }, [hasAccess, reason, navigate]);
+  const { isLoading: isSubscriptionLoading } = useSubscription();
 
   // ── Trial modal: show once when basic user enters for the first time ────
   useEffect(() => {
@@ -309,7 +313,7 @@ export function ContractsPage() {
       )}
 
       {/* No access banner */}
-      {!hasAccess && (
+      {!hasAccess && !isSubscriptionLoading && (
         <div className="mb-2.5 flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-destructive/10 border border-destructive/20">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-destructive/15 flex items-center justify-center flex-shrink-0">
@@ -534,7 +538,7 @@ export function ContractsPage() {
                 </PopoverContent>
               </Popover>
 
-              <Button className="h-9 text-[13px]" onClick={() => { setEditId(undefined); setShowCreate(true); }}>
+              <Button className="h-9 text-[13px]" onClick={() => openContractForm()}>
                 <Plus className="w-4 h-4 mr-1" />
                 New
               </Button>
@@ -592,7 +596,7 @@ export function ContractsPage() {
                       </p>
                     </div>
                     {allContracts.length === 0 && (
-                      <Button size="sm" onClick={() => setShowCreate(true)}>
+                      <Button size="sm" onClick={() => openContractForm()}>
                         <Plus className="w-4 h-4 mr-1" />
                         Create Contract
                       </Button>
@@ -668,7 +672,7 @@ export function ContractsPage() {
                         {/* Edit */}
                         {canEdit(contract.status) && (
                           <DropdownMenuItem
-                            onClick={(e) => { e.stopPropagation(); setEditId(contract.id); setShowCreate(true); }}
+                            onClick={(e) => { e.stopPropagation(); openContractForm(contract.id); }}
                           >
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
@@ -765,7 +769,7 @@ export function ContractsPage() {
         contract={viewContract}
         open={!!viewContract}
         onClose={() => setViewContract(null)}
-        onEdit={(c)     => { setViewContract(null); setEditId(c.id); setShowCreate(true); }}
+        onEdit={(c)     => { setViewContract(null); openContractForm(c.id); }}
         onRenew={(c)    => { setViewContract(null); setRenewTarget(c); }}
         onDownload={handleDownloadPDF}
         onDelete={(c)   => { setViewContract(null); setDeleteContract(c); }}

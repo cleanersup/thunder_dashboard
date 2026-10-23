@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { QK } from "@/shared/config/queryKeys";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 import {
   fetchTodayEntries,
   fetchScheduledEntries,
@@ -57,10 +58,14 @@ export function usePaidPeriods(empId: string) {
 }
 
 export function useMarkAsPaid() {
+  const { requireFeature } = useUpgradeGate();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ empId, startDate, endDate }: { empId: string; startDate: string; endDate: string }) =>
-      markAsPaid(empId, startDate, endDate),
+    mutationFn: ({ empId, startDate, endDate }: { empId: string; startDate: string; endDate: string }) => {
+      // Marcar pagado inserta en paid_periods: es una escritura gateada.
+      if (!requireFeature("time_clock")) throw new Error("PLAN_UPGRADE_REQUIRED");
+      return markAsPaid(empId, startDate, endDate);
+    },
     onSuccess: (_data, { empId }) => {
       toast.success("Shifts marked as paid successfully");
       qc.invalidateQueries({ queryKey: QK.paidPeriods(empId) });

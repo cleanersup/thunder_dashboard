@@ -33,6 +33,7 @@ import { QK } from "@/shared/config/queryKeys";
 import { toast } from "sonner";
 import { cn } from "@/shared/utils/cn";
 import type { Booking } from "../types/request.types";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -52,6 +53,7 @@ const getStatusLabel = (request: Booking): string => {
 };
 
 export function RequestsPage() {
+  const { requireFeature } = useUpgradeGate();
   const qc       = useQueryClient();
   const navigate = useNavigate();
   const { data: requests = [], isLoading } = useRequests();
@@ -275,7 +277,7 @@ export function RequestsPage() {
 
             {/* Right: actions */}
             <div className="flex items-center gap-2">
-              <Button className="h-9" onClick={() => setCreateOpen(true)}>
+              <Button className="h-9" onClick={() => { if (requireFeature("requests")) setCreateOpen(true); }}>
                 <Plus className="w-4 h-4 mr-1" />
                 New Request
               </Button>
@@ -364,7 +366,7 @@ export function RequestsPage() {
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setActionRequest(request); setConvertOpen(true); }}>
                                 <ArrowRightLeft className="w-4 h-4 mr-2" /> Convert Request
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setActionRequest(request); setEditOpen(true); }}>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); if (!requireFeature("requests")) return; setActionRequest(request); setEditOpen(true); }}>
                                 <Edit className="w-4 h-4 mr-2" /> Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setActionRequest(request); setConfirmAction("archive"); }}>

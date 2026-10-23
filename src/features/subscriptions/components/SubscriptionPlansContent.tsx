@@ -6,7 +6,7 @@
  */
 import { useState } from "react";
 import {
-  Check, Smartphone, Crown, Zap, Building2,
+  Check, Smartphone,
   Calendar, AlertCircle, BadgeCheck, RefreshCw,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
@@ -19,6 +19,7 @@ import { toast }  from "sonner";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useSubscription } from "@/features/subscriptions/context/SubscriptionContext";
 import { useRevenueCatWeb } from "../hooks/useRevenueCatWeb";
+import { PLANS } from "../config/plans";
 import { ConfirmDialog } from "@/shared/components/common/ConfirmDialog";
 import type { PlanTier } from "@/features/subscriptions/context/SubscriptionContext";
 
@@ -26,67 +27,7 @@ import type { PlanTier } from "@/features/subscriptions/context/SubscriptionCont
 
 const TIER_ORDER: Record<string, number> = { basic: 1, essential: 2, professional: 3 };
 
-export const PLANS = [
-  {
-    tier:          "basic" as PlanTier,
-    name:          "Basic",
-    icon:          Building2,
-    accentColor:   "hsl(var(--blue-vibrant))",
-    borderClass:   "border-blue-500",
-    monthlyPrice:  29,
-    annualPrice:   290,
-    annualMonthly: 24.17,
-    monthlyPkg:    "basic_monthly",
-    annualPkg:     "basic_yearly",
-    features: [
-      "Commercial & residential estimates",
-      "Invoice management & Stripe payments",
-      "CRM & client management",
-      "Employee management",
-      "Walkthrough assessments",
-      "Online booking request forms",
-    ],
-  },
-  {
-    tier:          "essential" as PlanTier,
-    name:          "Essential",
-    icon:          Zap,
-    accentColor:   "hsl(var(--orange-vibrant))",
-    borderClass:   "border-orange-500",
-    monthlyPrice:  79,
-    annualPrice:   790,
-    annualMonthly: 65.83,
-    monthlyPkg:    "essential_monthly",
-    annualPkg:     "essential_yearly",
-    popular:       true as const,
-    features: [
-      "Everything in Basic",
-      "Route & scheduling management",
-      "Route optimization",
-      "Smart appointment booking",
-    ],
-  },
-  {
-    tier:          "professional" as PlanTier,
-    name:          "Professional",
-    icon:          Crown,
-    accentColor:   "hsl(var(--green-vibrant))",
-    borderClass:   "border-green-500",
-    monthlyPrice:  129,
-    annualPrice:   1290,
-    annualMonthly: 107.50,
-    monthlyPkg:    "professional_monthly",
-    annualPkg:     "professional_yearly",
-    features: [
-      "Everything in Essential",
-      "Smart Map & real-time tracking",
-      "Time Clock & timesheets",
-      "Unlimited employees",
-      "Workflow automations",
-      "All future premium features",
-    ],
-  },
-] as const;
+export { PLANS } from "../config/plans";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

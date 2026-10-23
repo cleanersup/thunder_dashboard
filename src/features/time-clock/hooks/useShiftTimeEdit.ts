@@ -4,6 +4,7 @@ import { formatDbTimeDisplay } from "../utils/parseDbDateTime";
 import { supabase } from "@/integrations/supabase/client";
 import { updateTimeEntryTimes } from "../services/timeClockService";
 import type { ShiftTimeFields, EditChange } from "../types/timeClock.types";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 const FIELD_LABELS: Record<string, string> = {
   clock_in:    "Clock In",
@@ -20,6 +21,7 @@ const DB_FIELD_MAP: Record<string, keyof ShiftTimeFields> = {
 };
 
 export function useShiftTimeEdit(onSuccess?: () => void | Promise<void>) {
+  const { requireFeature } = useUpgradeGate();
   const [editingShiftId,    setEditingShiftId]    = useState<string | null>(null);
   const [editDraftValues,   setEditDraftValues]   = useState<Record<string, string>>({});
   const [isEditConfirmOpen, setIsEditConfirmOpen] = useState(false);
@@ -28,6 +30,7 @@ export function useShiftTimeEdit(onSuccess?: () => void | Promise<void>) {
   const [confirmingShift,   setConfirmingShift]   = useState<ShiftTimeFields | null>(null);
 
   function startEdit(shift: ShiftTimeFields) {
+    if (!requireFeature("time_clock")) return;
     setEditDraftValues({
       clock_in:    shift.clock_in_time    ? formatDbTimeDisplay(shift.clock_in_time,    "HH:mm", "") : "",
       break_start: shift.break_start_time ? formatDbTimeDisplay(shift.break_start_time, "HH:mm", "") : "",
