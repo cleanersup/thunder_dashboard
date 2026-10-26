@@ -77,9 +77,11 @@ export const SearchableSelect = React.forwardRef<
     // el mismo diálogo de lista que en móvil.
     const triggerRef = React.useRef<HTMLButtonElement | null>(null);
     const [dialogContainer, setDialogContainer] = React.useState<HTMLElement | null>(null);
+    // Solo al montar: `useLayoutEffect` corre con el ref ya asignado, y el select
+    // se monta dentro del diálogo, así que el ancestro no cambia después.
     React.useLayoutEffect(() => {
       setDialogContainer(triggerRef.current?.closest("[role=dialog]") as HTMLElement | null);
-    });
+    }, []);
     const useDialogList = isMobile || !!dialogContainer;
 
     const isMulti = props.multiple === true;

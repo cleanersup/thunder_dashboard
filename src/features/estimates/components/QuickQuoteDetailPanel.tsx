@@ -40,6 +40,7 @@ import { convertQuickQuoteToJob, convertQuickQuoteToInvoice, sendQuickQuoteEmail
 import type { QuickQuoteRow } from "../types/quickQuote.types";
 import { additionalItemEntries } from "../utils/additionalData";
 import { supabase } from "@/integrations/supabase/client";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 import {
   CompleteQuickQuoteClientDialog, type QuickQuoteJobOverrides,
 } from "./CompleteQuickQuoteClientDialog";
@@ -80,6 +81,7 @@ function InfoRow({ icon: Icon, children }: { icon: any; children: React.ReactNod
 }
 
 export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConvert }: Props) {
+  const { requireFeature } = useUpgradeGate();
   const qc       = useQueryClient();
   const navigate = useNavigate();
   const { data: fetchedQuote, isLoading } = useQuickQuote(open ? quoteId : null);
@@ -504,7 +506,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
           size="sm"
           className="flex-1"
           style={{ backgroundColor: "hsl(var(--green-vibrant))", color: "white" }}
-          onClick={() => setConvertTarget("job")}
+          onClick={() => { if (requireFeature("jobs")) setConvertTarget("job"); }}
           disabled={isConverting}
         >
           <Briefcase className="w-4 h-4 mr-1.5" />
@@ -516,7 +518,7 @@ export function QuickQuoteDetailPanel({ open, onClose, quoteId, onEdit, openConv
           size="sm"
           className="flex-1"
           style={{ backgroundColor: "#202B3D", color: "white" }}
-          onClick={() => setConvertTarget("invoice")}
+          onClick={() => { if (requireFeature("invoices")) setConvertTarget("invoice"); }}
           disabled={isConverting}
         >
           <FileText className="w-4 h-4 mr-1.5" />

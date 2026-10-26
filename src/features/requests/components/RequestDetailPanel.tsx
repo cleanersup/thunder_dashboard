@@ -34,6 +34,7 @@ import type { Booking, BookingAttachmentMeta, WalkthroughConvertConfig } from ".
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/shared/utils/cn";
 import { formatTimePreference } from "@/shared/utils/timePreference";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,7 @@ interface RequestDetailPanelProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPanelProps) {
+  const { requireFeature } = useUpgradeGate();
   const navigate = useNavigate();
 
   const { mutate: cancel  } = useCancelRequest();
@@ -174,7 +176,7 @@ export function RequestDetailPanel({ booking, open, onClose }: RequestDetailPane
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+              <DropdownMenuItem onClick={() => { if (requireFeature("requests")) setEditOpen(true); }}>
                 <Edit className="h-4 w-4 mr-2" /> Edit
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setConfirmAction("archive")}>

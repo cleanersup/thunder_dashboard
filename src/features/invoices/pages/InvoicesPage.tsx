@@ -3,7 +3,7 @@
  * Main invoices listing page with KPI cards, table, search, and filters.
  * Adapted from thunder-web-version/src/pages/Invoices.tsx.
  */
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { formatDisplayDate, formatDisplayDateShort } from "@/shared/utils/formatters";
 import {
@@ -55,12 +55,22 @@ import { CreateInvoicePage }        from "./CreateInvoicePage";
 import { INVOICE_STATUS_BADGE, INVOICE_STATUS_BORDER } from "../utils/invoiceStatusHelpers";
 import { useClientByEmail, useClients } from "@/features/crm/clients/hooks/useClients";
 import type { Invoice, InvoiceStatus } from "../types/invoice.types";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 const ITEMS_PER_PAGE = 10;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function InvoicesPage() {
+  const { requireFeature } = useUpgradeGate();
+
+  /** Abre el formulario de invoice para editar. Gatea por plan. */
+  const openInvoiceEdit = useCallback((id: string, clientId?: string) => {
+    if (!requireFeature("invoices")) return;
+    setEditInvoiceId(id);
+    if (clientId !== undefined) setPrefillClientId(clientId);
+    setShowEditModal(true);
+  }, [requireFeature]);
   const { sendInvoiceEmail, isSending } = useSendInvoiceEmail();
   const { sendReminder, isSending: isSendingReminder } = useSendInvoiceReminder();
   const { downloadPDF } = useInvoicePDFDownload();
@@ -98,9 +108,7 @@ export function InvoicesPage() {
   useEffect(() => {
     const state = location.state as { openId?: string; openEditId?: string; clientId?: string } | null;
     if (state?.openEditId) {
-      setEditInvoiceId(state.openEditId);
-      setPrefillClientId(state.clientId);
-      setShowEditModal(true);
+      openInvoiceEdit(state.openEditId, state.clientId);
       window.history.replaceState({}, "");
       return;
     }
@@ -109,7 +117,7 @@ export function InvoicesPage() {
       setIsDetailOpen(true);
       window.history.replaceState({}, "");
     }
-  }, [location.state]);
+  }, [location.state, openInvoiceEdit]);
 
   // ── Modal state ──────────────────────────────────────────────────────────────
   const [detailId,       setDetailId]       = useState<string | null>(null);
@@ -361,7 +369,7 @@ export function InvoicesPage() {
               )}
 
               {/* New button */}
-              <Button onClick={() => setShowCreateModal(true)} className="h-9">
+              <Button onClick={() => { if (requireFeature("invoices")) setShowCreateModal(true); }} className="h-9">
                 <Plus className="w-4 h-4 mr-1" />
                 New
               </Button>
@@ -463,8 +471,7 @@ export function InvoicesPage() {
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              setEditInvoiceId(invoice.id);
-                              setShowEditModal(true);
+                              openInvoiceEdit(invoice.id);
                             }}
                           >
                             <Edit className="w-4 h-4 mr-2" />
@@ -647,8 +654,7 @@ export function InvoicesPage() {
         invoiceId={detailId}
         onEdit={(id) => {
           setIsDetailOpen(false);
-          setEditInvoiceId(id);
-          setShowEditModal(true);
+          openInvoiceEdit(id);
         }}
       />
 

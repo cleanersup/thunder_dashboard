@@ -20,6 +20,7 @@ import { TaskDetailModal } from "./TaskDetailModal";
 import { formatTaskSchedule, getAssignedName } from "../utils/taskFormatters";
 import { toast } from "sonner";
 import type { TaskWithClient } from "../types/task.types";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 // ─── Actions dropdown ─────────────────────────────────────────────────────────
 interface ActionsCellProps {
@@ -102,6 +103,7 @@ interface TasksTableProps {
 }
 
 export function TasksTable({ searchQuery, showForm, onCloseForm }: TasksTableProps) {
+  const { requireFeature } = useUpgradeGate();
   const { data: tasks = [], isLoading } = useTasks();
   const { mutate: deleteTask } = useDeleteTask();
 
@@ -165,13 +167,13 @@ export function TasksTable({ searchQuery, showForm, onCloseForm }: TasksTablePro
         <ActionsCell
           task={t}
           onOpenDetails={() => openDetails(t)}
-          onEdit={() => setEditingTask(t)}
+          onEdit={() => { if (requireFeature("tasks")) setEditingTask(t); }}
           onDelete={() => setDeletingTask(t)}
         />
       ),
       className: "w-12 text-right",
     },
-  ], []);
+  ], [requireFeature]);
 
   const filteredTasks = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();

@@ -36,6 +36,7 @@ import { ScheduleMapPanel } from "../components/ScheduleMapPanel";
 import { useScheduleGeocode } from "../hooks/useScheduleGeocode";
 import { calendarRangeLabel, calendarRangeBounds, shiftCalendarDate } from "../utils/calendarRange";
 import { coversDate, jobToEvent, taskToEvent, type ScheduleEvent } from "../types/scheduleEvent";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 type TypeFilter = "all" | "job" | "task";
 /** Las dos maneras de mirar el mismo día: cuándo pasa y dónde pasa. */
@@ -63,6 +64,7 @@ function employeeName(e: Record<string, unknown>): string {
 }
 
 export function SchedulePage() {
+  const { requireFeature } = useUpgradeGate();
   const { data: jobs = [] }      = useJobs();
   const { data: tasks = [] }     = useTasks();
   const { data: employees = [] } = useAllEmployees();
@@ -166,10 +168,10 @@ export function SchedulePage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuItem onClick={() => setNewJobOpen(true)}>
+            <DropdownMenuItem onClick={() => { if (requireFeature("jobs")) setNewJobOpen(true); }}>
               <Briefcase className="w-4 h-4 mr-2" /> Job
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setNewTaskOpen(true)}>
+            <DropdownMenuItem onClick={() => { if (requireFeature("tasks")) setNewTaskOpen(true); }}>
               <ListChecks className="w-4 h-4 mr-2" /> Task
             </DropdownMenuItem>
           </DropdownMenuContent>

@@ -37,6 +37,7 @@ import { deleteDraftEstimate } from "../services/estimatesService";
 import { useQuickQuotes, useUpdateQuickQuoteStatus } from "../hooks/useQuickQuotes";
 import { QuickQuoteDetailPanel } from "../components/QuickQuoteDetailPanel";
 import { sendQuickQuoteEmail, sendQuickQuoteSMS, fetchQuickQuote, buildQuickQuotePublicUrl } from "../services/quickQuoteService";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ function getStatusBadge(status: string) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function EstimatesPage() {
+  const { requireFeature } = useUpgradeGate();
   const navigate    = useNavigate();
   const location    = useLocation();
   const queryClient = useQueryClient();
@@ -219,6 +221,7 @@ export function EstimatesPage() {
     editState?: { isEditing: boolean; estimateId: string; estimateData: any },
     continueDraft?: boolean,
   ) {
+    if (!requireFeature("estimates")) return;
     setFormModal({
       type: serviceType === "Commercial" ? "commercial" : "residential",
       editState,
@@ -255,6 +258,7 @@ export function EstimatesPage() {
 
   /** Abre el formulario rápido: nuevo si no hay id, o el existente para reenviarlo. */
   function openQuickQuoteForm(quickQuoteId?: string) {
+    if (!requireFeature("estimates")) return;
     setFormModal({ type: "residential", quickQuote: true, quickQuoteId });
   }
 

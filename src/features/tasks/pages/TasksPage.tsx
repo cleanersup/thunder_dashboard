@@ -5,8 +5,10 @@ import { Input } from "@/shared/components/ui/input";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { TasksTable } from "../components/TasksTable";
 import { useCRMStats } from "@/features/crm/hooks/useCRMStats";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 export function TasksPage() {
+  const { requireFeature } = useUpgradeGate();
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { stats } = useCRMStats();
@@ -54,7 +56,7 @@ export function TasksPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Button className="h-9" onClick={() => setShowAddForm(true)}>
+            <Button className="h-9" onClick={() => { if (requireFeature("tasks")) setShowAddForm(true); }}>
               <Plus className="h-4 w-4 mr-1" /> Add Task
             </Button>
           </div>

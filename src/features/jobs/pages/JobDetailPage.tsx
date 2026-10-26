@@ -26,6 +26,7 @@ import { generateJobPDF } from "../services/generateJobPDF";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { useAllEmployees } from "@/features/employees/hooks/useEmployees";
 import { getEffectiveJobStatus } from "../types/job.types";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
   if (!value) return null;
@@ -41,6 +42,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
 }
 
 export function JobDetailPage() {
+  const { requireFeature } = useUpgradeGate();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: job, isLoading } = useJob(id);
@@ -132,7 +134,7 @@ export function JobDetailPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+              <DropdownMenuItem onClick={() => { if (requireFeature("jobs")) setShowEditModal(true); }}>
                 <Edit className="h-4 w-4 mr-2" /> Edit Job
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -168,10 +170,10 @@ export function JobDetailPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+              <DropdownMenuItem onClick={() => { if (requireFeature("jobs")) setShowEditModal(true); }}>
                 <Edit className="h-4 w-4 mr-2" /> Edit Job
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+              <DropdownMenuItem onClick={() => { if (requireFeature("jobs")) setShowEditModal(true); }}>
                 <CalendarClock className="h-4 w-4 mr-2" /> Reschedule
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -227,7 +229,7 @@ export function JobDetailPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+              <DropdownMenuItem onClick={() => { if (requireFeature("jobs")) setShowEditModal(true); }}>
                 <CalendarClock className="h-4 w-4 mr-2" /> Reschedule
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -244,7 +246,7 @@ export function JobDetailPage() {
     if (effectiveStatus === "Cancelled") {
       return (
         <div className="flex items-center gap-2">
-          <Button size="sm" className="flex-1 gap-1.5" onClick={() => setShowEditModal(true)}>
+          <Button size="sm" className="flex-1 gap-1.5" onClick={() => { if (requireFeature("jobs")) setShowEditModal(true); }}>
             <CalendarClock className="h-3.5 w-3.5" /> Reschedule
           </Button>
           <DropdownMenu>
