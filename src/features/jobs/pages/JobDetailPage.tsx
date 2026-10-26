@@ -50,9 +50,8 @@ export function JobDetailPage() {
   const { data: allEmployees = [] } = useAllEmployees();
 
   // A job can have several invoices (deposit + balance/final), all listed in
-  // jobs.invoice_ids. The deposit invoice is auto-created (as a Draft) by a backend
-  // trigger when a job with a deposit is published; surface a reminder while it's
-  // still unsent (Draft) so the user doesn't forget to send it.
+  // jobs.invoice_ids. The deposit invoice is created as Pending and stays on
+  // jobs.deposit_invoice_id. The customer pays it from the job email.
   const invoiceIds = useMemo(() => {
     const ids = job?.invoiceIds ?? [];
     return job?.depositInvoiceId && !ids.includes(job.depositInvoiceId)
