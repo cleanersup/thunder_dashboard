@@ -12,6 +12,13 @@ function isJobPublishConfirmation(previousStatus: string, savedStatus: string): 
   return previous === "draft" || previous === "scheduled" || previous === "";
 }
 
+function isJobReschedule(previousStatus: string, savedStatus: string): boolean {
+  const previous = previousStatus.toLowerCase();
+  const saved = savedStatus.toLowerCase();
+  if (saved !== "upcoming" && saved !== "today") return false;
+  return previous === "upcoming" || previous === "today" || previous === "ongoing" || previous === "missed";
+}
+
 function isMissingSiteCoordColumn(error: { code?: string; message?: string } | null | undefined): boolean {
   return error?.code === "PGRST204" && /site_latitude|site_longitude/.test(error.message ?? "");
 }
@@ -415,7 +422,11 @@ export const jobsService = {
     if (error) throw error;
 
     const savedStatus = String((data as { status?: string }).status || newStatusDb);
-    if (newStatusDb === "cancelled" || isJobPublishConfirmation(previousStatus, savedStatus)) {
+    if (
+      newStatusDb === "cancelled" ||
+      isJobPublishConfirmation(previousStatus, savedStatus) ||
+      isJobReschedule(previousStatus, savedStatus)
+    ) {
       const { error: emailErr } = await supabase.functions.invoke("send-job-status-emails", {
         body: {
           jobId: id,
