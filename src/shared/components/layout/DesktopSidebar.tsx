@@ -16,15 +16,12 @@ import {
   ClipboardList,
   Clock,
   MapPin,
-  Lock,
 } from "lucide-react";
 import thunderProLogo from "@/assets/logo_thunder_pro_w.png";
 import thunderLogo from "@/assets/thunder-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/shared/hooks/useProfile";
-import { useSubscription } from "@/features/subscriptions/context/SubscriptionContext";
-import { hasFeatureAccess, getMinimumPlanForFeature, type FeatureKey } from "@/shared/config/planFeatures";
-import { useContractAccess } from "@/features/contracts/hooks/useContractAccess";
+import type { FeatureKey } from "@/shared/config/planFeatures";
 import { useNavBadge } from "@/shared/hooks/useNavBadge";
 import { NavBadgeNew } from "@/shared/components/common/NavBadgeNew";
 import { cn } from "@/shared/utils/cn";
@@ -102,8 +99,6 @@ export function DesktopSidebar() {
   const { data: profile } = useProfile();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
-  const { planTier, isLoading } = useSubscription();
-  const { hasAccess: hasContractAccess } = useContractAccess();
   const contractsBadge = useNavBadge({
     storageKey: "nav-new-contracts",
     expiryDate: "2026-06-01",
@@ -113,64 +108,21 @@ export function DesktopSidebar() {
   const isActive = (path: string) =>
     path === "/home" ? location.pathname === "/home" : location.pathname.startsWith(path);
 
-  // Contracts has its own trial logic; everything else uses the plan→feature matrix.
-  const isLocked = (item: NavItem) =>
-    item.path === "/contracts"
-      ? !hasContractAccess
-      : !!item.feature && !hasFeatureAccess(planTier, item.feature);
-
-  // Minimum plan label shown in the upgrade prompt (contracts unlocks at essential).
-  const requiredPlan = (item: NavItem) =>
-    item.path === "/contracts"
-      ? "ESSENTIAL"
-      : item.feature
-        ? getMinimumPlanForFeature(item.feature).toUpperCase()
-        : "";
-
-  const goToUpgrade = (item: NavItem) =>
-    navigate("/subscription-plans", {
-      state: {
-        message: `${item.label} requires the ${requiredPlan(item)} plan`,
-        highlightFeature: item.feature,
-      },
-    });
-
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
   };
 
+  // Todos los items se ven y navegan igual, sin importar el plan: el límite se
+  // descubre al crear o editar, no al abrir el menú.
   const renderItem = (item: NavItem) => {
     const Icon = item.icon;
-    const locked = isLocked(item);
 
-    // Locked items stay visible (with a padlock) so users see the feature exists,
-    // but clicking routes to the plans page instead of the gated page.
     const iconEl = (
       <span className="relative shrink-0">
         <Icon className={cn("h-5 w-5", isCollapsed && "ml-1")} />
-        {locked && (
-          <span className="absolute -bottom-1 -right-1 rounded-full bg-sidebar p-px">
-            <Lock className="h-2.5 w-2.5 text-sidebar-foreground/70" />
-          </span>
-        )}
       </span>
     );
-
-    if (locked) {
-      return (
-        <SidebarMenuItem key={item.path}>
-          <SidebarMenuButton
-            tooltip={`${item.label} — ${requiredPlan(item)} plan`}
-            onClick={() => goToUpgrade(item)}
-            className="text-sidebar-foreground/40 hover:text-sidebar-foreground/70 hover:bg-sidebar-accent text-[13px]"
-          >
-            {iconEl}
-            <span>{item.label}</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      );
-    }
 
     return (
       <SidebarMenuItem key={item.path}>
@@ -212,65 +164,43 @@ export function DesktopSidebar() {
       </SidebarHeader>
 
       <SidebarContent className={cn("px-2", isCollapsed && "px-0 items-center")}>
-        {isLoading ? (
-          /* Skeleton while subscription loads */
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <SidebarMenuItem key={i}>
-                    <div
-                      className={cn(
-                        "h-9 rounded-md bg-sidebar-accent/30 animate-pulse my-0.5",
-                        isCollapsed ? "w-9 mx-auto" : "w-full",
-                      )}
-                    />
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ) : (
-          <>
-            {/* Home */}
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {renderItem({ path: "/home", icon: Home, label: "Home" })}
-                  {renderItem(SCHEDULE_ITEM)}
-                  {renderItem(ROUTES_ITEM)}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+        {/* Home */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {renderItem({ path: "/home", icon: Home, label: "Home" })}
+              {renderItem(SCHEDULE_ITEM)}
+              {renderItem(ROUTES_ITEM)}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-            {/* Divider — after Schedule, before Workflow */}
-            <div className="my-1 mx-2 border-t border-white/20" />
+        {/* Divider — after Schedule, before Workflow */}
+        <div className="my-1 mx-2 border-t border-white/20" />
 
-            {/* Workflow section */}
-            <SidebarGroup>
-              {!isCollapsed && (
-                <SidebarGroupLabel className="text-sidebar-foreground/40 text-[10px] uppercase tracking-widest px-2 pb-1">
-                  Workflow
-                </SidebarGroupLabel>
-              )}
-              <SidebarGroupContent>
-                <SidebarMenu>{WORKFLOW_NAV.map(renderItem)}</SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+        {/* Workflow section */}
+        <SidebarGroup>
+          {!isCollapsed && (
+            <SidebarGroupLabel className="text-sidebar-foreground/40 text-[10px] uppercase tracking-widest px-2 pb-1">
+              Workflow
+            </SidebarGroupLabel>
+          )}
+          <SidebarGroupContent>
+            <SidebarMenu>{WORKFLOW_NAV.map(renderItem)}</SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-            {/* Operations section */}
-            <SidebarGroup>
-              {!isCollapsed && (
-                <SidebarGroupLabel className="text-sidebar-foreground/40 text-[10px] uppercase tracking-widest px-2 pb-1">
-                  Operations
-                </SidebarGroupLabel>
-              )}
-              <SidebarGroupContent>
-                <SidebarMenu>{OPERATIONS_NAV.map(renderItem)}</SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </>
-        )}
+        {/* Operations section */}
+        <SidebarGroup>
+          {!isCollapsed && (
+            <SidebarGroupLabel className="text-sidebar-foreground/40 text-[10px] uppercase tracking-widest px-2 pb-1">
+              Operations
+            </SidebarGroupLabel>
+          )}
+          <SidebarGroupContent>
+            <SidebarMenu>{OPERATIONS_NAV.map(renderItem)}</SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       {/* Account footer */}

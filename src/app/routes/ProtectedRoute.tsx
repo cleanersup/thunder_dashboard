@@ -4,7 +4,6 @@ import { AuthGuard } from "@/shared/components/common/AuthGuard";
 import { MainLayout } from "@/shared/components/layout/MainLayout";
 import { useSubscription } from "@/features/subscriptions/context/SubscriptionContext";
 import { useAuth } from "@/shared/hooks/useAuth";
-import { hasFeatureAccess, type FeatureKey } from "@/shared/config/planFeatures";
 
 /**
  * Wraps authenticated pages with AuthGuard + MainLayout (responsive sidebar layout).
@@ -12,21 +11,15 @@ import { hasFeatureAccess, type FeatureKey } from "@/shared/config/planFeatures"
  * requireSubscription (default true):
  *   Redirects to /subscription-plans when the user has no active subscription.
  *
- * requireFeature:
- *   Redirects to /subscription-plans when the user's plan tier does not include
- *   the specified feature (e.g. "smart_map" requires professional tier).
- *   Implies requireSubscription check as well.
  */
 export function ProtectedRoute({
   children,
   requireSubscription = true,
-  requireFeature,
 }: {
   children: React.ReactNode;
   requireSubscription?: boolean;
-  requireFeature?: FeatureKey;
 }) {
-  const { hasActiveSubscription, planTier, isLoading } = useSubscription();
+  const { hasActiveSubscription, isLoading } = useSubscription();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [subscriptionBootstrapComplete, setSubscriptionBootstrapComplete] = useState(false);
@@ -49,20 +42,16 @@ export function ProtectedRoute({
   useEffect(() => {
     if (isLoading) return;
 
-    // Step 1: active subscription check
+    // Sin ninguna suscripción activa, a la pantalla de planes. El tier ya NO se
+    // comprueba aquí: el menú se muestra completo y el plan se verifica al crear
+    // o editar (`useUpgradeGate` / `WriteGate`).
     if (requireSubscription && !hasActiveSubscription) {
       navigate("/subscription-plans", { replace: true });
-      return;
     }
-
-    // Step 2: tier feature check
-    if (requireFeature && !hasFeatureAccess(planTier, requireFeature)) {
-      navigate("/subscription-plans", { replace: true });
-    }
-  }, [hasActiveSubscription, planTier, isLoading, requireSubscription, requireFeature, navigate]);
+  }, [hasActiveSubscription, isLoading, requireSubscription, navigate]);
 
   const showSubscriptionSpinner =
-    (requireSubscription || !!requireFeature) && isLoading && !subscriptionBootstrapComplete;
+    requireSubscription && isLoading && !subscriptionBootstrapComplete;
 
   return (
     <AuthGuard>

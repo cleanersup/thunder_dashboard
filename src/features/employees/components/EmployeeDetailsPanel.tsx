@@ -25,6 +25,7 @@ import {
 import { EmployeeForm } from "./EmployeeForm";
 import { formatPhoneDisplay, isPhoneValid } from "@/shared/utils/phoneInput";
 import type { Employee } from "../services/employeesService";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ export function EmployeeDetailsPanel({
   onClose,
   onEmployeeUpdated,
 }: EmployeeDetailsPanelProps) {
+  const { requireFeature } = useUpgradeGate();
   const { data: profile } = useProfile();
   const { mutate: updateStatus } = useUpdateEmployeeStatus();
   const { mutate: deleteEmployee, isPending: isDeleting } = useDeleteEmployee();
@@ -180,7 +182,7 @@ export function EmployeeDetailsPanel({
 
   const footer = (
     <div className="flex items-center gap-2">
-      <Button size="sm" variant="outline" onClick={() => setEditOpen(true)} className="flex-1">
+      <Button size="sm" variant="outline" onClick={() => { if (requireFeature("employee")) setEditOpen(true); }} className="flex-1">
         <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit
       </Button>
       {(employee.status === "inactive" || employee.status === "under review") && (

@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { QK } from "@/shared/config/queryKeys";
 import { timePreferenceToTime } from "@/shared/utils/timePreference";
 import type { Booking, WalkthroughConvertConfig } from "../types/request.types";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -33,8 +34,13 @@ export function ConvertRequestDialog({
   onEstimateConvert,
   onWalkthroughConvert,
 }: ConvertRequestDialogProps) {
+  const { requireFeature } = useUpgradeGate();
   const qc = useQueryClient();
   const [loading, setLoading] = useState<"estimate" | "walkthrough" | null>(null);
+
+  /** Cada destino de la conversión crea un registro, así que pide su feature. */
+  const canConvertTo = (target: "estimate" | "walkthrough") =>
+    requireFeature(target === "estimate" ? "estimates" : "walkthrough");
 
   if (!request) return null;
 
@@ -51,6 +57,7 @@ export function ConvertRequestDialog({
   };
 
   const handleConvert = async (target: "estimate" | "walkthrough") => {
+    if (!canConvertTo(target)) return;
     setLoading(target);
     try {
       // El contacto siempre termina siendo un Client (el flujo de leads se retiró):

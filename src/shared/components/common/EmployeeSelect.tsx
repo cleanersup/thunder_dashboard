@@ -12,6 +12,7 @@ import { useState } from "react";
 import { SearchableSelect } from "@/shared/components/ui/searchable-select";
 import { EmployeeForm } from "@/features/employees/components/EmployeeForm";
 import { useAllEmployees } from "@/features/employees/hooks/useEmployees";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 export interface EmployeeSelectProps {
   /** IDs seleccionados. */
@@ -31,6 +32,7 @@ export function EmployeeSelect({
   required = false,
   placeholder = "Select employees",
 }: EmployeeSelectProps) {
+  const { requireFeature } = useUpgradeGate();
   const [showNew, setShowNew] = useState(false);
   const { data: employees = [], isLoading } = useAllEmployees();
 
@@ -65,7 +67,7 @@ export function EmployeeSelect({
         error={error}
         disabled={disabled}
         required={required}
-        onCreateNew={() => setShowNew(true)}
+        onCreateNew={() => { if (requireFeature("employee")) setShowNew(true); }}
         createNewLabel="Add New Employee"
       />
       <EmployeeForm

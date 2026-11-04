@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { QK } from "@/shared/config/queryKeys";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 interface ConvertOptions {
   estimate: Record<string, unknown>;
@@ -34,10 +35,13 @@ function resolveTotal(estimate: Record<string, unknown>): number {
 }
 
 export function useConvertEstimateToJob() {
+  const { requireFeature } = useUpgradeGate();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
   return async ({ estimate, serviceLabel, onStart, onFinally, onSuccess }: ConvertOptions) => {
+    // Convertir crea un job, así que respeta el mismo gate que crearlo a mano.
+    if (!requireFeature("jobs")) return;
     onStart();
     try {
       const { data: { user } } = await supabase.auth.getUser();

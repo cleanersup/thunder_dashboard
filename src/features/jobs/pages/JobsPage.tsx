@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
@@ -29,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { QK } from "@/shared/config/queryKeys";
 import { getEffectiveJobStatus } from "../types/job.types";
 import type { JobStatusFilter } from "../config/jobStatusConfig";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -45,6 +46,14 @@ const STATUS_PRIORITY: Record<string, number> = {
 };
 
 export function JobsPage() {
+  const { requireFeature } = useUpgradeGate();
+
+  /** Abre el formulario de job (crear si `id` es null). Gatea por plan. */
+  const openJobForm = useCallback((id: string | null) => {
+    if (!requireFeature("jobs")) return;
+    setEditJobId(id);
+    setJobModalOpen(true);
+  }, [requireFeature]);
   const navigate    = useNavigate();
   const location    = useLocation();
   const qc          = useQueryClient();
@@ -67,15 +76,14 @@ export function JobsPage() {
   useEffect(() => {
     const state = location.state as { openEditJobId?: string; openId?: string } | null;
     if (state?.openEditJobId) {
-      setEditJobId(state.openEditJobId);
-      setJobModalOpen(true);
+      openJobForm(state.openEditJobId);
       window.history.replaceState({}, "");
     } else if (state?.openId) {
       setDetailId(state.openId);
       setDetailOpen(true);
       window.history.replaceState({}, "");
     }
-  }, [location.state]);
+  }, [location.state, openJobForm]);
   const { data: jobs = [], isLoading } = useJobs();
 
   // ─── Real-time ──────────────────────────────────────────────────────────
@@ -251,7 +259,7 @@ export function JobsPage() {
                 </Button>
               )}
             </div>
-            <Button className="h-9 flex-shrink-0" onClick={() => { setEditJobId(null); setJobModalOpen(true); }}>
+            <Button className="h-9 flex-shrink-0" onClick={() => openJobForm(null)}>
               <Plus className="h-4 w-4 mr-1" /> New Job
             </Button>
           </div>
@@ -320,7 +328,7 @@ export function JobsPage() {
                             <DropdownMenuItem onClick={() => { setActionJob(job); setShowPublish(true); }}>
                               <Play className="w-4 h-4 mr-2 text-blue-600" /> Publish & Schedule
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { setEditJobId(job.id); setJobModalOpen(true); }}>
+                            <DropdownMenuItem onClick={() => openJobForm(job.id)}>
                               <Edit className="w-4 h-4 mr-2" /> Edit
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
@@ -342,10 +350,10 @@ export function JobsPage() {
                             <DropdownMenuItem onClick={() => { setActionJob(job); setShowComplete(true); }}>
                               <CheckCircle className="w-4 h-4 mr-2 text-green-600" /> Mark as Completed
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { setEditJobId(job.id); setJobModalOpen(true); }}>
+                            <DropdownMenuItem onClick={() => openJobForm(job.id)}>
                               <Edit className="w-4 h-4 mr-2" /> Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { setEditJobId(job.id); setJobModalOpen(true); }}>
+                            <DropdownMenuItem onClick={() => openJobForm(job.id)}>
                               <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
@@ -359,7 +367,7 @@ export function JobsPage() {
                             <DropdownMenuItem onClick={() => { setActionJob(job); setShowComplete(true); }}>
                               <CheckCircle className="w-4 h-4 mr-2 text-green-600" /> Mark as Completed
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { setEditJobId(job.id); setJobModalOpen(true); }}>
+                            <DropdownMenuItem onClick={() => openJobForm(job.id)}>
                               <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
@@ -383,7 +391,7 @@ export function JobsPage() {
 
                           {/* Cancelled */}
                           {effectiveStatus === "Cancelled" && (<>
-                            <DropdownMenuItem onClick={() => { setEditJobId(job.id); setJobModalOpen(true); }}>
+                            <DropdownMenuItem onClick={() => openJobForm(job.id)}>
                               <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />

@@ -81,6 +81,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useProfile } from "@/shared/hooks/useProfile";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 // ─── KPI config ───────────────────────────────────────────────────────────────
 
@@ -122,6 +123,7 @@ const KPI_CONFIG = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function WalkthroughsPage() {
+  const { requireFeature } = useUpgradeGate();
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
@@ -168,8 +170,16 @@ export function WalkthroughsPage() {
   const [walkthroughModalOpen, setWalkthroughModalOpen] = useState(false);
   const [walkthroughEditId,    setWalkthroughEditId]    = useState<string | undefined>(undefined);
 
-  function openCreate() { setWalkthroughEditId(undefined); setWalkthroughModalOpen(true); }
-  function openEdit(id: string) { setWalkthroughEditId(id); setWalkthroughModalOpen(true); }
+  function openCreate() {
+    if (!requireFeature("walkthrough")) return;
+    setWalkthroughEditId(undefined);
+    setWalkthroughModalOpen(true);
+  }
+  function openEdit(id: string) {
+    if (!requireFeature("walkthrough")) return;
+    setWalkthroughEditId(id);
+    setWalkthroughModalOpen(true);
+  }
   function closeWalkthroughModal() { setWalkthroughModalOpen(false); setWalkthroughEditId(undefined); refetch(); }
   const [scheduleTarget, setScheduleTarget] = useState<WalkthroughWithContact | null>(null);
   const [scheduleOpen, setScheduleOpen]     = useState(false);
@@ -240,6 +250,7 @@ export function WalkthroughsPage() {
   }
 
   async function handleGenerateEstimate(w: WalkthroughWithContact) {
+    if (!requireFeature("estimates")) return;
     try {
       const { estimateId, route } = await createEstimateDraftFromWalkthrough(w);
       qc.invalidateQueries({ queryKey: QK.walkthroughs });

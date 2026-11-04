@@ -44,6 +44,7 @@ import {
 import { buildWalkthroughPdfData } from "../utils/walkthroughPdfData";
 import { downloadWalkthroughPdf } from "../services/generateWalkthroughPDF";
 import { useProfile } from "@/shared/hooks/useProfile";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ export function WalkthroughDetailsModal({
   onOpenChange,
   onUpdated,
 }: WalkthroughDetailsModalProps) {
+  const { requireFeature } = useUpgradeGate();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
@@ -159,6 +161,7 @@ export function WalkthroughDetailsModal({
   }
 
   async function handleGenerateEstimate() {
+    if (!requireFeature("estimates")) return;
     try {
       const { estimateId, route } = await createEstimateDraftFromWalkthrough(walkthrough!);
       qc.invalidateQueries({ queryKey: QK.walkthroughs });

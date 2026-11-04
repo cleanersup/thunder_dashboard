@@ -22,6 +22,7 @@ import {
 import { getAssignedNames, formatDueDate, formatTaskSchedule } from "../utils/taskFormatters";
 import { toast } from "sonner";
 import type { TaskWithClient } from "../types/task.types";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 // ─── Row helper ───────────────────────────────────────────────────────────────
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
@@ -44,6 +45,7 @@ interface TaskDetailModalProps {
 }
 
 export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
+  const { requireFeature } = useUpgradeGate();
   const { mutate: deleteTask } = useDeleteTask();
   const { mutate: updateTask } = useUpdateTask();
   const [showEdit,   setShowEdit]   = useState(false);
@@ -94,7 +96,7 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
         </Button>
       )}
       {t.status === "completed" && (
-        <Button size="sm" variant="outline" className="flex-1" onClick={() => setShowEdit(true)}>
+        <Button size="sm" variant="outline" className="flex-1" onClick={() => { if (requireFeature("tasks")) setShowEdit(true); }}>
           <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit
         </Button>
       )}
@@ -105,7 +107,7 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem onClick={() => setShowEdit(true)}>
+          <DropdownMenuItem onClick={() => { if (requireFeature("tasks")) setShowEdit(true); }}>
             <Edit className="h-3.5 w-3.5 mr-2" /> Edit
           </DropdownMenuItem>
           <DropdownMenuSeparator />

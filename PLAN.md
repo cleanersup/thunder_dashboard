@@ -620,17 +620,44 @@ swift-slate tiene mapas en LeadDetails y WalkthroughDetails. Nuestros modales lo
 ## FASE 13 — Suscripciones ⚠️ Requiere decisiones de negocio
 > Estado: 🟡 Bloqueada — espera confirmación (billing). Control de acceso por plan ✅
 
-### Control de acceso por plan (✅ 2026-06-22)
+### Control de acceso por plan (✅ reescrito 2026-10-16)
+
+**El menú se muestra completo a todos los planes.** El plan solo se comprueba al **crear o editar**;
+leer, borrar, enviar y generar PDFs nunca se gatean. Paridad con swift-slate (PR #381).
+
 - [x] Matriz `PLAN_FEATURES` alineada **exactamente** a swift-slate (`src/shared/config/planFeatures.ts`):
   - `basic`: estimates, invoices, employee
-  - `essential`: + requests, walkthrough, jobs, routes (schedule)
-  - `professional`: + crm, time_clock, smart_map (tasks reusa `crm`, ambos professional)
-- [x] Añadidos `FEATURE_NAMES` y `getMinimumPlanForFeature` (paridad swift-slate)
-- [x] **Clients** siempre accesible (sin feature gate) — igual que swift navConfig. Ruta `/clients` sin `requireFeature`
-- [x] **Contracts** conserva su lógica propia de trial (`useContractAccess`), NO entra en la matriz — decisión de negocio confirmada con el usuario
-- [x] Sidebar muestra **todos** los items; los bloqueados llevan candado (Lock) sobre el ícono + texto atenuado y al click navegan a `/subscription-plans` con `state.message` (patrón MoreMenuModal de swift). Ya no se ocultan (eliminado `filterNav`)
-- [x] `SubscriptionPlansPage` muestra banner con el mensaje cuando se llega desde un item bloqueado
-- [x] `ProtectedRoute requireFeature` se mantiene como red de seguridad para URL directa
+  - `essential`: + requests, walkthrough, jobs, routes (schedule), **contracts**
+  - `professional`: + crm, **tasks**, time_clock, smart_map
+  - `tasks` pasó a ser llave propia (antes reusaba `crm`) y `contracts` entró en la matriz: antes
+    estaba en `FeatureKey` pero en ningún array, así que `hasFeatureAccess` daba siempre false y
+    `getMinimumPlanForFeature` devolvía "professional" en vez de "essential".
+- [x] **Clients** y sus propiedades siempre accesibles, sin gate. `crm` queda como llave sin uso real
+- [x] **Sidebar sin candados**: todos los items se ven y navegan igual (se eliminó `isLocked`, el badge
+  `Lock`, el atenuado, la interceptación del click y el esqueleto de carga). El drawer móvil hereda
+  el cambio porque reusa el mismo componente
+- [x] `ProtectedRoute` ya **no** acepta `requireFeature`: solo comprueba si hay suscripción activa
+- [x] `useSubscriptionAccess` (`src/shared/hooks/`) — capa derivada memoizada, con override de
+  desarrollo `VITE_FORCE_PLAN_TIER`
+- [x] `UpgradeGateContext` (`features/subscriptions/context/`) — `requireFeature` / `canUseFeature`,
+  con una sola instancia de `UpgradeRequiredDialog`
+- [x] `WriteGate` + `writeFeatures.ts` — red a nivel de router para las 13 rutas de escritura que
+  siguen alcanzables por deep link
+- [x] 46 gates en 25 archivos: botones de crear, editar desde detalle, conversiones, el quick-create
+  anidado del picker de empleados y el time clock
+- [x] **Contracts alineado**: `ContractsPage` ya no expulsa al usuario; se lee en todos los planes y
+  `requireFeature("contracts")` delega en `useContractAccess`, que conserva la ventana gratuita de
+  Basic hasta `CONTRACT_CUTOFF_DATE`. Las bandas informativas (cuenta atrás ámbar y premium roja) se
+  conservan
+- [x] `FeaturePaywall` eliminado (no tenía consumidores) y `src/config/subscription.config.ts`
+  también (catálogo duplicado sin importadores). `PLANS` se extrajo a
+  `features/subscriptions/config/plans.ts`
+- [x] **Primeros tests del repo** (abre la F17): `planFeatures.test.ts` y
+  `useSubscriptionAccess.test.tsx`, 19 casos que fijan la matriz
+- [ ] ⏳ Pasada manual por tier con `VITE_FORCE_PLAN_TIER` — pendiente
+- [ ] ⏳ Refuerzo en backend: la especificación está en `swift-slate/PLAN_GATING_BACKEND_SPEC.md`.
+  Prerequisito crítico: hoy `profiles.plan_tier` lo escribe el cliente tras la compra, así que
+  cualquier política RLS es derrotable mientras eso siga así
 
 ### Billing (pendiente)
 - [ ] **[DECISIÓN]** Confirmar Stripe Billing para suscripciones web

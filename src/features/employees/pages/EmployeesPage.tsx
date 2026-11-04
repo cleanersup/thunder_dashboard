@@ -26,6 +26,7 @@ import {
   ONBOARDING_STATUS_BADGE,
 } from "../config/onboardingStatus";
 import type { Employee } from "../services/employeesService";
+import { useUpgradeGate } from "@/features/subscriptions/context/UpgradeGateContext";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,7 @@ function getBirthdayToday(employees: Employee[]): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function EmployeesPage() {
+  const { requireFeature } = useUpgradeGate();
   const { data: employees = [], isLoading, refetch } = useAllEmployees();
   const { data: profile } = useProfile();
   const updateStatus = useUpdateEmployeeStatus();
@@ -101,6 +103,7 @@ export function EmployeesPage() {
   }
 
   function openEdit(emp: Employee) {
+    if (!requireFeature("employee")) return;
     setEditEmployee(emp);
     setEditOpen(true);
   }
@@ -197,7 +200,7 @@ export function EmployeesPage() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              <Button className="h-9" onClick={() => setAddOpen(true)}>
+              <Button className="h-9" onClick={() => { if (requireFeature("employee")) setAddOpen(true); }}>
                 <Plus className="w-4 h-4 mr-1" /> Add Employee
               </Button>
             </div>

@@ -46,6 +46,49 @@
 - **No Context para wizard forms** — useState local en la página
 - **Shared**: solo componentes/hooks genuinamente reutilizables entre features van en `src/shared/`
 
+### Gating por plan (obligatorio)
+
+**El menú se muestra completo a todos los planes.** La navegación no depende del tier: el plan solo
+se comprueba cuando el usuario intenta **crear o editar**, y entonces sale `UpgradeRequiredDialog`
+que lleva a `/subscription-plans`. Leer, borrar, enviar y generar PDFs nunca se gatean.
+
+Así se gatea una acción, como primera línea del handler que **inicia** el flujo (abre el modal o
+dispara la conversión), nunca en el guardado:
+
+```ts
+const { requireFeature } = useUpgradeGate();
+
+const openJobForm = (id: string | null) => {
+  if (!requireFeature("jobs")) return;   // abre el diálogo y corta
+  setEditJobId(id);
+  setJobModalOpen(true);
+};
+```
+
+| Pieza | Dónde |
+|---|---|
+| Matriz plan→feature | `shared/config/planFeatures.ts` (`PLAN_FEATURES`, `FEATURE_NAMES`, `hasFeatureAccess`, `getMinimumPlanForFeature`) |
+| Helpers derivados | `shared/hooks/useSubscriptionAccess.ts` — usar este, no la función pura |
+| El gate | `features/subscriptions/context/UpgradeGateContext.tsx` → `requireFeature` / `canUseFeature` |
+| El diálogo | `features/subscriptions/components/UpgradeRequiredDialog.tsx` (una sola instancia, la monta el provider) |
+| Red de ruta | `shared/components/WriteGate.tsx` + `shared/config/writeFeatures.ts` para deep links |
+| Rutas | `ProtectedRoute` solo comprueba "¿tiene alguna suscripción activa?". **No** acepta `requireFeature` |
+
+Reglas:
+- La mayoría de los formularios son `FullScreenModal` abiertos desde la página de lista, así que el
+  gate va en el handler que los abre. `WriteGate` solo cubre las rutas de escritura que quedan.
+- **Contracts** no usa la matriz para decidir: `requireFeature("contracts")` delega en
+  `useContractAccess`, que conserva la ventana gratuita de Basic hasta `CONTRACT_CUTOFF_DATE`.
+- **Clientes y propiedades no se gatean** en ningún plan. La llave `crm` existe por paridad con
+  swift-slate pero no gobierna nada.
+- Al añadir una feature: la llave va a `FeatureKey`, `PLAN_FEATURES` y `FEATURE_NAMES`, con su test
+  en `planFeatures.test.ts`; si tiene ruta de crear/editar, también a `writeFeatures.ts` y la
+  `<Route>` se envuelve en `<WriteGate>`.
+- Para probarlo en dev (donde `VITE_DISABLE_SUBSCRIPTIONS=true` simula professional):
+  `VITE_FORCE_PLAN_TIER=basic npm run dev` (`basic | essential | professional | none`).
+- El gate es **solo de cliente**. La especificación para reforzarlo en backend está en
+  `swift-slate/PLAN_GATING_BACKEND_SPEC.md`.
+
 ### Inputs numéricos
 - **NUNCA usar `<Input type="number">`** — tiene UX inconsistente entre browsers y permite valores inesperados
 - Usar siempre `<Input type="text">` con `inputMode="numeric"` (enteros) o `inputMode="decimal"` (decimales)
@@ -220,7 +263,7 @@ Al hacer submit del form público (`/booking/:userId`):
 | Notifications | `/notifications` | ✅ |
 | Requests | `/requests`, `/requests/new`, `/requests/edit`, `/booking/:userId` (public) | ✅ |
 | Estimates | `/estimates`, `/estimates/new/residential`, `/estimates/new/commercial`, `/public/estimate/:token` | ✅ |
-| Jobs | `/jobs`, `/jobs/new`, `/jobs/:id`, `/jobs/:id/edit` | ✅ |
+| Jobs | `/jobs`, `/jobs/:id` (`FullScreenModal` para create/edit, sin ruta) | ✅ |
 | Invoices | `/invoices`, `/invoices/new`, `/invoices/:id/edit`, `/invoices/:id/preview`, `/invoice/payment/:id` (public) | ✅ |
 | Scheduling | `/create-route`, `/create-route/:id/edit`, `/smart-map` | ✅ |
 | Employees | `/employees` | ✅ |
