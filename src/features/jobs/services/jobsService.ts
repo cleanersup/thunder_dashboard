@@ -400,7 +400,7 @@ export const jobsService = {
    * Updates status of a job.
    * Publishing (draft or scheduled → upcoming or today) sends the confirmation
    * email and SMS. A job dated today is stored as today by the database.
-   * Cancel also calls the status email function.
+   * Cancel and complete also call the status email function.
    */
   async updateStatus(id: string, status: JobStatus): Promise<Job> {
     const { data: current, error: fetchErr } = await db
@@ -423,6 +423,7 @@ export const jobsService = {
 
     const savedStatus = String((data as { status?: string }).status || newStatusDb);
     if (
+      savedStatus === "completed" ||
       newStatusDb === "cancelled" ||
       isJobPublishConfirmation(previousStatus, savedStatus) ||
       isJobReschedule(previousStatus, savedStatus)
